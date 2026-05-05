@@ -448,8 +448,8 @@
     <!-- Campos acceso real -->
     <div id="lm-real-fields" style="display:none">
       <div class="login-field">
-        <label class="login-field-label">Email</label>
-        <input class="login-field-input" id="lm-email" type="email" placeholder="usuario@ejemplo.com" autocomplete="email" />
+        <label class="login-field-label">Usuario</label>
+        <input class="login-field-input" id="lm-email" type="text" placeholder="Ej: Zona 5, DGIECoord" autocomplete="username" />
       </div>
       <div class="login-field">
         <label class="login-field-label">Contraseña</label>
@@ -1893,7 +1893,7 @@ function onLmModeChange(mode){
   const isReal=mode==='real';
   document.getElementById('lm-real-fields').style.display=isReal?'block':'none';
   document.getElementById('lm-demo-fields').style.display=isReal?'none':'block';
-  document.getElementById('lm-sub').textContent=isReal?'Ingresá con tu cuenta':'Seleccioná tu rol y zona para ingresar';
+  document.getElementById('lm-sub').textContent=isReal?'Ingresá con tu usuario y contraseña':'Seleccioná tu rol y zona para ingresar';
   document.getElementById('lm-error').style.display='none';
   const tabDemo=document.getElementById('lm-tab-demo');
   const tabReal=document.getElementById('lm-tab-real');
@@ -1922,14 +1922,15 @@ async function doLmLogin(){
     if(!window.DGIE_DB||!window.DGIE_DB.isConfigured){
       errEl.textContent='Supabase no está configurado.';errEl.style.display='block';return;
     }
-    const email=document.getElementById('lm-email')?.value.trim();
+    const usuario=document.getElementById('lm-email')?.value.trim();
     const password=document.getElementById('lm-password')?.value;
-    if(!email||!password){errEl.textContent='Ingresá email y contraseña.';errEl.style.display='block';return;}
+    if(!usuario||!password){errEl.textContent='Ingresá usuario y contraseña.';errEl.style.display='block';return;}
+    const email=usuario.toLowerCase().replace(/\s+/g,'')+`@dgie.local`;
     const btn=document.getElementById('lm-submit-btn');
     if(btn){btn.disabled=true;btn.textContent='Ingresando...';}
     const {data:authData,error:authError}=await window.DGIE_DB.signIn(email,password);
     if(authError){
-      errEl.textContent=authError.message||'Email o contraseña incorrectos.';errEl.style.display='block';
+      errEl.textContent='Usuario o contraseña incorrectos.';errEl.style.display='block';
       if(btn){btn.disabled=false;btn.textContent='Ingresar →';}
       return;
     }
