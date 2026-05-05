@@ -53,7 +53,7 @@ Resultado: `759`.
 
 La URL publicada en Netlify:
 
-`https://heartfelt-liger-315a6d.netlify.app/`
+`https://dgie.netlify.app/`
 
 todavia muestra la version vieja del login:
 
@@ -87,4 +87,3 @@ Luego en Netlify:
 ## Nota
 
 En esta terminal, `git` no esta disponible en PATH, por eso no se pudo ejecutar `git status` ni `git push` desde Codex.
-

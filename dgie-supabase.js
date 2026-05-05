@@ -44,6 +44,9 @@
     async listarEstablecimientos(){
       return client.from('establecimientos').select('*').order('zona', { ascending:true }).order('nombre', { ascending:true });
     },
+    async actualizarUbicacionEstablecimiento(payload){
+      return client.rpc('actualizar_ubicacion_establecimiento', payload);
+    },
     async listarReclamos(){
       return client.from('reclamos').select('*').order('created_at', { ascending:false });
     },
@@ -52,4 +55,3 @@
     }
   };
 })();
-
