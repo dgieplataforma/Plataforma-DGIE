@@ -2603,68 +2603,8 @@ function _drawLc(id,type,labels,data,colors){
 // ════════════════════════════════════════════════════════════════════
 
 
-// ─── PRE-CARGA RELEVAMIENTOS 50% (para pruebas) ─────────────────────
-(function(){
-  const fechaHoy = new Date().toISOString().slice(0,10).split('-').reverse().join('/').slice(0,8);
-  ESTABS.forEach(e=>{
-    const rubros={};
-    RUBROS_RELEVAMIENTO.forEach(r=>{ rubros[r.key]=50; });
-    RELEVAMIENTOS[e.id]=[{
-      fecha: fechaHoy,
-      inspector: INSPECTORS[e.zona-1]||'Inspector',
-      zona: e.zona,
-      rubros,
-      comentarios: 'Relevamiento inicial de prueba',
-      ts: Date.now()
-    }];
-    // Actualizar estado edilicio
-    e.est = 'Regular';
-  });
-})();
-// ────────────────────────────────────────────────────────────────────
 
 
-// ─── PRE-CARGA RECLAMOS Y OS POR ZONA ─────────────────────────────
-(function(){
-  const rubros=['Sanitarios','Electricidad','Cubierta','Albañilería','Herrería','Pintura','Gas',
-    'Sanitarios','Electricidad','Cubierta','Albañilería','Herrería','Pintura','Gas',
-    'Sanitarios','Electricidad','Cubierta'];
-  const tareas=[
-    'Reparación de instalaciones sanitarias en baños',
-    'Revisión y reparación de instalación eléctrica en aulas',
-    'Impermeabilización y reparación de cubierta con filtraciones',
-    'Reparación de revoques y fisuras en muros exteriores',
-    'Reparación de rejas y puertas metálicas',
-    'Pintura general de fachada y aulas',
-    'Reparación de instalación de gas',
-    'Reparación de sanitarios en planta baja',
-    'Tablero eléctrico y cableado',
-    'Membrana impermeabilizante en terraza',
-    'Reparación de mampostería exterior',
-    'Herrería en ventanas y portones',
-    'Pintura de aulas y pasillos',
-    'Instalación de gas natural',
-    'Sanitarios sector sur',
-    'Iluminación LED en aulas',
-    'Cubierta sector comedor'
-  ];
-  const prios=['alto','medio','critico','alto','medio','bajo','alto','critico','medio','alto','bajo','medio','alto','critico','medio','alto','bajo'];
-
-  for(let z=1;z<=17;z++){
-    const estab=ESTABS.find(e=>Number(e.zona)===z);
-    if(!estab) continue;
-    const rubro=rubros[z-1];
-    const tarea=tareas[z-1];
-    const prio=prios[z-1];
-    const recNum='REC-2025-'+String(z).padStart(4,'0');
-    const osNum='OS-2025-'+String(z).padStart(3,'0');
-    const dia=String(z).padStart(2,'0');
-    const fecha=dia+'/04/25';
-    RECLAMOS_ZONA.push({titulo:tarea,est:estab.n,prio,fecha,os:osNum,estId:estab.id,numero:recNum,rubro,zona:z,reiteradoDe:null,reiteraciones:0});
-    OS_ZONA.push({id:z,numero:osNum,reclamoNumero:recNum,titulo:rubro,est:estab.n,establecimiento:estab.n,tarea,rubro,estado:'Finalizada',fecha,fechaFinalizacion:'30/04/25',monto:'$'+String((z+3)*150000),prio,estId:estab.id,presupuestoItems:[]});
-  }
-})();
-// ────────────────────────────────────────────────────────────────────
 
 
 
