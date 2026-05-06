@@ -52,6 +52,30 @@
     },
     async listarOrdenes(){
       return client.from('ordenes_servicio').select('*').order('created_at', { ascending:false });
+    },
+    async listarPlanos(establecimientoId){
+      return client.from('planos').select('*').eq('establecimiento_id', establecimientoId).order('piso').order('created_at', { ascending: true });
+    },
+    async subirPlano(file, establecimientoId, zona, nombre, piso, tipo, descripcion){
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${establecimientoId}/${Date.now()}_${piso}_${safeName}`;
+      const { error: uploadError } = await client.storage.from('dgie-planos').upload(path, file, { upsert: false });
+      if(uploadError) return { data: null, error: uploadError };
+      const { data: urlData } = client.storage.from('dgie-planos').getPublicUrl(path);
+      return client.from('planos').insert({
+        establecimiento_id: establecimientoId,
+        zona,
+        nombre,
+        piso,
+        tipo,
+        url: urlData.publicUrl,
+        path,
+        descripcion: descripcion || null
+      }).select().single();
+    },
+    async eliminarPlano(id, path){
+      await client.storage.from('dgie-planos').remove([path]);
+      return client.from('planos').delete().eq('id', id);
     }
   };
 })();
