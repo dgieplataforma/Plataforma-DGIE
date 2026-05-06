@@ -2194,12 +2194,8 @@ function renderLcCharts(){
       RUBROS_RELEVAMIENTO.forEach(r=>{ pcts[r.key]=realRubros[r.key]||0; });
       avg=realProm||Math.round(Object.values(pcts).reduce((a,b)=>a+b,0)/RUBROS_RELEVAMIENTO.length);
     } else {
-      // Simular
-      const seed=z*7+13;
-      RUBROS_RELEVAMIENTO.forEach((r,i)=>{
-        pcts[r.key]=Math.max(5,Math.floor(((seed*(i+3))%40)+5));
-      });
-      avg=Math.round(Object.values(pcts).reduce((a,b)=>a+b,0)/RUBROS_RELEVAMIENTO.length);
+      RUBROS_RELEVAMIENTO.forEach(r=>{ pcts[r.key]=0; });
+      avg=0;
     }
 
     // Datos de establecimientos con relevamiento para ranking
@@ -2315,7 +2311,7 @@ function renderLcDetalle(zona){
     const ranked=[...conRel,...sinRel].slice(0,8);
     rankEl.innerHTML=ranked.length?ranked.map((e,i)=>{
       const prom=getPromedioEstab(e.id);
-      const pct=prom!==null?prom:Math.max(15,100-(e.id*3%85));
+      const pct=prom!==null?prom:0;
       const hasReal=prom!==null;
       return `<div class="ranking-row">
         <span class="ranking-num">${i+1}</span>
