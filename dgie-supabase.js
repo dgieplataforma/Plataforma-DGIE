@@ -47,14 +47,56 @@
     async crearEstablecimiento(row){
       return client.from('establecimientos').insert(row).select('*').single();
     },
+    async actualizarEstablecimiento(id, row){
+      return client.from('establecimientos').update(row).eq('id', id).select('*').single();
+    },
+    async eliminarEstablecimiento(id){
+      return client.from('establecimientos').delete().eq('id', id);
+    },
     async actualizarUbicacionEstablecimiento(payload){
       return client.rpc('actualizar_ubicacion_establecimiento', payload);
     },
     async listarReclamos(){
       return client.from('reclamos').select('*').order('created_at', { ascending:false });
     },
+    async crearReclamo(row){
+      return client.from('reclamos').insert(row).select('*').single();
+    },
+    async actualizarReclamo(id, row){
+      return client.from('reclamos').update(row).eq('id', id).select('*').single();
+    },
     async listarOrdenes(){
       return client.from('ordenes_servicio').select('*').order('created_at', { ascending:false });
+    },
+    async crearOrden(row){
+      return client.from('ordenes_servicio').insert(row).select('*').single();
+    },
+    async actualizarOrden(id, row){
+      return client.from('ordenes_servicio').update(row).eq('id', id).select('*').single();
+    },
+    async listarIntervenciones(){
+      return client.from('intervenciones').select('*').order('created_at', { ascending:false });
+    },
+    async crearIntervencion(row){
+      return client.from('intervenciones').insert(row).select('*').single();
+    },
+    async listarRelevamientos(){
+      return client.from('relevamientos').select('*').order('created_at', { ascending:false });
+    },
+    async crearRelevamiento(row){
+      return client.from('relevamientos').insert(row).select('*').single();
+    },
+    async listarComunicaciones(){
+      return client.from('comunicaciones').select('*').order('created_at', { ascending:false });
+    },
+    async crearComunicacion(row){
+      return client.from('comunicaciones').insert(row).select('*').single();
+    },
+    async actualizarComunicacion(id, row){
+      return client.from('comunicaciones').update(row).eq('id', id).select('*').single();
+    },
+    async eliminarTodasComunicaciones(){
+      return client.from('comunicaciones').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     },
     async listarPlanos(establecimientoId){
       return client.from('planos').select('*').eq('establecimiento_id', establecimientoId).order('piso').order('created_at', { ascending: true });

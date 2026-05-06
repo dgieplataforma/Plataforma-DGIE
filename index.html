@@ -105,6 +105,10 @@
 .ranking-name{flex:1;color:#334155;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ranking-bar-mini{width:60px;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;flex-shrink:0}
 .ranking-bar-fill{height:100%;border-radius:3px;background:#e24b4a}
+#lm-ranking-list{max-height:300px;overflow-y:auto;padding-right:6px}
+#lm-ranking-list::-webkit-scrollbar{width:8px}
+#lm-ranking-list::-webkit-scrollbar-track{background:#eef2f7;border-radius:999px}
+#lm-ranking-list::-webkit-scrollbar-thumb{background:#b6c6d9;border-radius:999px}
 .rubro-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .rubro-bar-lbl{font-size:11px;color:#334155;width:90px;flex-shrink:0;font-weight:600}
 .rubro-bar-track{flex:1;height:10px;background:#f1f5f9;border-radius:4px;overflow:hidden}
@@ -485,6 +489,7 @@ const ESTABS=[{"id":1,"zona":1,"n":"ESCUELA DR. ALEJANDRO GALLARDO","cue":"14000
 // zonas ya asignadas correctamente desde Excel
 const RECLAMOS_ZONA=[];
 const OS_ZONA=[];
+const COMUNICACIONES=[];
 let currentUser=null,selectedZona=null,selectedDir=null,selectedEmpresa=null,_reclamoCounter=0,chartInstances={},currentFichaId=null,currentPresupuestoItems=[];
 const BUDGET_ITEMS=[
 ["1.1","Cubierta c/ perlitas poliestireno expandido sobre losa plana","m²",1.07,"CUBIERTA DE TECHOS",""],["1.2","Cubierta C/ Perlitas Poliestireno. Exp. y Membrana Geotextil s/ losa plana","m²",1.234,"CUBIERTA DE TECHOS",""],["1.6","Cubierta de chapa sobre losa inclinada","m²",1.48,"CUBIERTA DE TECHOS",""],["1.11","Limpieza e hidrolavado/hidroarenado","m²",0.05,"CUBIERTA DE TECHOS",""],["1.13","Barrido y limpieza de cubierta","m²",0.01,"CUBIERTA DE TECHOS",""],["1.22","Sellado de grietas y fisuras","ml",0.239,"CUBIERTA DE TECHOS",""],["1.25","Reposición de chapas","m²",1.547,"CUBIERTA DE TECHOS",""],["1.31","Impermeabilización c/ membrana asfáltica c/ aluminio 4mm","m²",0.686,"CUBIERTA DE TECHOS",""],["1.34","Confección de planos","Gl",1,"CUBIERTA DE TECHOS",""],["2.1.1","Cable unipolar 1.5 mm²","ml",0.008,"INSTALACION ELECTRICA","MATERIALES"],["2.1.2","Cable unipolar 2.5 mm²","ml",0.011,"INSTALACION ELECTRICA","MATERIALES"],["2.1.3","Cable unipolar 4 mm²","ml",0.018,"INSTALACION ELECTRICA","MATERIALES"],["2.1.4","Cable unipolar 6 mm²","ml",0.027,"INSTALACION ELECTRICA","MATERIALES"],["2.1.7","Cable tipo taller 2x1 mm²","ml",0.011,"INSTALACION ELECTRICA","MATERIALES"],["2.1.22","Tablero de embutir 24 bocas","ud",0.779,"INSTALACION ELECTRICA","MATERIALES"],["2.1.38","Interruptor termomagnético bipolar 16A","ud",0.14,"INSTALACION ELECTRICA","MATERIALES"],["2.1.41","Interruptor diferencial bipolar 25A 30mA","ud",0.399,"INSTALACION ELECTRICA","MATERIALES"],["2.3.1","Artefacto LED plafón c/ louver c/ tubos 2x25W","ud",0.793,"INSTALACION ELECTRICA","ARTEFACTOS"],["2.3.2","Reflector exterior IP65 LED 50W","ud",0.882,"INSTALACION ELECTRICA","ARTEFACTOS"],["2.3.3","Ventilador metálico de pared 4 palas diámetro 25 pulgadas","ud",1.857,"INSTALACION ELECTRICA","ARTEFACTOS"],["2.3.4","Tomacorrientes dobles 15A","ud",0.037,"INSTALACION ELECTRICA","ARTEFACTOS"],["2.2.1","Oficial Especializado","Hs",0.168,"INSTALACION ELECTRICA","MANO DE OBRA"],["2.2.2","Ayudante","Hs",0.122,"INSTALACION ELECTRICA","MANO DE OBRA"],["3.1.6","Demolición de revoques comunes y estucados","m²",0.053,"PINTURA-ALBAÑILERÍA-HERRERÍA","DEMOLICION"],["3.1.7","Demolición de muros de ladrillos","m²",0.053,"PINTURA-ALBAÑILERÍA-HERRERÍA","DEMOLICION"],["3.1.8","Demolición de pisos de mosaicos calcáreos y/o graníticos","m²",0.101,"PINTURA-ALBAÑILERÍA-HERRERÍA","DEMOLICION"],["3.2.1","Cegado de pozo absorvente","gl",3.222,"PINTURA-ALBAÑILERÍA-HERRERÍA","TRABAJOS PREPARATORIOS"],["3.2.2","Cercado de seguridad/ armado y desarmado de andamio","gl",1.505,"PINTURA-ALBAÑILERÍA-HERRERÍA","TRABAJOS PREPARATORIOS"],["3.2.6","Limpieza de terreno","m²",0.01,"PINTURA-ALBAÑILERÍA-HERRERÍA","TRABAJOS PREPARATORIOS"],["3.3.1","Mampostería ladrillo común 0.15","m²",0.215,"PINTURA-ALBAÑILERÍA-HERRERÍA","ALBAÑILERÍA"],["3.3.5","Revoque grueso y fino a la cal exterior","m²",0.199,"PINTURA-ALBAÑILERÍA-HERRERÍA","ALBAÑILERÍA"],["3.3.8","Carpeta cementicia hidrófuga","m²",0.21,"PINTURA-ALBAÑILERÍA-HERRERÍA","ALBAÑILERÍA"],["3.4.1","Pintura látex interior","m²",0.063,"PINTURA-ALBAÑILERÍA-HERRERÍA","PINTURA"],["3.4.2","Pintura látex exterior","m²",0.078,"PINTURA-ALBAÑILERÍA-HERRERÍA","PINTURA"],["3.4.7","Pintura esmalte sintético sobre metal","m²",0.094,"PINTURA-ALBAÑILERÍA-HERRERÍA","PINTURA"],["3.5.1","Reparación de puerta metálica","m²",0.812,"PINTURA-ALBAÑILERÍA-HERRERÍA","HERRERÍA"],["3.5.4","Colocación de rejas metálicas","m²",1.23,"PINTURA-ALBAÑILERÍA-HERRERÍA","HERRERÍA"],["4.1.1","Caño PVC cloacal Ø110","ml",0.127,"INSTALACION SANITARIA","DESAGÜES CLOACALES"],["4.1.2","Caño PVC cloacal Ø63","ml",0.082,"INSTALACION SANITARIA","DESAGÜES CLOACALES"],["4.1.5","Cámara de inspección 60x60","ud",1.474,"INSTALACION SANITARIA","DESAGÜES CLOACALES"],["4.1.8","Desobstrucción de cañerías cloacales","ml",0.108,"INSTALACION SANITARIA","DESAGÜES CLOACALES"],["4.2.1","Caño termofusión 1/2 pulgada","ml",0.058,"INSTALACION SANITARIA","AGUA FRÍA/CALIENTE"],["4.2.2","Caño termofusión 3/4 pulgada","ml",0.075,"INSTALACION SANITARIA","AGUA FRÍA/CALIENTE"],["4.2.5","Llave de paso 3/4 pulgada","ud",0.148,"INSTALACION SANITARIA","AGUA FRÍA/CALIENTE"],["4.3.1","Inodoro pedestal","ud",1.118,"INSTALACION SANITARIA","ARTEFACTOS"],["4.3.2","Mochila para inodoro","ud",0.518,"INSTALACION SANITARIA","ARTEFACTOS"],["4.3.5","Bacha lavatorio","ud",0.562,"INSTALACION SANITARIA","ARTEFACTOS"],["4.3.8","Grifería para lavatorio","ud",0.338,"INSTALACION SANITARIA","ARTEFACTOS"],["4.4.1","Oficial Especializado","Hs",0.168,"INSTALACION SANITARIA","MANO DE OBRA"],["4.4.2","Ayudante","Hs",0.122,"INSTALACION SANITARIA","MANO DE OBRA"],["5.1.1","Caño epoxi gas 1/2 pulgada","ml",0.108,"INSTALACION DE GAS","MATERIALES"],["5.1.2","Caño epoxi gas 3/4 pulgada","ml",0.146,"INSTALACION DE GAS","MATERIALES"],["5.1.8","Llave de paso gas aprobada","ud",0.338,"INSTALACION DE GAS","MATERIALES"],["5.1.14","Prueba de hermeticidad","gl",1,"INSTALACION DE GAS","MATERIALES"],["5.2.1","Oficial Especializado","Hs",0.168,"INSTALACION DE GAS","MANO DE OBRA"],["5.2.2","Ayudante","Hs",0.122,"INSTALACION DE GAS","MANO DE OBRA"]
@@ -650,7 +655,7 @@ function actualizarPromedioLive(){
   }
 }
 
-function guardarRelevamiento(estId){
+async function guardarRelevamiento(estId){
   const fechaEl = document.getElementById('rel-fecha');
   if(!fechaEl?.value){ document.getElementById('rel-error').style.display='block'; return; }
   const rubros={};
@@ -658,18 +663,35 @@ function guardarRelevamiento(estId){
   const comentarios = document.getElementById('rel-comentarios')?.value.trim()||'';
   const fechaISO = fechaEl.value;
   const fecha = fechaISO.split('-').reverse().join('/').slice(0,8);
-  if(!RELEVAMIENTOS[estId]) RELEVAMIENTOS[estId]=[];
-  RELEVAMIENTOS[estId].push({
+  const zona=Number(currentUser?.zona||zonaEstablecimiento(estId)||1);
+  const promedio=Math.round(Object.values(rubros).reduce((a,b)=>a+Number(b||0),0)/RUBROS_RELEVAMIENTO.length);
+  const relLocal={
     fecha, inspector:currentUser?.name||'Inspector',
-    zona:currentUser?.zona||1, rubros, comentarios,
+    zona, rubros, comentarios,
     ts: Date.now()
-  });
+  };
+  if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){
+    const {error}=await window.DGIE_DB.crearRelevamiento({
+      establecimiento_id:estId,
+      zona,
+      datos:{fecha:fechaISO,inspector:relLocal.inspector,rubros,comentarios},
+      promedio
+    });
+    if(error){
+      const err=document.getElementById('rel-error');
+      if(err){err.textContent='No se pudo guardar en Supabase: '+error.message;err.style.display='block';}
+      return;
+    }
+  }
+  if(!RELEVAMIENTOS[estId]) RELEVAMIENTOS[estId]=[];
+  RELEVAMIENTOS[estId].push(relLocal);
   // Actualizar estado edilicio del establecimiento según promedio
   const prom = getPromedioEstab(estId);
   const estab = ESTABS.find(e=>e.id===estId);
   if(estab && prom!==null){
     estab.est = prom>=70?'Bueno':prom>=40?'Regular':'Crítico';
   }
+  saveAppState&&saveAppState();
   switchFichaTab(4);
   setTimeout(()=>{ if(typeof renderLcCharts==='function'&&window._lcZonaData) renderLcCharts(); },300);
 }
@@ -849,13 +871,14 @@ function renderAdministracion(container){
       <button class="dashboard-tab active" id="adm-tab-empresas" onclick="switchAdmTab('empresas')">Datos de empresas</button>
       <button class="dashboard-tab" id="adm-tab-inspectores" onclick="switchAdmTab('inspectores')">Datos de inspectores</button>
       <button class="dashboard-tab" id="adm-tab-estabs" onclick="switchAdmTab('estabs')">Establecimientos</button>
+      <button class="dashboard-tab" id="adm-tab-sistema" onclick="switchAdmTab('sistema')">Sistema</button>
     </div>
     <div id="adm-body"></div>`;
   switchAdmTab('empresas');
 }
 
 function switchAdmTab(tab){
-  ['empresas','inspectores','estabs'].forEach(t=>{
+  ['empresas','inspectores','estabs','sistema'].forEach(t=>{
     const el=document.getElementById('adm-tab-'+t);
     if(el) el.classList.toggle('active', t===tab);
   });
@@ -863,9 +886,23 @@ function switchAdmTab(tab){
   if(!body) return;
   if(tab==='empresas') renderAdmEmpresas(body);
   else if(tab==='inspectores') renderAdmInspectores(body);
+  else if(tab==='sistema') renderAdmSistema(body);
   else renderAdmEstablecimientos(body);
 }
 
+function renderAdmSistema(container){
+  container.innerHTML=`
+    <div class="card">
+      <div class="card-header"><div class="card-title">Limpieza de datos</div></div>
+      <div style="display:grid;gap:14px">
+        <div style="border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff8f0">
+          <div style="font-weight:900;color:#92400e;margin-bottom:6px">Comunicaciones</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Borra permanentemente todas las comunicaciones, tareas y encuestas. Irreversible.</div>
+          <button class="primary-btn" style="background:#c62828;border-color:#c62828" onclick="limpiarComunicaciones()">Borrar todas las comunicaciones</button>
+        </div>
+      </div>
+    </div>`;
+}
 function renderAdmEmpresas(container){
   container.innerHTML=`
     <div class="card">
@@ -1074,7 +1111,15 @@ function renderAdmEstabList(data){
 
 function actualizarEstadoEstab(id, estado){
   const e=ESTABS.find(x=>x.id===id);
-  if(e){ e.est=estado; filterAdmEstabs(); }
+  if(e){
+    e.est=estado;
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarEstablecimiento==='function'){
+      window.DGIE_DB.actualizarEstablecimiento(id,{estado}).then(({error})=>{
+        if(error)alert('No se pudo actualizar en Supabase: '+error.message);
+      });
+    }
+    filterAdmEstabs();
+  }
 }
 
 function nextEstabId(){
@@ -1216,13 +1261,14 @@ function openEditEstab(id){
           <input class="form-input" id="est-cue" value="${e.cue||''}"/></div>
       </div>
       <div class="modal-actions">
+        <button class="secondary-btn" style="color:var(--danger);border-color:var(--danger);margin-right:auto" onclick="eliminarEstab(${id})">Eliminar</button>
         <button class="secondary-btn" onclick="switchAdmTab('estabs')">Cancelar</button>
         <button class="primary-btn" onclick="guardarEstab(${id})">Guardar cambios</button>
       </div>
     </div>`;
 }
 
-function guardarEstab(id){
+async function guardarEstab(id){
   const e=ESTABS.find(x=>x.id===id);
   if(!e) return;
   e.n=document.getElementById('est-nombre')?.value.trim()||e.n;
@@ -1231,6 +1277,28 @@ function guardarEstab(id){
   e.nivel=document.getElementById('est-nivel')?.value||e.nivel;
   e.est=document.getElementById('est-estado')?.value||e.est;
   e.cue=document.getElementById('est-cue')?.value.trim()||e.cue;
+  if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarEstablecimiento==='function'){
+    const {error}=await window.DGIE_DB.actualizarEstablecimiento(id,{
+      nombre:e.n,
+      direccion:e.dir||null,
+      barrio:e.barrio||null,
+      nivel:e.nivel,
+      estado:e.est,
+      cue:e.cue||null
+    });
+    if(error){alert('No se pudo guardar en Supabase: '+error.message);return;}
+  }
+  switchAdmTab('estabs');
+}
+async function eliminarEstab(id){
+  const e=ESTABS.find(x=>x.id===id);
+  if(!e||!confirm('¿Eliminar este establecimiento de la plataforma?'))return;
+  if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarEstablecimiento==='function'){
+    const {error}=await window.DGIE_DB.eliminarEstablecimiento(id);
+    if(error){alert('No se pudo eliminar en Supabase: '+error.message);return;}
+  }
+  const idx=ESTABS.findIndex(x=>x.id===id);
+  if(idx>=0)ESTABS.splice(idx,1);
   switchAdmTab('estabs');
 }
 // ────────────────────────────────────────────────────────────────────
@@ -1521,7 +1589,7 @@ function proximoNumeroReclamo(){
   _reclamoCounter++;
   return 'REC-' + new Date().getFullYear() + '-' + String(_reclamoCounter).padStart(4,'0');
 }
-function prepareNuevoReclamoForm(estId=null){const sel=$('modal-nr-establecimiento')||$('nr-establecimiento');if(sel)sel.innerHTML=ESTABS.map(e=>`<option value="${e.id}" ${estId===e.id?'selected':''}>${e.n} · Zona ${zonaEstablecimiento(e.id)}</option>`).join('');if($('nr-numero'))$('nr-numero').value=proximoNumeroReclamo();if($('nr-prioridad'))$('nr-prioridad').value='medio';if($('nr-rubro'))$('nr-rubro').value='Sanitarios';if($('nr-fecha'))$('nr-fecha').value=new Date().toISOString().slice(0,10);if($('nr-mensaje'))$('nr-mensaje').value='';if($('nr-error'))$('nr-error').style.display='none';actualizarZonaNuevoReclamo();actualizarReclamosAnteriores();}
+function prepareNuevoReclamoForm(estId=null){const sel=$('modal-nr-establecimiento')||$('nr-establecimiento');if(sel)sel.innerHTML=ESTABS.map(e=>`<option value="${e.id}" ${estId===e.id?'selected':''}>${e.n} · Zona ${zonaEstablecimiento(e.id)}</option>`).join('');if($('nr-numero'))$('nr-numero').value='';if($('nr-prioridad'))$('nr-prioridad').value='medio';if($('nr-rubro'))$('nr-rubro').value='Sanitarios';if($('nr-fecha'))$('nr-fecha').value=new Date().toISOString().slice(0,10);if($('nr-mensaje'))$('nr-mensaje').value='';if($('nr-error'))$('nr-error').style.display='none';actualizarZonaNuevoReclamo();actualizarReclamosAnteriores();}
 
 function guardarNuevoReclamoModal(){
   const estId=Number($('modal-nr-establecimiento')?.value||0);
@@ -1531,14 +1599,14 @@ function guardarNuevoReclamoModal(){
   const rubro=$('modal-nr-rubro')?.value;
   const fechaISO=$('modal-nr-fecha')?.value;
   const mensaje=$('modal-nr-mensaje')?.value.trim();
-  if(!est||!mensaje){
+  if(!est||!numero||!mensaje){
     if($('modal-nr-error')) $('modal-nr-error').style.display='block';
     return;
   }
   const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');
   RECLAMOS_ZONA.unshift({
     titulo:mensaje, est:est.n, prio, fecha, os:'Sin OS',
-    estId, numero:numero||proximoNumeroReclamo(), rubro,
+    estId, numero, rubro,
     zona:zonaEstablecimiento(estId), reiteradoDe:null, reiteraciones:0
   });
   closeNuevoReclamo();
@@ -1548,7 +1616,7 @@ function guardarNuevoReclamoModal(){
 function prepareModalReclamoForm(estId=null){
   const sel=$('modal-nr-establecimiento');
   if(sel) sel.innerHTML=ESTABS.map(e=>`<option value="${e.id}" ${estId===e.id?'selected':''}>${e.n} · Zona ${zonaEstablecimiento(e.id)}</option>`).join('');
-  if($('modal-nr-numero')) $('modal-nr-numero').value=proximoNumeroReclamo();
+  if($('modal-nr-numero')) $('modal-nr-numero').value='';
   if($('modal-nr-prioridad')) $('modal-nr-prioridad').value='medio';
   if($('modal-nr-rubro')) $('modal-nr-rubro').value='Sanitarios';
   if($('modal-nr-fecha')) $('modal-nr-fecha').value=new Date().toISOString().slice(0,10);
@@ -1625,9 +1693,6 @@ function onReiteradoChange(){
   const numeroAnterior=sel.value;
   if(!numeroAnterior){
     info.style.display='none';
-    // Nuevo número fresco
-    const numEl=document.getElementById('nr-numero');
-    if(numEl) numEl.value=proximoNumeroReclamo();
     return;
   }
   // Es reiterado — mostrar info del reclamo anterior
@@ -1640,9 +1705,6 @@ function onReiteradoChange(){
       <strong>Descripción:</strong> ${anterior.titulo}`;
     // Pre-llenar rubro del anterior
     if(rubroField&&anterior.rubro) rubroField.value=anterior.rubro;
-    // El número nuevo es secuencial igual, marcado como reiterado
-    const numEl=document.getElementById('nr-numero');
-    if(numEl) numEl.value=proximoNumeroReclamo();
   }
 }
 function actualizarZonaNuevoReclamo(){
@@ -1653,7 +1715,6 @@ function actualizarZonaNuevoReclamo(){
   if(document.getElementById('nr-zona-asignada'))
     document.getElementById('nr-zona-asignada').textContent='Se asignará a Zona '+z+' · '+inspector;
 }function renderCallCenterNuevoReclamo(){return `<div class="section-label">Call Center · Carga de reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Nuevo reclamo</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El reclamo se deriva automáticamente a la zona correspondiente según el establecimiento seleccionado.</div></div></div>${renderNuevoReclamoFormInline()}</div>`}function renderNuevoReclamoFormInline(){
-  const numReclamo = proximoNumeroReclamo();
   const hoy = new Date().toISOString().slice(0,10);
   return `
   <div class="form-grid">
@@ -1681,7 +1742,7 @@ function actualizarZonaNuevoReclamo(){
     </div>
     <div class="form-field">
       <label class="form-label">Número de reclamo</label>
-      <input class="form-input" id="nr-numero" value="${numReclamo}" readonly style="background:#f1f5f9;color:#64748b"/>
+      <input class="form-input" id="nr-numero" placeholder="Ingresar número de reclamo"/>
     </div>
     <div class="form-field">
       <label class="form-label">Prioridad</label>
@@ -1730,8 +1791,8 @@ function actualizarZonaNuevoReclamo(){
   const fechaISO=$('nr-fecha')?.value;
   const mensaje=$('nr-mensaje')?.value.trim();
   const reclamoAnterior=$('nr-reclamo-anterior')?.value||'';
-  if(!est||!mensaje){
-    if($('nr-error'))$('nr-error').style.display='block';
+  if(!est||!numero||!mensaje){
+    if($('nr-error')){$('nr-error').textContent='Completá establecimiento, número de reclamo y descripción.';$('nr-error').style.display='block';}
     return;
   }
   const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');
@@ -1743,7 +1804,7 @@ function actualizarZonaNuevoReclamo(){
     prio,fecha,
     os:'Sin OS',
     estId,
-    numero:numero||proximoNumeroReclamo(),
+    numero,
     rubro,
     zona:zonaEstablecimiento(estId),
     reiteradoDe:reclamoAnterior||null,
@@ -1850,7 +1911,7 @@ const INTERVENCIONES=[];
 function renderIntervencionesFicha(){const e=ESTABS.find(x=>x.id===currentFichaId);const data=INTERVENCIONES.filter(x=>x.estId===currentFichaId);return `<div class="card-header"><div><div class="card-title">Intervenciones en curso</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Carga de avances realizada por el inspector de zona.</div></div>${canEdit()?'<button class="primary-btn" onclick="openNuevaIntervencion()">+ Nueva intervención</button>':'' }</div>${data.length?data.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin intervenciones cargadas para este establecimiento</div>'}`}
 function renderIntervencionCard(it){const est=ESTABS.find(e=>e.id===it.estId);return `<div class="intervencion-card" onclick="verDetalleIntervencion(${it.id})"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-weight:900;color:#123c69">${est?.n||'Establecimiento'}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${it.fecha} · Zona ${it.zona} · ${it.inspector}</div></div><span class="badge b-info">${it.avance}%</span></div><div style="font-size:14px;margin-top:10px;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${Array.from({length:it.fotos},(_,i)=>`<div class="intervencion-photo">Foto ${i+1}</div>`).join('')}</div></div>`}
 function openNuevaIntervencion(){const e=ESTABS.find(x=>x.id===currentFichaId);const fb=$('ficha-body');if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="switchFichaTab(3)">‹ Volver a intervenciones</button><div class="card-header"><div><div class="card-title">Nueva intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${e.n}</div></div></div><div class="form-grid"><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="int-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-field"><label class="form-label">Porcentaje de avance</label><input class="form-input" id="int-avance" type="number" min="0" max="100" value="50"></div><div class="form-field full"><label class="form-label">Intervención realizada / en curso</label><textarea class="form-textarea" id="int-desc" placeholder="Describir brevemente la intervención que se está realizando..."></textarea></div><div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="int-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">En el prototipo se registra la cantidad de fotos seleccionadas.</div></div></div><div class="form-error" id="int-error">Completá descripción y porcentaje de avance.</div><div class="modal-actions"><button class="secondary-btn" onclick="switchFichaTab(3)">Cancelar</button><button class="primary-btn" onclick="guardarIntervencion()">Guardar intervención</button></div>`}
-function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');const fotos=$('int-fotos')?.files?.length||0;const z=currentUser?.zona||zonaEstablecimiento(currentFichaId);INTERVENCIONES.unshift({id:Math.max(0,...INTERVENCIONES.map(x=>x.id))+1,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos});switchFichaTab(3)}
+async function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');const fotos=$('int-fotos')?.files?.length||0;const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);let remoteId=null;if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10)});if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar en Supabase: '+error.message;$('int-error').style.display='block';}return}remoteId=data?.id||null}INTERVENCIONES.unshift({id:Date.now(),remoteId,_remoteSaved:!!remoteId,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos});saveAppState&&saveAppState();switchFichaTab(3)}
 function verDetalleIntervencion(id){const it=INTERVENCIONES.find(x=>x.id===id);const est=ESTABS.find(e=>e.id===it?.estId);const fb=$('ficha-body')||$('main-content');if(!it||!fb)return;fb.innerHTML=`<button class="back-btn" onclick="${currentUser?.role==='inspector'?'switchFichaTab(3)':'renderIntervencionesDireccion($(\'main-content\'))'}">‹ Volver</button><div class="card-header"><div><div class="card-title">Detalle de intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${est?.n||'Establecimiento'} · Zona ${it.zona}</div></div><span class="badge b-info">${it.avance}% avance</span></div><div class="ficha-datos"><div class="ficha-dato"><div class="ficha-dato-lbl">Fecha</div><div class="ficha-dato-val">${it.fecha}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Inspector</div><div class="ficha-dato-val">${it.inspector}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Establecimiento</div><div class="ficha-dato-val">${est?.n||'—'}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Avance</div><div class="ficha-dato-val">${it.avance}%</div></div></div><div style="margin-top:14px;font-size:15px;line-height:1.5;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${Array.from({length:it.fotos},(_,i)=>`<div class="intervencion-photo">Foto ${i+1}</div>`).join('')||'<div style="font-size:13px;color:var(--muted)">Sin fotos cargadas</div>'}</div>`}
 function renderIntervencionesDireccion(container){const data=[...INTERVENCIONES].sort((a,b)=>b.id-a.id);container.innerHTML=`<div class="section-label">Dirección · Intervenciones por inspector</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones actualizadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado de avances cargados por los inspectores en las fichas de establecimientos.</div></div><span class="badge b-info">${data.length} intervenciones</span></div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list"></div></div>`;renderIntervencionesDireccionList(data)}
 function filterIntervencionesDireccion(){const z=$('int-dir-zona')?.value||'',q=($('int-dir-search')?.value||'').toLowerCase();const data=INTERVENCIONES.filter(it=>{const est=ESTABS.find(e=>e.id===it.estId);return (!z||String(it.zona)===z)&&(`${est?.n||''} ${it.inspector} ${it.descripcion}`.toLowerCase().includes(q))}).sort((a,b)=>b.id-a.id);renderIntervencionesDireccionList(data)}
@@ -2308,7 +2369,7 @@ function renderLcDetalle(zona){
     // Ordenar: primero los que tienen relevamiento real (por promedio desc), luego el resto
     const conRel=base.filter(e=>e.tieneRel||getUltimoRelevamiento(e.id)).sort((a,b)=>(b.prom||0)-(a.prom||0));
     const sinRel=base.filter(e=>!e.tieneRel&&!getUltimoRelevamiento(e.id));
-    const ranked=[...conRel,...sinRel].slice(0,8);
+    const ranked=[...conRel,...sinRel];
     rankEl.innerHTML=ranked.length?ranked.map((e,i)=>{
       const prom=getPromedioEstab(e.id);
       const pct=prom!==null?prom:0;
@@ -2554,12 +2615,80 @@ function _drawLc(id,type,labels,data,colors){
 // ════════════════════════════════════════════════════════════════════
 const APP_STORAGE_KEY='plataforma_infra_produccion_state';
 try{localStorage.removeItem('plataforma_infra_v2_state');}catch(e){}
-function normalizarFechaCorta(fechaISO){return fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});} 
+function normalizarFechaCorta(fechaISO){if(!fechaISO)return new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});const iso=String(fechaISO).slice(0,10);return iso.split('-').reverse().join('/').slice(0,8);} 
+function fechaLocalAISO(fecha){
+  if(!fecha)return new Date().toISOString().slice(0,10);
+  const s=String(fecha).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(!m)return new Date().toISOString().slice(0,10);
+  const y=m[3].length===2?'20'+m[3]:m[3];
+  return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+}
+function presupuestoOSParaDB(o){
+  if(Array.isArray(o?.presupuestoItems))return o.presupuestoItems;
+  return [];
+}
+async function persistirReclamoSupabase(r){
+  if(!r||r._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearReclamo!=='function')return;
+  const {data,error}=await window.DGIE_DB.crearReclamo({
+    numero:r.numero,
+    establecimiento_id:Number(r.estId)||null,
+    zona:Number(r.zona||zonaEstablecimiento(r.estId)||1),
+    titulo:r.titulo||'Reclamo',
+    descripcion:r.descripcion||r.titulo||null,
+    prioridad:r.prio||'medio',
+    rubro:r.rubro||null,
+    fecha:fechaLocalAISO(r.fecha)
+  });
+  if(error){console.warn('No se pudo guardar reclamo en Supabase',error);return;}
+  r.remoteId=data?.id||r.remoteId;
+  r._remoteSaved=true;
+}
+async function persistirOrdenSupabase(o){
+  if(!o||o._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearOrden!=='function')return;
+  const estado=estadoOSCanon(o.estado);
+  const {data,error}=await window.DGIE_DB.crearOrden({
+    numero:o.numero,
+    reclamo_numero:o.reclamoNumero||null,
+    establecimiento_id:Number(o.estId)||null,
+    zona:Number(o.zona||zonaEstablecimiento(o.estId)||1),
+    rubro:o.rubro||o.titulo||null,
+    tarea:o.tarea||o.titulo||'Orden de servicio',
+    prioridad:o.prio||'medio',
+    estado,
+    fecha_envio:fechaLocalAISO(o.fecha),
+    fecha_finalizacion:estado==='finalizado'?fechaLocalAISO(o.fechaFinalizacion):null,
+    monto:o.monto||null,
+    presupuesto:presupuestoOSParaDB(o)
+  });
+  if(error){console.warn('No se pudo guardar orden en Supabase',error);return;}
+  o.remoteId=data?.id||o.remoteId;
+  o._remoteSaved=true;
+}
+async function actualizarOrdenSupabase(o){
+  if(!o||!o._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.actualizarOrden!=='function')return;
+  const estado=estadoOSCanon(o.estado);
+  const {error}=await window.DGIE_DB.actualizarOrden(o.remoteId||o.id,{
+    establecimiento_id:Number(o.estId)||null,
+    zona:Number(o.zona||zonaEstablecimiento(o.estId)||1),
+    rubro:o.rubro||o.titulo||null,
+    tarea:o.tarea||o.titulo||'Orden de servicio',
+    prioridad:o.prio||'medio',
+    estado,
+    fecha_envio:fechaLocalAISO(o.fecha),
+    fecha_finalizacion:estado==='finalizado'?fechaLocalAISO(o.fechaFinalizacion):null,
+    monto:o.monto||null,
+    presupuesto:presupuestoOSParaDB(o),
+    updated_at:new Date().toISOString()
+  });
+  if(error)console.warn('No se pudo actualizar orden en Supabase',error);
+}
 function getRubroOS(o){return o?.rubro||o?.titulo||'Otro'}
 function getPrioLabel(p){return ({critico:'Crítico',alto:'Alto',medio:'Medio',bajo:'Bajo'}[p]||p||'Sin prioridad')}
 function getEstadoOS(o){return o?.estado||'Pendiente'}
-function saveAppState(){try{localStorage.setItem(APP_STORAGE_KEY,JSON.stringify({reclamos:RECLAMOS_ZONA,ordenes:OS_ZONA,relevamientos:RELEVAMIENTOS,counter:_reclamoCounter,ts:Date.now()}));}catch(e){console.warn('No se pudo guardar estado local',e)}}
-function loadAppState(){try{const raw=localStorage.getItem(APP_STORAGE_KEY);if(!raw)return;const st=JSON.parse(raw);if(Array.isArray(st.reclamos)){RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...st.reclamos)}if(Array.isArray(st.ordenes)){OS_ZONA.splice(0,OS_ZONA.length,...st.ordenes)}if(st.relevamientos&&typeof st.relevamientos==='object'){Object.keys(st.relevamientos).forEach(k=>RELEVAMIENTOS[k]=st.relevamientos[k])}_reclamoCounter=Number(st.counter||RECLAMOS_ZONA.length||0);}catch(e){console.warn('No se pudo cargar estado local',e)}}
+function saveAppState(){try{localStorage.setItem(APP_STORAGE_KEY,JSON.stringify({reclamos:RECLAMOS_ZONA,ordenes:OS_ZONA,intervenciones:INTERVENCIONES,comunicaciones:COMUNICACIONES,relevamientos:RELEVAMIENTOS,counter:_reclamoCounter,ts:Date.now()}));}catch(e){console.warn('No se pudo guardar estado local',e)}}
+function loadAppState(){try{const raw=localStorage.getItem(APP_STORAGE_KEY);if(!raw)return;const st=JSON.parse(raw);if(Array.isArray(st.reclamos)){RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...st.reclamos)}if(Array.isArray(st.ordenes)){OS_ZONA.splice(0,OS_ZONA.length,...st.ordenes)}if(Array.isArray(st.intervenciones)){INTERVENCIONES.splice(0,INTERVENCIONES.length,...st.intervenciones)}if(Array.isArray(st.comunicaciones)){COMUNICACIONES.splice(0,COMUNICACIONES.length,...st.comunicaciones)}if(st.relevamientos&&typeof st.relevamientos==='object'){Object.keys(st.relevamientos).forEach(k=>RELEVAMIENTOS[k]=st.relevamientos[k])}_reclamoCounter=Number(st.counter||RECLAMOS_ZONA.length||0);}catch(e){console.warn('No se pudo cargar estado local',e)}}
 function refreshVisiblePanels(){try{actualizarZoneDataReal&&actualizarZoneDataReal();}catch(e){} if(currentUser){try{renderTab([...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'))||0)}catch(e){}}}
 function countBy(arr,fn){return arr.reduce((acc,it)=>{const k=fn(it)||'Sin dato';acc[k]=(acc[k]||0)+1;return acc;},{});}
 function prioCounts(arr){const c=countBy(arr,x=>x.prio||'medio');return [c.critico||0,c.alto||0,c.medio||0,c.bajo||0];}
@@ -2576,17 +2705,17 @@ renderChartInsp=function(view='principal'){const z=Number(currentUser?.zona||sel
 
 // Envolver acciones para que todo quede guardado y refresque gráficos.
 const _guardarNuevoReclamoOriginal=guardarNuevoReclamo;
-guardarNuevoReclamo=async function(){const before=RECLAMOS_ZONA.length;await _guardarNuevoReclamoOriginal();if(RECLAMOS_ZONA.length!==before){saveAppState();refreshVisiblePanels();}}
+guardarNuevoReclamo=async function(){const before=RECLAMOS_ZONA.length;await _guardarNuevoReclamoOriginal();if(RECLAMOS_ZONA.length!==before){await persistirReclamoSupabase(RECLAMOS_ZONA[0]);saveAppState();refreshVisiblePanels();}}
 const _guardarNuevoReclamoModalOriginal=guardarNuevoReclamoModal;
-guardarNuevoReclamoModal=function(){const before=RECLAMOS_ZONA.length;_guardarNuevoReclamoModalOriginal();if(RECLAMOS_ZONA.length!==before){saveAppState();refreshVisiblePanels();}}
+guardarNuevoReclamoModal=async function(){const before=RECLAMOS_ZONA.length;_guardarNuevoReclamoModalOriginal();if(RECLAMOS_ZONA.length!==before){await persistirReclamoSupabase(RECLAMOS_ZONA[0]);saveAppState();refreshVisiblePanels();}}
 const _guardarNuevaOSOriginal=guardarNuevaOS;
-guardarNuevaOS=function(){const before=OS_ZONA.length;_guardarNuevaOSOriginal();if(OS_ZONA.length!==before){saveAppState();}}
+guardarNuevaOS=async function(){const before=OS_ZONA.length;_guardarNuevaOSOriginal();if(OS_ZONA.length!==before){await persistirOrdenSupabase(OS_ZONA[0]);saveAppState();}}
 const _guardarEdicionOSOriginal=guardarEdicionOS;
-guardarEdicionOS=function(id){_guardarEdicionOSOriginal(id);saveAppState();}
+guardarEdicionOS=async function(id){_guardarEdicionOSOriginal(id);await actualizarOrdenSupabase(OS_ZONA.find(o=>String(o.id)===String(id)));saveAppState();}
 const _actualizarPrioridadOSOriginal=actualizarPrioridadOS;
-actualizarPrioridadOS=function(id,prio){_actualizarPrioridadOSOriginal(id,prio);saveAppState();}
+actualizarPrioridadOS=async function(id,prio){_actualizarPrioridadOSOriginal(id,prio);await actualizarOrdenSupabase(OS_ZONA.find(o=>String(o.id)===String(id)));saveAppState();}
 const _actualizarEstadoOSOriginal=actualizarEstadoOS;
-actualizarEstadoOS=function(id,estado){_actualizarEstadoOSOriginal(id,estado);saveAppState();}
+actualizarEstadoOS=async function(id,estado){_actualizarEstadoOSOriginal(id,estado);await actualizarOrdenSupabase(OS_ZONA.find(o=>String(o.id)===String(id)));saveAppState();}
 
 // Refuerzos del formulario call center: establecimiento, validación y fotos.
 const _prepareNuevoReclamoFormOriginal=prepareNuevoReclamoForm;
@@ -2674,6 +2803,7 @@ actualizarEstadoOS=function(id,estado){
   if(o.estado==='finalizado'&&!o.fechaFinalizacion)o.fechaFinalizacion=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});
   if(o.estado!=='finalizado')o.fechaFinalizacion='';
   saveAppState&&saveAppState();
+  actualizarOrdenSupabase(o);
   filterOS();setTimeout(()=>renderLcCharts&&window._lcZonaData&&renderLcCharts(),200);
 };
 
@@ -2707,15 +2837,17 @@ guardarNuevaOS=function(){
   const data=obtenerDatosOSForm();if(!data)return;
   const checks=[...document.querySelectorAll('input[name="nos-reclamo"]:checked')].map(x=>x.value).filter(v=>v!=='sin_reclamo'),pendientes=RECLAMOS_ZONA.filter(r=>r.estId===data.estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite'));
   const reclamoNumero=checks.map(v=>pendientes[Number(v)]?.numero).filter(Boolean).join(', ');
-  OS_ZONA.unshift({id:(OS_ZONA.length?Math.max(...OS_ZONA.map(o=>o.id)):0)+1,numero:data.numero,zona:data.zona,reclamoNumero,titulo:data.rubro,est:data.est.n,establecimiento:data.est.n,tarea:data.tarea,rubro:data.rubro,estado:data.estado,fecha:data.fecha,fechaFinalizacion:data.estado==='finalizado'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems,prio:data.prio,estId:data.estId});
+  OS_ZONA.unshift({id:Date.now(),numero:data.numero,zona:data.zona,reclamoNumero,titulo:data.rubro,est:data.est.n,establecimiento:data.est.n,tarea:data.tarea,rubro:data.rubro,estado:data.estado,fecha:data.fecha,fechaFinalizacion:data.estado==='finalizado'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems,prio:data.prio,estId:data.estId});
   checks.forEach(v=>{const r=pendientes[Number(v)];if(r)r.os=data.numero});
   saveAppState&&saveAppState();
+  persistirOrdenSupabase(OS_ZONA[0]);
   currentUser?.role==='inspector'?renderOSZona(document.getElementById('main-content')):renderOSGeneral(document.getElementById('main-content'));
 };
 guardarEdicionOS=function(id){
   const os=OS_ZONA.find(o=>o.id===id),data=obtenerDatosOSForm();if(!os||!data)return;
   Object.assign(os,{estId:data.estId,zona:data.zona,est:data.est.n,establecimiento:data.est.n,titulo:data.rubro,rubro:data.rubro,tarea:data.tarea,fecha:data.fecha,fechaFinalizacion:data.estado==='finalizado'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,estado:data.estado,prio:data.prio,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems});
   saveAppState&&saveAppState();
+  actualizarOrdenSupabase(os);
   currentUser?.role==='inspector'?renderOSZona(document.getElementById('main-content')):renderOSGeneral(document.getElementById('main-content'));
 };
 
@@ -3441,6 +3573,420 @@ function renderChartInsp(){
 })();
 </script>
 
+<style id="dgie-comunicaciones-style">
+.comms-layout{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:16px;align-items:start}
+.comms-list{display:grid;gap:12px}
+.comm-card{border:1px solid #d9e2ef;border-radius:12px;background:#fff;padding:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.comm-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+.comm-title{font-size:15px;font-weight:900;color:#123c69;line-height:1.25}
+.comm-meta{font-size:12px;color:#64748b;line-height:1.45;margin-top:3px}
+.comm-msg{font-size:13px;color:#334155;line-height:1.5;margin:10px 0 12px;white-space:pre-wrap}
+.comm-targets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.comm-status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;margin-top:10px}
+.comm-status-row{border:1px solid #e5edf7;border-radius:10px;background:#f8fafc;padding:8px 9px;font-size:12px}
+.comm-status-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:900;color:#334155}
+.comm-status-meta{font-size:11px;color:#64748b;margin-top:4px;line-height:1.35}
+.comm-check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;font-weight:900;color:#334155}
+.comm-alert{border:1px solid #f59e0b;background:#fff7ed;color:#92400e;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:900;margin-bottom:12px}
+.tab .tab-badge{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:900;line-height:1}
+.comm-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:10px 0}
+.comm-mini-panel{border:1px solid #e5edf7;border-radius:10px;background:#fbfdff;padding:10px}
+.comm-mini-title{font-size:12px;font-weight:900;color:#123c69;margin-bottom:8px}
+.comm-bar-row{display:grid;grid-template-columns:minmax(70px,1fr) 2fr 28px;gap:8px;align-items:center;font-size:11px;font-weight:800;color:#475569;margin-top:6px}
+.comm-bar-track{height:9px;background:#e8eef6;border-radius:999px;overflow:hidden}
+.comm-bar-fill{height:100%;background:#005aa9;border-radius:999px}
+.comm-option{display:flex;align-items:center;gap:10px;border:1px solid #d9e2ef;border-radius:10px;background:#f8fafc;padding:9px 10px;font-size:13px;font-weight:900;color:#334155;cursor:pointer}
+.comm-option input{width:18px;height:18px;accent-color:#005aa9;flex-shrink:0}
+.comm-option.locked{cursor:default;opacity:.78}
+.comm-survey-builder{border:1px solid #d9e2ef;border-radius:12px;background:#f8fafc;padding:12px}
+.comm-survey-builder-title{font-size:13px;font-weight:900;color:#123c69;margin-bottom:8px}
+.comm-empty-survey{border:1px dashed #cbd5e1;border-radius:10px;background:#f8fafc;color:#64748b;padding:10px;font-size:12px;font-weight:800;margin:10px 0}
+@media(max-width:980px){.comms-layout{grid-template-columns:1fr}}
+</style>
+<script id="dgie-comunicaciones-script">
+(function(){
+  function tabsForUser(user){
+    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Comunicaciones'];
+    if(user?.role==='callcenter')return ['Nuevo reclamo'];
+    if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`];
+    if(user?.role==='coordinador')return ['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración'];
+    return ['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración'];
+  }
+  window.tabsForUser=tabsForUser;
+
+  function zonasDestino(c){
+    if(c.alcance==='general')return Array.from({length:17},(_,i)=>i+1);
+    if(Array.isArray(c.zonas)&&c.zonas.length)return c.zonas.map(Number);
+    return [];
+  }
+  function zonaLabel(z){return `Zona ${z} · ${INSPECTORS[Number(z)-1]||''}`;}
+  function estadoComm(c,z){
+    const estados=c.estados||{};
+    return estados[String(z)]||{estado:'pendiente'};
+  }
+  function isCommForInspector(c,z){
+    return zonasDestino(c).map(Number).includes(Number(z));
+  }
+  function encuestaConfig(c){
+    if(!c?.encuesta)return null;
+    if(Array.isArray(c.encuesta)){
+      if(!c.encuesta.length)return null;
+      return {pregunta:'Encuesta',opciones:c.encuesta};
+    }
+    const opciones=Array.isArray(c.encuesta.opciones)?c.encuesta.opciones:[];
+    if(!c.encuesta.pregunta&&!opciones.length)return null;
+    return {pregunta:c.encuesta.pregunta||'Encuesta',opciones};
+  }
+  function esTarea(c){return String(c?.tipo||'')==='tarea'}
+  function esNotificacion(c){return String(c?.tipo||'')==='notificacion'||String(c?.tipo||'')==='comunicado'}
+  function estaCompletada(c,z){
+    const st=estadoComm(c,z).estado;
+    return esNotificacion(c)?st==='visto':st==='completado';
+  }
+  function comunicacionesPendientesInspector(z=currentUser?.zona){
+    if(!z)return 0;
+    return COMUNICACIONES.filter(c=>isCommForInspector(c,Number(z))&&!estaCompletada(c,Number(z))).length;
+  }
+  function commBadge(tipo){
+    return {tarea:'b-warn',notificacion:'b-info',comunicado:'b-info'}[tipo]||'b-info';
+  }
+  function estadoBadge(estado){
+    return {visto:'b-info','en_proceso':'b-warn',completado:'b-ok',pendiente:'b-neutral'}[estado]||'b-neutral';
+  }
+  function estadoLabel(estado){
+    return {visto:'Visto','en_proceso':'En proceso',completado:'Completado',pendiente:'No visto'}[estado]||'No visto';
+  }
+  function alcanceLabel(c){
+    if(c.alcance==='general')return 'General';
+    if(c.alcance==='zona')return (c.zonas||[]).map(z=>`Zona ${z}`).join(', ')||'Por zona';
+    return 'Sin destino';
+  }
+  function toRemoteComm(c){
+    return {
+      tipo:c.tipo,
+      titulo:c.titulo,
+      mensaje:c.mensaje,
+      alcance:c.alcance,
+      zonas:c.zonas||[],
+      creado_por_nombre:c.creadoPor||currentUser?.name||'Usuario',
+      estados:c.estados||{},
+      validaciones:c.validaciones||{},
+      encuesta:c.encuesta||null,
+      archivos:c.archivos||[]
+    };
+  }
+  async function persistirComunicacion(c){
+    if(!c||c._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearComunicacion!=='function')return;
+    const {data,error}=await window.DGIE_DB.crearComunicacion(toRemoteComm(c));
+    if(error){alert('No se pudo guardar la comunicación en Supabase: '+error.message);return;}
+    c.remoteId=data?.id||c.remoteId;
+    c._remoteSaved=true;
+  }
+  async function actualizarComunicacionRemote(c){
+    if(!c||!c._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.actualizarComunicacion!=='function')return;
+    const {error}=await window.DGIE_DB.actualizarComunicacion(c.remoteId||c.id,{
+      estados:c.estados||{},
+      validaciones:c.validaciones||{}
+    });
+    if(error)alert('No se pudo actualizar la comunicación en Supabase: '+error.message);
+  }
+  window.mapRemoteComunicacion=function(row,idx){
+    return {
+      id:idx+1,
+      remoteId:row.id,
+      _remoteSaved:true,
+      tipo:row.tipo==='comunicado'?'notificacion':(row.tipo||'notificacion'),
+      titulo:row.titulo||'Comunicación',
+      mensaje:row.mensaje||'',
+      alcance:row.alcance||'general',
+      zonas:Array.isArray(row.zonas)?row.zonas.map(Number):[],
+      creadoPor:row.creado_por_nombre||'Coordinación',
+      createdAt:row.created_at||new Date().toISOString(),
+      estados:row.estados||{},
+      validaciones:row.validaciones||{},
+      encuesta:row.encuesta||null,
+      archivos:Array.isArray(row.archivos)?row.archivos:[]
+    };
+  };
+  window.renderComunicaciones=function(container){
+    if(!container)return;
+    const manager=['coordinador','direccion'].includes(currentUser?.role);
+    container.innerHTML=manager?renderComunicacionesGestion():renderComunicacionesInspector();
+  };
+  function renderComunicacionesGestion(){
+    return `<div class="section-label">Comunicaciones</div>
+      <div class="comms-layout">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Nueva comunicación</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Enviar tareas o notificaciones.</div></div></div>
+          <div class="form-grid">
+            <div class="form-field"><label class="form-label">Tipo</label><select class="form-select" id="comm-tipo" onchange="toggleCommSurveyBuilder()"><option value="tarea">Tarea</option><option value="notificacion">Notificación</option></select></div>
+            <div class="form-field"><label class="form-label">Destino</label><select class="form-select" id="comm-alcance" onchange="renderCommDestino()"><option value="general">General</option><option value="zona">Por zona</option></select></div>
+            <div class="form-field full" id="comm-destino-box"></div>
+            <div class="form-field full"><label class="form-label">Título</label><input class="form-input" id="comm-titulo" placeholder="Título de la comunicación"></div>
+            <div class="form-field full"><label class="form-label">Mensaje / tarea</label><textarea class="form-textarea" id="comm-mensaje" placeholder="Detalle de la tarea o notificación"></textarea></div>
+            <div class="form-field full" id="comm-survey-wrapper">
+              <div class="comm-survey-builder">
+                <div class="comm-survey-builder-title">Encuesta tipo WhatsApp</div>
+                <label class="form-label">Pregunta</label>
+                <input class="form-input" id="comm-encuesta-pregunta" placeholder="Ejemplo: ¿Se realizó la limpieza de cubiertas?">
+                <label class="form-label" style="margin-top:10px">Opciones <span style="font-weight:400;color:var(--muted)">(una opción por línea)</span></label>
+                <textarea class="form-textarea" id="comm-encuesta-opciones" placeholder="Sí&#10;No&#10;Parcialmente&#10;Requiere nueva visita"></textarea>
+              </div>
+            </div>
+            <div class="form-field full"><label class="form-label">Archivos adjuntos <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input type="file" id="comm-archivos" multiple style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px"></div>
+          </div>
+          <div class="form-error" id="comm-error" style="display:none">Completá título y mensaje.</div>
+          <div class="modal-actions"><button class="primary-btn" onclick="guardarComunicacion()">Enviar comunicación</button></div>
+        </div>
+        <div>
+          <div class="card-header" style="margin-bottom:10px"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Estado por zona, completados y pendientes.</div></div><span class="badge b-info">${COMUNICACIONES.length} comunicaciones</span></div>
+          <div class="comms-list">${COMUNICACIONES.length?COMUNICACIONES.map(renderCommGestionCard).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">Sin comunicaciones cargadas.</div>'}</div>
+        </div>
+      </div>`;
+  }
+  window.toggleCommSurveyBuilder=function(){
+    const tipo=document.getElementById('comm-tipo')?.value;
+    const wrapper=document.getElementById('comm-survey-wrapper');
+    if(wrapper)wrapper.style.display=tipo==='tarea'?'':'none';
+  };
+  window.limpiarComunicaciones=async function(){
+    if(!confirm('Esto borra TODAS las comunicaciones permanentemente. ¿Continuar?'))return;
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarTodasComunicaciones==='function'){
+      const {error}=await window.DGIE_DB.eliminarTodasComunicaciones();
+      if(error)alert('Error al borrar en Supabase: '+error.message+'\nSe borrarán solo localmente.');
+    }
+    COMUNICACIONES.splice(0,COMUNICACIONES.length);
+    saveAppState&&saveAppState();
+    const mc=document.getElementById('main-content');
+    if(mc&&currentUser&&['coordinador','director'].includes(currentUser.role))renderComunicaciones(mc);
+  };
+  window.renderCommDestino=function(){
+    const box=document.getElementById('comm-destino-box');
+    const alcance=document.getElementById('comm-alcance')?.value||'general';
+    if(!box)return;
+    if(alcance==='general'){box.innerHTML='<div style="font-size:13px;color:#64748b;font-weight:800">Se enviará a todas las zonas.</div>';return;}
+    const opts=Array.from({length:17},(_,i)=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#334155"><input type="checkbox" class="comm-zona-check" value="${i+1}"> ${zonaLabel(i+1)}</label>`).join('');
+    box.innerHTML=`<label class="form-label">Zonas destinatarias</label><div style="max-height:210px;overflow:auto;border:1px solid #d9e2ef;border-radius:12px;padding:10px;display:grid;gap:8px;background:#f8fafc">${opts}</div>`;
+  };
+  function renderCommGestionCard(c){
+    const destinos=zonasDestino(c);
+    const pendientes=destinos.filter(z=>!estaCompletada(c,z));
+    return `<div class="comm-card">
+      <div class="comm-head"><div><div class="comm-title">${escapeHtml(c.titulo)}</div><div class="comm-meta">${new Date(c.createdAt).toLocaleString('es-AR')} · Por ${escapeHtml(c.creadoPor||'Coordinación')} · ${escapeHtml(alcanceLabel(c))}</div></div><span class="badge ${commBadge(c.tipo)}">${escapeHtml(c.tipo)}</span></div>
+      <div class="comm-msg">${escapeHtml(c.mensaje)}</div>
+      ${renderCommArchivos(c)}
+      ${renderCommGraficos(c)}
+      <div class="comm-targets"><span class="badge b-ok">${destinos.length-pendientes.length} ${esNotificacion(c)?'vistos':'completados'}</span><span class="badge ${pendientes.length?'b-warn':'b-neutral'}">${pendientes.length} pendientes</span></div>
+      <div class="comm-status-grid">${destinos.map(z=>renderCommEstadoGestion(c,z)).join('')}</div>
+    </div>`;
+  }
+  function renderCommEstadoGestion(c,z){
+    const st=estadoComm(c,z),val=(c.validaciones||{})[String(z)]||{};
+    return `<div class="comm-status-row">
+      <div class="comm-status-top"><span>Zona ${escapeHtml(z)}</span><span class="badge ${estadoBadge(st.estado)}">${estadoLabel(st.estado)}</span></div>
+      <div class="comm-status-meta">${st.fecha?escapeHtml(new Date(st.fecha).toLocaleString('es-AR')):'Sin actividad'}${st.completadoPor?`<br>${escapeHtml(st.completadoPor)}`:''}${st.encuesta?renderEncuestaRespuestaTexto(st.encuesta,c):''}${st.observacion?`<br>Obs.: ${escapeHtml(st.observacion)}`:''}</div>
+      ${esTarea(c)&&st.estado==='completado'?`<label class="comm-check"><input type="checkbox" ${val.validado?'checked':''} onchange="validarComunicacion(${c.id},${z},this.checked)"> Validado por coordinación</label>`:''}
+    </div>`;
+  }
+  function renderComunicacionesInspector(){
+    const z=Number(currentUser?.zona||0);
+    const data=COMUNICACIONES.filter(c=>isCommForInspector(c,z));
+    const pendientes=comunicacionesPendientesInspector(z);
+    return `<div class="section-label">Comunicaciones · Zona ${z}</div>
+      ${pendientes?`<div class="comm-alert">Tenés ${pendientes} comunicación${pendientes!==1?'es':''} sin completar.</div>`:''}
+      <div class="comms-list">${data.length?data.map(c=>renderCommInspectorCard(c,z)).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">No tenés comunicaciones asignadas.</div>'}</div>`;
+  }
+  function renderCommInspectorCard(c,z){
+    const st=estadoComm(c,z);
+    return `<div class="comm-card" id="comm-card-${c.id}">
+      <div class="comm-head"><div><div class="comm-title">${escapeHtml(c.titulo)}</div><div class="comm-meta">${new Date(c.createdAt).toLocaleString('es-AR')} · Por ${escapeHtml(c.creadoPor||'Coordinación')}</div></div><span class="badge ${commBadge(c.tipo)}">${escapeHtml(c.tipo)}</span></div>
+      <div class="comm-msg">${escapeHtml(c.mensaje)}</div>
+      ${renderCommArchivos(c)}
+      ${renderEncuestaInspector(c,st)}
+      ${!encuestaConfig(c)&&esTarea(c)?'<div class="comm-empty-survey">Esta tarea no tiene encuesta cargada.</div>':''}
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="badge ${estadoBadge(st.estado)}">${estadoLabel(st.estado)}</span>
+        ${esNotificacion(c)?`<button class="primary-btn" style="padding:9px 14px" onclick="cambiarEstadoComunicacion(${c.id},'visto')" ${st.estado==='visto'?'disabled':''}>Marcar visto</button>`:`<select class="form-select" style="max-width:190px;padding:8px 10px" onchange="cambiarEstadoComunicacion(${c.id},this.value)">
+          <option value="pendiente" ${st.estado==='pendiente'?'selected':''}>Pendiente</option>
+          <option value="en_proceso" ${st.estado==='en_proceso'?'selected':''}>En proceso</option>
+          <option value="completado" ${st.estado==='completado'?'selected':''}>Completado</option>
+        </select>`}
+      </div>
+      ${st.fecha?`<div class="comm-meta" style="margin-top:8px">Última actualización: ${escapeHtml(new Date(st.fecha).toLocaleString('es-AR'))}</div>`:''}
+    </div>`;
+  }
+  function renderCommArchivos(c){
+    const files=Array.isArray(c.archivos)?c.archivos:[];
+    if(!files.length)return '';
+    return `<div class="comm-targets">${files.map((f,i)=>`<a class="badge b-neutral" download="${escapeHtml(f.name||'archivo')}" href="${f.dataUrl||'#'}" style="text-decoration:none">Archivo ${i+1}: ${escapeHtml(f.name||'sin nombre')}</a>`).join('')}</div>`;
+  }
+  function renderCommEncuestaResumen(c){
+    const cfg=encuestaConfig(c);
+    if(!cfg)return '';
+    return `<div class="comm-status-row" style="margin:8px 0"><div class="comm-status-top">${escapeHtml(cfg.pregunta)}</div><div class="comm-status-meta">${cfg.opciones.map(o=>`□ ${escapeHtml(o)}`).join('<br>')}</div></div>`;
+  }
+  function renderEncuestaInspector(c,st){
+    const cfg=encuestaConfig(c);
+    if(!cfg)return '';
+    let respuestas=st.encuesta||{};
+    if(respuestas.opciones)respuestas=respuestas.opciones;
+    const locked=!!st.encuestaRespondida;
+    return `<div class="comm-status-row" style="margin:10px 0;background:#fff">
+      <div class="comm-status-top">${escapeHtml(cfg.pregunta)}${locked?'<span class="badge b-ok">Respondida</span>':''}</div>
+      <div style="display:grid;gap:8px;margin-top:8px">${cfg.opciones.map((op,i)=>`<label class="comm-option${locked?' locked':''}"><input type="checkbox" class="comm-survey-answer" data-q="${i}" data-label="${escapeHtml(op)}" ${(typeof respuestas[i]==='object'?respuestas[i].checked:respuestas[i])?'checked':''} ${locked?'disabled':''}> <span>${escapeHtml(op)}</span></label>`).join('')}</div>
+      <label style="display:block;margin-top:10px"><div class="form-label">Observaciones</div><textarea class="form-textarea" id="comm-obs-${c.id}" ${locked?'disabled':''} placeholder="Agregar observación opcional" style="min-height:68px">${escapeHtml(st.observacion||'')}</textarea></label>
+    </div>`;
+  }
+  function recogerEncuestaActual(cardId){
+    const scope=cardId?document.getElementById(cardId):document;
+    const out={};
+    (scope||document).querySelectorAll('.comm-survey-answer').forEach(el=>{out[el.dataset.q]={label:el.dataset.label||'',checked:!!el.checked};});
+    return out;
+  }
+  function renderEncuestaRespuestaTexto(respuestas,c){
+    if(respuestas?.opciones)respuestas=respuestas.opciones;
+    const keys=Object.keys(respuestas||{});
+    if(!keys.length)return '';
+    const cfg=encuestaConfig(c);
+    return '<br>Encuesta:<br>'+keys.sort((a,b)=>Number(a)-Number(b)).map(k=>{
+      const r=respuestas[k];
+      const label=typeof r==='object'?(r.label||cfg?.opciones?.[Number(k)]):(cfg?.opciones?.[Number(k)]||('Opción '+(Number(k)+1)));
+      const checked=typeof r==='object'?!!r.checked:!!r;
+      return `- ${escapeHtml(label)}: ${checked?'Sí':'No'}`;
+    }).join('<br>');
+  }
+  function renderCommGraficos(c){
+    const destinos=zonasDestino(c);
+    if(!destinos.length)return '';
+    const completados=destinos.filter(z=>estaCompletada(c,z)).length;
+    const vistos=destinos.filter(z=>estadoComm(c,z).estado==='visto').length;
+    const proceso=destinos.filter(z=>estadoComm(c,z).estado==='en_proceso').length;
+    const pendientes=destinos.length-completados-vistos-proceso;
+    const cfg=encuestaConfig(c);
+    const encuestaHtml=cfg?renderEncuestaBarras(c,cfg,destinos):'';
+    return `<div class="comm-mini-grid">
+      <div class="comm-mini-panel"><div class="comm-mini-title">${esNotificacion(c)?'Visto / no visto':'Completaron tarea'}</div>
+        ${renderMiniBar(esNotificacion(c)?'Visto':'Completado',completados,destinos.length,'#16a34a')}
+        ${esTarea(c)?renderMiniBar('En proceso',proceso,destinos.length,'#f59e0b'):''}
+        ${esTarea(c)?renderMiniBar('Visto',vistos,destinos.length,'#2563eb'):''}
+        ${renderMiniBar('Pendiente',pendientes,destinos.length,'#94a3b8')}
+      </div>
+      ${encuestaHtml}
+    </div>`;
+  }
+  function renderMiniBar(label,value,total,color){
+    const pct=total?Math.round((value/total)*100):0;
+    return `<div class="comm-bar-row"><span>${escapeHtml(label)}</span><div class="comm-bar-track"><div class="comm-bar-fill" style="width:${pct}%;background:${color}"></div></div><strong>${value}</strong></div>`;
+  }
+  function renderEncuestaBarras(c,cfg,destinos){
+    const totals=cfg.opciones.map(()=>0);
+    destinos.forEach(z=>{
+      let ans=estadoComm(c,z).encuesta||{};
+      if(ans.opciones)ans=ans.opciones;
+      Object.keys(ans).forEach(k=>{const r=ans[k];const checked=typeof r==='object'?!!r.checked:!!r;if(checked&&totals[Number(k)]!==undefined)totals[Number(k)]++;});
+    });
+    return `<div class="comm-mini-panel"><div class="comm-mini-title">Respuestas de encuesta</div>${cfg.opciones.map((op,i)=>renderMiniBar(op,totals[i]||0,destinos.length,'#005aa9')).join('')}</div>`;
+  }
+  function leerArchivosComoDataUrl(input){
+    const files=[...(input?.files||[])];
+    return Promise.all(files.map(file=>new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve({name:file.name,type:file.type,size:file.size,dataUrl:reader.result});
+      reader.onerror=()=>resolve({name:file.name,type:file.type,size:file.size,dataUrl:''});
+      reader.readAsDataURL(file);
+    })));
+  }
+  window.guardarComunicacion=async function(){
+    const tipo=document.getElementById('comm-tipo')?.value||'notificacion';
+    const alcance=document.getElementById('comm-alcance')?.value||'general';
+    const titulo=document.getElementById('comm-titulo')?.value.trim()||'';
+    const mensaje=document.getElementById('comm-mensaje')?.value.trim()||'';
+    const checked=[...document.querySelectorAll('.comm-zona-check:checked')].map(x=>Number(x.value));
+    const encuestaPregunta=document.getElementById('comm-encuesta-pregunta')?.value.trim()||'';
+    const encuestaOpciones=(document.getElementById('comm-encuesta-opciones')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    const encuesta=tipo==='tarea'&&encuestaPregunta&&encuestaOpciones.length?{pregunta:encuestaPregunta,opciones:encuestaOpciones}:null;
+    const archivos=await leerArchivosComoDataUrl(document.getElementById('comm-archivos'));
+    if(!titulo||!mensaje){const e=document.getElementById('comm-error');if(e)e.style.display='block';return;}
+    if(tipo==='tarea'&&encuestaPregunta&&!encuestaOpciones.length){const e=document.getElementById('comm-error');if(e){e.textContent='Agregá al menos una opción para la encuesta.';e.style.display='block';}return;}
+    if(alcance!=='general'&&!checked.length){const e=document.getElementById('comm-error');if(e){e.textContent='Seleccioná al menos una zona.';e.style.display='block';}return;}
+    const c={id:Date.now(),tipo,titulo,mensaje,alcance,zonas:alcance==='zona'?checked:[],creadoPor:currentUser?.name||'Coordinación',createdAt:new Date().toISOString(),estados:{},validaciones:{},encuesta,archivos};
+    COMUNICACIONES.unshift(c);
+    await persistirComunicacion(c);
+    saveAppState&&saveAppState();
+    renderComunicaciones(document.getElementById('main-content'));
+    setTimeout(renderCommDestino,0);
+    setTimeout(toggleCommSurveyBuilder,0);
+  };
+  window.cambiarEstadoComunicacion=async function(id,estado){
+    const c=COMUNICACIONES.find(x=>Number(x.id)===Number(id));if(!c)return;
+    const z=String(currentUser?.zona||'');
+    c.estados=c.estados||{};
+    const prev={...(c.estados[z]||{})};
+    const respuestaEncuesta=recogerEncuestaActual('comm-card-'+id);
+    const observacionActual=document.getElementById('comm-obs-'+id)?.value.trim()||prev.observacion||'';
+    c.estados[z]={...prev,estado,usuario:currentUser?.name||'Inspector',fecha:new Date().toISOString()};
+    const tieneEncuesta=!!encuestaConfig(c);
+    if(tieneEncuesta&&!c.estados[z].encuestaRespondida){
+      c.estados[z].encuesta={opciones:respuestaEncuesta};
+      c.estados[z].observacion=observacionActual;
+      if(estado==='completado')c.estados[z].encuestaRespondida=true;
+    }
+    if(estado==='completado'||estado==='visto'){c.estados[z].completadoPor=currentUser?.name||'Inspector';c.estados[z].completadoFecha=new Date().toISOString();}
+    await actualizarComunicacionRemote(c);
+    saveAppState&&saveAppState();
+    renderComunicaciones(document.getElementById('main-content'));
+  };
+  window.validarComunicacion=async function(id,z,validado){
+    const c=COMUNICACIONES.find(x=>Number(x.id)===Number(id));if(!c)return;
+    c.validaciones=c.validaciones||{};
+    c.validaciones[String(z)]={validado,por:currentUser?.name||'Coordinación',fecha:new Date().toISOString()};
+    await actualizarComunicacionRemote(c);
+    saveAppState&&saveAppState();
+    renderComunicaciones(document.getElementById('main-content'));
+  };
+  function buildTabsConNotificacion(user){
+    buildTabs(tabsForUser(user));
+    if(user?.role!=='inspector')return;
+    const pendientes=comunicacionesPendientesInspector(user.zona);
+    const tabs=[...document.querySelectorAll('#nav-tabs .tab')];
+    const commTab=tabs.find(t=>t.textContent.trim().startsWith('Comunicaciones'));
+    if(commTab&&pendientes)commTab.innerHTML=`Comunicaciones <span class="tab-badge">${pendientes}</span>`;
+  }
+  const baseLoadUser=window.loadUser;
+  window.loadUser=function(user){
+    currentUser=user;
+    if($('topbar-av'))$('topbar-av').textContent=user.initials;
+    if($('topbar-name'))$('topbar-name').textContent=user.name;
+    buildTabsConNotificacion(user);
+    hideGlobal();hideLanding();
+    document.getElementById('app-wrapper').style.display='';
+    document.querySelectorAll('#app-wrapper .screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('screen-main')?.classList.add('active');
+    renderTab(0);
+  };
+  window.renderTab=function(i){
+    if(!currentUser)return;
+    buildTabsConNotificacion(currentUser);
+    setActiveTab(i);hideGlobal();currentFichaId=null;
+    const tab=tabsForUser(currentUser)[i],c=document.getElementById('main-content');if(!c)return;
+    if(tab==='Comunicaciones'){renderComunicaciones(c);setTimeout(renderCommDestino,0);setTimeout(toggleCommSurveyBuilder,0);return;}
+    if(tab.startsWith('Órdenes de servicio · Zona')){renderOSEmpresa(c,currentUser.zona);return;}
+    if(tab==='Nuevo reclamo'){c.innerHTML=renderCallCenterNuevoReclamo();setTimeout(()=>initAcEstab(),80);return;}
+    if(tab==='Dashboard'){
+      if(currentUser.role==='inspector'){c.innerHTML=renderDashboardInsp();setTimeout(()=>renderChartInsp('principal'),150);return;}
+      if(currentUser.role==='coordinador'){c.innerHTML=renderDashboardCoordinador();setTimeout(renderChartCoordinadorDashboard,120);return;}
+      c.innerHTML=renderDashboardDir();setTimeout(()=>renderChartDir('principal'),150);return;
+    }
+    if(tab==='Establecimientos'){renderEstablecimientosDireccion(c);return;}
+    if(tab==='Administración'){renderAdministracion(c);return;}
+    if(tab==='Órdenes de servicio'){renderOSGeneral(c);return;}
+    if(tab==='Intervenciones'){renderIntervencionesDireccion(c);return;}
+    if(tab.startsWith('Zona'))return renderZonaTab(c);
+    c.innerHTML=`<div class="coming-soon"><h3>${escapeHtml(tab)}</h3><p>Módulo en construcción</p></div>`;
+  };
+})();
+</script>
+
 <style id="dgie-real-map-style">
 .map-placeholder.leaflet-map-host{background:#dbe7f1!important;border-radius:14px;overflow:hidden}
 .map-placeholder.leaflet-map-host:before{display:none!important}
@@ -3752,6 +4298,20 @@ function renderChartInsp(){
     try{
       const {data,error}=await window.DGIE_DB.listarEstablecimientos();
       if(error||!Array.isArray(data))return;
+      if(data.length){
+        ESTABS.splice(0,ESTABS.length,...data.map(row=>({
+          id:Number(row.id),
+          n:row.nombre||`Establecimiento ${row.id}`,
+          zona:Number(row.zona)||1,
+          nivel:row.nivel||'Sin nivel',
+          dir:row.direccion||'',
+          est:row.estado||'Sin relevar',
+          barrio:row.barrio||'',
+          tipo:row.tipo||'',
+          lat:row.lat!==null&&row.lat!==undefined?Number(row.lat):null,
+          lng:row.lng!==null&&row.lng!==undefined?Number(row.lng):null
+        })));
+      }
       data.forEach(row=>{
         const e=ESTABS.find(x=>Number(x.id)===Number(row.id));
         if(!e)return;
@@ -3769,11 +4329,133 @@ function renderChartInsp(){
       if(document.getElementById('coord-map-layer'))window.renderDgieRealMap('coord');
     }catch(err){console.warn('No se pudieron cargar coordenadas remotas',err);}
   }
+  function establecimientoNombre(id){
+    return ESTABS.find(e=>Number(e.id)===Number(id))?.n||'Establecimiento';
+  }
+  function mapRemoteReclamo(row,idx){
+    return {
+      id:idx+1,
+      remoteId:row.id,
+      _remoteSaved:true,
+      numero:row.numero,
+      estId:Number(row.establecimiento_id)||null,
+      zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
+      est:establecimientoNombre(row.establecimiento_id),
+      titulo:row.titulo||row.descripcion||'Reclamo',
+      descripcion:row.descripcion||'',
+      prio:row.prioridad||'medio',
+      rubro:row.rubro||'Otro',
+      fecha:normalizarFechaCorta(row.fecha),
+      os:'Sin OS',
+      reiteradoDe:null,
+      reiteraciones:0,
+      fotos:[]
+    };
+  }
+  function mapRemoteOrden(row,idx){
+    const items=Array.isArray(row.presupuesto)?row.presupuesto:[];
+    const modulos=items.reduce((a,it)=>a+Number(it.modulos||0),0);
+    return {
+      id:idx+1,
+      remoteId:row.id,
+      _remoteSaved:true,
+      numero:row.numero,
+      reclamoNumero:row.reclamo_numero||'',
+      titulo:row.rubro||'Orden de servicio',
+      est:establecimientoNombre(row.establecimiento_id),
+      establecimiento:establecimientoNombre(row.establecimiento_id),
+      tarea:row.tarea||'',
+      rubro:row.rubro||'Otro',
+      estado:estadoOSCanon(row.estado),
+      fecha:normalizarFechaCorta(row.fecha_envio),
+      fechaFinalizacion:row.fecha_finalizacion?normalizarFechaCorta(row.fecha_finalizacion):'',
+      monto:row.monto||'',
+      presupuesto:modulos,
+      presupuestoItems:items,
+      prio:row.prioridad||'medio',
+      estId:Number(row.establecimiento_id)||null,
+      zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id)
+    };
+  }
+  function mapRemoteIntervencion(row,idx){
+    return {
+      id:idx+1,
+      remoteId:row.id,
+      _remoteSaved:true,
+      estId:Number(row.establecimiento_id)||null,
+      zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
+      fecha:normalizarFechaCorta(row.fecha||row.created_at),
+      inspector:ZONE_DATA[Number(row.zona)]?.inspector||currentUser?.name||'Inspector',
+      descripcion:row.descripcion||'',
+      avance:Number(row.avance)||0,
+      fotos:0
+    };
+  }
+  function mapRemoteRelevamiento(row){
+    const datos=row.datos||{};
+    const fechaBase=datos.fecha||row.created_at;
+    return {
+      fecha:normalizarFechaCorta(fechaBase),
+      inspector:datos.inspector||ZONE_DATA[Number(row.zona)]?.inspector||currentUser?.name||'Inspector',
+      zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
+      rubros:datos.rubros||{},
+      comentarios:datos.comentarios||'',
+      ts:row.created_at?new Date(row.created_at).getTime():Date.now(),
+      remoteId:row.id,
+      _remoteSaved:true
+    };
+  }
+  async function cargarDatosOperativosSupabase(){
+    if(!window.DGIE_DB?.isConfigured)return;
+    try{
+      const [recRes,osRes,intRes,relRes,commRes]=await Promise.all([
+        window.DGIE_DB.listarReclamos?.(),
+        window.DGIE_DB.listarOrdenes?.(),
+        window.DGIE_DB.listarIntervenciones?.(),
+        window.DGIE_DB.listarRelevamientos?.(),
+        window.DGIE_DB.listarComunicaciones?.()
+      ]);
+      if(recRes&&!recRes.error&&Array.isArray(recRes.data)){
+        RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...recRes.data.map(mapRemoteReclamo));
+      }
+      if(osRes&&!osRes.error&&Array.isArray(osRes.data)){
+        OS_ZONA.splice(0,OS_ZONA.length,...osRes.data.map(mapRemoteOrden));
+      }
+      if(intRes&&!intRes.error&&Array.isArray(intRes.data)){
+        INTERVENCIONES.splice(0,INTERVENCIONES.length,...intRes.data.map(mapRemoteIntervencion));
+      }
+      if(relRes&&!relRes.error&&Array.isArray(relRes.data)){
+        Object.keys(RELEVAMIENTOS).forEach(k=>delete RELEVAMIENTOS[k]);
+        relRes.data.forEach(row=>{
+          const estId=Number(row.establecimiento_id);
+          if(!RELEVAMIENTOS[estId])RELEVAMIENTOS[estId]=[];
+          RELEVAMIENTOS[estId].push(mapRemoteRelevamiento(row));
+        });
+      }
+      if(commRes&&!commRes.error&&Array.isArray(commRes.data)&&typeof window.mapRemoteComunicacion==='function'){
+        COMUNICACIONES.splice(0,COMUNICACIONES.length,...commRes.data.map(window.mapRemoteComunicacion));
+      }
+      RECLAMOS_ZONA.forEach(r=>{
+        const os=findOSForReclamo(r,OS_ZONA);
+        r.os=os?.numero||'Sin OS';
+      });
+      actualizarZoneDataReal();
+      normalizarOSExistentes();
+      saveAppState();
+      refreshVisiblePanels();
+      if(currentUser&&typeof window.renderTab==='function'){
+        const active=[...document.querySelectorAll('#nav-tabs .tab')].findIndex(t=>t.classList.contains('active'));
+        window.renderTab(Math.max(0,active));
+      }
+      if(document.getElementById('inspector-map-layer'))window.renderDgieRealMap('inspector');
+      if(document.getElementById('coord-map-layer'))window.renderDgieRealMap('coord');
+    }catch(err){console.warn('No se pudieron cargar datos operativos remotos',err);}
+  }
   const oldLoadUser=window.loadUser;
   window.loadUser=function(user){
     applyStoredLocations();
     oldLoadUser(user);
-    setTimeout(mergeRemoteEstablecimientoCoords,250);
+    setTimeout(async()=>{await mergeRemoteEstablecimientoCoords();await cargarDatosOperativosSupabase();},250);
   };
 })();
 </script>
