@@ -2874,7 +2874,7 @@ function renderEstablecimientoInfoBox(estId=null){
   const inspector=INSPECTORS[zona-1]||'—';
   const map={Crítico:'b-danger',Regular:'b-warn',Bueno:'b-ok'};
   const hasCoords=Number.isFinite(Number(e.lat))&&Number.isFinite(Number(e.lng));
-  const canEditLocation=currentUser&&(currentUser.role==='direccion'||currentUser.role==='coordinador'||(currentUser.role==='inspector'&&Number(currentUser.zona)===Number(zona)));
+  const canEditLocation=currentUser&&currentUser.role==='coordinador';
   return `<div id="map-estab-info" style="margin-top:16px">
     <div class="ficha-header">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -3474,7 +3474,7 @@ function renderChartInsp(){
   function canEditLocation(e){
     if(!currentUser||!e)return false;
     const role=String(currentUser.role||'').toLowerCase();
-    return role==='direccion'||role==='director'||role==='coordinador'||(role==='inspector'&&Number(currentUser.zona)===Number(e.zona));
+    return role==='coordinador';
   }
   function updateLocalEstabLocation(row){
     const data=Array.isArray(row)?row[0]:row;

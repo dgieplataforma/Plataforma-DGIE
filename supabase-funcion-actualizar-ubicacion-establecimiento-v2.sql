@@ -40,8 +40,7 @@ begin
     raise exception 'Establecimiento inexistente';
   end if;
 
-  if v_user.rol not in ('director', 'coordinador')
-     and not (v_user.rol = 'inspector' and v_user.zona = v_est.zona) then
+  if v_user.rol <> 'coordinador' then
     raise exception 'No autorizado para modificar este establecimiento';
   end if;
 
