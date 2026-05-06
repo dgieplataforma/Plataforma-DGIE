@@ -44,6 +44,9 @@
     async listarEstablecimientos(){
       return client.from('establecimientos').select('*').order('zona', { ascending:true }).order('nombre', { ascending:true });
     },
+    async crearEstablecimiento(row){
+      return client.from('establecimientos').insert(row).select('*').single();
+    },
     async actualizarUbicacionEstablecimiento(payload){
       return client.rpc('actualizar_ubicacion_establecimiento', payload);
     },

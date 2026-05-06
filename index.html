@@ -456,17 +456,12 @@
     <div class="login-modal-header">
       <div>
         <div class="login-modal-title">Acceso al sistema</div>
-        <div class="login-modal-sub" id="lm-sub">Seleccioná tu modo de acceso</div>
+        <div class="login-modal-sub" id="lm-sub">Ingresá con tu usuario y contraseña</div>
       </div>
       <button class="login-modal-close" onclick="closeLoginModal()">✕</button>
     </div>
-    <!-- Selector de modo -->
-    <div style="display:flex;gap:6px;margin-bottom:16px;background:#f1f5f9;border-radius:10px;padding:4px">
-      <button id="lm-tab-demo" onclick="onLmModeChange('demo')" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:900;cursor:pointer;background:#005aa9;color:#fff">Demo</button>
-      <button id="lm-tab-real" onclick="onLmModeChange('real')" style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:900;cursor:pointer;background:transparent;color:#64748b">Acceso real</button>
-    </div>
     <!-- Campos acceso real -->
-    <div id="lm-real-fields" style="display:none">
+    <div id="lm-real-fields">
       <div class="login-field">
         <label class="login-field-label">Usuario</label>
         <input class="login-field-input" id="lm-email" type="text" placeholder="Ej: Zona 5, DGIECoord" autocomplete="username" />
@@ -474,24 +469,6 @@
       <div class="login-field">
         <label class="login-field-label">Contraseña</label>
         <input class="login-field-input" id="lm-password" type="password" placeholder="••••••••" autocomplete="current-password" />
-      </div>
-    </div>
-    <!-- Campos demo -->
-    <div id="lm-demo-fields">
-      <div class="login-field">
-        <label class="login-field-label">Rol</label>
-        <select class="login-field-select" id="lm-rol" onchange="onLmRolChange()">
-          <option value="">— Seleccioná tu rol —</option>
-          <option value="director">Director</option>
-          <option value="coordinador">Coordinador/a</option>
-          <option value="inspector">Inspector de zona</option>
-          <option value="empresa">Empresa contratista</option>
-          <option value="callcenter">Call Center</option>
-        </select>
-      </div>
-      <div class="login-field" id="lm-zona-field" style="display:none">
-        <label class="login-field-label" id="lm-zona-label">Zona</label>
-        <select class="login-field-select" id="lm-zona-select"></select>
       </div>
     </div>
     <div class="login-modal-error" id="lm-error">Contraseña incorrecta. Intentá nuevamente.</div>
@@ -2112,10 +2089,12 @@ function hideLanding(){
 }
 function openLoginModal(){
   document.getElementById('login-modal-backdrop').classList.add('visible');
-  document.getElementById('lm-rol').value='';
-  document.getElementById('lm-zona-field').style.display='none';
+  const email=document.getElementById('lm-email');
+  const password=document.getElementById('lm-password');
+  if(email) email.value='';
+  if(password) password.value='';
   document.getElementById('lm-error').style.display='none';
-  onLmModeChange('demo');
+  setTimeout(()=>email?.focus(),50);
 }
 function closeLoginModal(){
   document.getElementById('login-modal-backdrop').classList.remove('visible');
@@ -2144,19 +2123,11 @@ function onLmRolChange(){
   }
 }
 function onLmModeChange(mode){
-  const isReal=mode==='real';
-  document.getElementById('lm-real-fields').style.display=isReal?'block':'none';
-  document.getElementById('lm-demo-fields').style.display=isReal?'none':'block';
-  document.getElementById('lm-sub').textContent=isReal?'Ingresá con tu usuario y contraseña':'Seleccioná tu rol y zona para ingresar';
+  if(document.getElementById('lm-real-fields')) document.getElementById('lm-real-fields').style.display='block';
+  document.getElementById('lm-sub').textContent='Ingresá con tu usuario y contraseña';
   document.getElementById('lm-error').style.display='none';
-  const tabDemo=document.getElementById('lm-tab-demo');
-  const tabReal=document.getElementById('lm-tab-real');
-  if(tabDemo&&tabReal){
-    if(isReal){tabReal.style.background='#005aa9';tabReal.style.color='#fff';tabDemo.style.background='transparent';tabDemo.style.color='#64748b';}
-    else{tabDemo.style.background='#005aa9';tabDemo.style.color='#fff';tabReal.style.background='transparent';tabReal.style.color='#64748b';}
-  }
   document.getElementById('lm-mode-current')?.remove();
-  const hidden=document.createElement('input');hidden.type='hidden';hidden.id='lm-mode-current';hidden.value=mode;
+  const hidden=document.createElement('input');hidden.type='hidden';hidden.id='lm-mode-current';hidden.value='real';
   document.getElementById('login-modal-backdrop').appendChild(hidden);
 }
 function perfilToUser(p){
@@ -2171,7 +2142,7 @@ function perfilToUser(p){
 async function doLmLogin(){
   const errEl=document.getElementById('lm-error');
   errEl.style.display='none';
-  const mode=document.getElementById('lm-mode-current')?.value||'demo';
+  const mode='real';
   if(mode==='real'){
     if(!window.DGIE_DB||!window.DGIE_DB.isConfigured){
       errEl.textContent='Supabase no está configurado.';errEl.style.display='block';return;
@@ -2201,33 +2172,6 @@ async function doLmLogin(){
     loadUser(perfilToUser(perfil));
     return;
   }
-  // Modo demo
-  const rol=document.getElementById('lm-rol').value;
-  const zona=document.getElementById('lm-zona-select').value;
-  if(!rol){errEl.textContent='Seleccioná un rol.';errEl.style.display='block';return;}
-  let user=null;
-  if(rol==='director'){
-    user={name:'Franco Dardati',initials:'FD',role:'direccion'};
-  } else if(rol==='coordinador'){
-    const nombres={coord1:'Rocio Peralta',coord2:'Augusto Zamora'};
-    const inits={coord1:'RP',coord2:'AZ'};
-    user={name:nombres[zona]||'Coordinador',initials:inits[zona]||'CO',role:'coordinador'};
-  } else if(rol==='inspector'){
-    const z=Number(zona);
-    if(!z){errEl.textContent='Seleccioná una zona.';errEl.style.display='block';return;}
-    user={name:INSPECTORS[z-1]+' · Zona '+z,initials:'Z'+z,role:'inspector',zona:z};
-  } else if(rol==='empresa'){
-    const z=Number(zona);
-    if(!z){errEl.textContent='Seleccioná una zona.';errEl.style.display='block';return;}
-    user={name:'Empresa · Zona '+z,initials:'E'+z,role:'empresa',zona:z};
-  } else if(rol==='callcenter'){
-    user={name:'Call Center',initials:'CC',role:'callcenter'};
-  } else {
-    errEl.textContent='Rol no reconocido.';errEl.style.display='block';return;
-  }
-  closeLoginModal();
-  hideLanding();
-  loadUser(user);
 }
 function renderLcCharts(){
   if(document.getElementById('lm-estabs'))
@@ -2612,7 +2556,8 @@ function _drawLc(id,type,labels,data,colors){
 // PARCHE CHATGPT 02/05/2026
 // Conecta reclamos, órdenes y gráficos a datos reales + persistencia local
 // ════════════════════════════════════════════════════════════════════
-const APP_STORAGE_KEY='plataforma_infra_v2_state';
+const APP_STORAGE_KEY='plataforma_infra_produccion_state';
+try{localStorage.removeItem('plataforma_infra_v2_state');}catch(e){}
 function normalizarFechaCorta(fechaISO){return fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});} 
 function getRubroOS(o){return o?.rubro||o?.titulo||'Otro'}
 function getPrioLabel(p){return ({critico:'Crítico',alto:'Alto',medio:'Medio',bajo:'Bajo'}[p]||p||'Sin prioridad')}
