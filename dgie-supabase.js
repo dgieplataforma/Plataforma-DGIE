@@ -105,6 +105,12 @@
     async crearIntervencion(row){
       return client.from('intervenciones').insert(row).select('*').single();
     },
+    async actualizarIntervencion(id, row){
+      return client.from('intervenciones').update(row).eq('id', id).select('*').single();
+    },
+    async eliminarIntervencion(id){
+      return client.from('intervenciones').delete().eq('id', id);
+    },
     async listarRelevamientos(){
       return client.from('relevamientos').select('*').order('created_at', { ascending:false });
     },
