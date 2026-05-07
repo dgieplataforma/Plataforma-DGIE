@@ -5217,5 +5217,62 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-orden-intervenciones-2026-05-07">
+(function(){
+  function fechaIntervencionMs(it){
+    if(it?.created_at)return new Date(it.created_at).getTime()||0;
+    if(it?.ts)return Number(it.ts)||0;
+    const s=String(it?.fecha||'');
+    const p=s.split('/');
+    if(p.length>=3){
+      const y=Number(p[2].length===2?'20'+p[2]:p[2]);
+      return new Date(y,Number(p[1]||1)-1,Number(p[0]||1)).getTime()||0;
+    }
+    return Number(it?.id)||0;
+  }
+  function ordenarIntervencionesRecientes(data){
+    return [...(data||[])].sort((a,b)=>fechaIntervencionMs(b)-fechaIntervencionMs(a)||Number(b.id||0)-Number(a.id||0));
+  }
+  const renderIntervencionesFichaPrev=window.renderIntervencionesFicha;
+  window.renderIntervencionesFicha=function(){
+    const e=ESTABS.find(x=>x.id===currentFichaId);
+    const data=ordenarIntervencionesRecientes(INTERVENCIONES.filter(i=>i.estId===currentFichaId));
+    const can=currentUser?.role==='inspector';
+    return `<div class="card-header"><div><div class="card-title">Intervenciones</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${e?.n||''}</div></div>${can?`<button class="primary-btn" onclick="openNuevaIntervencion()">+ Nueva intervención</button>`:''}</div>${data.length?data.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin intervenciones cargadas</div>'}`;
+  };
+  window.renderIntervencionesDireccionList=function(data){
+    const el=$('intervenciones-dir-list');
+    if(!el)return;
+    const ordenadas=ordenarIntervencionesRecientes(data);
+    el.innerHTML=ordenadas.length?ordenadas.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron intervenciones</div>';
+  };
+})();
+</script>
+<script id="dgie-hora-intervenciones-2026-05-07">
+(function(){
+  function fechaHoraIntervencion(it){
+    const raw=it?.created_at||it?.createdAt||it?.fechaHora||it?.ts;
+    const d=raw?new Date(raw):null;
+    if(d&&!Number.isNaN(d.getTime()))return d.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return it?.fecha||'—';
+  }
+  const cardPrev=window.renderIntervencionCard;
+  window.renderIntervencionCard=function(it){
+    const html=cardPrev(it);
+    return html.replace(/(\d{2}\/\d{2}\/\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4})(\s*·\s*Zona)/,`${fechaHoraIntervencion(it)}$2`);
+  };
+  const guardarPrev=window.guardarIntervencion;
+  window.guardarIntervencion=async function(){
+    const before=INTERVENCIONES[0]?.id;
+    await guardarPrev();
+    const newest=INTERVENCIONES[0];
+    if(newest&&newest.id!==before&&!newest.fechaHora){
+      newest.fechaHora=new Date().toISOString();
+      newest.ts=Date.now();
+      saveAppState&&saveAppState();
+    }
+  };
+})();
+</script>
 </body>
 </html>
