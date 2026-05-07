@@ -21,6 +21,31 @@
   }
 
   const client = supabaseLib.createClient(cfg.url, cfg.anonKey);
+  function cloudinaryConfig(){
+    const cc = window.DGIE_CLOUDINARY || {};
+    return {
+      cloudName: String(cc.cloudName || '').trim(),
+      uploadPreset: String(cc.uploadPreset || '').trim(),
+      folder: String(cc.folder || 'dgie').trim() || 'dgie'
+    };
+  }
+  function cloudinaryHabilitado(){
+    const cc = cloudinaryConfig();
+    return !!(cc.cloudName && cc.uploadPreset);
+  }
+  async function subirCloudinary(file, carpeta){
+    const cc = cloudinaryConfig();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('upload_preset', cc.uploadPreset);
+    form.append('folder', `${cc.folder}/${carpeta}`);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cc.cloudName)}/auto/upload`, {
+      method: 'POST',
+      body: form
+    });
+    if(!res.ok) throw new Error(`Cloudinary ${res.status}`);
+    return res.json();
+  }
 
   window.DGIE_DB = {
     isConfigured: true,
@@ -95,8 +120,11 @@
     async actualizarComunicacion(id, row){
       return client.from('comunicaciones').update(row).eq('id', id).select('*').single();
     },
-    async eliminarTodasComunicaciones(){
-      return client.from('comunicaciones').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    async listarFotos(){
+      return client.from('fotos').select('*').order('created_at', { ascending:false });
+    },
+    async crearFoto(row){
+      return client.from('fotos').insert(row).select('*').single();
     },
     async listarPlanos(establecimientoId){
       return client.from('planos').select('*').eq('establecimiento_id', establecimientoId).order('piso').order('created_at', { ascending: true });
@@ -104,6 +132,23 @@
     async subirPlano(file, establecimientoId, zona, nombre, piso, tipo, descripcion){
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${establecimientoId}/${Date.now()}_${piso}_${safeName}`;
+      if(cloudinaryHabilitado()){
+        try{
+          const uploaded = await subirCloudinary(file, 'planos');
+          return client.from('planos').insert({
+            establecimiento_id: establecimientoId,
+            zona,
+            nombre,
+            piso,
+            tipo,
+            url: uploaded.secure_url,
+            path: uploaded.public_id || path,
+            descripcion: descripcion || null
+          }).select().single();
+        }catch(error){
+          return { data: null, error };
+        }
+      }
       const { error: uploadError } = await client.storage.from('dgie-planos').upload(path, file, { upsert: false });
       if(uploadError) return { data: null, error: uploadError };
       const { data: urlData } = client.storage.from('dgie-planos').getPublicUrl(path);
@@ -119,7 +164,11 @@
       }).select().single();
     },
     async eliminarPlano(id, path){
-      await client.storage.from('dgie-planos').remove([path]);
+      if(path && !String(path).includes('/')) {
+        // Los archivos nuevos pueden estar en Cloudinary; con preset unsigned no se borran desde el navegador.
+      } else {
+        await client.storage.from('dgie-planos').remove([path]);
+      }
       return client.from('planos').delete().eq('id', id);
     }
   };

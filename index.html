@@ -871,14 +871,13 @@ function renderAdministracion(container){
       <button class="dashboard-tab active" id="adm-tab-empresas" onclick="switchAdmTab('empresas')">Datos de empresas</button>
       <button class="dashboard-tab" id="adm-tab-inspectores" onclick="switchAdmTab('inspectores')">Datos de inspectores</button>
       <button class="dashboard-tab" id="adm-tab-estabs" onclick="switchAdmTab('estabs')">Establecimientos</button>
-      <button class="dashboard-tab" id="adm-tab-sistema" onclick="switchAdmTab('sistema')">Sistema</button>
     </div>
     <div id="adm-body"></div>`;
   switchAdmTab('empresas');
 }
 
 function switchAdmTab(tab){
-  ['empresas','inspectores','estabs','sistema'].forEach(t=>{
+  ['empresas','inspectores','estabs'].forEach(t=>{
     const el=document.getElementById('adm-tab-'+t);
     if(el) el.classList.toggle('active', t===tab);
   });
@@ -886,22 +885,7 @@ function switchAdmTab(tab){
   if(!body) return;
   if(tab==='empresas') renderAdmEmpresas(body);
   else if(tab==='inspectores') renderAdmInspectores(body);
-  else if(tab==='sistema') renderAdmSistema(body);
   else renderAdmEstablecimientos(body);
-}
-
-function renderAdmSistema(container){
-  container.innerHTML=`
-    <div class="card">
-      <div class="card-header"><div class="card-title">Limpieza de datos</div></div>
-      <div style="display:grid;gap:14px">
-        <div style="border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff8f0">
-          <div style="font-weight:900;color:#92400e;margin-bottom:6px">Comunicaciones</div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Borra permanentemente todas las comunicaciones, tareas y encuestas. Irreversible.</div>
-          <button class="primary-btn" style="background:#c62828;border-color:#c62828" onclick="limpiarComunicaciones()">Borrar todas las comunicaciones</button>
-        </div>
-      </div>
-    </div>`;
 }
 function renderAdmEmpresas(container){
   container.innerHTML=`
@@ -1591,6 +1575,70 @@ function proximoNumeroReclamo(){
 }
 function prepareNuevoReclamoForm(estId=null){const sel=$('modal-nr-establecimiento')||$('nr-establecimiento');if(sel)sel.innerHTML=ESTABS.map(e=>`<option value="${e.id}" ${estId===e.id?'selected':''}>${e.n} · Zona ${zonaEstablecimiento(e.id)}</option>`).join('');if($('nr-numero'))$('nr-numero').value='';if($('nr-prioridad'))$('nr-prioridad').value='medio';if($('nr-rubro'))$('nr-rubro').value='Sanitarios';if($('nr-fecha'))$('nr-fecha').value=new Date().toISOString().slice(0,10);if($('nr-mensaje'))$('nr-mensaje').value='';if($('nr-error'))$('nr-error').style.display='none';actualizarZonaNuevoReclamo();actualizarReclamosAnteriores();}
 
+function cloudinaryConfig(){
+  const cfg=window.DGIE_CLOUDINARY||{};
+  const cloudName=String(cfg.cloudName||'').trim();
+  const uploadPreset=String(cfg.uploadPreset||'').trim();
+  return {cloudName,uploadPreset,folder:String(cfg.folder||'dgie').trim()||'dgie'};
+}
+function cloudinaryHabilitado(){
+  const cfg=cloudinaryConfig();
+  return !!(cfg.cloudName&&cfg.uploadPreset);
+}
+function comprimirImagenSiCorresponde(file){
+  if(!file?.type?.startsWith('image/')||file.type==='image/gif'||file.type==='image/svg+xml')return Promise.resolve(file);
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      const maxSide=1600;
+      const ratio=Math.min(1,maxSide/Math.max(img.width,img.height));
+      if(ratio>=1&&file.size<900000){resolve(file);return;}
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(img.width*ratio));
+      canvas.height=Math.max(1,Math.round(img.height*ratio));
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      canvas.toBlob(blob=>{
+        if(!blob){resolve(file);return;}
+        const base=file.name.replace(/\.[^.]+$/,'');
+        resolve(new File([blob],`${base}.jpg`,{type:'image/jpeg',lastModified:Date.now()}));
+      },'image/jpeg',0.78);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);resolve(file);};
+    img.src=url;
+  });
+}
+async function subirArchivoCloudinary(file,carpeta='archivos'){
+  const cfg=cloudinaryConfig();
+  if(!cfg.cloudName||!cfg.uploadPreset)return null;
+  const original=file;
+  file=await comprimirImagenSiCorresponde(file);
+  const form=new FormData();
+  form.append('file',file);
+  form.append('upload_preset',cfg.uploadPreset);
+  form.append('folder',`${cfg.folder}/${carpeta}`);
+  const res=await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cfg.cloudName)}/auto/upload`,{method:'POST',body:form});
+  if(!res.ok)throw new Error(`Cloudinary ${res.status}`);
+  const data=await res.json();
+  return {provider:'cloudinary',nombre:original.name,name:original.name,tipo:original.type,type:original.type,size:original.size,storedSize:file.size,url:data.secure_url,publicId:data.public_id,resourceType:data.resource_type};
+}
+function leerArchivoDataUrl(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve({nombre:file.name,name:file.name,tipo:file.type,type:file.type,size:file.size,url:e.target.result,dataUrl:e.target.result});
+    reader.onerror=()=>resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+async function leerArchivoDGIE(file,carpeta){
+  if(cloudinaryHabilitado()){
+    try{return await subirArchivoCloudinary(file,carpeta);}
+    catch(err){console.warn('No se pudo subir a Cloudinary; se usa vista local.',err);}
+  }
+  return leerArchivoDataUrl(file);
+}
+
 function guardarNuevoReclamoModal(){
   const estId=Number($('modal-nr-establecimiento')?.value||0);
   const est=ESTABS.find(e=>e.id===estId);
@@ -1646,18 +1694,13 @@ function previsualizarFotosReclamo(input){
 function leerFotosInputReclamo(input){
   const files=Array.from(input?.files||[]);
   if(!files.length) return Promise.resolve([]);
-  return Promise.all(files.map(file=>new Promise(resolve=>{
-    const reader=new FileReader();
-    reader.onload=e=>resolve({nombre:file.name,tipo:file.type,url:e.target.result});
-    reader.onerror=()=>resolve(null);
-    reader.readAsDataURL(file);
-  }))).then(arr=>arr.filter(Boolean));
+  return Promise.all(files.map(file=>leerArchivoDGIE(file,'reclamos'))).then(arr=>arr.filter(Boolean));
 }
 function renderFotosReclamo(r){
   const fotos=Array.isArray(r.fotos)?r.fotos:[];
   if(fotos.length){
     return `<div class="reclamo-fotos">${fotos.map(f=>{
-      const src=typeof f==='string'?f:f.url;
+      const src=typeof f==='string'?f:(f.url||f.secure_url||f.dataUrl);
       const nombre=(typeof f==='object'&&f.nombre)?f.nombre:'Foto del reclamo';
       return src?`<img src="${src}" alt="${nombre}" title="${nombre}" class="reclamo-foto-thumb" onclick="window.open(this.src,'_blank')">`:'';
     }).join('')}</div>`;
@@ -1909,10 +1952,16 @@ function openFicha(id){
   else if(i===5){fb.innerHTML=renderPlanosFicha(currentFichaId);cargarPlanos(currentFichaId)} }
 const INTERVENCIONES=[];
 function renderIntervencionesFicha(){const e=ESTABS.find(x=>x.id===currentFichaId);const data=INTERVENCIONES.filter(x=>x.estId===currentFichaId);return `<div class="card-header"><div><div class="card-title">Intervenciones en curso</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Carga de avances realizada por el inspector de zona.</div></div>${canEdit()?'<button class="primary-btn" onclick="openNuevaIntervencion()">+ Nueva intervención</button>':'' }</div>${data.length?data.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin intervenciones cargadas para este establecimiento</div>'}`}
-function renderIntervencionCard(it){const est=ESTABS.find(e=>e.id===it.estId);return `<div class="intervencion-card" onclick="verDetalleIntervencion(${it.id})"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-weight:900;color:#123c69">${est?.n||'Establecimiento'}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${it.fecha} · Zona ${it.zona} · ${it.inspector}</div></div><span class="badge b-info">${it.avance}%</span></div><div style="font-size:14px;margin-top:10px;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${Array.from({length:it.fotos},(_,i)=>`<div class="intervencion-photo">Foto ${i+1}</div>`).join('')}</div></div>`}
-function openNuevaIntervencion(){const e=ESTABS.find(x=>x.id===currentFichaId);const fb=$('ficha-body');if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="switchFichaTab(3)">‹ Volver a intervenciones</button><div class="card-header"><div><div class="card-title">Nueva intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${e.n}</div></div></div><div class="form-grid"><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="int-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-field"><label class="form-label">Porcentaje de avance</label><input class="form-input" id="int-avance" type="number" min="0" max="100" value="50"></div><div class="form-field full"><label class="form-label">Intervención realizada / en curso</label><textarea class="form-textarea" id="int-desc" placeholder="Describir brevemente la intervención que se está realizando..."></textarea></div><div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="int-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">En el prototipo se registra la cantidad de fotos seleccionadas.</div></div></div><div class="form-error" id="int-error">Completá descripción y porcentaje de avance.</div><div class="modal-actions"><button class="secondary-btn" onclick="switchFichaTab(3)">Cancelar</button><button class="primary-btn" onclick="guardarIntervencion()">Guardar intervención</button></div>`}
-async function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');const fotos=$('int-fotos')?.files?.length||0;const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);let remoteId=null;if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10)});if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar en Supabase: '+error.message;$('int-error').style.display='block';}return}remoteId=data?.id||null}INTERVENCIONES.unshift({id:Date.now(),remoteId,_remoteSaved:!!remoteId,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos});saveAppState&&saveAppState();switchFichaTab(3)}
-function verDetalleIntervencion(id){const it=INTERVENCIONES.find(x=>x.id===id);const est=ESTABS.find(e=>e.id===it?.estId);const fb=$('ficha-body')||$('main-content');if(!it||!fb)return;fb.innerHTML=`<button class="back-btn" onclick="${currentUser?.role==='inspector'?'switchFichaTab(3)':'renderIntervencionesDireccion($(\'main-content\'))'}">‹ Volver</button><div class="card-header"><div><div class="card-title">Detalle de intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${est?.n||'Establecimiento'} · Zona ${it.zona}</div></div><span class="badge b-info">${it.avance}% avance</span></div><div class="ficha-datos"><div class="ficha-dato"><div class="ficha-dato-lbl">Fecha</div><div class="ficha-dato-val">${it.fecha}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Inspector</div><div class="ficha-dato-val">${it.inspector}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Establecimiento</div><div class="ficha-dato-val">${est?.n||'—'}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Avance</div><div class="ficha-dato-val">${it.avance}%</div></div></div><div style="margin-top:14px;font-size:15px;line-height:1.5;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${Array.from({length:it.fotos},(_,i)=>`<div class="intervencion-photo">Foto ${i+1}</div>`).join('')||'<div style="font-size:13px;color:var(--muted)">Sin fotos cargadas</div>'}</div>`}
+function fotosIntervencionArray(it){return Array.isArray(it?.fotosArchivos)?it.fotosArchivos:[]}
+function renderFotosIntervencion(it){
+  const files=fotosIntervencionArray(it);
+  if(files.length)return files.map((f,i)=>`<img src="${f.url||f.dataUrl||''}" title="${escapeHtml(f.nombre||f.name||'Foto '+(i+1))}" class="reclamo-foto-thumb" onclick="event.stopPropagation();window.open(this.src,'_blank')">`).join('');
+  return Array.from({length:Number(it.fotos)||0},(_,i)=>`<div class="intervencion-photo">Foto ${i+1}</div>`).join('');
+}
+function renderIntervencionCard(it){const est=ESTABS.find(e=>e.id===it.estId);return `<div class="intervencion-card" onclick="verDetalleIntervencion(${it.id})"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-weight:900;color:#123c69">${est?.n||'Establecimiento'}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${it.fecha} · Zona ${it.zona} · ${it.inspector}</div></div><span class="badge b-info">${it.avance}%</span></div><div style="font-size:14px;margin-top:10px;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${renderFotosIntervencion(it)}</div></div>`}
+function openNuevaIntervencion(){const e=ESTABS.find(x=>x.id===currentFichaId);const fb=$('ficha-body');if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="switchFichaTab(3)">‹ Volver a intervenciones</button><div class="card-header"><div><div class="card-title">Nueva intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${e.n}</div></div></div><div class="form-grid"><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="int-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-field"><label class="form-label">Porcentaje de avance</label><input class="form-input" id="int-avance" type="number" min="0" max="100" value="50"></div><div class="form-field full"><label class="form-label">Intervención realizada / en curso</label><textarea class="form-textarea" id="int-desc" placeholder="Describir brevemente la intervención que se está realizando..."></textarea></div><div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="int-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">Las imágenes se optimizan y se guardan en Cloudinary cuando está configurado.</div></div></div><div class="form-error" id="int-error">Completá descripción y porcentaje de avance.</div><div class="modal-actions"><button class="secondary-btn" onclick="switchFichaTab(3)">Cancelar</button><button class="primary-btn" onclick="guardarIntervencion()">Guardar intervención</button></div>`}
+async function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');const fotosFiles=[...($('int-fotos')?.files||[])];const fotosArchivos=await Promise.all(fotosFiles.map(file=>leerArchivoDGIE(file,'intervenciones'))).then(arr=>arr.filter(Boolean));const fotos=fotosArchivos.length||fotosFiles.length||0;const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);let remoteId=null;if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10)});if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar en Supabase: '+error.message;$('int-error').style.display='block';}return}remoteId=data?.id||null;await persistirFotosSupabase('intervencion',remoteId,fotosArchivos,currentFichaId,z)}INTERVENCIONES.unshift({id:Date.now(),remoteId,_remoteSaved:!!remoteId,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos,fotosArchivos});saveAppState&&saveAppState();switchFichaTab(3)}
+function verDetalleIntervencion(id){const it=INTERVENCIONES.find(x=>x.id===id);const est=ESTABS.find(e=>e.id===it?.estId);const fb=$('ficha-body')||$('main-content');if(!it||!fb)return;fb.innerHTML=`<button class="back-btn" onclick="${currentUser?.role==='inspector'?'switchFichaTab(3)':'renderIntervencionesDireccion($(\'main-content\'))'}">‹ Volver</button><div class="card-header"><div><div class="card-title">Detalle de intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${est?.n||'Establecimiento'} · Zona ${it.zona}</div></div><span class="badge b-info">${it.avance}% avance</span></div><div class="ficha-datos"><div class="ficha-dato"><div class="ficha-dato-lbl">Fecha</div><div class="ficha-dato-val">${it.fecha}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Inspector</div><div class="ficha-dato-val">${it.inspector}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Establecimiento</div><div class="ficha-dato-val">${est?.n||'—'}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Avance</div><div class="ficha-dato-val">${it.avance}%</div></div></div><div style="margin-top:14px;font-size:15px;line-height:1.5;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${renderFotosIntervencion(it)||'<div style="font-size:13px;color:var(--muted)">Sin fotos cargadas</div>'}</div>`}
 function renderIntervencionesDireccion(container){const data=[...INTERVENCIONES].sort((a,b)=>b.id-a.id);container.innerHTML=`<div class="section-label">Dirección · Intervenciones por inspector</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones actualizadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado de avances cargados por los inspectores en las fichas de establecimientos.</div></div><span class="badge b-info">${data.length} intervenciones</span></div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list"></div></div>`;renderIntervencionesDireccionList(data)}
 function filterIntervencionesDireccion(){const z=$('int-dir-zona')?.value||'',q=($('int-dir-search')?.value||'').toLowerCase();const data=INTERVENCIONES.filter(it=>{const est=ESTABS.find(e=>e.id===it.estId);return (!z||String(it.zona)===z)&&(`${est?.n||''} ${it.inspector} ${it.descripcion}`.toLowerCase().includes(q))}).sort((a,b)=>b.id-a.id);renderIntervencionesDireccionList(data)}
 function renderIntervencionesDireccionList(data){const el=$('intervenciones-dir-list');if(!el)return;el.innerHTML=data.length?data.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron intervenciones</div>'}
@@ -2644,6 +2693,20 @@ async function persistirReclamoSupabase(r){
   if(error){console.warn('No se pudo guardar reclamo en Supabase',error);return;}
   r.remoteId=data?.id||r.remoteId;
   r._remoteSaved=true;
+  await persistirFotosSupabase('reclamo',r.remoteId,r.fotos,r.estId,r.zona);
+}
+async function persistirFotosSupabase(entidadTipo,entidadId,fotos,estId,zona){
+  if(!entidadId||!Array.isArray(fotos)||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearFoto!=='function')return;
+  const externas=fotos.filter(f=>f&&f.provider==='cloudinary'&&f.url);
+  await Promise.all(externas.map(f=>window.DGIE_DB.crearFoto({
+    entidad_tipo:entidadTipo,
+    entidad_id:String(entidadId),
+    establecimiento_id:Number(estId)||null,
+    zona:Number(zona||zonaEstablecimiento(estId)||1),
+    bucket:'cloudinary',
+    path:f.url,
+    descripcion:f.nombre||f.name||null
+  }).catch(err=>console.warn('No se pudo guardar referencia de foto',err))));
 }
 async function persistirOrdenSupabase(o){
   if(!o||o._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearOrden!=='function')return;
@@ -3733,7 +3796,7 @@ function renderChartInsp(){
                 <textarea class="form-textarea" id="comm-encuesta-opciones" placeholder="Sí&#10;No&#10;Parcialmente&#10;Requiere nueva visita"></textarea>
               </div>
             </div>
-            <div class="form-field full"><label class="form-label">Archivos adjuntos <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input type="file" id="comm-archivos" multiple style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px"></div>
+            <div class="form-field full"><label class="form-label">Archivos adjuntos <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input type="file" id="comm-archivos" multiple accept="image/*,.pdf,application/pdf" style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px"></div>
           </div>
           <div class="form-error" id="comm-error" style="display:none">Completá título y mensaje.</div>
           <div class="modal-actions"><button class="primary-btn" onclick="guardarComunicacion()">Enviar comunicación</button></div>
@@ -3748,17 +3811,6 @@ function renderChartInsp(){
     const tipo=document.getElementById('comm-tipo')?.value;
     const wrapper=document.getElementById('comm-survey-wrapper');
     if(wrapper)wrapper.style.display=tipo==='tarea'?'':'none';
-  };
-  window.limpiarComunicaciones=async function(){
-    if(!confirm('Esto borra TODAS las comunicaciones permanentemente. ¿Continuar?'))return;
-    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarTodasComunicaciones==='function'){
-      const {error}=await window.DGIE_DB.eliminarTodasComunicaciones();
-      if(error)alert('Error al borrar en Supabase: '+error.message+'\nSe borrarán solo localmente.');
-    }
-    COMUNICACIONES.splice(0,COMUNICACIONES.length);
-    saveAppState&&saveAppState();
-    const mc=document.getElementById('main-content');
-    if(mc&&currentUser&&['coordinador','director'].includes(currentUser.role))renderComunicaciones(mc);
   };
   window.renderCommDestino=function(){
     const box=document.getElementById('comm-destino-box');
@@ -3818,7 +3870,10 @@ function renderChartInsp(){
   function renderCommArchivos(c){
     const files=Array.isArray(c.archivos)?c.archivos:[];
     if(!files.length)return '';
-    return `<div class="comm-targets">${files.map((f,i)=>`<a class="badge b-neutral" download="${escapeHtml(f.name||'archivo')}" href="${f.dataUrl||'#'}" style="text-decoration:none">Archivo ${i+1}: ${escapeHtml(f.name||'sin nombre')}</a>`).join('')}</div>`;
+    return `<div class="comm-targets">${files.map((f,i)=>{
+      const href=f.url||f.secure_url||f.dataUrl||'#';
+      return `<a class="badge b-neutral" download="${escapeHtml(f.name||f.nombre||'archivo')}" href="${href}" target="_blank" style="text-decoration:none">Archivo ${i+1}: ${escapeHtml(f.name||f.nombre||'sin nombre')}</a>`;
+    }).join('')}</div>`;
   }
   function renderCommEncuestaResumen(c){
     const cfg=encuestaConfig(c);
@@ -3846,13 +3901,16 @@ function renderChartInsp(){
   function renderEncuestaRespuestaTexto(respuestas,c){
     if(respuestas?.opciones)respuestas=respuestas.opciones;
     const keys=Object.keys(respuestas||{});
-    if(!keys.length)return '';
+    const elegidas=keys.filter(k=>{
+      const r=respuestas[k];
+      return typeof r==='object'?!!r.checked:!!r;
+    });
+    if(!elegidas.length)return '';
     const cfg=encuestaConfig(c);
-    return '<br>Encuesta:<br>'+keys.sort((a,b)=>Number(a)-Number(b)).map(k=>{
+    return '<br>Encuesta:<br>'+elegidas.sort((a,b)=>Number(a)-Number(b)).map(k=>{
       const r=respuestas[k];
       const label=typeof r==='object'?(r.label||cfg?.opciones?.[Number(k)]):(cfg?.opciones?.[Number(k)]||('Opción '+(Number(k)+1)));
-      const checked=typeof r==='object'?!!r.checked:!!r;
-      return `- ${escapeHtml(label)}: ${checked?'Sí':'No'}`;
+      return `- ${escapeHtml(label)}`;
     }).join('<br>');
   }
   function renderCommGraficos(c){
@@ -3889,12 +3947,7 @@ function renderChartInsp(){
   }
   function leerArchivosComoDataUrl(input){
     const files=[...(input?.files||[])];
-    return Promise.all(files.map(file=>new Promise(resolve=>{
-      const reader=new FileReader();
-      reader.onload=()=>resolve({name:file.name,type:file.type,size:file.size,dataUrl:reader.result});
-      reader.onerror=()=>resolve({name:file.name,type:file.type,size:file.size,dataUrl:''});
-      reader.readAsDataURL(file);
-    })));
+    return Promise.all(files.map(file=>leerArchivoDGIE(file,'comunicaciones'))).then(arr=>arr.filter(Boolean));
   }
   window.guardarComunicacion=async function(){
     const tipo=document.getElementById('comm-tipo')?.value||'notificacion';
@@ -4408,12 +4461,13 @@ function renderChartInsp(){
   async function cargarDatosOperativosSupabase(){
     if(!window.DGIE_DB?.isConfigured)return;
     try{
-      const [recRes,osRes,intRes,relRes,commRes]=await Promise.all([
+      const [recRes,osRes,intRes,relRes,commRes,fotoRes]=await Promise.all([
         window.DGIE_DB.listarReclamos?.(),
         window.DGIE_DB.listarOrdenes?.(),
         window.DGIE_DB.listarIntervenciones?.(),
         window.DGIE_DB.listarRelevamientos?.(),
-        window.DGIE_DB.listarComunicaciones?.()
+        window.DGIE_DB.listarComunicaciones?.(),
+        window.DGIE_DB.listarFotos?.()
       ]);
       if(recRes&&!recRes.error&&Array.isArray(recRes.data)){
         RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...recRes.data.map(mapRemoteReclamo));
@@ -4434,6 +4488,22 @@ function renderChartInsp(){
       }
       if(commRes&&!commRes.error&&Array.isArray(commRes.data)&&typeof window.mapRemoteComunicacion==='function'){
         COMUNICACIONES.splice(0,COMUNICACIONES.length,...commRes.data.map(window.mapRemoteComunicacion));
+      }
+      if(fotoRes&&!fotoRes.error&&Array.isArray(fotoRes.data)){
+        const fotosPorReclamo={};
+        const fotosPorIntervencion={};
+        fotoRes.data.filter(f=>f.entidad_tipo==='reclamo').forEach(f=>{
+          const key=String(f.entidad_id||'');
+          if(!fotosPorReclamo[key])fotosPorReclamo[key]=[];
+          fotosPorReclamo[key].push({provider:f.bucket||'cloudinary',nombre:f.descripcion||'Foto del reclamo',url:f.path});
+        });
+        fotoRes.data.filter(f=>f.entidad_tipo==='intervencion').forEach(f=>{
+          const key=String(f.entidad_id||'');
+          if(!fotosPorIntervencion[key])fotosPorIntervencion[key]=[];
+          fotosPorIntervencion[key].push({provider:f.bucket||'cloudinary',nombre:f.descripcion||'Foto de intervención',url:f.path});
+        });
+        RECLAMOS_ZONA.forEach(r=>{r.fotos=fotosPorReclamo[String(r.remoteId)]||r.fotos||[];});
+        INTERVENCIONES.forEach(it=>{it.fotosArchivos=fotosPorIntervencion[String(it.remoteId)]||it.fotosArchivos||[];it.fotos=it.fotosArchivos.length||it.fotos||0;});
       }
       RECLAMOS_ZONA.forEach(r=>{
         const os=findOSForReclamo(r,OS_ZONA);

@@ -6,3 +6,10 @@ window.DGIE_SUPABASE = {
   anonKey: "TU_ANON_KEY_PUBLICA"
 };
 
+// Opcional: completar para subir fotos y adjuntos pesados a Cloudinary.
+// Usar un upload preset UNSIGNED creado en Cloudinary.
+window.DGIE_CLOUDINARY = {
+  cloudName: "TU_CLOUD_NAME",
+  uploadPreset: "TU_UPLOAD_PRESET_UNSIGNED",
+  folder: "dgie"
+};
