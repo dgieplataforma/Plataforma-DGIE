@@ -312,7 +312,7 @@
 </head>
 <body>
 <div class="print-preview" id="os-print-preview"><div class="print-preview-toolbar"><div style="font-weight:900;color:#123c69">Vista previa de Orden de Servicio</div><div style="display:flex;gap:8px"><button class="secondary-btn" onclick="cerrarVistaPDF()">Volver</button><button class="secondary-btn" onclick="descargarOSHTMLActual()">Descargar HTML</button><button class="primary-btn" onclick="window.print()">Imprimir / Guardar PDF</button></div></div><div class="print-preview-sheet" id="os-print-content"></div></div>
-<div class="modal-backdrop" id="nuevo-reclamo-modal"><div class="modal"><div class="modal-header"><div class="modal-title">Nuevo reclamo</div><button class="logout-btn" onclick="closeNuevoReclamo()">Cerrar ✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-field full"><label class="form-label">Establecimiento</label><select class="form-select" id="modal-nr-establecimiento"></select></div><div class="form-field"><label class="form-label">Número de reclamo</label><input class="form-input" id="modal-nr-numero" /></div><div class="form-field"><label class="form-label">Prioridad</label><select class="form-select" id="modal-nr-prioridad"><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio" selected>Medio</option><option value="bajo">Bajo</option></select></div><div class="form-field"><label class="form-label">Rubro</label><select class="form-select" id="modal-nr-rubro"><option>Sanitarios</option><option>Electricidad</option><option>Gas</option><option>Cubierta</option><option>Albañilería</option><option>Herrería</option><option>Pintura</option><option>Otro</option></select></div><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="modal-nr-fecha" type="date" /></div><div class="form-field full"><label class="form-label">Mensaje / descripción del reclamo</label><textarea class="form-textarea" id="modal-nr-mensaje"></textarea></div></div><div class="form-error" id="modal-nr-error">Completá establecimiento, número de reclamo y mensaje.</div><div class="modal-actions"><button class="secondary-btn" onclick="closeNuevoReclamo()">Cancelar</button><button class="primary-btn" onclick="guardarNuevoReclamoModal()">Guardar reclamo</button></div></div></div></div>
+<div class="modal-backdrop" id="nuevo-reclamo-modal"><div class="modal"><div class="modal-header"><div class="modal-title">Nuevo reclamo</div><button class="logout-btn" onclick="closeNuevoReclamo()">Cerrar ✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-field full"><label class="form-label">Establecimiento</label><select class="form-select" id="modal-nr-establecimiento"></select></div><div class="form-field"><label class="form-label">Número de reclamo</label><input class="form-input" id="modal-nr-numero" /></div><div class="form-field"><label class="form-label">Prioridad</label><select class="form-select" id="modal-nr-prioridad"><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio" selected>Medio</option><option value="bajo">Bajo</option></select></div><div class="form-field"><label class="form-label">Rubro</label><select class="form-select" id="modal-nr-rubro"><option>Sanitarios</option><option>Electricidad</option><option>Gas</option><option>Cubierta</option><option>Albañilería</option><option>Herrería</option><option>Pintura</option><option>Otro</option></select></div><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="modal-nr-fecha" type="date" /></div><div class="form-field full"><label class="form-label">Mensaje / descripción del reclamo</label><textarea class="form-textarea" id="modal-nr-mensaje"></textarea></div><div class="form-field full"><label class="form-label">Fotos del reclamo <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input type="file" id="modal-nr-fotos" multiple accept="image/*" style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px" onchange="previsualizarFotosReclamoModal(this)"/><div id="modal-nr-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div></div></div><div class="form-error" id="modal-nr-error">Completá establecimiento, número de reclamo y mensaje.</div><div class="modal-actions"><button class="secondary-btn" onclick="closeNuevoReclamo()">Cancelar</button><button class="primary-btn" onclick="guardarNuevoReclamoModal()">Guardar reclamo</button></div></div></div></div>
 
 <!-- LANDING PÚBLICA -->
 <div class="landing active" id="landing-screen">
@@ -468,7 +468,7 @@
     <div id="lm-real-fields">
       <div class="login-field">
         <label class="login-field-label">Usuario</label>
-        <input class="login-field-input" id="lm-email" type="text" placeholder="Ej: Zona 5, DGIECoord" autocomplete="username" />
+        <input class="login-field-input" id="lm-email" type="text" placeholder="Ej: Zona 5, Empresa 5, DGIECoord" autocomplete="username" />
       </div>
       <div class="login-field">
         <label class="login-field-label">Contraseña</label>
@@ -1639,7 +1639,7 @@ async function leerArchivoDGIE(file,carpeta){
   return leerArchivoDataUrl(file);
 }
 
-function guardarNuevoReclamoModal(){
+async function guardarNuevoReclamoModal(){
   const estId=Number($('modal-nr-establecimiento')?.value||0);
   const est=ESTABS.find(e=>e.id===estId);
   const numero=$('modal-nr-numero')?.value.trim();
@@ -1652,10 +1652,11 @@ function guardarNuevoReclamoModal(){
     return;
   }
   const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');
+  const fotos=await leerFotosInputReclamo(document.getElementById('modal-nr-fotos'));
   RECLAMOS_ZONA.unshift({
     titulo:mensaje, est:est.n, prio, fecha, os:'Sin OS',
     estId, numero, rubro,
-    zona:zonaEstablecimiento(estId), reiteradoDe:null, reiteraciones:0
+    zona:zonaEstablecimiento(estId), reiteradoDe:null, reiteraciones:0, fotos
   });
   closeNuevoReclamo();
   const zonaContent=$('zona-content');
@@ -1691,18 +1692,45 @@ function previsualizarFotosReclamo(input){
     reader.readAsDataURL(file);
   });
 }
+function previsualizarFotosReclamoModal(input){
+  const preview=document.getElementById('modal-nr-fotos-preview');
+  if(!preview) return;
+  preview.innerHTML='';
+  Array.from(input.files).forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const div=document.createElement('div');
+      div.style.cssText='position:relative;width:72px;height:56px;border-radius:8px;overflow:hidden;border:1px solid var(--border)';
+      const img=document.createElement('img');
+      img.src=e.target.result;
+      img.style.cssText='width:100%;height:100%;object-fit:cover';
+      div.appendChild(img);
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
 function leerFotosInputReclamo(input){
   const files=Array.from(input?.files||[]);
   if(!files.length) return Promise.resolve([]);
   return Promise.all(files.map(file=>leerArchivoDGIE(file,'reclamos'))).then(arr=>arr.filter(Boolean));
 }
+function fotoUrlDGIE(f){
+  if(!f)return '';
+  if(typeof f==='string')return f;
+  return f.url||f.secure_url||f.dataUrl||f.path||'';
+}
+function fotoNombreDGIE(f,fallback='Foto'){
+  if(!f||typeof f==='string')return fallback;
+  return f.nombre||f.name||f.descripcion||fallback;
+}
 function renderFotosReclamo(r){
   const fotos=Array.isArray(r.fotos)?r.fotos:[];
   if(fotos.length){
     return `<div class="reclamo-fotos">${fotos.map(f=>{
-      const src=typeof f==='string'?f:(f.url||f.secure_url||f.dataUrl);
-      const nombre=(typeof f==='object'&&f.nombre)?f.nombre:'Foto del reclamo';
-      return src?`<img src="${src}" alt="${nombre}" title="${nombre}" class="reclamo-foto-thumb" onclick="window.open(this.src,'_blank')">`:'';
+      const src=fotoUrlDGIE(f);
+      const nombre=fotoNombreDGIE(f,'Foto del reclamo');
+      return src?`<img src="${src}" alt="${escapeHtml(nombre)}" title="${escapeHtml(nombre)}" class="reclamo-foto-thumb" onclick="window.open(this.src,'_blank')">`:'';
     }).join('')}</div>`;
   }
   if(Number(r.fotos)>0){
@@ -2085,9 +2113,23 @@ window.guardarPlano=async function(estId){
 };
 // ─── FIN MÓDULO PLANOS ────────────────────────────────────────────────────────
 
-const FOTO_ALBUMES=[];function renderAlbumesFotos(){return `<div class="card-header"><div><div class="card-title">Álbumes fotográficos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Organización de fotos por relevamiento, rubro o intervención.</div></div>${canEdit()?'<button class="primary-btn" onclick="alert(\'Próximo paso: nuevo álbum\')">+ Nuevo álbum</button>':'' }</div><div class="album-grid">${FOTO_ALBUMES.map(a=>`<div class="album-card" onclick="openAlbumFotos(${a.id})"><div class="album-thumb"><div style="position:absolute;right:10px;bottom:10px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;color:var(--blue)">${a.cant} fotos</div></div><div class="album-title">${a.titulo}</div><div class="album-meta">${a.fecha}<br>${a.detalle}</div></div>`).join('')}</div>`}function openAlbumFotos(id){const a=FOTO_ALBUMES.find(x=>x.id===id),fb=$('ficha-body');if(!fb||!a)return;fb.innerHTML=`<button class="back-btn" onclick="switchFichaTab(2)">‹ Volver a álbumes</button><div class="card-header"><div><div class="card-title">${a.titulo}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${a.fecha} · ${a.detalle}</div></div>${canEdit()?'<button class="primary-btn" onclick="alert(\'Próximo paso: subir fotos\')">+ Subir foto</button>':'' }</div><div class="foto-grid"><div class="foto-item" style="background:linear-gradient(135deg,#e8d5b7,#9a6b3d)">Fachada<div class="foto-label">${a.fecha}</div></div><div class="foto-item" style="background:linear-gradient(135deg,#b7c8e8,#416c9d)">Aula / humedad<div class="foto-label">${a.fecha}</div></div><div class="foto-item" style="background:linear-gradient(135deg,#d7f0e3,#5a9b74)">Patio<div class="foto-label">${a.fecha}</div></div><div class="foto-placeholder">Agregar</div></div>`}
+const FOTO_ALBUMES=[];
+const ALBUMES_ESTABLECIMIENTO=[];
+function puedeGestionarAlbumes(){return ['inspector','coordinador','direccion','director'].includes(String(currentUser?.role||''))}
+function albumBodyEl(){return $('ficha-body')||$('map-ficha-body')}
+function volverAlbumesFotos(){if($('ficha-body'))switchFichaTab(2);else if($('map-ficha-body'))renderMapFichaBody(currentFichaId,2)}
+function albumesPorEstablecimiento(estId=currentFichaId){return ALBUMES_ESTABLECIMIENTO.filter(a=>Number(a.estId)===Number(estId)).sort((a,b)=>String(b.fechaISO||b.id).localeCompare(String(a.fechaISO||a.id)))}
+function fotosAlbum(albumId){return FOTO_ALBUMES.filter(f=>String(f.albumId)===String(albumId)).sort((a,b)=>String(b.fechaISO||b.id).localeCompare(String(a.fechaISO||a.id)))}
+function renderAlbumesFotos(){const estId=currentFichaId,albumes=albumesPorEstablecimiento(estId);return `<div class="card-header"><div><div class="card-title">Álbumes fotográficos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Fotos propias del establecimiento, separadas de reclamos e intervenciones.</div></div>${puedeGestionarAlbumes()?'<button class="primary-btn" onclick="openNuevoAlbumFotos()">+ Nuevo álbum</button>':''}</div>${albumes.length?`<div class="album-grid">${albumes.map(a=>{const fotos=fotosAlbum(a.id),cover=fotos[0]?fotoUrlDGIE(fotos[0]):'';return `<div class="album-card" onclick="openAlbumFotos('${a.id}')"><div class="album-thumb" style="${cover?`background-image:url('${cover}');background-size:cover;background-position:center`:''}"><div style="position:absolute;right:10px;bottom:10px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;color:var(--blue)">${fotos.length} fotos</div></div><div class="album-title">${escapeHtml(a.titulo)}</div><div class="album-meta">${escapeHtml(a.fecha||'')}<br>${escapeHtml(a.detalle||'Sin descripción')}</div></div>`}).join('')}</div>`:'<div style="text-align:center;padding:30px;color:var(--muted)">Sin álbumes cargados para este establecimiento</div>'}`}
+function openNuevoAlbumFotos(){const fb=albumBodyEl(),e=ESTABS.find(x=>Number(x.id)===Number(currentFichaId));if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="volverAlbumesFotos()">‹ Volver a álbumes</button><div class="card-header"><div><div class="card-title">Nuevo álbum</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${escapeHtml(e.n)}</div></div></div><div class="form-grid"><div class="form-field full"><label class="form-label">Nombre del álbum</label><input class="form-input" id="album-titulo" placeholder="Ej: Fachada, instalación eléctrica, patios..."></div><div class="form-field full"><label class="form-label">Descripción <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input class="form-input" id="album-detalle" placeholder="Detalle breve del contenido"></div><div class="form-field full"><label class="form-label">Fotos iniciales <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input class="form-input" id="album-fotos" type="file" multiple accept="image/*" onchange="previsualizarFotosAlbum(this,'album-fotos-preview')"><div id="album-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div></div></div><div class="form-error" id="album-error">Ingresá un nombre para el álbum.</div><div class="modal-actions"><button class="secondary-btn" onclick="volverAlbumesFotos()">Cancelar</button><button class="primary-btn" id="album-guardar-btn" onclick="guardarAlbumFotos()">Guardar álbum</button></div>`}
+function previsualizarFotosAlbum(input,previewId){const preview=document.getElementById(previewId);if(!preview)return;preview.innerHTML='';Array.from(input.files||[]).forEach(file=>{const reader=new FileReader();reader.onload=e=>{const div=document.createElement('div');div.style.cssText='position:relative;width:72px;height:56px;border-radius:8px;overflow:hidden;border:1px solid var(--border)';const img=document.createElement('img');img.src=e.target.result;img.style.cssText='width:100%;height:100%;object-fit:cover';div.appendChild(img);preview.appendChild(div)};reader.readAsDataURL(file);})}
+async function guardarAlbumFotos(){const titulo=($('album-titulo')?.value||'').trim(),detalle=($('album-detalle')?.value||'').trim(),err=$('album-error'),btn=$('album-guardar-btn');if(!titulo){if(err)err.style.display='block';return}if(err)err.style.display='none';const est=ESTABS.find(x=>Number(x.id)===Number(currentFichaId));const zona=Number(est?.zona||currentUser?.zona||1),id='alb_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),fechaISO=new Date().toISOString(),fecha=new Date().toLocaleDateString('es-AR');const album={id,estId:currentFichaId,zona,titulo,detalle,fecha,fechaISO};if(btn){btn.disabled=true;btn.textContent='Guardando...'}if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearFoto==='function'){const meta={tipo:'album',titulo,detalle,fechaISO};const res=await window.DGIE_DB.crearFoto({entidad_tipo:'album',entidad_id:id,establecimiento_id:Number(currentFichaId),zona,bucket:'meta',path:'__album__',descripcion:JSON.stringify(meta)});if(res?.error){if(err){err.textContent='No se pudo guardar el álbum en Supabase: '+res.error.message;err.style.display='block';}if(btn){btn.disabled=false;btn.textContent='Guardar álbum'}return}}ALBUMES_ESTABLECIMIENTO.unshift(album);const files=[...($('album-fotos')?.files||[])];if(files.length)await subirFotosAAlbum(id,files);saveAppState&&saveAppState();openAlbumFotos(id)}
+async function subirFotosAAlbum(albumId,files){const album=ALBUMES_ESTABLECIMIENTO.find(a=>String(a.id)===String(albumId));if(!album||!files?.length)return;for(const file of files){const subida=await leerArchivoDGIE(file,'albumes');if(!subida)continue;const foto={id:'foto_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),albumId,estId:album.estId,zona:album.zona,fechaISO:new Date().toISOString(),fecha:new Date().toLocaleDateString('es-AR'),...subida};if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearFoto==='function'&&subida.provider==='cloudinary'&&subida.url){const desc={tipo:'album_foto',nombre:subida.nombre||subida.name||file.name,fechaISO:foto.fechaISO};const res=await window.DGIE_DB.crearFoto({entidad_tipo:'album_foto',entidad_id:String(albumId),establecimiento_id:Number(album.estId),zona:Number(album.zona),bucket:'cloudinary',path:subida.url,descripcion:JSON.stringify(desc)});if(res?.error){console.warn('No se pudo guardar foto de álbum',res.error);continue}}FOTO_ALBUMES.unshift(foto)}}
+function openAlbumFotos(id){const a=ALBUMES_ESTABLECIMIENTO.find(x=>String(x.id)===String(id)),fb=albumBodyEl();if(!fb||!a)return;currentFichaId=a.estId;const fotos=fotosAlbum(id);fb.innerHTML=`<button class="back-btn" onclick="volverAlbumesFotos()">‹ Volver a álbumes</button><div class="card-header"><div><div class="card-title">${escapeHtml(a.titulo)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${escapeHtml(a.fecha||'')} · ${escapeHtml(a.detalle||'Sin descripción')}</div></div>${puedeGestionarAlbumes()?`<button class="primary-btn" onclick="openSubirFotosAlbum('${a.id}')">+ Subir fotos</button>`:''}</div><div class="foto-grid">${fotos.map((f,i)=>{const src=fotoUrlDGIE(f);return src?`<div class="foto-item"><img src="${src}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open(this.src,'_blank')"><div class="foto-label">${escapeHtml(fotoNombreDGIE(f,'Foto '+(i+1)))}</div></div>`:''}).join('')}${!fotos.length?'<div style="font-size:13px;color:var(--muted);padding:20px">Sin fotos cargadas en este álbum</div>':''}</div>`}
+function openSubirFotosAlbum(albumId){const a=ALBUMES_ESTABLECIMIENTO.find(x=>String(x.id)===String(albumId)),fb=albumBodyEl();if(!a||!fb)return;currentFichaId=a.estId;fb.innerHTML=`<button class="back-btn" onclick="openAlbumFotos('${a.id}')">‹ Volver al álbum</button><div class="card-header"><div><div class="card-title">Subir fotos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${escapeHtml(a.titulo)}</div></div></div><div class="form-field full"><label class="form-label">Seleccionar fotos</label><input class="form-input" id="album-upload-fotos" type="file" multiple accept="image/*" onchange="previsualizarFotosAlbum(this,'album-upload-preview')"><div id="album-upload-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div></div><div class="form-error" id="album-upload-error">Seleccioná al menos una foto.</div><div class="modal-actions"><button class="secondary-btn" onclick="openAlbumFotos('${a.id}')">Cancelar</button><button class="primary-btn" id="album-upload-btn" onclick="guardarFotosAlbum('${a.id}')">Subir fotos</button></div>`}
+async function guardarFotosAlbum(albumId){const files=[...($('album-upload-fotos')?.files||[])],err=$('album-upload-error'),btn=$('album-upload-btn');if(!files.length){if(err)err.style.display='block';return}if(err)err.style.display='none';if(btn){btn.disabled=true;btn.textContent='Subiendo...'}await subirFotosAAlbum(albumId,files);saveAppState&&saveAppState();openAlbumFotos(albumId)}
 function renderOSZona(container){container.innerHTML=renderOSModule(`Órdenes de servicio · Zona ${currentUser.zona}`,true);renderOSTable(osPorZona(currentUser.zona))}function renderOSGeneral(container){container.innerHTML=`<div class="section-label">Dirección · Órdenes de servicio</div><div class="dashboard-tabs"><button class="dashboard-tab active">Órdenes de servicio</button></div><div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label style="font-weight:800;color:#334155">Seleccionar zona:</label><select class="form-select" id="dash-os-zona" style="max-width:220px" onchange="renderDashboardOSZona()">${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select></div><div id="dash-os-zona-body"></div>`;setTimeout(()=>renderDashboardOSZona(),50)}function renderOSModule(title,isZona){return `<div class="card"><div class="card-header"><div><div class="card-title">${title}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado con filtros por establecimiento, rubro, estado y fecha de envío.</div></div><span class="badge b-info">${isZona?osPorZona(currentUser.zona).length:OS_ZONA.length} órdenes</span></div>${canCreateOS()?'<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button></div>':'' }<div class="os-filters"><input class="estab-search" id="os-search" placeholder="Buscar por OS, establecimiento o tarea..." oninput="filterOS()"><select class="filter-sel" id="os-rubro" onchange="filterOS()"><option value="">Todos los rubros</option>${[...new Set(OS_ZONA.map(o=>o.rubro))].map(r=>`<option>${r}</option>`).join('')}</select><select class="filter-sel" id="os-estado" onchange="filterOS()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="os-prio" onchange="filterOS()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select></div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden de servicio</th><th>Nº reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha de envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>Editar</th><th>PDF</th></tr></thead><tbody id="os-table-body"></tbody></table></div></div>`}function filterOS(){const q=($('os-search')?.value||'').toLowerCase(),rubro=$('os-rubro')?.value||'',estado=$('os-estado')?.value||'',prio=$('os-prio')?.value||'';const baseOS=currentUser?.role==='inspector'?osPorZona(currentUser.zona):OS_ZONA;renderOSTable(baseOS.filter(o=>(o.numero.toLowerCase().includes(q)||o.establecimiento.toLowerCase().includes(q)||o.tarea.toLowerCase().includes(q))&&(!rubro||o.rubro===rubro)&&(!estado||o.estado===estado)&&(!prio||o.prio===prio)))}
-function renderOSForm(os=null){const isEdit=!!os;const zonaCarga=isEdit?zonaEstablecimiento(os.estId):getZonaCargaOS();const numero=isEdit?os.numero:nextOSNumero(zonaCarga);const estabsDisponibles=ESTABS.filter(e=>Number(e.zona)===Number(zonaCarga));const estId=isEdit?os.estId:estabsDisponibles[0]?.id;const fechaValue=isEdit?dateToInput(os.fecha):new Date().toISOString().slice(0,10);const fechaFinValue=isEdit?dateToInput(os.fechaFinalizacion):'';safeHTML('main-content',`<div class="section-label">${isEdit?'Editar':'Crear'} orden de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">${isEdit?'Editar orden de servicio':'Nueva orden de servicio'}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La orden puede responder a uno o varios reclamos pendientes, o cargarse sin reclamo asociado.</div></div><button class="logout-btn" onclick="renderOSGeneral($('main-content'))">Volver</button></div><div class="form-grid"><div class="form-field"><label class="form-label">Número de orden</label><input class="form-input" id="nos-numero" value="${numero}" readonly /></div><div class="form-field full">
+function renderOSForm(os=null){const isEdit=!!os;const zonaCarga=isEdit?zonaEstablecimiento(os.estId):getZonaCargaOS();const numero=isEdit?os.numero:nextOSNumero(zonaCarga);const estabsDisponibles=ESTABS.filter(e=>Number(e.zona)===Number(zonaCarga));const estId=isEdit?os.estId:estabsDisponibles[0]?.id;const fechaValue=isEdit?dateToInput(os.fecha):new Date().toISOString().slice(0,10);const fechaFinValue=isEdit?dateToInput(os.fechaFinalizacion):'';safeHTML('main-content',`<div class="section-label">${isEdit?'Editar':'Crear'} orden de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">${isEdit?'Editar orden de servicio':'Nueva orden de servicio'}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La orden puede responder a uno o varios reclamos pendientes, o cargarse sin reclamo asociado.</div></div><button class="logout-btn" onclick="renderOSGeneral($('main-content'))">Volver</button></div><div class="form-grid"><div class="form-field"><label class="form-label">Número de orden de servicio</label><input class="form-input" id="nos-numero" value="${numero}" ${isEdit?'readonly':''} oninput="validarNumeroOSActual(${isEdit?os.id:'null'})" onblur="validarNumeroOSActual(${isEdit?os.id:'null'})" /><div class="form-error" id="nos-numero-error" style="display:none;margin-top:6px">Ese número de orden ya existe. Elegí otro.</div></div><div class="form-field full">
       <label class="form-label">Establecimiento</label>
       <input type="hidden" id="nos-establecimiento" value="${estId||''}"/>
       <div class="ac-wrap">
@@ -2249,6 +2291,16 @@ function perfilToUser(p){
   if(p.zona)user.zona=Number(p.zona);
   return user;
 }
+function loginEmailFromUsuario(usuario){
+  const raw=String(usuario||'').trim();
+  if(raw.includes('@'))return raw.toLowerCase();
+  const compact=raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
+  const zonaMatch=compact.match(/^zona(1[0-7]|[1-9])$/);
+  if(zonaMatch)return `zona${zonaMatch[1]}@dgie.local`;
+  const empresaMatch=compact.match(/^empresa(?:zona)?(1[0-7]|[1-9])$/);
+  if(empresaMatch)return `empresa${empresaMatch[1]}@dgie.local`;
+  return compact+'@dgie.local';
+}
 async function doLmLogin(){
   const errEl=document.getElementById('lm-error');
   errEl.style.display='none';
@@ -2260,7 +2312,7 @@ async function doLmLogin(){
     const usuario=document.getElementById('lm-email')?.value.trim();
     const password=document.getElementById('lm-password')?.value;
     if(!usuario||!password){errEl.textContent='Ingresá usuario y contraseña.';errEl.style.display='block';return;}
-    const email=usuario.toLowerCase().replace(/\s+/g,'')+`@dgie.local`;
+    const email=loginEmailFromUsuario(usuario);
     const btn=document.getElementById('lm-submit-btn');
     if(btn){btn.disabled=true;btn.textContent='Ingresando...';}
     const {data:authData,error:authError}=await window.DGIE_DB.signIn(email,password);
@@ -2725,9 +2777,17 @@ async function persistirOrdenSupabase(o){
     monto:o.monto||null,
     presupuesto:presupuestoOSParaDB(o)
   });
-  if(error){console.warn('No se pudo guardar orden en Supabase',error);return;}
+  if(error){
+    console.warn('No se pudo guardar orden en Supabase',error);
+    const msg=String(error.message||'').toLowerCase();
+    if(String(error.code)==='23505'||msg.includes('duplicate')||msg.includes('unique')){
+      alert('Ese número de orden ya existe en la base. Elegí otro.');
+    }
+    return{ok:false,error};
+  }
   o.remoteId=data?.id||o.remoteId;
   o._remoteSaved=true;
+  return{ok:true,data};
 }
 async function actualizarOrdenSupabase(o){
   if(!o||!o._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.actualizarOrden!=='function')return;
@@ -2751,8 +2811,8 @@ function getRubroOS(o){return o?.rubro||o?.titulo||'Otro'}
 function getPrioLabel(p){return ({critico:'Crítico',alto:'Alto',medio:'Medio',bajo:'Bajo'}[p]||p||'Sin prioridad')}
 function getEstadoOS(o){return o?.estado||'Pendiente'}
 function usandoSupabaseProduccion(){return !!window.DGIE_DB?.isConfigured}
-function saveAppState(){if(usandoSupabaseProduccion())return;try{localStorage.setItem(APP_STORAGE_KEY,JSON.stringify({reclamos:RECLAMOS_ZONA,ordenes:OS_ZONA,intervenciones:INTERVENCIONES,comunicaciones:COMUNICACIONES,relevamientos:RELEVAMIENTOS,counter:_reclamoCounter,ts:Date.now()}));}catch(e){console.warn('No se pudo guardar estado local',e)}}
-function loadAppState(){try{if(usandoSupabaseProduccion()){localStorage.removeItem(APP_STORAGE_KEY);return;}const raw=localStorage.getItem(APP_STORAGE_KEY);if(!raw)return;const st=JSON.parse(raw);if(Array.isArray(st.reclamos)){RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...st.reclamos)}if(Array.isArray(st.ordenes)){OS_ZONA.splice(0,OS_ZONA.length,...st.ordenes)}if(Array.isArray(st.intervenciones)){INTERVENCIONES.splice(0,INTERVENCIONES.length,...st.intervenciones)}if(Array.isArray(st.comunicaciones)){COMUNICACIONES.splice(0,COMUNICACIONES.length,...st.comunicaciones)}if(st.relevamientos&&typeof st.relevamientos==='object'){Object.keys(st.relevamientos).forEach(k=>RELEVAMIENTOS[k]=st.relevamientos[k])}_reclamoCounter=Number(st.counter||RECLAMOS_ZONA.length||0);}catch(e){console.warn('No se pudo cargar estado local',e)}}
+function saveAppState(){if(usandoSupabaseProduccion())return;try{localStorage.setItem(APP_STORAGE_KEY,JSON.stringify({reclamos:RECLAMOS_ZONA,ordenes:OS_ZONA,intervenciones:INTERVENCIONES,comunicaciones:COMUNICACIONES,relevamientos:RELEVAMIENTOS,albumes:ALBUMES_ESTABLECIMIENTO,fotosAlbumes:FOTO_ALBUMES,counter:_reclamoCounter,ts:Date.now()}));}catch(e){console.warn('No se pudo guardar estado local',e)}}
+function loadAppState(){try{if(usandoSupabaseProduccion()){localStorage.removeItem(APP_STORAGE_KEY);return;}const raw=localStorage.getItem(APP_STORAGE_KEY);if(!raw)return;const st=JSON.parse(raw);if(Array.isArray(st.reclamos)){RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...st.reclamos)}if(Array.isArray(st.ordenes)){OS_ZONA.splice(0,OS_ZONA.length,...st.ordenes)}if(Array.isArray(st.intervenciones)){INTERVENCIONES.splice(0,INTERVENCIONES.length,...st.intervenciones)}if(Array.isArray(st.comunicaciones)){COMUNICACIONES.splice(0,COMUNICACIONES.length,...st.comunicaciones)}if(Array.isArray(st.albumes)){ALBUMES_ESTABLECIMIENTO.splice(0,ALBUMES_ESTABLECIMIENTO.length,...st.albumes)}if(Array.isArray(st.fotosAlbumes)){FOTO_ALBUMES.splice(0,FOTO_ALBUMES.length,...st.fotosAlbumes)}if(st.relevamientos&&typeof st.relevamientos==='object'){Object.keys(st.relevamientos).forEach(k=>RELEVAMIENTOS[k]=st.relevamientos[k])}_reclamoCounter=Number(st.counter||RECLAMOS_ZONA.length||0);}catch(e){console.warn('No se pudo cargar estado local',e)}}
 function refreshVisiblePanels(){try{actualizarZoneDataReal&&actualizarZoneDataReal();}catch(e){} if(currentUser){try{renderTab([...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'))||0)}catch(e){}}}
 function countBy(arr,fn){return arr.reduce((acc,it)=>{const k=fn(it)||'Sin dato';acc[k]=(acc[k]||0)+1;return acc;},{});}
 function prioCounts(arr){const c=countBy(arr,x=>x.prio||'medio');return [c.critico||0,c.alto||0,c.medio||0,c.bajo||0];}
@@ -2771,7 +2831,7 @@ renderChartInsp=function(view='principal'){const z=Number(currentUser?.zona||sel
 const _guardarNuevoReclamoOriginal=guardarNuevoReclamo;
 guardarNuevoReclamo=async function(){const before=RECLAMOS_ZONA.length;await _guardarNuevoReclamoOriginal();if(RECLAMOS_ZONA.length!==before){await persistirReclamoSupabase(RECLAMOS_ZONA[0]);saveAppState();refreshVisiblePanels();}}
 const _guardarNuevoReclamoModalOriginal=guardarNuevoReclamoModal;
-guardarNuevoReclamoModal=async function(){const before=RECLAMOS_ZONA.length;_guardarNuevoReclamoModalOriginal();if(RECLAMOS_ZONA.length!==before){await persistirReclamoSupabase(RECLAMOS_ZONA[0]);saveAppState();refreshVisiblePanels();}}
+guardarNuevoReclamoModal=async function(){const before=RECLAMOS_ZONA.length;await _guardarNuevoReclamoModalOriginal();if(RECLAMOS_ZONA.length!==before){await persistirReclamoSupabase(RECLAMOS_ZONA[0]);saveAppState();refreshVisiblePanels();}}
 const _guardarNuevaOSOriginal=guardarNuevaOS;
 guardarNuevaOS=async function(){const before=OS_ZONA.length;_guardarNuevaOSOriginal();if(OS_ZONA.length!==before){await persistirOrdenSupabase(OS_ZONA[0]);saveAppState();}}
 const _guardarEdicionOSOriginal=guardarEdicionOS;
@@ -2890,25 +2950,49 @@ renderAcOsDropdown=function(q){
   dropdown.classList.add('visible');
 };
 
+function normalizarNumeroOS(valor){
+  return String(valor||'').trim().replace(/\s+/g,' ').toUpperCase();
+}
+function existeNumeroOS(numero,ignorarId=null){
+  const n=normalizarNumeroOS(numero);
+  if(!n)return false;
+  return OS_ZONA.some(o=>normalizarNumeroOS(o.numero)===n&&String(o.id)!==String(ignorarId));
+}
+function validarNumeroOSActual(ignorarId=null){
+  const input=document.getElementById('nos-numero'),err=document.getElementById('nos-numero-error');
+  if(!input)return true;
+  input.value=normalizarNumeroOS(input.value);
+  const duplicado=existeNumeroOS(input.value,ignorarId);
+  input.style.borderColor=duplicado?'#b91c1c':'';
+  if(err){err.style.display=duplicado?'block':'none';err.textContent=duplicado?'Ese número de orden ya existe. Elegí otro.':'';}
+  return !!input.value&&!duplicado;
+}
+
 // Guardado OS con zona y estados nuevos
-function obtenerDatosOSForm(){
-  const estId=Number(document.getElementById('nos-establecimiento')?.value||0),est=ESTABS.find(e=>e.id===estId),numero=document.getElementById('nos-numero')?.value.trim(),rubro=document.getElementById('nos-rubro')?.value,tarea=document.getElementById('nos-tarea')?.value.trim(),fechaISO=document.getElementById('nos-fecha')?.value,fechaFinISO=document.getElementById('nos-fecha-fin')?.value,estado=estadoOSCanon(document.getElementById('nos-estado')?.value),prio=document.getElementById('nos-prio')?.value||'medio',monto=document.getElementById('nos-monto')?.value||'—';
+function obtenerDatosOSForm(editId=null){
+  const estId=Number(document.getElementById('nos-establecimiento')?.value||0),est=ESTABS.find(e=>e.id===estId),numero=normalizarNumeroOS(document.getElementById('nos-numero')?.value),rubro=document.getElementById('nos-rubro')?.value,tarea=document.getElementById('nos-tarea')?.value.trim(),fechaISO=document.getElementById('nos-fecha')?.value,fechaFinISO=document.getElementById('nos-fecha-fin')?.value,estado=estadoOSCanon(document.getElementById('nos-estado')?.value),prio=document.getElementById('nos-prio')?.value||'medio',monto=document.getElementById('nos-monto')?.value||'—';
   const zonaPermitida=getZonaCargaOS();
+  if(!validarNumeroOSActual(editId)){
+    if(document.getElementById('nos-error')){document.getElementById('nos-error').textContent='Ese número de orden ya existe. Elegí otro.';document.getElementById('nos-error').style.display='block';}
+    return null;
+  }
   if(!est||Number(est.zona)!==Number(zonaPermitida)||!numero||!rubro||!tarea){if(document.getElementById('nos-error')){document.getElementById('nos-error').textContent='Completá establecimiento de la zona, rubro y tarea.';document.getElementById('nos-error').style.display='block';}return null}
   return{estId,est,zona:Number(est.zona),numero,rubro,tarea,fecha:formatInputDate(fechaISO),fechaFinalizacion:formatInputDate(fechaFinISO),estado,prio,monto,presupuestoItems:getPresupuestoItemsFromDOM()};
 }
-guardarNuevaOS=function(){
-  const data=obtenerDatosOSForm();if(!data)return;
+guardarNuevaOS=async function(){
+  const data=obtenerDatosOSForm(null);if(!data)return;
   const checks=[...document.querySelectorAll('input[name="nos-reclamo"]:checked')].map(x=>x.value).filter(v=>v!=='sin_reclamo'),pendientes=RECLAMOS_ZONA.filter(r=>r.estId===data.estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite'));
   const reclamoNumero=checks.map(v=>pendientes[Number(v)]?.numero).filter(Boolean).join(', ');
-  OS_ZONA.unshift({id:Date.now(),numero:data.numero,zona:data.zona,reclamoNumero,titulo:data.rubro,est:data.est.n,establecimiento:data.est.n,tarea:data.tarea,rubro:data.rubro,estado:data.estado,fecha:data.fecha,fechaFinalizacion:data.estado==='finalizado'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems,prio:data.prio,estId:data.estId});
+  const nuevaOrden={id:Date.now(),numero:data.numero,zona:data.zona,reclamoNumero,titulo:data.rubro,est:data.est.n,establecimiento:data.est.n,tarea:data.tarea,rubro:data.rubro,estado:data.estado,fecha:data.fecha,fechaFinalizacion:data.estado==='finalizado'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems,prio:data.prio,estId:data.estId};
+  OS_ZONA.unshift(nuevaOrden);
   checks.forEach(v=>{const r=pendientes[Number(v)];if(r)r.os=data.numero});
   saveAppState&&saveAppState();
-  persistirOrdenSupabase(OS_ZONA[0]);
+  const res=await persistirOrdenSupabase(nuevaOrden);
+  if(res?.ok===false){OS_ZONA.shift();checks.forEach(v=>{const r=pendientes[Number(v)];if(r)r.os='Sin OS'});saveAppState&&saveAppState();return;}
   currentUser?.role==='inspector'?renderOSZona(document.getElementById('main-content')):renderOSGeneral(document.getElementById('main-content'));
 };
 guardarEdicionOS=function(id){
-  const os=OS_ZONA.find(o=>o.id===id),data=obtenerDatosOSForm();if(!os||!data)return;
+  const os=OS_ZONA.find(o=>o.id===id),data=obtenerDatosOSForm(id);if(!os||!data)return;
   Object.assign(os,{estId:data.estId,zona:data.zona,est:data.est.n,establecimiento:data.est.n,titulo:data.rubro,rubro:data.rubro,tarea:data.tarea,fecha:data.fecha,fechaFinalizacion:data.estado==='finalizado'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,estado:data.estado,prio:data.prio,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems});
   saveAppState&&saveAppState();
   actualizarOrdenSupabase(os);
@@ -3125,12 +3209,8 @@ function renderMapFichaBody(estId,tab=0){
     const oss=OS_ZONA.filter(o=>Number(o.estId)===Number(estId));
     body.innerHTML=oss.length?oss.map(o=>`<div class="os-row"><div class="os-body"><div class="os-title">${escapeHtml(o.tarea||o.titulo||'Orden de servicio')}</div><div class="os-meta"><strong>${escapeHtml(o.numero||'S/N')}</strong> · ${escapeHtml(o.fecha||'—')} · ${escapeHtml(o.monto||'—')}</div><div class="os-meta">Rubro: ${escapeHtml(o.rubro||o.titulo||'—')}</div></div><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${typeof estadoOSLabel==='function'?estadoOSLabel(o.estado):escapeHtml(o.estado||'Pendiente')}</span></div>`).join(''):'<div style="text-align:center;padding:24px;color:var(--muted)">Sin órdenes de servicio</div>';
   }else if(tab===2){
-    const recs=RECLAMOS_ZONA.filter(r=>Number(r.estId)===Number(estId));
-    const imgs=[];
-    recs.forEach(r=>(r.fotos||[]).forEach((f,i)=>imgs.push({src:f,label:`Reclamo ${r.numero||''} · Foto ${i+1}`})));
-    const ints=INTERVENCIONES.filter(x=>Number(x.estId)===Number(estId));
-    const intPlaceholders=ints.flatMap(it=>Array.from({length:Number(it.fotos||0)},(_,i)=>`<div class="intervencion-photo">Intervención<br>Foto ${i+1}</div>`)).join('');
-    body.innerHTML=`<div class="card-header"><div><div class="card-title">Fotos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Fotos cargadas en reclamos e intervenciones.</div></div></div><div class="foto-grid">${imgs.map(img=>`<div class="foto-item"><img src="${img.src}" style="width:100%;height:100%;object-fit:cover"><div class="foto-label">${escapeHtml(img.label)}</div></div>`).join('')}${intPlaceholders||''}${(!imgs.length&&!intPlaceholders)?'<div style="font-size:13px;color:var(--muted);padding:20px">Sin fotos cargadas para este establecimiento</div>':''}</div>`;
+    currentFichaId=estId;
+    body.innerHTML=renderAlbumesFotos();
   }else if(tab===3){
     const data=INTERVENCIONES.filter(x=>Number(x.estId)===Number(estId));
     body.innerHTML=`<div class="card-header"><div><div class="card-title">Intervenciones</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Avances registrados por inspección.</div></div></div>${data.length?data.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:24px;color:var(--muted)">Sin intervenciones cargadas para este establecimiento</div>'}`;
@@ -4493,6 +4573,8 @@ function renderChartInsp(){
       if(fotoRes&&!fotoRes.error&&Array.isArray(fotoRes.data)){
         const fotosPorReclamo={};
         const fotosPorIntervencion={};
+        ALBUMES_ESTABLECIMIENTO.splice(0,ALBUMES_ESTABLECIMIENTO.length);
+        FOTO_ALBUMES.splice(0,FOTO_ALBUMES.length);
         fotoRes.data.filter(f=>f.entidad_tipo==='reclamo').forEach(f=>{
           const key=String(f.entidad_id||'');
           if(!fotosPorReclamo[key])fotosPorReclamo[key]=[];
@@ -4502,6 +4584,14 @@ function renderChartInsp(){
           const key=String(f.entidad_id||'');
           if(!fotosPorIntervencion[key])fotosPorIntervencion[key]=[];
           fotosPorIntervencion[key].push({provider:f.bucket||'cloudinary',nombre:f.descripcion||'Foto de intervención',url:f.path});
+        });
+        fotoRes.data.filter(f=>f.entidad_tipo==='album').forEach(f=>{
+          let meta={};try{meta=JSON.parse(f.descripcion||'{}')}catch(_){}
+          ALBUMES_ESTABLECIMIENTO.push({id:String(f.entidad_id),estId:Number(f.establecimiento_id),zona:Number(f.zona)||zonaEstablecimiento(f.establecimiento_id),titulo:meta.titulo||'Álbum',detalle:meta.detalle||'',fechaISO:meta.fechaISO||f.created_at,fecha:meta.fechaISO?new Date(meta.fechaISO).toLocaleDateString('es-AR'):new Date(f.created_at||Date.now()).toLocaleDateString('es-AR')});
+        });
+        fotoRes.data.filter(f=>f.entidad_tipo==='album_foto').forEach(f=>{
+          let meta={};try{meta=JSON.parse(f.descripcion||'{}')}catch(_){}
+          FOTO_ALBUMES.push({id:String(f.id||Date.now()),albumId:String(f.entidad_id),estId:Number(f.establecimiento_id),zona:Number(f.zona)||zonaEstablecimiento(f.establecimiento_id),provider:f.bucket||'cloudinary',nombre:meta.nombre||f.descripcion||'Foto de álbum',url:f.path,fechaISO:meta.fechaISO||f.created_at,fecha:meta.fechaISO?new Date(meta.fechaISO).toLocaleDateString('es-AR'):new Date(f.created_at||Date.now()).toLocaleDateString('es-AR')});
         });
         RECLAMOS_ZONA.forEach(r=>{r.fotos=fotosPorReclamo[String(r.remoteId)]||r.fotos||[];});
         INTERVENCIONES.forEach(it=>{it.fotosArchivos=fotosPorIntervencion[String(it.remoteId)]||it.fotosArchivos||[];it.fotos=it.fotosArchivos.length||it.fotos||0;});
