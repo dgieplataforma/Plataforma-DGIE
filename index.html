@@ -1328,10 +1328,10 @@ function buildDirGrid(){
   ];
   grid.innerHTML=personas.map(p=>`<div class="zona-btn" onclick="selectDir('${p.key}','${p.nombre}')"><div class="zona-btn-num" style="font-size:15px">${p.nombre}</div><div class="zona-btn-label">${p.cargo}</div></div>`).join('');
 }
-function loadUser(user){currentUser=user;if($('topbar-av'))$('topbar-av').textContent=user.initials;if($('topbar-name'))$('topbar-name').textContent=user.name;const tabs=user.role==='inspector'?['Dashboard',`Zona ${user.zona}`]:user.role==='callcenter'?['Nuevo reclamo']:user.role==='empresa'?[`Órdenes de servicio · Zona ${user.zona}`]:user.role==='coordinador'?['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Administración']:['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones'];buildTabs(tabs);hideGlobal();hideLanding();document.getElementById('app-wrapper').style.display='';document.querySelectorAll('#app-wrapper .screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-main')?.classList.add('active');renderTab(0)}function buildTabs(tabs){safeHTML('nav-tabs',tabs.map((t,i)=>`<div class="tab${i===0?' active':''}" onclick="renderTab(${i})">${t}</div>`).join(''))}function setActiveTab(i){document.querySelectorAll('.tab').forEach((t,idx)=>t.classList.toggle('active',idx===i))}function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active')}function doLogout(){if(window.DGIE_DB&&window.DGIE_DB.isConfigured)window.DGIE_DB.signOut().catch(()=>{});currentUser=null;selectedZona=null;$('app-wrapper').style.display='none';showLanding();}
-function renderTab(i){if(!currentUser)return;setActiveTab(i);hideGlobal();currentFichaId=null;const tabs=currentUser.role==='inspector'?['Dashboard',`Zona ${currentUser.zona}`]:currentUser.role==='callcenter'?['Nuevo reclamo']:currentUser.role==='empresa'?[`Órdenes de servicio · Zona ${currentUser.zona}`]:currentUser.role==='coordinador'?['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Administración']:['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones'];const tab=tabs[i],c=$('main-content');if(!c)return;if(tab.startsWith('Órdenes de servicio · Zona')){renderOSEmpresa(c,currentUser.zona);return;}
+function loadUser(user){currentUser=user;if($('topbar-av'))$('topbar-av').textContent=user.initials;if($('topbar-name'))$('topbar-name').textContent=user.name;const tabs=user.role==='inspector'?['Dashboard',`Zona ${user.zona}`]:user.role==='callcenter'?['Nuevo reclamo']:user.role==='empresa'?[`Órdenes de servicio · Zona ${user.zona}`]:user.role==='coordinador'?['Dashboard','Reclamos','Establecimientos','Órdenes de servicio','Intervenciones','Administración']:['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones'];buildTabs(tabs);hideGlobal();hideLanding();document.getElementById('app-wrapper').style.display='';document.querySelectorAll('#app-wrapper .screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-main')?.classList.add('active');renderTab(0)}function buildTabs(tabs){safeHTML('nav-tabs',tabs.map((t,i)=>`<div class="tab${i===0?' active':''}" onclick="renderTab(${i})">${t}</div>`).join(''))}function setActiveTab(i){document.querySelectorAll('.tab').forEach((t,idx)=>t.classList.toggle('active',idx===i))}function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active')}function doLogout(){if(window.DGIE_DB&&window.DGIE_DB.isConfigured)window.DGIE_DB.signOut().catch(()=>{});currentUser=null;selectedZona=null;$('app-wrapper').style.display='none';showLanding();}
+function renderTab(i){if(!currentUser)return;setActiveTab(i);hideGlobal();currentFichaId=null;const tabs=currentUser.role==='inspector'?['Dashboard',`Zona ${currentUser.zona}`]:currentUser.role==='callcenter'?['Nuevo reclamo']:currentUser.role==='empresa'?[`Órdenes de servicio · Zona ${currentUser.zona}`]:currentUser.role==='coordinador'?['Dashboard','Reclamos','Establecimientos','Órdenes de servicio','Intervenciones','Administración']:['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones'];const tab=tabs[i],c=$('main-content');if(!c)return;if(tab.startsWith('Órdenes de servicio · Zona')){renderOSEmpresa(c,currentUser.zona);return;}
   if(tab==='Nuevo reclamo'){c.innerHTML=renderCallCenterNuevoReclamo();setTimeout(()=>initAcEstab(),80);return}if(tab==='Dashboard'){c.innerHTML=currentUser.role==='inspector'?renderDashboardInsp():renderDashboardDir();setTimeout(()=>currentUser.role==='inspector'?renderChartInsp('principal'):renderChartDir('principal'),150);return}if(tab==='Establecimientos'){renderEstablecimientosDireccion(c);return}
-  if(tab==='Administración'){renderAdministracion(c);return}if(tab==='Órdenes de servicio'){renderOSGeneral(c);return}if(tab==='Intervenciones'){renderIntervencionesDireccion(c);return}if(tab.startsWith('Zona'))return renderZonaTab(c);if(tab==='Zonas'){c.innerHTML=renderZonasDir();return}c.innerHTML=`<div class="coming-soon"><h3>${tab}</h3><p>Módulo en construcción</p></div>`}
+  if(tab==='Administración'){renderAdministracion(c);return}if(tab==='Reclamos'){renderReclamosCoordinador(c);return}if(tab==='Órdenes de servicio'){renderOSGeneral(c);return}if(tab==='Intervenciones'){renderIntervencionesDireccion(c);return}if(tab.startsWith('Zona'))return renderZonaTab(c);if(tab==='Zonas'){c.innerHTML=renderZonasDir();return}c.innerHTML=`<div class="coming-soon"><h3>${tab}</h3><p>Módulo en construcción</p></div>`}
 function showGlobal(){safeHTML('global-content',`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><div style="font-size:22px;font-weight:900;color:#123c69">Dashboard Global · Provincia de Córdoba</div><button class="logout-btn" onclick="hideGlobal()">Cerrar ✕</button></div>${renderDashboardDir()}`);$('global-overlay')?.classList.add('visible');if($('nav-tabs'))$('nav-tabs').style.display='none';if($('main-content'))$('main-content').style.display='none';setTimeout(()=>renderChartDir(),80)}function hideGlobal(){$('global-overlay')?.classList.remove('visible');if($('nav-tabs'))$('nav-tabs').style.display='';if($('main-content'))$('main-content').style.display=''}
 function drawDonut(id,data,labels=['Reportado','Anulado'],colors=['#0ea5e9','#ef4444']){if(chartInstances[id])chartInstances[id].destroy();const el=$(id);if(el&&window.Chart)chartInstances[id]=new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#64748b',boxWidth:12}}}}})}function drawBar(id,data){if(chartInstances[id])chartInstances[id].destroy();const el=$(id);if(el&&window.Chart)chartInstances[id]=new Chart(el,{type:'bar',data:{labels:['Crítico','Alto','Medio','Bajo'],datasets:[{data,backgroundColor:['#dc2626','#f59e0b','#2563eb','#16a34a'],borderWidth:0,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#64748b'},grid:{color:'rgba(0,0,0,.06)'}},x:{ticks:{color:'#64748b'},grid:{display:false}}}}})}function fakeMapDots(){const colors=['#a37b00','#111827','#7c3aed','#0ea5e9','#a6c93a','#f59e0b','#ef4444','#6cab43','#94a3b8','#006b8f','#d946ef'];let dots='';for(let i=0;i<115;i++){dots+=`<span class="map-dot" style="left:${8+Math.random()*84}%;top:${10+Math.random()*78}%;background:${colors[i%colors.length]}"></span>`}return dots}
 function renderDashboardDir(){return renderDashboardGlobalPrincipal()}function renderDashboardGlobalPrincipal(){return `<div class="section-label">Dashboard provincial</div><div class="dashboard-tabs"><button class="dashboard-tab active" onclick="switchDashboardGlobal('principal')">Principal</button><button class="dashboard-tab" onclick="switchDashboardGlobal('gestion')">Reclamos y mantenimientos</button></div><div id="dashboard-global-body">${renderDashboardPrincipalBody()}</div>`}function renderDashboardPrincipalBody(){const totalEst=ESTABS.length,totalRec=RECLAMOS_ZONA.length,totalOS=OS_ZONA.length,totalInt=INTERVENCIONES.length;return `<div class="metrics-grid"><div class="metric-card"><div class="metric-lbl">Zonas</div><div class="metric-val">17</div></div><div class="metric-card"><div class="metric-lbl">Establecimientos cargados</div><div class="metric-val">${totalEst}</div></div><div class="metric-card"><div class="metric-lbl">Reclamos cargados</div><div class="metric-val">${totalRec}</div></div><div class="metric-card"><div class="metric-lbl">Órdenes de servicio</div><div class="metric-val">${totalOS}</div></div><div class="metric-card"><div class="metric-lbl">Intervenciones</div><div class="metric-val">${totalInt}</div></div></div><div class="dashboard-map-grid"><div class="card"><div class="card-title">Establecimientos reales cargados</div><div class="map-placeholder">${fakeMapDots()}<div style="position:absolute;left:18px;top:18px;background:#fff;border:1px solid #d9e2ef;border-radius:10px;padding:8px 10px;color:#123c69;font-weight:900">Base inicial: ${totalEst} establecimientos</div></div></div><div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${totalRec}</div><div class="big-kpi-label">reclamos<br>registrados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-dir-reclamos"></canvas></div></div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${totalOS}</div><div class="big-kpi-label">órdenes de<br>servicio</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-dir-mantenimiento"></canvas></div></div></div></div>`}function renderDashboardGestionBody(){return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardGlobal('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardGlobal('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">19738</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">12985</div><div class="big-kpi-label">mantenimientos en total</div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según estado de ejecución</div><div class="chart-wrap"><canvas id="chart-reclamos-ejecucion"></canvas></div></div><div class="card"><div class="card-title">Reclamos según estado de prioridad</div><div class="chart-wrap"><canvas id="chart-reclamos-prioridad"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según estado de ejecución</div><div class="chart-wrap"><canvas id="chart-mant-ejecucion"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según estado de prioridad</div><div class="chart-wrap"><canvas id="chart-mant-prioridad"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-dir-rubro-reclamos"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-dir-rubro-mant"></canvas></div></div></div>`}function switchDashboardGlobal(view){const body=$('dashboard-global-body');if(!body)return;if(view==='principal'){body.innerHTML=renderDashboardPrincipalBody();setTimeout(()=>renderChartDir('principal'),80)}else if(view==='gestion'){body.innerHTML=renderDashboardGestionBody();setTimeout(()=>renderChartDir('gestion'),80)}else{body.innerHTML=renderDashboardGestionBody();setTimeout(()=>renderChartDir('gestion'),80)}}function renderDashboardOSZona(){const z=Number($('dash-os-zona')?.value||1);const data=osPorZona(z);const body=$('dash-os-zona-body');if(!body)return;body.innerHTML=`<div class="grid2"><div class="card" style="margin-bottom:0"><div class="card-title">Estado de órdenes · Zona ${z}</div><div class="chart-wrap" style="height:260px"><canvas id="chart-os-zona-estado"></canvas></div></div><div class="card" style="margin-bottom:0"><div class="card-title">Resumen Zona ${z}</div><div class="metrics-grid" style="margin-bottom:0"><div class="metric-card"><div class="metric-lbl">Total OS</div><div class="metric-val">${data.length}</div></div><div class="metric-card"><div class="metric-lbl">Finalizadas</div><div class="metric-val v-ok">${data.filter(o=>o.estado==='Finalizada').length}</div></div><div class="metric-card"><div class="metric-lbl">En ejecución</div><div class="metric-val v-info">${data.filter(o=>o.estado==='En ejecución').length}</div></div><div class="metric-card"><div class="metric-lbl">Pendientes</div><div class="metric-val v-warn">${data.filter(o=>o.estado==='Pendiente'||o.estado==='Presupuestado').length}</div></div></div></div></div><div class="os-table-wrap" style="margin-top:16px"><table class="os-table"><thead><tr><th>Orden de servicio</th><th>Nº reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha de envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th></tr></thead><tbody id="dash-os-table-body"></tbody></table></div>`;renderDashboardOSTable(data);renderChartDashboardOS(data)}
@@ -2178,7 +2178,7 @@ function renderPrioridadOSControl(o){return `<select class="filter-sel" style="m
 function renderEstadoOSControl(o){const sm={'En ejecución':'b-info','Presupuestado':'b-warn','Finalizada':'b-ok','Pendiente':'b-neutral'};return `<select class="filter-sel ${sm[o.estado]||''}" style="min-width:125px;font-size:11px;padding:5px 8px;border-radius:8px" onchange="actualizarEstadoOS(${o.id},this.value)"><option ${o.estado==='Pendiente'?'selected':''}>Pendiente</option><option ${o.estado==='Presupuestado'?'selected':''}>Presupuestado</option><option ${o.estado==='En ejecución'?'selected':''}>En ejecución</option><option ${o.estado==='Finalizada'?'selected':''}>Finalizada</option></select>`}
 function actualizarPrioridadOS(id,prio){const o=OS_ZONA.find(x=>x.id===id);if(o)o.prio=prio}
 function actualizarEstadoOS(id,estado){const o=OS_ZONA.find(x=>x.id===id);if(!o)return;o.estado=estado;if(estado==='Finalizada'&&!o.fechaFinalizacion)o.fechaFinalizacion=new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});if(estado!=='Finalizada')o.fechaFinalizacion='';filterOS();setTimeout(()=>renderLcCharts&&window._lcZonaData&&renderLcCharts(),200)}
-function renderOSTable(data){const el=$('os-table-body');if(!el)return;data=(data||[]).slice().sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));const sm={'En ejecución':'b-info','Presupuestado':'b-warn','Finalizada':'b-ok','Pendiente':'b-neutral'};if(!data.length){el.innerHTML=`<tr><td colspan="12" class="os-empty">No se encontraron órdenes de servicio</td></tr>`;return}el.innerHTML=data.map(o=>`<tr><td><div class="os-num">${o.numero}</div></td><td>${o.reclamoNumero||'—'}</td><td>${o.establecimiento}</td><td><div class="os-task">${o.tarea}</div></td><td>${o.rubro}</td><td>${o.fecha}</td><td>${o.fechaFinalizacion||'—'}</td><td><span class="os-money">${o.monto}</span></td><td>${renderPrioridadOSControl(o)}</td><td>${renderEstadoOSControl(o)}</td><td>${canManageOS()?`<button class="edit-btn" onclick="editarOS(${o.id})">Editar</button>`:''}</td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">Descargar PDF</button></td></tr>`).join('')}
+function renderOSTable(data){const el=$('os-table-body');if(!el)return;data=(data||[]).slice().sort((a,b)=>{const n=s=>{const m=String(s||'').match(/\d+/g);return m?parseInt(m[m.length-1],10):0;};return n(b.numero)-n(a.numero);});const sm={'En ejecución':'b-info','Presupuestado':'b-warn','Finalizada':'b-ok','Pendiente':'b-neutral'};if(!data.length){el.innerHTML=`<tr><td colspan="12" class="os-empty">No se encontraron órdenes de servicio</td></tr>`;return}el.innerHTML=data.map(o=>`<tr><td><div class="os-num">${o.numero}</div></td><td>${o.reclamoNumero||'—'}</td><td>${o.establecimiento}</td><td><div class="os-task">${o.tarea}</div></td><td>${o.rubro}</td><td>${o.fecha}</td><td>${o.fechaFinalizacion||'—'}</td><td><span class="os-money">${o.monto}</span></td><td>${renderPrioridadOSControl(o)}</td><td>${renderEstadoOSControl(o)}</td><td>${canManageOS()?`<button class="edit-btn" onclick="editarOS(${o.id})">Editar</button>`:''}</td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">Descargar PDF</button></td></tr>`).join('')}
 function sanitizeFileName(value){return String(value||'').replace(/[\/:*?"<>|]/g,'').trim()}
 function getOSFileBaseName(os){const z=zonaEstablecimiento(os.estId);const n=String(os.id||1).replace(/[^0-9]/g,'')||'1';const est=sanitizeFileName(os.establecimiento||'Establecimiento');return `Z${z} - O.S. ${n} - ${est}`}
 function numeroOSSoloNumero(numero){const match=String(numero||'').match(/(\d+)(?!.*\d)/);return match?String(Number(match[1])):''}
@@ -3482,15 +3482,85 @@ function renderChartCoordinadorDashboard(){
   drawHBarCustom('chart-coord-rubro-reclamos',rr.labels,rr.data);
   drawHBarCustom('chart-coord-rubro-mantenimientos',rm.labels,rm.data);
 }
+function renderReclamosCoordinador(c){
+  c.innerHTML=`<div class="section-label">Coordinación · Reclamos</div>
+  <div class="card">
+    <div class="card-header">
+      <div><div class="card-title">Todos los reclamos</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">Vista global de reclamos de todas las zonas.</div>
+      </div>
+      <span class="badge b-info" id="coord-reclamos-count">— reclamos</span>
+    </div>
+    <div class="os-filters">
+      <input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título o rubro..." oninput="filterReclamosCoord()">
+      <select class="filter-sel" id="coord-rec-zona" onchange="filterReclamosCoord()">
+        <option value="">Todas las zonas</option>
+        ${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}
+      </select>
+      <select class="filter-sel" id="coord-rec-prio" onchange="filterReclamosCoord()">
+        <option value="">Todas las prioridades</option>
+        <option value="critico">Crítico</option>
+        <option value="alto">Alto</option>
+        <option value="medio">Medio</option>
+        <option value="bajo">Bajo</option>
+      </select>
+      <select class="filter-sel" id="coord-rec-os" onchange="filterReclamosCoord()">
+        <option value="">Con y sin OS</option>
+        <option value="con">Con OS asignada</option>
+        <option value="sin">Sin OS</option>
+      </select>
+    </div>
+    <div class="os-table-wrap">
+      <table class="os-table">
+        <thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th></tr></thead>
+        <tbody id="coord-rec-body"></tbody>
+      </table>
+    </div>
+  </div>`;
+  filterReclamosCoord();
+}
+window.filterReclamosCoord=function(){
+  const q=($('coord-rec-q')?.value||'').toLowerCase();
+  const z=$('coord-rec-zona')?.value||'';
+  const prio=$('coord-rec-prio')?.value||'';
+  const osF=$('coord-rec-os')?.value||'';
+  const prioMap={critico:'critico',alto:'alto',medio:'medio',bajo:'bajo'};
+  const data=RECLAMOS_ZONA.filter(r=>{
+    const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
+    const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
+    return(!z||String(zona)===z)&&
+           (!prio||(r.prio||r.prioridad||'').toLowerCase()===prio)&&
+           (!osF||(osF==='con'?tieneOS:!tieneOS))&&
+           (!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''}`.toLowerCase().includes(q));
+  });
+  const el=$('coord-rec-body');
+  if(!el)return;
+  const badge=$('coord-reclamos-count');
+  if(badge)badge.textContent=`${data.length} reclamo${data.length!==1?'s':''}`;
+  if(!data.length){el.innerHTML=`<tr><td colspan="8" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;return;}
+  const pm={critico:'b-danger',alto:'b-warn',medio:'b-info',bajo:'b-ok'};
+  const pl={critico:'Crítico',alto:'Alto',medio:'Medio',bajo:'Bajo'};
+  el.innerHTML=data.map(r=>{
+    const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
+    const p=r.prio||r.prioridad||'medio';
+    const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
+    return `<tr><td><div class="os-num">${escapeHtml(r.numero||'—')}</div></td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td><span class="badge ${pm[p]||'b-neutral'}">${pl[p]||'—'}</span></td><td>${tieneOS?`<span class="badge b-ok">${escapeHtml(r.os)}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
+  }).join('');
+};
 const _renderTabCoordDashboard=renderTab;
 renderTab=function(i){
   if(currentUser?.role==='coordinador'){
-    const tabs=['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Administración'];
+    const tabs=['Dashboard','Reclamos','Establecimientos','Órdenes de servicio','Intervenciones','Administración'];
     const tab=tabs[i],c=document.getElementById('main-content');
     if(tab==='Dashboard'&&c){
       setActiveTab(i);hideGlobal();currentFichaId=null;
       c.innerHTML=renderDashboardCoordinador();
       setTimeout(renderChartCoordinadorDashboard,120);
+      return;
+    }
+    if(tab==='Reclamos'&&c){
+      setActiveTab(i);hideGlobal();currentFichaId=null;
+      renderReclamosCoordinador(c);
       return;
     }
   }
@@ -4932,7 +5002,8 @@ function renderChartInsp(){
     if(!Array.isArray(it.comentariosCoordinacion))it.comentariosCoordinacion=[];
     it.comentariosCoordinacion.unshift(comentario);
     if(it.remoteId&&window.DGIE_DB?.actualizarIntervencion){
-      await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion});
+      const{error}=await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion});
+      if(error){it.comentariosCoordinacion.shift();alert('No se pudo guardar el comentario: '+error.message);return;}
     }
     saveAppState&&saveAppState();
     filterIntervencionesDireccion();
@@ -5036,7 +5107,7 @@ function renderChartInsp(){
     const z=$('coord-os-zona')?.value||'';
     const st=$('coord-os-estado')?.value||'';
     const q=($('coord-os-q')?.value||'').toLowerCase();
-    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
+    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>{const n=s=>{const m=String(s||'').match(/\d+/g);return m?parseInt(m[m.length-1],10):0;};return n(b.numero)-n(a.numero);});
     const el=$('coord-os-body');
     if(!el)return;
     el.innerHTML=data.length?data.map(o=>`<tr>
@@ -5137,7 +5208,7 @@ function renderChartInsp(){
     </tr>`).join('');
   };
   window.renderOSEmpresa=function(c,z){
-    const data=osPorZona(z).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
+    const data=osPorZona(z).sort((a,b)=>{const n=s=>{const m=String(s||'').match(/\d+/g);return m?parseInt(m[m.length-1],10):0;};return n(b.numero)-n(a.numero);});
     c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div>
     <div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${escapeHtml(INSPECTORS[Number(z)-1]||'—')} · Zona ${z}</div></div><span class="badge b-info">${data.length} órdenes</span></div>
     <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th><th>Empresa</th></tr></thead><tbody>${data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}${osEmpresaBadgeReal(o)}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${prioBadgeLocal(o.prio)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800"><input type="checkbox" ${empresaFinalizoReal(o)?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td></tr>`).join(''):`<tr><td colspan="11" class="os-empty">No hay órdenes asignadas</td></tr>`}</tbody></table></div></div>`;
@@ -5146,7 +5217,7 @@ function renderChartInsp(){
     const z=$('coord-os-zona')?.value||'';
     const st=$('coord-os-estado')?.value||'';
     const q=($('coord-os-q')?.value||'').toLowerCase();
-    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
+    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>{const n=s=>{const m=String(s||'').match(/\d+/g);return m?parseInt(m[m.length-1],10):0;};return n(b.numero)-n(a.numero);});
     const el=$('coord-os-body');
     if(!el)return;
     el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${Number(o.zona||zonaEstablecimiento(o.estId))||'—'}</td><td>${escapeHtml(o.reclamoNumero||'—')}</td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}${osEmpresaBadgeReal(o)}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${prioBadgeLocal(o.prio)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span>${osEmpresaBadgeReal(o)}</td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td></tr>`).join(''):`<tr><td colspan="12" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
@@ -5155,7 +5226,7 @@ function renderChartInsp(){
   window.renderFichaBodyDGIE=function(fb,estId,i){
     if(i!==1)return renderFichaBodyPrev(fb,estId,i);
     currentFichaId=estId;
-    const oss=OS_ZONA.filter(o=>Number(o.estId)===Number(estId)).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
+    const oss=OS_ZONA.filter(o=>Number(o.estId)===Number(estId)).sort((a,b)=>{const n=s=>{const m=String(s||'').match(/\d+/g);return m?parseInt(m[m.length-1],10):0;};return n(b.numero)-n(a.numero);});
     fb.innerHTML=oss.length?oss.map(o=>`<div class="os-row"><div class="os-body"><div class="os-title">${escapeHtml(o.tarea||o.titulo||'Orden de servicio')}</div><div class="os-meta"><b>${escapeHtml(o.numero||'S/N')}</b> · ${escapeHtml(o.fecha||'—')} · ${escapeHtml(o.monto||'—')}</div>${osEmpresaBadgeReal(o)}</div><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin órdenes de servicio</div>';
   };
 })();
