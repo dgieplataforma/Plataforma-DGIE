@@ -820,6 +820,13 @@ for(let i=1;i<=17;i++){
 const INSPECTORS_DATA=INSPECTORS.map((nombre,i)=>({
   zona:i+1,nombre,email:'',telefono:'',cuit:''
 }));
+// Restaurar desde localStorage si Supabase aún no cargó
+try{
+  const _ins=JSON.parse(localStorage.getItem('dgie_inspectors_data')||'null');
+  if(Array.isArray(_ins))_ins.forEach((d,i)=>{if(INSPECTORS_DATA[i]){Object.assign(INSPECTORS_DATA[i],d);if(d?.nombre)INSPECTORS[i]=d.nombre;}});
+  const _emp=JSON.parse(localStorage.getItem('dgie_empresas_data')||'null');
+  if(_emp&&typeof _emp==='object')Object.keys(_emp).forEach(k=>{if(EMPRESAS_DATA[k])Object.assign(EMPRESAS_DATA[k],_emp[k]);});
+}catch(e){}
 // ────────────────────────────────────────────────────────────────────
 // ─── ACCESO EMPRESAS ───────────────────────────────────────────────
 function buildEmpresaGrid(){
@@ -947,7 +954,7 @@ function openEditEmpresa(z){
     </div>`;
 }
 
-function guardarEmpresa(z){
+async function guardarEmpresa(z){
   EMPRESAS_DATA[z]={
     zona:z,
     razonSocial:document.getElementById('emp-razon')?.value.trim()||'',
@@ -956,9 +963,21 @@ function guardarEmpresa(z){
     domicilio:document.getElementById('emp-domicilio')?.value.trim()||'',
     telefono:document.getElementById('emp-telefono')?.value.trim()||'',
     email:document.getElementById('emp-email')?.value.trim()||'',
-    representante:EMPRESAS_DATA[z]?.representante||'',
-    expediente:EMPRESAS_DATA[z]?.expediente||''
+    representante:EMPRESAS_DATA[z]?.representante||''
   };
+  if(window.DGIE_DB?.isConfigured&&window.DGIE_DB.actualizarEmpresa){
+    const{error}=await window.DGIE_DB.actualizarEmpresa(z,{
+      razon_social:EMPRESAS_DATA[z].razonSocial,
+      cuit:EMPRESAS_DATA[z].cuit,
+      expediente:EMPRESAS_DATA[z].expediente,
+      domicilio:EMPRESAS_DATA[z].domicilio,
+      telefono:EMPRESAS_DATA[z].telefono,
+      email:EMPRESAS_DATA[z].email,
+      representante:EMPRESAS_DATA[z].representante
+    });
+    if(error)console.warn('No se pudo guardar empresa en Supabase:',error.message);
+  }
+  try{localStorage.setItem('dgie_empresas_data',JSON.stringify(EMPRESAS_DATA));}catch(e){}
   renderAdmEmpresas(document.getElementById('adm-body'));
 }
 
@@ -1020,7 +1039,7 @@ function openEditInspector(idx){
     </div>`;
 }
 
-function guardarInspector(idx){
+async function guardarInspector(idx){
   INSPECTORS_DATA[idx]={
     ...INSPECTORS_DATA[idx],
     nombre:document.getElementById('ins-nombre')?.value.trim()||INSPECTORS_DATA[idx].nombre,
@@ -1029,7 +1048,17 @@ function guardarInspector(idx){
     cuit:document.getElementById('ins-cuit')?.value.trim()||''
   };
   const nuevoNombre=document.getElementById('ins-nombre')?.value.trim();
-  if(nuevoNombre) INSPECTORS[idx]=nuevoNombre;
+  if(nuevoNombre)INSPECTORS[idx]=nuevoNombre;
+  if(window.DGIE_DB?.isConfigured&&window.DGIE_DB.actualizarInspector){
+    const{error}=await window.DGIE_DB.actualizarInspector(idx+1,{
+      nombre:INSPECTORS_DATA[idx].nombre,
+      email:INSPECTORS_DATA[idx].email,
+      telefono:INSPECTORS_DATA[idx].telefono,
+      cuit:INSPECTORS_DATA[idx].cuit
+    });
+    if(error)console.warn('No se pudo guardar inspector en Supabase:',error.message);
+  }
+  try{localStorage.setItem('dgie_inspectors_data',JSON.stringify(INSPECTORS_DATA));}catch(e){}
   renderAdmInspectores(document.getElementById('adm-body'));
 }
 
@@ -4635,13 +4664,15 @@ function renderChartInsp(){
   async function cargarDatosOperativosSupabase(){
     if(!window.DGIE_DB?.isConfigured)return;
     try{
-      const [recRes,osRes,intRes,relRes,commRes,fotoRes]=await Promise.all([
+      const [recRes,osRes,intRes,relRes,commRes,fotoRes,insRes,empRes]=await Promise.all([
         window.DGIE_DB.listarReclamos?.(),
         window.DGIE_DB.listarOrdenes?.(),
         window.DGIE_DB.listarIntervenciones?.(),
         window.DGIE_DB.listarRelevamientos?.(),
         window.DGIE_DB.listarComunicaciones?.(),
-        window.DGIE_DB.listarFotos?.()
+        window.DGIE_DB.listarFotos?.(),
+        window.DGIE_DB.listarInspectores?.(),
+        window.DGIE_DB.listarEmpresas?.()
       ]);
       if(recRes&&!recRes.error&&Array.isArray(recRes.data)){
         RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...recRes.data.map(mapRemoteReclamo));
@@ -4688,6 +4719,22 @@ function renderChartInsp(){
         });
         RECLAMOS_ZONA.forEach(r=>{r.fotos=fotosPorReclamo[String(r.remoteId)]||r.fotos||[];});
         INTERVENCIONES.forEach(it=>{it.fotosArchivos=fotosPorIntervencion[String(it.remoteId)]||it.fotosArchivos||[];it.fotos=it.fotosArchivos.length||it.fotos||0;});
+      }
+      if(insRes&&!insRes.error&&Array.isArray(insRes.data)){
+        insRes.data.forEach(row=>{
+          const idx=Number(row.zona)-1;
+          if(idx>=0&&INSPECTORS_DATA[idx]){
+            Object.assign(INSPECTORS_DATA[idx],{nombre:row.nombre||INSPECTORS_DATA[idx].nombre,email:row.email||'',telefono:row.telefono||'',cuit:row.cuit||''});
+            if(row.nombre)INSPECTORS[idx]=row.nombre;
+          }
+        });
+        try{localStorage.setItem('dgie_inspectors_data',JSON.stringify(INSPECTORS_DATA));}catch(e){}
+      }
+      if(empRes&&!empRes.error&&Array.isArray(empRes.data)){
+        empRes.data.forEach(row=>{
+          EMPRESAS_DATA[row.zona]={zona:Number(row.zona),razonSocial:row.razon_social||'',cuit:row.cuit||'',expediente:row.expediente||'',representante:row.representante||'',domicilio:row.domicilio||'',telefono:row.telefono||'',email:row.email||''};
+        });
+        try{localStorage.setItem('dgie_empresas_data',JSON.stringify(EMPRESAS_DATA));}catch(e){}
       }
       RECLAMOS_ZONA.forEach(r=>{
         const os=findOSForReclamo(r,OS_ZONA);

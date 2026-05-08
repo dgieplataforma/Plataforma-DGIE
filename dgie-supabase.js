@@ -176,6 +176,18 @@
         await client.storage.from('dgie-planos').remove([path]);
       }
       return client.from('planos').delete().eq('id', id);
+    },
+    async listarInspectores(){
+      return client.from('inspectores_zona').select('*').order('zona', { ascending:true });
+    },
+    async actualizarInspector(zona, row){
+      return client.from('inspectores_zona').upsert({ zona, ...row }, { onConflict:'zona' }).select('*').single();
+    },
+    async listarEmpresas(){
+      return client.from('empresas_zona').select('*').order('zona', { ascending:true });
+    },
+    async actualizarEmpresa(zona, row){
+      return client.from('empresas_zona').upsert({ zona, ...row }, { onConflict:'zona' }).select('*').single();
     }
   };
 })();
