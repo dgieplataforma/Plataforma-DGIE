@@ -818,7 +818,7 @@ for(let i=1;i<=17;i++){
   };
 }
 const INSPECTORS_DATA=INSPECTORS.map((nombre,i)=>({
-  zona:i+1,nombre,email:'',telefono:'',legajo:''
+  zona:i+1,nombre,email:'',telefono:'',cuit:''
 }));
 // ────────────────────────────────────────────────────────────────────
 // ─── ACCESO EMPRESAS ───────────────────────────────────────────────
@@ -931,8 +931,8 @@ function openEditEmpresa(z){
           <input class="form-input" id="emp-razon" value="${emp.razonSocial||''}"/></div>
         <div class="form-field"><label class="form-label">CUIT</label>
           <input class="form-input" id="emp-cuit" value="${emp.cuit||''}"/></div>
-        <div class="form-field"><label class="form-label">Matrícula</label>
-          <input class="form-input" id="emp-matricula" value="${emp.matricula||''}"/></div>
+        <div class="form-field"><label class="form-label">N° Expediente</label>
+          <input class="form-input" id="emp-expediente" value="${emp.expediente||''}"/></div>
         <div class="form-field full"><label class="form-label">Domicilio</label>
           <input class="form-input" id="emp-domicilio" value="${emp.domicilio||''}"/></div>
         <div class="form-field"><label class="form-label">Teléfono</label>
@@ -952,7 +952,7 @@ function guardarEmpresa(z){
     zona:z,
     razonSocial:document.getElementById('emp-razon')?.value.trim()||'',
     cuit:document.getElementById('emp-cuit')?.value.trim()||'',
-    matricula:document.getElementById('emp-matricula')?.value.trim()||'',
+    expediente:document.getElementById('emp-expediente')?.value.trim()||'',
     domicilio:document.getElementById('emp-domicilio')?.value.trim()||'',
     telefono:document.getElementById('emp-telefono')?.value.trim()||'',
     email:document.getElementById('emp-email')?.value.trim()||'',
@@ -1008,8 +1008,8 @@ function openEditInspector(idx){
           <input class="form-input" id="ins-email" value="${ins.email||''}"/></div>
         <div class="form-field"><label class="form-label">Teléfono</label>
           <input class="form-input" id="ins-telefono" value="${ins.telefono||''}"/></div>
-        <div class="form-field"><label class="form-label">Legajo</label>
-          <input class="form-input" id="ins-legajo" value="${ins.legajo||''}"/></div>
+        <div class="form-field"><label class="form-label">CUIT</label>
+          <input class="form-input" id="ins-cuit" value="${ins.cuit||''}"/></div>
         <div class="form-field"><label class="form-label">Contraseña de acceso</label>
           <input class="form-input" id="ins-pass" type="text" placeholder="zona${z} (por defecto)"/></div>
       </div>
@@ -1026,7 +1026,7 @@ function guardarInspector(idx){
     nombre:document.getElementById('ins-nombre')?.value.trim()||INSPECTORS_DATA[idx].nombre,
     email:document.getElementById('ins-email')?.value.trim()||'',
     telefono:document.getElementById('ins-telefono')?.value.trim()||'',
-    legajo:document.getElementById('ins-legajo')?.value.trim()||''
+    cuit:document.getElementById('ins-cuit')?.value.trim()||''
   };
   const nuevoNombre=document.getElementById('ins-nombre')?.value.trim();
   if(nuevoNombre) INSPECTORS[idx]=nuevoNombre;
@@ -5364,6 +5364,29 @@ function renderChartInsp(){
       saveAppState&&saveAppState();
     }
   };
+})();
+</script>
+<script id="dgie-scroll-horizontal-top">
+(function(){
+  function addMirror(wrap){
+    if(wrap.dataset.mirrorAdded)return;
+    wrap.dataset.mirrorAdded='1';
+    const mirror=document.createElement('div');
+    mirror.style.cssText='overflow-x:auto;overflow-y:hidden;height:14px;margin-bottom:3px;border-radius:4px';
+    const inner=document.createElement('div');
+    inner.style.cssText='height:1px';
+    mirror.appendChild(inner);
+    wrap.parentNode.insertBefore(mirror,wrap);
+    function syncW(){inner.style.width=wrap.scrollWidth+'px';}
+    syncW();
+    let mLock=false,wLock=false;
+    mirror.addEventListener('scroll',()=>{if(mLock)return;wLock=true;wrap.scrollLeft=mirror.scrollLeft;setTimeout(()=>wLock=false,50);});
+    wrap.addEventListener('scroll',()=>{if(wLock)return;mLock=true;mirror.scrollLeft=wrap.scrollLeft;setTimeout(()=>mLock=false,50);});
+    new ResizeObserver(syncW).observe(wrap);
+  }
+  function scan(){document.querySelectorAll('.os-table-wrap:not([data-mirror-added])').forEach(addMirror);}
+  new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('DOMContentLoaded',scan);
 })();
 </script>
 </body>
