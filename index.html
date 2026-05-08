@@ -3283,6 +3283,10 @@ function renderDashboardInsp(){
           <div class="inspector-chart-head"><div><div class="inspector-chart-title">Mantenimientos finalizados por rubro</div><div class="inspector-chart-sub">Órdenes finalizadas agrupadas por rubro.</div></div></div>
           <div class="inspector-chart-wrap"><canvas id="chart-insp-rubro-mantenimientos"></canvas></div>
         </div>
+        <div class="inspector-chart-card">
+          <div class="inspector-chart-head"><div><div class="inspector-chart-title">Estado de órdenes de servicio</div><div class="inspector-chart-sub">Distribución de OS por estado en la zona.</div></div></div>
+          <div class="inspector-chart-wrap"><canvas id="chart-insp-estado-os"></canvas></div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -3542,7 +3546,7 @@ function renderChartInsp(){
 </style>
 <script id="fix-inspector-charts-chatgpt-final-script">
 (function(){
-  const INSPECTOR_CHART_IDS = ['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos'];
+  const INSPECTOR_CHART_IDS = ['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos','chart-insp-estado-os'];
   const RUBROS_FIX = ['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
   const chartStore = window.__inspChartsFix || (window.__inspChartsFix = {});
 
@@ -3652,6 +3656,16 @@ function renderChartInsp(){
 
     hbar('chart-insp-rubro-reclamos', RUBROS_FIX, counts(RUBROS_FIX, recs, rubro));
     hbar('chart-insp-rubro-mantenimientos', RUBROS_FIX, counts(RUBROS_FIX, finalizadas, rubro));
+
+    const osEstadoLabels = ['Finalizado','Trabajando','Pendiente','Anulado'];
+    const osEstadoColors = ['#16a34a','#2563eb','#f59e0b','#991b1b'];
+    const osEstadoData = [
+      oss.filter(o=>estadoOS(o)==='finalizado'||estadoOS(o)==='finalizada').length,
+      oss.filter(o=>estadoOS(o)==='trabajando').length,
+      oss.filter(o=>estadoOS(o)==='pendiente'||estadoOS(o)==='').length,
+      oss.filter(o=>estadoOS(o)==='anulado').length
+    ];
+    donut('chart-insp-estado-os', osEstadoLabels, osEstadoData, osEstadoColors);
     return true;
   }
 
@@ -5018,7 +5032,7 @@ function renderChartInsp(){
     const z=$('coord-os-zona')?.value||'';
     const st=$('coord-os-estado')?.value||'';
     const q=($('coord-os-q')?.value||'').toLowerCase();
-    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q)));
+    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
     const el=$('coord-os-body');
     if(!el)return;
     el.innerHTML=data.length?data.map(o=>`<tr>
@@ -5119,7 +5133,7 @@ function renderChartInsp(){
     </tr>`).join('');
   };
   window.renderOSEmpresa=function(c,z){
-    const data=osPorZona(z);
+    const data=osPorZona(z).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
     c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div>
     <div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${escapeHtml(INSPECTORS[Number(z)-1]||'—')} · Zona ${z}</div></div><span class="badge b-info">${data.length} órdenes</span></div>
     <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th><th>Empresa</th></tr></thead><tbody>${data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}${osEmpresaBadgeReal(o)}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${prioBadgeLocal(o.prio)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800"><input type="checkbox" ${empresaFinalizoReal(o)?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td></tr>`).join(''):`<tr><td colspan="11" class="os-empty">No hay órdenes asignadas</td></tr>`}</tbody></table></div></div>`;
@@ -5128,7 +5142,7 @@ function renderChartInsp(){
     const z=$('coord-os-zona')?.value||'';
     const st=$('coord-os-estado')?.value||'';
     const q=($('coord-os-q')?.value||'').toLowerCase();
-    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q)));
+    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
     const el=$('coord-os-body');
     if(!el)return;
     el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${Number(o.zona||zonaEstablecimiento(o.estId))||'—'}</td><td>${escapeHtml(o.reclamoNumero||'—')}</td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}${osEmpresaBadgeReal(o)}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${prioBadgeLocal(o.prio)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span>${osEmpresaBadgeReal(o)}</td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td></tr>`).join(''):`<tr><td colspan="12" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
@@ -5137,7 +5151,7 @@ function renderChartInsp(){
   window.renderFichaBodyDGIE=function(fb,estId,i){
     if(i!==1)return renderFichaBodyPrev(fb,estId,i);
     currentFichaId=estId;
-    const oss=OS_ZONA.filter(o=>Number(o.estId)===Number(estId));
+    const oss=OS_ZONA.filter(o=>Number(o.estId)===Number(estId)).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),undefined,{numeric:true}));
     fb.innerHTML=oss.length?oss.map(o=>`<div class="os-row"><div class="os-body"><div class="os-title">${escapeHtml(o.tarea||o.titulo||'Orden de servicio')}</div><div class="os-meta"><b>${escapeHtml(o.numero||'S/N')}</b> · ${escapeHtml(o.fecha||'—')} · ${escapeHtml(o.monto||'—')}</div>${osEmpresaBadgeReal(o)}</div><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin órdenes de servicio</div>';
   };
 })();
