@@ -3838,7 +3838,7 @@ function renderChartInsp(){
     if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Comunicaciones'];
     if(user?.role==='callcenter')return ['Nuevo reclamo'];
     if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`];
-    if(user?.role==='coordinador')return ['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración'];
+    if(user?.role==='coordinador')return ['Dashboard','Reclamos','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración'];
     return ['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración'];
   }
   window.tabsForUser=tabsForUser;
@@ -4838,9 +4838,9 @@ function renderChartInsp(){
     saveAppState&&saveAppState();
     filterIntervencionesDireccion();
   };
-  window.dgieTabsForUser=function(user){if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Comunicaciones'];if(user?.role==='callcenter')return ['Nuevo reclamo'];if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`];return ['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración']}
+  window.dgieTabsForUser=function(user){if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Comunicaciones'];if(user?.role==='callcenter')return ['Nuevo reclamo'];if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`];if(user?.role==='coordinador')return ['Dashboard','Reclamos','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración'];return ['Dashboard','Establecimientos','Órdenes de servicio','Intervenciones','Comunicaciones','Administración']}
   window.loadUser=function(user){currentUser=user;if($('topbar-av'))$('topbar-av').textContent=user.initials;if($('topbar-name'))$('topbar-name').textContent=user.name;buildTabs(dgieTabsForUser(user));hideGlobal();hideLanding();$('app-wrapper').style.display='';document.querySelectorAll('#app-wrapper .screen').forEach(s=>s.classList.remove('active'));$('screen-main')?.classList.add('active');renderTab(0);setTimeout(()=>window.cargarDatosPublicosDGIE?.(),250)}
-  window.renderTab=function(i){if(!currentUser)return;buildTabs(dgieTabsForUser(currentUser));setActiveTab(i);hideGlobal();currentFichaId=null;const tab=dgieTabsForUser(currentUser)[i],c=$('main-content');if(!c)return;if(tab==='Intervenciones'&&currentUser.role==='inspector'){renderIntervencionesInspector(c);return}if(tab==='Intervenciones'){renderIntervencionesDireccion(c);return}if(tab==='Comunicaciones'){renderComunicaciones(c);setTimeout(renderCommDestino,0);setTimeout(toggleCommSurveyBuilder,0);return}if(tab.startsWith('Órdenes de servicio · Zona')){renderOSEmpresa(c,currentUser.zona);return}if(tab==='Nuevo reclamo'){c.innerHTML=renderCallCenterNuevoReclamo();setTimeout(()=>initAcEstab(),80);return}if(tab==='Dashboard'){if(currentUser.role==='inspector'){c.innerHTML=renderDashboardInsp();setTimeout(()=>renderChartInsp('principal'),150);return}if(currentUser.role==='coordinador'){c.innerHTML=renderDashboardCoordinador();setTimeout(renderChartCoordinadorDashboard,120);return}c.innerHTML=renderDashboardDir();setTimeout(()=>renderChartDir('principal'),150);return}if(tab==='Establecimientos'){renderEstablecimientosDireccion(c);return}if(tab==='Administración'){renderAdministracion(c);return}if(tab==='Órdenes de servicio'){renderOSGeneral(c);return}if(tab.startsWith('Zona'))return renderZonaTab(c);c.innerHTML=`<div class="coming-soon"><h3>${escapeHtml(tab)}</h3><p>Módulo en construcción</p></div>`}
+  window.renderTab=function(i){if(!currentUser)return;buildTabs(dgieTabsForUser(currentUser));setActiveTab(i);hideGlobal();currentFichaId=null;const tab=dgieTabsForUser(currentUser)[i],c=$('main-content');if(!c)return;if(tab==='Intervenciones'&&currentUser.role==='inspector'){renderIntervencionesInspector(c);return}if(tab==='Intervenciones'){renderIntervencionesDireccion(c);return}if(tab==='Comunicaciones'){renderComunicaciones(c);setTimeout(renderCommDestino,0);setTimeout(toggleCommSurveyBuilder,0);return}if(tab.startsWith('Órdenes de servicio · Zona')){renderOSEmpresa(c,currentUser.zona);return}if(tab==='Nuevo reclamo'){c.innerHTML=renderCallCenterNuevoReclamo();setTimeout(()=>initAcEstab(),80);return}if(tab==='Dashboard'){if(currentUser.role==='inspector'){c.innerHTML=renderDashboardInsp();setTimeout(()=>renderChartInsp('principal'),150);return}if(currentUser.role==='coordinador'){c.innerHTML=renderDashboardCoordinador();setTimeout(renderChartCoordinadorDashboard,120);return}c.innerHTML=renderDashboardDir();setTimeout(()=>renderChartDir('principal'),150);return}if(tab==='Establecimientos'){renderEstablecimientosDireccion(c);return}if(tab==='Administración'){renderAdministracion(c);return}if(tab==='Reclamos'){renderReclamosCoordinador(c);return}if(tab==='Órdenes de servicio'){renderOSGeneral(c);return}if(tab.startsWith('Zona'))return renderZonaTab(c);c.innerHTML=`<div class="coming-soon"><h3>${escapeHtml(tab)}</h3><p>Módulo en construcción</p></div>`}
 })();
 </script>
 <script id="dgie-correcciones-puntuales-2026-05-07">
@@ -5253,6 +5253,8 @@ function renderChartInsp(){
     const el=$('os-table-body');
     const table=el?.closest('table');
     if(!el||!table)return;
+    const nx=s=>{const m=String(s||'').match(/\d+/g);return m?parseInt(m[m.length-1],10):0;};
+    data=(data||[]).slice().sort((a,b)=>nx(b.numero)-nx(a.numero));
     const head=table.querySelector('thead tr');
     if(head&&!head.dataset.empresaCol){
       const th=document.createElement('th');
