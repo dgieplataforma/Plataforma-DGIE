@@ -33,13 +33,14 @@
     const cc = cloudinaryConfig();
     return !!(cc.cloudName && cc.uploadPreset);
   }
-  async function subirCloudinary(file, carpeta){
+  async function subirCloudinary(file, carpeta, resourceType){
     const cc = cloudinaryConfig();
+    const rt = resourceType || 'auto';
     const form = new FormData();
     form.append('file', file);
     form.append('upload_preset', cc.uploadPreset);
     form.append('folder', `${cc.folder}/${carpeta}`);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cc.cloudName)}/auto/upload`, {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cc.cloudName)}/${encodeURIComponent(rt)}/upload`, {
       method: 'POST',
       body: form
     });
@@ -140,7 +141,8 @@
       const path = `${establecimientoId}/${Date.now()}_${piso}_${safeName}`;
       if(cloudinaryHabilitado()){
         try{
-          const uploaded = await subirCloudinary(file, 'planos');
+          const resourceType = tipo === 'pdf' || tipo === 'dwg' ? 'raw' : 'auto';
+          const uploaded = await subirCloudinary(file, 'planos', resourceType);
           return client.from('planos').insert({
             establecimiento_id: establecimientoId,
             zona,

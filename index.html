@@ -5447,5 +5447,197 @@ function renderChartInsp(){
   document.addEventListener('DOMContentLoaded',scan);
 })();
 </script>
+<script id="dgie-planos-cloudinary-raw-2026-05-11">
+(function(){
+  function planoUrlRaw(url){
+    return String(url||'').replace('/image/upload/','/raw/upload/').replace('/video/upload/','/raw/upload/');
+  }
+  function planoUrlPreview(p){
+    return p?.tipo==='pdf'?planoUrlRaw(p.url):planoUrlRaw(p.url);
+  }
+  async function descargarPlanoUrl(url,nombre){
+    const finalUrl=planoUrlRaw(url);
+    try{
+      const res=await fetch(finalUrl);
+      if(!res.ok)throw new Error('No se pudo descargar');
+      const blob=await res.blob();
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=nombre||'plano';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
+    }catch(e){
+      window.open(finalUrl,'_blank','noopener');
+    }
+  }
+  window.descargarPlanoUrl=descargarPlanoUrl;
+  window.cargarPlanos=async function(estId){
+    const el=document.getElementById('planos-list');
+    if(!el)return;
+    if(!window.DGIE_DB?.isConfigured){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin conexión a base de datos</div>';return;}
+    const {data,error}=await window.DGIE_DB.listarPlanos(estId);
+    if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos</div>`;return;}
+    if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos cargados para este establecimiento</div>';return;}
+    const porPiso={};
+    data.forEach(p=>{if(!porPiso[p.piso])porPiso[p.piso]=[];porPiso[p.piso].push(p);});
+    const canDel=currentUser?.role==='coordinador';
+    el.innerHTML=Object.entries(porPiso).map(([piso,items])=>`
+      <div class="plano-piso-header">Planta ${escapeHtml(piso)}</div>
+      ${items.map(p=>{
+        const viewUrl=planoUrlPreview(p);
+        const fileName=(p.nombre||'plano')+(p.tipo?'.'+p.tipo:'');
+        return `<div class="plano-row">
+          <div class="plano-icon">${p.tipo==='pdf'?'PDF':p.tipo==='dwg'?'DWG':'ARCH'}</div>
+          <div class="plano-info">
+            <div class="plano-nombre">${escapeHtml(p.nombre)}</div>
+            <div class="plano-meta">${String(p.tipo||'archivo').toUpperCase()} · ${new Date(p.created_at).toLocaleDateString('es-AR')}${p.descripcion?` · ${escapeHtml(p.descripcion)}`:''}</div>
+          </div>
+          <div class="plano-actions">
+            ${p.tipo==='pdf'?`<a href="${viewUrl}" target="_blank" rel="noopener" class="secondary-btn" style="text-decoration:none">Vista previa</a>`:''}
+            <button class="secondary-btn" onclick="descargarPlanoUrl('${viewUrl.replace(/'/g,"\\'")}','${escapeHtml(fileName).replace(/'/g,"\\'")}')">Descargar</button>
+            ${canDel?`<button class="secondary-btn" style="color:var(--danger);border-color:var(--danger)" onclick="eliminarPlano('${p.id}','${String(p.path||'').replace(/'/g,"\\'")}',${estId})">Eliminar</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    `).join('');
+  };
+})();
+</script>
+<script id="dgie-filtros-fecha-reclamos-os-2026-05-11">
+(function(){
+  function fechaToISO(value){
+    const s=String(value||'').trim();
+    if(!s)return '';
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+    const p=s.split('/');
+    if(p.length>=3){
+      const y=String(p[2]).length===2?'20'+p[2]:p[2];
+      return `${y}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
+    }
+    const d=new Date(s);
+    return Number.isNaN(d.getTime())?'':d.toISOString().slice(0,10);
+  }
+  function enRangoFecha(fecha,desde,hasta){
+    const f=fechaToISO(fecha);
+    if(!f)return true;
+    return (!desde||f>=desde)&&(!hasta||f<=hasta);
+  }
+  function dateFiltersHTML(prefix,onchange){
+    return `<input class="filter-sel" id="${prefix}-desde" type="date" onchange="${onchange}" title="Desde">
+      <input class="filter-sel" id="${prefix}-hasta" type="date" onchange="${onchange}" title="Hasta">`;
+  }
+  function prioBadgeFecha(prio){
+    const p=String(prio||'medio').toLowerCase();
+    const map={critico:['Crítico','b-danger'],alto:['Alta','b-warn'],medio:['Media','b-info'],bajo:['Baja','b-ok']};
+    const item=map[p]||map.medio;
+    return `<span class="badge ${item[1]}">${item[0]}</span>`;
+  }
+
+  window.renderOSModule=function(title,isZona){
+    return `<div class="card"><div class="card-header"><div><div class="card-title">${title}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado con filtros por establecimiento, rubro, estado y fecha de envío.</div></div><span class="badge b-info">${isZona?osPorZona(currentUser.zona).length:OS_ZONA.length} órdenes</span></div>${canCreateOS()?'<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button></div>':''}<div class="os-filters"><input class="estab-search" id="os-search" placeholder="Buscar por OS, establecimiento o tarea..." oninput="filterOS()"><select class="filter-sel" id="os-rubro" onchange="filterOS()"><option value="">Todos los rubros</option>${[...new Set(OS_ZONA.map(o=>o.rubro).filter(Boolean))].map(r=>`<option>${escapeHtml(r)}</option>`).join('')}</select><select class="filter-sel" id="os-estado" onchange="filterOS()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="os-prio" onchange="filterOS()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select>${dateFiltersHTML('os','filterOS()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden de servicio</th><th>Nº reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha de envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>Empresa</th><th>Editar</th><th>PDF</th></tr></thead><tbody id="os-table-body"></tbody></table></div></div>`;
+  };
+  window.filterOS=function(){
+    const q=($('os-search')?.value||'').toLowerCase();
+    const rubro=$('os-rubro')?.value||'';
+    const estado=$('os-estado')?.value||'';
+    const prio=$('os-prio')?.value||'';
+    const desde=$('os-desde')?.value||'';
+    const hasta=$('os-hasta')?.value||'';
+    const baseOS=currentUser?.role==='inspector'?osPorZona(currentUser.zona):OS_ZONA;
+    renderOSTable(baseOS.filter(o=>(String(o.numero||'').toLowerCase().includes(q)||String(o.establecimiento||'').toLowerCase().includes(q)||String(o.tarea||'').toLowerCase().includes(q))&&(!rubro||o.rubro===rubro)&&(!estado||getEstadoOS(o)===estado)&&(!prio||o.prio===prio)&&enRangoFecha(o.fecha,desde,hasta)));
+  };
+
+  window.renderReclamos=function(container){
+    const z=currentUser.zona;
+    const base=RECLAMOS_ZONA.filter(r=>Number(r.zona)===Number(z)||zonaEstablecimiento(r.estId)===Number(z));
+    container.innerHTML=`<div class="card"><div class="card-header"><div><div class="card-title">Reclamos Zona ${z}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtrá por texto, prioridad, estado de OS y fecha.</div></div><span class="badge b-info" id="insp-rec-count">${base.length} reclamos</span></div><div class="os-filters"><input class="estab-search" id="insp-rec-q" placeholder="Buscar por establecimiento, título o rubro..." oninput="filterReclamosInspector()"><select class="filter-sel" id="insp-rec-prio" onchange="filterReclamosInspector()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="insp-rec-os" onchange="filterReclamosInspector()"><option value="">Con y sin OS</option><option value="con">Con OS asignada</option><option value="sin">Sin OS</option></select>${dateFiltersHTML('insp-rec','filterReclamosInspector()')}</div><div id="insp-rec-list"></div></div>`;
+    filterReclamosInspector();
+  };
+  window.filterReclamosInspector=function(){
+    const z=currentUser?.zona;
+    const q=($('insp-rec-q')?.value||'').toLowerCase();
+    const prio=$('insp-rec-prio')?.value||'';
+    const osF=$('insp-rec-os')?.value||'';
+    const desde=$('insp-rec-desde')?.value||'';
+    const hasta=$('insp-rec-hasta')?.value||'';
+    const data=RECLAMOS_ZONA.filter(r=>{
+      const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
+      const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
+      return Number(zona)===Number(z)&&(!prio||(r.prio||r.prioridad||'').toLowerCase()===prio)&&(!osF||(osF==='con'?tieneOS:!tieneOS))&&(!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''}`.toLowerCase().includes(q))&&enRangoFecha(r.fecha,desde,hasta);
+    }).sort((a,b)=>fechaToISO(b.fecha).localeCompare(fechaToISO(a.fecha)));
+    const badge=$('insp-rec-count');
+    if(badge)badge.textContent=`${data.length} reclamo${data.length!==1?'s':''}`;
+    const el=$('insp-rec-list');
+    if(el)el.innerHTML=data.length?data.map(r=>rowReclamo(r,true)).join(''):'<div style="text-align:center;padding:24px;color:var(--muted)">Sin reclamos para los filtros seleccionados</div>';
+  };
+
+  window.renderReclamosCoordinador=function(c){
+    c.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Vista global de reclamos de todas las zonas.</div></div><span class="badge b-info" id="coord-reclamos-count">— reclamos</span></div><div class="os-filters"><input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título o rubro..." oninput="filterReclamosCoord()"><select class="filter-sel" id="coord-rec-zona" onchange="filterReclamosCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-rec-prio" onchange="filterReclamosCoord()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="coord-rec-os" onchange="filterReclamosCoord()"><option value="">Con y sin OS</option><option value="con">Con OS asignada</option><option value="sin">Sin OS</option></select>${dateFiltersHTML('coord-rec','filterReclamosCoord()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th></tr></thead><tbody id="coord-rec-body"></tbody></table></div></div>`;
+    filterReclamosCoord();
+  };
+  window.filterReclamosCoord=function(){
+    const q=($('coord-rec-q')?.value||'').toLowerCase();
+    const z=$('coord-rec-zona')?.value||'';
+    const prio=$('coord-rec-prio')?.value||'';
+    const osF=$('coord-rec-os')?.value||'';
+    const desde=$('coord-rec-desde')?.value||'';
+    const hasta=$('coord-rec-hasta')?.value||'';
+    const data=RECLAMOS_ZONA.filter(r=>{
+      const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
+      const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
+      return(!z||String(zona)===z)&&(!prio||(r.prio||r.prioridad||'').toLowerCase()===prio)&&(!osF||(osF==='con'?tieneOS:!tieneOS))&&(!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''}`.toLowerCase().includes(q))&&enRangoFecha(r.fecha,desde,hasta);
+    }).sort((a,b)=>fechaToISO(b.fecha).localeCompare(fechaToISO(a.fecha)));
+    const el=$('coord-rec-body');
+    if(!el)return;
+    const badge=$('coord-reclamos-count');
+    if(badge)badge.textContent=`${data.length} reclamo${data.length!==1?'s':''}`;
+    if(!data.length){el.innerHTML=`<tr><td colspan="8" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;return;}
+    el.innerHTML=data.map(r=>{
+      const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
+      const p=r.prio||r.prioridad||'medio';
+      const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
+      return `<tr><td><div class="os-num">${escapeHtml(r.numero||'—')}</div></td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge b-ok">${escapeHtml(r.os)}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
+    }).join('');
+  };
+
+  const renderOSGeneralAnterior=window.renderOSGeneral;
+  window.renderOSGeneral=function(c){
+    c.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Todas las órdenes de servicio de todas las zonas, con filtros.</div></div><span class="badge b-info">${OS_ZONA.length} órdenes</span></div><div class="os-filters"><select class="filter-sel" id="coord-os-zona" onchange="filterOSCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-os-estado" onchange="filterOSCoord()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, establecimiento, reclamo, rubro o tarea..." oninput="filterOSCoord()">${dateFiltersHTML('coord-os','filterOSCoord()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Zona</th><th>N° reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th></tr></thead><tbody id="coord-os-body"></tbody></table></div></div>`;
+    filterOSCoord();
+  };
+  const filterOSCoordAnterior=window.filterOSCoord;
+  window.filterOSCoord=function(){
+    const z=$('coord-os-zona')?.value||'';
+    const st=$('coord-os-estado')?.value||'';
+    const q=($('coord-os-q')?.value||'').toLowerCase();
+    const desde=$('coord-os-desde')?.value||'';
+    const hasta=$('coord-os-hasta')?.value||'';
+    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))&&enRangoFecha(o.fecha,desde,hasta));
+    const el=$('coord-os-body');
+    if(!el)return;
+    el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${Number(o.zona||zonaEstablecimiento(o.estId))||'—'}</td><td>${escapeHtml(o.reclamoNumero||'—')}</td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${prioBadgeFecha(o.prio)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td></tr>`).join(''):`<tr><td colspan="12" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
+  };
+
+  window.renderOSEmpresa=function(c,z){
+    const data=osPorZona(z);
+    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div><div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${escapeHtml(INSPECTORS[Number(z)-1]||'—')} · Zona ${z}</div></div><span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span></div><div class="os-filters"><input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, establecimiento o tarea..." oninput="filterOSEmpresa()"><select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select>${dateFiltersHTML('empresa-os','filterOSEmpresa()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th><th>Empresa</th></tr></thead><tbody id="empresa-os-body"></tbody></table></div></div>`;
+    filterOSEmpresa();
+  };
+  window.filterOSEmpresa=function(){
+    const z=Number(currentUser?.zona||0);
+    const q=($('empresa-os-q')?.value||'').toLowerCase();
+    const st=$('empresa-os-estado')?.value||'';
+    const desde=$('empresa-os-desde')?.value||'';
+    const hasta=$('empresa-os-hasta')?.value||'';
+    const data=osPorZona(z).filter(o=>(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))&&enRangoFecha(o.fecha,desde,hasta));
+    const badge=$('empresa-os-count');
+    if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
+    const el=$('empresa-os-body');
+    if(!el)return;
+    el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${prioBadgeFecha(o.prio)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800"><input type="checkbox" ${o.empresaFinalizo?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td></tr>`).join(''):`<tr><td colspan="11" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
+  };
+})();
+</script>
 </body>
 </html>
