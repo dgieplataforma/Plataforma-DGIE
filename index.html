@@ -5639,5 +5639,130 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-ajustes-empresa-tabs-inspector-2026-05-11">
+(function(){
+  const EMP_KEY='dgie_empresa_finalizo_os';
+
+  function numeroOrdenValor(o){
+    const s=String(o?.numero||'');
+    const m=s.match(/(\d+)\s*$/);
+    if(m)return Number(m[1])||0;
+    const all=s.match(/\d+/g);
+    return all?Number(all[all.length-1])||0:0;
+  }
+  function ordenarOSNumero(data,dir){
+    const mult=dir==='desc'?-1:1;
+    return [...(data||[])].sort((a,b)=>{
+      const na=numeroOrdenValor(a), nb=numeroOrdenValor(b);
+      if(na!==nb)return (na-nb)*mult;
+      return String(a?.numero||'').localeCompare(String(b?.numero||''),'es',{numeric:true})*mult;
+    });
+  }
+  function empresaKeys(o){
+    return [
+      o?.remoteId&&`remote:${o.remoteId}`,
+      o?.id&&`local:${o.id}`,
+      o?.numero&&`numero:${o.numero}`
+    ].filter(Boolean);
+  }
+  function readEmpresaStore(){
+    try{return JSON.parse(localStorage.getItem(EMP_KEY)||'{}')||{}}
+    catch(e){return {}}
+  }
+  function writeEmpresaStore(store){
+    localStorage.setItem(EMP_KEY,JSON.stringify(store||{}));
+  }
+  function empresaFinalizo(o){
+    const store=readEmpresaStore();
+    return !!(o?.empresaFinalizo||empresaKeys(o).some(k=>store[k]));
+  }
+  function aplicarEmpresaStore(){
+    const store=readEmpresaStore();
+    OS_ZONA.forEach(o=>{
+      if(empresaKeys(o).some(k=>store[k])){
+        o.empresaFinalizo=true;
+        o.empresaFinalizoFecha=o.empresaFinalizoFecha||store[empresaKeys(o).find(k=>store[k])]?.fecha||null;
+      }
+    });
+  }
+  function fechaToISOFinal(value){
+    const s=String(value||'').trim();
+    if(!s)return '';
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+    const p=s.split('/');
+    if(p.length>=3){
+      const y=String(p[2]).length===2?'20'+p[2]:p[2];
+      return `${y}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
+    }
+    const d=new Date(s);
+    return Number.isNaN(d.getTime())?'':d.toISOString().slice(0,10);
+  }
+  function enRangoFinal(fecha,desde,hasta){
+    const f=fechaToISOFinal(fecha);
+    return !f||((!desde||f>=desde)&&(!hasta||f<=hasta));
+  }
+  function badgePrioFinal(prio){
+    if(typeof prioBadgeFecha==='function')return prioBadgeFecha(prio);
+    const p=String(prio||'medio').toLowerCase();
+    const map={critico:['Crítico','b-danger'],alto:['Alta','b-warn'],medio:['Media','b-info'],bajo:['Baja','b-ok']};
+    const item=map[p]||map.medio;
+    return `<span class="badge ${item[1]}">${item[0]}</span>`;
+  }
+  function filtrosFecha(prefix,onchange){
+    return `<input class="filter-sel" id="${prefix}-desde" type="date" onchange="${onchange}" title="Desde">
+      <input class="filter-sel" id="${prefix}-hasta" type="date" onchange="${onchange}" title="Hasta">`;
+  }
+
+  window.marcarOSEmpresaFinalizada=async function(id,val){
+    const o=OS_ZONA.find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id)||String(x.numero)===String(id));
+    if(!o)return;
+    const now=val?new Date().toISOString():null;
+    o.empresaFinalizo=!!val;
+    o.empresaFinalizoFecha=now;
+    const store=readEmpresaStore();
+    empresaKeys(o).forEach(k=>{
+      if(val)store[k]={valor:true,fecha:now};
+      else delete store[k];
+    });
+    writeEmpresaStore(store);
+    saveAppState&&saveAppState();
+    if(o.remoteId&&window.DGIE_DB?.actualizarOrden){
+      const {error}=await window.DGIE_DB.actualizarOrden(o.remoteId,{empresa_finalizo:!!val,empresa_finalizo_fecha:now});
+      if(error)console.warn('No se pudo guardar empresa_finalizo en Supabase:',error.message);
+    }
+    if(currentUser?.role==='empresa')filterOSEmpresa();
+  };
+
+  window.renderOSEmpresa=function(c,z){
+    aplicarEmpresaStore();
+    const data=ordenarOSNumero(osPorZona(z),'asc');
+    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div><div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${escapeHtml(INSPECTORS[Number(z)-1]||'—')} · Zona ${z}</div></div><span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span></div><div class="os-filters"><input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, establecimiento o tarea..." oninput="filterOSEmpresa()"><select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="empresa-os-orden" onchange="filterOSEmpresa()"><option value="asc">Orden: menor a mayor</option><option value="desc">Orden: mayor a menor</option></select>${filtrosFecha('empresa-os','filterOSEmpresa()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th><th>Empresa</th></tr></thead><tbody id="empresa-os-body"></tbody></table></div></div>`;
+    filterOSEmpresa();
+  };
+
+  window.filterOSEmpresa=function(){
+    aplicarEmpresaStore();
+    const z=Number(currentUser?.zona||0);
+    const q=($('empresa-os-q')?.value||'').toLowerCase();
+    const st=$('empresa-os-estado')?.value||'';
+    const dir=$('empresa-os-orden')?.value||'asc';
+    const desde=$('empresa-os-desde')?.value||'';
+    const hasta=$('empresa-os-hasta')?.value||'';
+    const data=ordenarOSNumero(osPorZona(z).filter(o=>(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))&&enRangoFinal(o.fecha,desde,hasta)),dir);
+    const badge=$('empresa-os-count');
+    if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
+    const el=$('empresa-os-body');
+    if(!el)return;
+    el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${badgePrioFinal(o.prio)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800"><input type="checkbox" ${empresaFinalizo(o)?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td></tr>`).join(''):`<tr><td colspan="11" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
+  };
+
+  const renderOSTablePrevFinal=window.renderOSTable;
+  window.renderOSTable=function(data){
+    aplicarEmpresaStore();
+    return renderOSTablePrevFinal(ordenarOSNumero(data,'asc'));
+  };
+
+})();
+</script>
 </body>
 </html>
