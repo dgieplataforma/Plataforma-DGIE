@@ -5764,5 +5764,72 @@ function renderChartInsp(){
 
 })();
 </script>
+<script id="dgie-fix-planos-preview-download-2026-05-11">
+(function(){
+  function normalizePlanoUrl(url){
+    return String(url||'').trim().replace('/image/upload/','/raw/upload/').replace('/video/upload/','/raw/upload/');
+  }
+  function cloudinaryDownloadUrl(url,nombre){
+    const raw=normalizePlanoUrl(url);
+    const safe=String(nombre||'plano').replace(/[^\w.\-]+/g,'_');
+    if(!raw.includes('res.cloudinary.com')||!raw.includes('/raw/upload/'))return raw;
+    return raw.replace('/raw/upload/','/raw/upload/fl_attachment:'+encodeURIComponent(safe)+'/');
+  }
+  function openPlanoPreview(url,tipo){
+    const raw=normalizePlanoUrl(url);
+    if(String(tipo||'').toLowerCase()==='pdf'){
+      window.open(raw,'_blank','noopener');
+      return;
+    }
+    window.open(raw,'_blank','noopener');
+  }
+  function descargarPlanoDirecto(url,nombre){
+    const href=cloudinaryDownloadUrl(url,nombre);
+    const a=document.createElement('a');
+    a.href=href;
+    a.target='_blank';
+    a.rel='noopener';
+    a.download=nombre||'plano';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  window.descargarPlanoUrl=descargarPlanoDirecto;
+  window.verPlanoUrl=openPlanoPreview;
+  window.cargarPlanos=async function(estId){
+    const el=document.getElementById('planos-list');
+    if(!el)return;
+    if(!window.DGIE_DB?.isConfigured){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin conexión a base de datos</div>';return;}
+    const {data,error}=await window.DGIE_DB.listarPlanos(estId);
+    if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos: ${escapeHtml(error.message||'')}</div>`;return;}
+    if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos cargados para este establecimiento</div>';return;}
+    const porPiso={};
+    data.forEach(p=>{const piso=p.piso||'PB';if(!porPiso[piso])porPiso[piso]=[];porPiso[piso].push(p);});
+    const canDel=currentUser?.role==='coordinador';
+    el.innerHTML=Object.entries(porPiso).map(([piso,items])=>`
+      <div class="plano-piso-header">Planta ${escapeHtml(piso)}</div>
+      ${items.map(p=>{
+        const tipo=String(p.tipo||'archivo').toLowerCase();
+        const url=normalizePlanoUrl(p.url);
+        const fileName=(p.nombre||'plano')+(tipo&&!String(p.nombre||'').toLowerCase().endsWith('.'+tipo)?'.'+tipo:'');
+        const urlJs=url.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const nameJs=fileName.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        return `<div class="plano-row">
+          <div class="plano-icon">${tipo==='pdf'?'PDF':tipo==='dwg'?'DWG':'ARCH'}</div>
+          <div class="plano-info">
+            <div class="plano-nombre">${escapeHtml(p.nombre||'Plano')}</div>
+            <div class="plano-meta">${escapeHtml(tipo.toUpperCase())} · ${p.created_at?new Date(p.created_at).toLocaleDateString('es-AR'):'—'}${p.descripcion?` · ${escapeHtml(p.descripcion)}`:''}</div>
+          </div>
+          <div class="plano-actions">
+            <button class="secondary-btn" onclick="verPlanoUrl('${urlJs}','${tipo}')">${tipo==='pdf'?'Vista previa':'Abrir'}</button>
+            <button class="secondary-btn" onclick="descargarPlanoUrl('${urlJs}','${nameJs}')">Descargar</button>
+            ${canDel?`<button class="secondary-btn" style="color:var(--danger);border-color:var(--danger)" onclick="eliminarPlano('${String(p.id).replace(/'/g,"\\'")}','${String(p.path||'').replace(/'/g,"\\'")}',${Number(estId)})">Eliminar</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    `).join('');
+  };
+})();
+</script>
 </body>
 </html>
