@@ -118,6 +118,9 @@
     async crearRelevamiento(row){
       return client.from('relevamientos').insert(row).select('*').single();
     },
+    async actualizarRelevamiento(id, row){
+      return client.from('relevamientos').update(row).eq('id', id).select('*').single();
+    },
     async listarComunicaciones(){
       return client.from('comunicaciones').select('*').order('created_at', { ascending:false });
     },
