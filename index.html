@@ -6081,6 +6081,13 @@ function renderChartInsp(){
       alert('No se pudo guardar el certificado: '+(error.message||error));
     }
   };
+  window.guardarRespuestaEmpresa=async function(id){
+    const txt=(document.getElementById('resp-txt-'+id)?.value||'').trim();
+    try{
+      await actualizarCertificado(id,{observaciones_empresa:txt,actualizado_por:currentUser?.name||'Empresa'});
+      renderMedicionesEmpresa($('main-content'),currentUser.zona);
+    }catch(e){alert('No se pudo guardar la respuesta: '+(e.message||e));}
+  };
 
   function renderCertificadosList(data,inspector){
     if(!data.length)return '<div style="text-align:center;padding:30px;color:var(--muted)">Sin certificados cargados</div>';
@@ -6094,9 +6101,11 @@ function renderChartInsp(){
         ${c.observaciones_inspector?`Inspector: ${escapeHtml(c.observaciones_inspector)}`:''}
       </div>
       ${(c.created_at||c.updated_at)?`<div style="font-size:10px;color:#b0bccc;margin-top:5px">${[c.created_at?'Cargado '+fmtCertFecha(c.created_at):'',c.updated_at&&c.updated_at!==c.created_at?(c.estado==='medido'?'Medición '+fmtCertFecha(c.updated_at):'Modificado '+fmtCertFecha(c.updated_at)):''].filter(Boolean).join(' · ')}</div>`:''}
+      ${!inspector&&c.observaciones_inspector?`<div id="resp-area-${c.id||c.localId}" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px"><textarea id="resp-txt-${c.id||c.localId}" class="form-textarea" style="font-size:13px;min-height:70px;width:100%" placeholder="Tu respuesta al inspector...">${escapeHtml(c.observaciones_empresa||'')}</textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="primary-btn" style="font-size:12px;padding:5px 14px" onclick="guardarRespuestaEmpresa('${c.id||c.localId}')">Guardar</button><button class="secondary-btn" style="font-size:12px;padding:5px 14px" onclick="document.getElementById('resp-area-${c.id||c.localId}').style.display='none';document.getElementById('resp-btn-${c.id||c.localId}').style.display='inline-flex'">Cancelar</button></div></div>`:''}
       <div class="med-actions" style="margin-top:10px">
         <span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span>
         ${inspector?`<button class="secondary-btn" onclick="revisarCertificadoInspector('${c.id||c.localId}')">Gestionar</button><button class="secondary-btn" style="color:var(--danger)" onclick="eliminarCertificadoInspector('${c.id||c.localId}')">Eliminar</button>`:''}
+        ${!inspector&&c.observaciones_inspector?`<button id="resp-btn-${c.id||c.localId}" class="secondary-btn" style="font-size:12px" onclick="document.getElementById('resp-area-${c.id||c.localId}').style.display='block';this.style.display='none'">Responder al inspector</button>`:''}
       </div>
     </div>`).join('');
   }
