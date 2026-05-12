@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Empresa - Mediciones por establecimiento</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="dgie-supabase.js"></script>
+  <style>
+    :root {
+      --blue:#005aa9;
+      --blue-dark:#123c69;
+      --bg:#eef3f8;
+      --card:#fff;
+      --line:#d9e2ef;
+      --muted:#64748b;
+      --text:#17233a;
+      --ok:#16803b;
+      --warn:#b45309;
+      --shadow:0 12px 28px rgba(15,23,42,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Segoe UI,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .app{max-width:1320px;margin:auto;min-height:100vh;background:#f7f9fc}
+    .topbar{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:sticky;top:0;z-index:5}
+    .brand{display:flex;align-items:center;gap:14px}
+    .brand-mark{height:42px;width:120px;border-right:1px solid #cfd8e5;display:flex;align-items:center;color:var(--blue-dark);font-weight:900;font-size:13px;line-height:1.05}
+    .brand-title{font-size:18px;font-weight:900;color:var(--blue-dark)}
+    .brand-sub{font-size:13px;color:var(--muted);margin-top:2px}
+    .user-chip{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:7px 14px 7px 7px;font-weight:800;color:#334155}
+    .avatar{width:34px;height:34px;border-radius:50%;background:#e6f1fb;color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:900}
+    .nav{display:flex;background:#fff;border-bottom:1px solid var(--line);padding:0 26px;gap:12px;overflow:auto}
+    .tab{padding:16px 8px 13px;border-bottom:3px solid transparent;font-weight:800;color:#475569;white-space:nowrap}
+    .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+    .content{padding:26px}
+    .section-label{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#47627e;font-weight:900;margin-bottom:16px}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
+    .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .card-title{font-size:18px;font-weight:900;color:var(--blue-dark)}
+    .small{font-size:13px;color:var(--muted);margin-top:4px}
+    .filters{display:grid;grid-template-columns:1fr 120px;gap:10px;margin-bottom:12px}
+    input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;color:#17233a;font-size:14px;padding:12px 13px;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,90,169,.12)}
+    .est-list{display:grid;gap:9px;max-height:calc(100vh - 245px);overflow:auto;padding-right:4px}
+    .est-item{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px;cursor:pointer;transition:.15s}
+    .est-item:hover,.est-item.active{border-color:var(--blue);background:#f4f9ff}
+    .est-name{font-size:14px;font-weight:800;color:#17233a;line-height:1.25}
+    .est-meta{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.35}
+    .badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:900;background:#e6f1fb;color:var(--blue);white-space:nowrap}
+    .badge.ok{background:#e8f5e9;color:var(--ok)}
+    .badge.warn{background:#fff4df;color:var(--warn)}
+    .ficha-head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:16px}
+    .ficha-title{font-size:24px;font-weight:900;color:var(--blue-dark);line-height:1.15}
+    .ficha-meta{font-size:14px;color:var(--muted);margin-top:6px}
+    .data-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+    .data-box{background:#f8fafc;border:1px solid #e5edf6;border-radius:13px;padding:12px}
+    .data-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:900}
+    .data-value{font-size:14px;font-weight:800;color:#26364f;margin-top:4px}
+    .subtabs{display:flex;border-bottom:1px solid var(--line);gap:12px;margin:2px -18px 18px;padding:0 18px}
+    .subtab{padding:12px 4px 10px;border-bottom:3px solid transparent;font-weight:800;color:#64748b;cursor:pointer}
+    .subtab.active{color:var(--blue);border-bottom-color:var(--blue)}
+    .cert-layout{display:grid;grid-template-columns:1fr 340px;gap:16px}
+    .cert-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:9px;background:#fff}
+    .cert-name{font-size:14px;font-weight:800;color:#17233a}
+    .cert-meta{font-size:12px;color:var(--muted);margin-top:4px}
+    .cert-actions{display:flex;gap:8px;align-items:center}
+    button{border:1px solid var(--line);border-radius:11px;background:#fff;color:#334155;font-weight:800;padding:10px 13px;cursor:pointer}
+    button:hover{background:#f1f5f9}
+    .primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .primary:hover{background:#004b8d}
+    .upload-box{background:#f8fafc;border:1px dashed #b9c8da;border-radius:16px;padding:16px}
+    .field{margin-bottom:12px}
+    .label{display:block;font-size:12px;font-weight:900;color:#334155;margin-bottom:6px}
+    textarea{min-height:82px;resize:vertical}
+    .empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed #cbd5e1;border-radius:14px;background:#f8fafc}
+    .notice{font-size:12px;color:#64748b;line-height:1.4;margin-top:10px}
+    .status-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .status-tab{border:1px solid var(--line);background:#fff;color:#475569;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900;cursor:pointer}
+    .status-tab.active{background:var(--blue);border-color:var(--blue);color:#fff}
+    .medicion-grid{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px}
+    .medicion-btn{min-width:150px;text-align:left;padding:14px 16px}
+    .medicion-btn strong{display:block;font-size:16px;color:var(--blue-dark)}
+    .medicion-btn span{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+    .version-list{margin-top:10px;border-top:1px solid #e5edf6;padding-top:8px;display:grid;gap:7px}
+    .version-row{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:8px 10px;font-size:12px;color:#475569}
+    .review-box{margin-top:10px;background:#f8fafc;border:1px solid #e5edf6;border-radius:12px;padding:10px}
+    .review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .certificacion-card{border:1px solid var(--line);background:#fff;border-radius:15px;padding:13px;margin-bottom:10px}
+    .certificacion-title{font-size:15px;font-weight:900;color:var(--blue-dark);margin-bottom:8px}
+    .muted-pill{background:#eef2f7;color:#475569}
+    @media(max-width:980px){
+      .grid,.cert-layout{grid-template-columns:1fr}
+      .data-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .est-list{max-height:360px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">Ministerio de Educación<br>Córdoba</div>
+        <div>
+          <div class="brand-title">Dirección General de Infraestructura Escolar</div>
+          <div class="brand-sub">Ingreso empresa · Mediciones por establecimiento</div>
+        </div>
+      </div>
+      <div class="user-chip"><span class="avatar">EZ</span> Empresa Zona 15</div>
+    </header>
+    <nav class="nav">
+      <div class="tab" id="top-ordenes" onclick="switchTop('ordenes')">Órdenes de servicio</div>
+      <div class="tab active" id="top-establecimientos" onclick="switchTop('establecimientos')">Establecimientos</div>
+      <div class="tab" id="top-certificados" onclick="switchTop('certificados')">Mediciones</div>
+    </nav>
+    <main class="content">
+      <div class="section-label" id="page-label">Empresa · Establecimientos asignados</div>
+      <div class="grid" id="main-grid">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Establecimientos</div>
+              <div class="small" id="count-label">Cargando base...</div>
+            </div>
+            <span class="badge" id="zone-badge">Zona 15</span>
+          </div>
+          <div class="filters">
+            <input id="search" placeholder="Buscar establecimiento..." oninput="renderList()" />
+            <select id="zona" onchange="renderList()"></select>
+          </div>
+          <div class="est-list" id="est-list"></div>
+        </section>
+        <section class="card" id="ficha"></section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const CERT_KEY='dgie_mediciones_empresa_produccion';
+    let ESTABLECIMIENTOS=[];
+    let selectedId=null;
+    let fichaTab='certificados';
+
+    function $(id){return document.getElementById(id)}
+    function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+    function zonaEst(e){return Number(e.zona||0)}
+    function loadCerts(){
+      try{return JSON.parse(localStorage.getItem(CERT_KEY)||'{}')||{}}
+      catch(e){return {}}
+    }
+    function saveCerts(data){localStorage.setItem(CERT_KEY,JSON.stringify(data))}
+    function certsFor(estId){return loadCerts()[String(estId)]||[]}
+    function num(v){return Number(String(v??'').replace(',','.'))||0}
+    function fmtMod(v){return num(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
+    function fmtMoney(v){
+      const n=num(v);
+      return n?n.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2}):'-';
+    }
+    function moduloActual(c){
+      const actual=(c.versiones||[])[0]||{};
+      return num(actual.modulos||c.modulosActualizados||c.modulosOriginal||c.modulos);
+    }
+    function moduloOriginal(c){
+      const original=(c.versiones||[]).find(v=>v.esOriginal)||{};
+      return num(original.modulos||c.modulosOriginal||c.modulos);
+    }
+    function montoEmpresa(c){return num(c.montoEmpresa||c.montoOriginal)}
+    function montoInspeccion(c){return num(c.montoInspeccion||c.montoActualizado)}
+    async function leerModuloG720(file){
+      if(!file||!window.XLSX||!/\.(xlsx|xls)$/i.test(file.name))return '';
+      const buffer=await file.arrayBuffer();
+      const wb=XLSX.read(buffer,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const cell=ws?.G720;
+      return cell?.v ?? '';
+    }
+    async function autocompletarModulos(fileId,inputId){
+      const file=$(fileId)?.files?.[0];
+      const input=$(inputId);
+      if(!file||!input)return;
+      try{
+        const value=await leerModuloG720(file);
+        if(value!==''&&value!=null)input.value=String(value).replace(',','.');
+      }catch(err){
+        console.warn('No se pudo leer G720',err);
+      }
+    }
+    function estadoLabel(estado){
+      return {
+        pendiente:'Pendiente de revisión',
+        revision_empresa:'En revisión por empresa',
+        observado:'Observado',
+        aprobado:'Aprobado por empresa'
+      }[estado]||'Pendiente de revisión';
+    }
+    function estadoClass(estado){
+      return estado==='aprobado'?'ok':(estado==='observado'||estado==='revision_empresa')?'warn':'';
+    }
+
+    async function init(){
+      $('zona').innerHTML='<option value="">Todas</option>'+Array.from({length:17},(_,i)=>`<option value="${i+1}" ${i+1===15?'selected':''}>Zona ${i+1}</option>`).join('');
+      await cargarEstablecimientos();
+      renderList();
+    }
+
+    function switchTop(tab){
+      document.querySelectorAll('.nav .tab').forEach(t=>t.classList.remove('active'));
+      document.getElementById('top-'+tab)?.classList.add('active');
+      if(tab==='establecimientos'){
+        $('page-label').textContent='Empresa · Establecimientos asignados';
+        $('main-grid').className='grid';
+        $('main-grid').innerHTML=`
+          <section class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Establecimientos</div>
+                <div class="small" id="count-label">Cargando base...</div>
+              </div>
+              <span class="badge" id="zone-badge">Zona 15</span>
+            </div>
+            <div class="filters">
+              <input id="search" placeholder="Buscar establecimiento..." oninput="renderList()" />
+              <select id="zona" onchange="renderList()"></select>
+            </div>
+            <div class="est-list" id="est-list"></div>
+          </section>
+          <section class="card" id="ficha"></section>`;
+        $('zona').innerHTML='<option value="">Todas</option>'+Array.from({length:17},(_,i)=>`<option value="${i+1}" ${i+1===15?'selected':''}>Zona ${i+1}</option>`).join('');
+        renderList();
+        return;
+      }
+      $('main-grid').className='';
+      if(tab==='ordenes'){
+        $('page-label').textContent='Empresa · Órdenes de servicio';
+        renderOrdenesEmpresa();
+        return;
+      }
+      $('page-label').textContent='Empresa · Mediciones';
+      renderCertificadosGlobal();
+    }
+
+    function ordenesDemo(){
+      return [
+        {numero:'Z15-073',est:'ESCUELA MAURO FERNANDEZ',fecha:'07/05/26',estado:'Pendiente',tarea:'Reparación eléctrica en aula',certificado:'Pendiente'},
+        {numero:'Z15-074',est:'ESCUELA MAURO FERNANDEZ',fecha:'08/05/26',estado:'Trabajando',tarea:'Adecuación y sellado en cubierta metálica',certificado:'Observado'},
+        {numero:'Z15-075',est:'I.P.E.T. y M. N° 101 REPUBLICA ARGENTINA',fecha:'09/05/26',estado:'Finalizado',tarea:'Revisión sanitaria',certificado:'Aprobado'}
+      ];
+    }
+
+    function renderOrdenesEmpresa(){
+      $('main-grid').innerHTML=`<section class="card">
+        <div class="card-head"><div><div class="card-title">Órdenes asignadas</div><div class="small">Vista de ejemplo para empresa. Cada orden puede vincular certificados a mediciones.</div></div><span class="badge">${ordenesDemo().length} órdenes</span></div>
+        <div class="cert-list">${ordenesDemo().map(o=>`<div class="cert-row"><div><div class="cert-name">${esc(o.numero)} · ${esc(o.est)}</div><div class="cert-meta">${esc(o.fecha)} · ${esc(o.tarea)}</div></div><div class="cert-actions"><span class="badge">${esc(o.estado)}</span><span class="badge ${o.certificado==='Aprobado'?'ok':o.certificado==='Observado'?'warn':''}">${esc(o.certificado)}</span></div></div>`).join('')}</div>
+      </section>`;
+    }
+
+    function renderCertificadosGlobal(){
+      const rows=[];
+      const all=loadCerts();
+      Object.entries(all).forEach(([estId,certs])=>{
+        const est=ESTABLECIMIENTOS.find(e=>String(e.id)===String(estId));
+        (certs||[]).forEach(c=>rows.push({...c,estNombre:est?.nombre||'Establecimiento',estId}));
+      });
+      const aprobados=rows.filter(c=>c.estado==='aprobado'&&c.certificacionNumero);
+      const grupos={};
+      aprobados.forEach(c=>{
+        const key=String(c.certificacionNumero);
+        grupos[key]=grupos[key]||[];
+        grupos[key].push(c);
+      });
+      const numeros=Object.keys(grupos).sort((a,b)=>Number(a)-Number(b));
+      $('main-grid').innerHTML=`<section class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Mediciones</div>
+            <div class="small">Cada botón abre los certificados aprobados y asignados a esa medición.</div>
+          </div>
+          <span class="badge">${numeros.length} mediciones</span>
+        </div>
+        ${numeros.length?`
+          <div class="medicion-grid">
+            ${numeros.map(n=>{
+              const total=grupos[n].reduce((sum,c)=>sum+moduloActual(c),0);
+              return `<button class="medicion-btn" onclick="abrirMedicionGlobal('${esc(n)}')"><strong>Medición Nº ${esc(n)}</strong><span>${grupos[n].length} certificados · ${fmtMod(total)} módulos</span></button>`;
+            }).join('')}
+          </div>
+        `:'<div class="empty">Todavía no hay certificados asignados a una medición.</div>'}
+      </section>`;
+    }
+
+    function abrirMedicionGlobal(numero){
+      const rows=todasLasFilasCertificados().filter(r=>String(r.medicion)===String(numero));
+      const totalModulos=rows.reduce((sum,r)=>sum+num(r.modulos_actualizado||r.modulos_original),0);
+      $('main-grid').innerHTML=`<section class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Medición Nº ${esc(numero)}</div>
+            <div class="small">${rows.length} certificados · Total módulos: ${fmtMod(totalModulos)}</div>
+          </div>
+          <div class="cert-actions">
+            <button onclick="renderCertificadosGlobal()">Volver</button>
+            <button class="primary" onclick="exportarCertificadosExcel('${esc(numero)}')">Descargar Excel</button>
+          </div>
+        </div>
+        ${rows.length?rows.map(r=>`<div class="cert-row"><div><div class="cert-name">${esc(r.establecimiento)}</div><div class="cert-meta">${esc(r.certificado)} · Módulos: ${fmtMod(r.modulos_actualizado||r.modulos_original)} · Monto empresa: ${fmtMoney(r.monto_empresa)} · Monto inspección: ${fmtMoney(r.monto_inspeccion)}</div><div class="small">${esc(r.observaciones||'Sin observaciones')}</div></div></div>`).join(''):'<div class="empty">No hay certificados en esta medición.</div>'}
+      </section>`;
+    }
+
+    async function cargarEstablecimientos(){
+      if(window.DGIE_DB?.isConfigured){
+        const {data,error}=await window.DGIE_DB.listarEstablecimientos();
+        if(!error&&data?.length){
+          ESTABLECIMIENTOS=data.map(r=>({
+            id:r.id,
+            nombre:r.nombre,
+            direccion:r.direccion||'',
+            barrio:r.barrio||'',
+            zona:r.zona,
+            cue:r.cue||'—',
+            nivel:r.nivel||'—',
+            tipo:r.tipo||'—'
+          }));
+          return;
+        }
+      }
+      ESTABLECIMIENTOS=[
+        {id:1,nombre:'ESCUELA MAURO FERNANDEZ',direccion:'Gonzalez Albarracin 4237',barrio:'',zona:15,cue:'—',nivel:'Primario',tipo:'Escuela'},
+        {id:2,nombre:'I.P.E.T. y M. N° 101 REPUBLICA ARGENTINA',direccion:'',barrio:'',zona:15,cue:'—',nivel:'Secundario',tipo:'IPEM'},
+        {id:3,nombre:'ESCUELA ADOLFO SALDIAS',direccion:'',barrio:'',zona:15,cue:'—',nivel:'Primario',tipo:'Escuela'}
+      ];
+    }
+
+    function renderList(){
+      const q=$('search').value.toLowerCase();
+      const z=$('zona').value;
+      const data=ESTABLECIMIENTOS.filter(e=>(!z||String(zonaEst(e))===z)&&(`${e.nombre} ${e.direccion} ${e.barrio} ${e.cue}`.toLowerCase().includes(q)));
+      $('zone-badge').textContent=z?`Zona ${z}`:'Todas las zonas';
+      $('count-label').textContent=`${data.length} establecimiento${data.length!==1?'s':''}`;
+      if(!selectedId&&data.length)selectedId=data[0].id;
+      if(selectedId&&!data.some(e=>String(e.id)===String(selectedId)))selectedId=data[0]?.id||null;
+      $('est-list').innerHTML=data.length?data.map(e=>`
+        <div class="est-item ${String(e.id)===String(selectedId)?'active':''}" onclick="selectEst(${e.id})">
+          <div class="est-name">${esc(e.nombre)}</div>
+          <div class="est-meta">Zona ${esc(e.zona)} · CUE ${esc(e.cue)}<br>${esc(e.direccion||'Sin dirección cargada')}</div>
+        </div>
+      `).join(''):'<div class="empty">No hay establecimientos para el filtro seleccionado.</div>';
+      renderFicha();
+    }
+
+    function selectEst(id){
+      selectedId=id;
+      renderList();
+    }
+
+    function renderFicha(){
+      const e=ESTABLECIMIENTOS.find(x=>String(x.id)===String(selectedId));
+      if(!e){$('ficha').innerHTML='<div class="empty">Seleccioná un establecimiento.</div>';return;}
+      const certs=certsFor(e.id);
+      $('ficha').innerHTML=`
+        <div class="ficha-head">
+          <div>
+            <div class="ficha-title">${esc(e.nombre)}</div>
+            <div class="ficha-meta">${esc(e.direccion||'Sin dirección cargada')}${e.barrio?' · '+esc(e.barrio):''}</div>
+          </div>
+          <span class="badge">Zona ${esc(e.zona)}</span>
+        </div>
+        <div class="data-grid">
+          <div class="data-box"><div class="data-label">CUE</div><div class="data-value">${esc(e.cue)}</div></div>
+          <div class="data-box"><div class="data-label">Nivel</div><div class="data-value">${esc(e.nivel)}</div></div>
+          <div class="data-box"><div class="data-label">Tipo</div><div class="data-value">${esc(e.tipo)}</div></div>
+          <div class="data-box"><div class="data-label">Mediciones</div><div class="data-value">${certs.filter(c=>c.estado==='aprobado').length}</div></div>
+        </div>
+        <div class="subtabs">
+          <div class="subtab ${fichaTab==='datos'?'active':''}" onclick="switchFichaSubtab('datos')">Datos</div>
+          <div class="subtab ${fichaTab==='ordenes'?'active':''}" onclick="switchFichaSubtab('ordenes')">Órdenes</div>
+          <div class="subtab ${fichaTab==='certificados'?'active':''}" onclick="switchFichaSubtab('certificados')">Certificados</div>
+          <div class="subtab ${fichaTab==='certificaciones'?'active':''}" onclick="switchFichaSubtab('certificaciones')">Mediciones</div>
+        </div>
+        <div id="ficha-tab-body">${renderFichaSubtabBody(e,certs)}</div>
+      `;
+    }
+
+    function switchFichaSubtab(tab){
+      fichaTab=tab;
+      renderFicha();
+    }
+
+    function renderFichaSubtabBody(e,certs){
+      if(fichaTab==='datos'){
+        return `<div class="empty" style="text-align:left"><b>Datos del establecimiento</b><br><br>Nombre: ${esc(e.nombre)}<br>Dirección: ${esc(e.direccion||'Sin dirección cargada')}<br>Zona: ${esc(e.zona)}<br>CUE: ${esc(e.cue)}<br>Nivel: ${esc(e.nivel)}<br>Tipo: ${esc(e.tipo)}</div>`;
+      }
+      if(fichaTab==='ordenes'){
+        const ordenes=ordenesDemo().filter(o=>o.est===e.nombre);
+        return ordenes.length?ordenes.map(o=>`<div class="cert-row"><div><div class="cert-name">${esc(o.numero)} · ${esc(o.estado)}</div><div class="cert-meta">${esc(o.fecha)} · ${esc(o.tarea)}</div></div><span class="badge">${esc(o.certificado)}</span></div>`).join(''):'<div class="empty">Sin órdenes de servicio en este prototipo.</div>';
+      }
+      if(fichaTab==='certificaciones'){
+        return renderCertificaciones(certs);
+      }
+      return `<div class="cert-layout">
+          <div>
+            <div class="card-head" style="padding:0;margin-bottom:10px">
+              <div>
+                <div class="card-title">Certificados cargados</div>
+                <div class="small">Original de empresa, revisión del inspector, módulos y aprobación final.</div>
+              </div>
+              <span class="badge">${certs.length} certificado${certs.length!==1?'s':''}</span>
+            </div>
+            <div class="status-tabs">
+              <button class="status-tab active" onclick="renderCertPanel('todos')">Todos</button>
+              <button class="status-tab" onclick="renderCertPanel('pendiente')">Pendientes</button>
+              <button class="status-tab" onclick="renderCertPanel('revision_empresa')">En revisión</button>
+              <button class="status-tab" onclick="renderCertPanel('observado')">Observados</button>
+              <button class="status-tab" onclick="renderCertPanel('aprobado')">Aprobados</button>
+              <button class="status-tab" onclick="renderCertPanel('certificaciones')">Mediciones</button>
+            </div>
+            <div id="cert-list">${renderCertList(certs,'todos')}</div>
+          </div>
+          <aside class="upload-box">
+            <div class="card-title" style="font-size:16px;margin-bottom:12px">Subir certificado</div>
+            <div class="field">
+              <label class="label">Archivo</label>
+              <input id="cert-file" type="file" accept=".pdf,.xls,.xlsx,image/*" onchange="autocompletarModulos('cert-file','cert-modulos')" />
+            </div>
+            <div class="field">
+              <label class="label">Módulos del certificado</label>
+              <input id="cert-modulos" type="number" step="0.001" min="0" placeholder="Se lee de G720 si el archivo es Excel" />
+            </div>
+            <div class="field">
+              <label class="label">Monto empresa</label>
+              <input id="cert-monto-empresa" type="number" step="0.01" min="0" placeholder="Monto presentado por empresa" />
+            </div>
+            <div class="field">
+              <label class="label">Observaciones</label>
+              <textarea id="cert-obs" placeholder="Detalle breve del certificado..."></textarea>
+            </div>
+            <button class="primary" onclick="guardarCertificado()">Guardar certificado</button>
+            <div class="notice">El archivo queda como versión original. Si es Excel, se toma el valor de la celda G720 como módulos.</div>
+          </aside>
+        </div>`;
+    }
+
+    function renderCertPanel(filtro){
+      document.querySelectorAll('.status-tab').forEach(btn=>btn.classList.remove('active'));
+      const e=ESTABLECIMIENTOS.find(x=>String(x.id)===String(selectedId));
+      if(!e)return;
+      $('cert-list').innerHTML=filtro==='certificaciones'?renderCertificaciones(certsFor(e.id)):renderCertList(certsFor(e.id),filtro);
+    }
+
+    function renderCertList(certs,filtro='todos'){
+      const data=filtro==='todos'?certs:certs.filter(c=>c.estado===filtro);
+      if(!data.length)return '<div class="empty">No hay certificados para esta vista.</div>';
+      return data.map((c)=>{
+        const realIndex=certs.indexOf(c);
+        const versiones=c.versiones||[];
+        const actual=versiones[0]||{};
+        return `
+        <div class="cert-row">
+          <div>
+            <div class="cert-name">${esc(c.tipo)} · ${esc(actual.archivo||c.archivo)}</div>
+            <div class="cert-meta">${esc(c.fecha)} · Empresa Zona ${esc(c.zona)} · Módulos actuales: ${fmtMod(moduloActual(c))} · Original: ${fmtMod(moduloOriginal(c))}${c.obs?' · '+esc(c.obs):''}</div>
+            <div class="version-list">
+              ${versiones.map(v=>`<div class="version-row"><span>Versión ${v.version} · ${esc(v.archivo)} · ${esc(v.fecha)} · Módulos: ${fmtMod(v.modulos)}</span><span class="badge muted-pill">${v.esOriginal?'Original empresa':'Inspector'}</span></div>`).join('')}
+            </div>
+            ${c.observacionRevision?`<div class="review-box"><b>Observación:</b> ${esc(c.observacionRevision)}<br><span class="small">Revisado por ${esc(c.revisadoPor||'Coordinación')} · ${esc(c.fechaRevision||'')}</span></div>`:''}
+            ${c.estado==='aprobado'?`<div class="review-box"><b>Asignado a:</b> Medición ${esc(c.certificacionNumero||'—')} · ${esc(c.mesCertificacion||'')} · Módulos certificados: ${fmtMod(moduloActual(c))}</div>`:''}
+          </div>
+          <div class="cert-actions">
+            <span class="badge ${estadoClass(c.estado)}">${estadoLabel(c.estado)}</span>
+            <button onclick="abrirRevision(${realIndex})">Revisar</button>
+          </div>
+        </div>
+      `}).join('');
+    }
+
+    function renderCertificaciones(certs){
+      const aprobados=certs.filter(c=>c.estado==='aprobado');
+      if(!aprobados.length)return '<div class="empty">Todavía no hay certificados aprobados en mediciones.</div>';
+      const grupos={};
+      aprobados.forEach(c=>{
+        const key=`Medición ${c.certificacionNumero||'—'} · ${c.mesCertificacion||'Sin período'}`;
+        grupos[key]=grupos[key]||[];
+        grupos[key].push(c);
+      });
+      return Object.entries(grupos).map(([titulo,items])=>`
+        <div class="certificacion-card">
+          <div class="card-head" style="margin-bottom:8px;padding:0">
+            <div class="certificacion-title">${esc(titulo)}</div>
+            <span class="badge ok">Total módulos: ${fmtMod(items.reduce((sum,c)=>sum+moduloActual(c),0))}</span>
+          </div>
+          ${items.map(c=>`<div class="version-row"><span>${esc(c.tipo)} · ${esc((c.versiones||[])[0]?.archivo||c.archivo)} · Módulos: ${fmtMod(moduloActual(c))}</span></div>`).join('')}
+        </div>
+      `).join('');
+    }
+
+    function guardarCertificado(){
+      const e=ESTABLECIMIENTOS.find(x=>String(x.id)===String(selectedId));
+      const file=$('cert-file')?.files?.[0];
+      if(!e||!file){alert('Seleccioná un archivo.');return;}
+      const modulos=num($('cert-modulos')?.value);
+      if(!modulos){alert('Cargá los módulos del certificado. Si es Excel, debe salir de la celda G720.');return;}
+      const all=loadCerts();
+      const key=String(e.id);
+      all[key]=all[key]||[];
+      const now=new Date().toLocaleString('es-AR');
+      all[key].unshift({
+        tipo:'Certificado',
+        archivo:file.name,
+        obs:$('cert-obs').value.trim(),
+        zona:e.zona,
+        fecha:now,
+        estado:'pendiente',
+        modulosOriginal:modulos,
+        modulosActualizados:'',
+        montoEmpresa:num($('cert-monto-empresa')?.value),
+        montoInspeccion:'',
+        versiones:[{version:1,archivo:file.name,fecha:now,esOriginal:true,modulos}],
+        observacionRevision:'',
+        revisadoPor:'',
+        fechaRevision:'',
+        certificacionNumero:'',
+        mesCertificacion:''
+      });
+      saveCerts(all);
+      renderFicha();
+      renderList();
+    }
+
+    function abrirRevision(index){
+      const e=ESTABLECIMIENTOS.find(x=>String(x.id)===String(selectedId));
+      if(!e)return;
+      const c=certsFor(e.id)[index];
+      if(!c)return;
+      const box=document.createElement('div');
+      box.className='modal-lite';
+      $('cert-list').innerHTML=`
+        <button onclick="renderFicha()">‹ Volver</button>
+        <div class="cert-row" style="margin-top:12px">
+          <div>
+            <div class="cert-name">Revisión · ${esc(c.tipo)}</div>
+            <div class="cert-meta">El original y todas las versiones quedan conservadas.</div>
+            <div class="version-list">${(c.versiones||[]).map(v=>`<div class="version-row"><span>Versión ${v.version} · ${esc(v.archivo)} · ${esc(v.fecha)} · Módulos: ${fmtMod(v.modulos)}</span><span class="badge muted-pill">${v.esOriginal?'Original empresa':'Inspector'}</span></div>`).join('')}</div>
+            <div class="review-box">
+              <div class="field"><label class="label">Observaciones</label><textarea id="rev-obs">${esc(c.observacionRevision||'')}</textarea></div>
+              <div class="field"><label class="label">Archivo modificado por inspector</label><input id="rev-file" type="file" accept=".pdf,.xls,.xlsx,image/*" onchange="autocompletarModulos('rev-file','rev-modulos')"></div>
+              <div class="field"><label class="label">Módulos del archivo modificado</label><input id="rev-modulos" type="number" step="0.001" min="0" placeholder="Se lee de G720 si el archivo es Excel" value="${esc(c.modulosActualizados||'')}"></div>
+              <div class="field"><label class="label">Monto inspección</label><input id="rev-monto-inspeccion" type="number" step="0.01" min="0" placeholder="Monto corregido por inspección" value="${esc(c.montoInspeccion||'')}"></div>
+              <div class="field"><label class="label">Número de medición si está OK</label><input id="rev-cert-num" type="number" min="1" placeholder="Ej: 1" value="${esc(c.certificacionNumero||'')}"></div>
+              <div class="field"><label class="label">Período de medición</label><input id="rev-cert-mes" placeholder="Ej: Mayo 2026" value="${esc(c.mesCertificacion||'')}"></div>
+              <div class="review-actions">
+                <button onclick="guardarObservado(${index})">Guardar observación</button>
+                <button onclick="agregarVersionCert(${index})">Subir versión del inspector</button>
+                <button class="primary" onclick="aprobarCertificado(${index})">Empresa aprueba y pasa a medición</button>
+              </div>
+            </div>
+          </div>
+          <span class="badge ${estadoClass(c.estado)}">${estadoLabel(c.estado)}</span>
+        </div>`;
+    }
+
+    function actualizarCert(index, updater){
+      const e=ESTABLECIMIENTOS.find(x=>String(x.id)===String(selectedId));
+      const all=loadCerts();
+      const arr=all[String(e.id)]||[];
+      if(!arr[index])return;
+      updater(arr[index]);
+      saveCerts(all);
+      renderFicha();
+      renderList();
+    }
+
+    function guardarObservado(index){
+      actualizarCert(index,c=>{
+        c.estado=c.modulosActualizados?'revision_empresa':'observado';
+        c.observacionRevision=$('rev-obs')?.value.trim()||'Queda en revisión.';
+        c.revisadoPor='Coordinación';
+        c.fechaRevision=new Date().toLocaleString('es-AR');
+      });
+    }
+
+    function agregarVersionCert(index){
+      const file=$('rev-file')?.files?.[0];
+      if(!file){alert('Seleccioná el archivo de la nueva versión.');return;}
+      const modulos=num($('rev-modulos')?.value);
+      if(!modulos){alert('Cargá los módulos del archivo modificado. Si es Excel, debe salir de la celda G720.');return;}
+      actualizarCert(index,c=>{
+        c.versiones=c.versiones||[];
+        c.versiones.unshift({version:c.versiones.length+1,archivo:file.name,fecha:new Date().toLocaleString('es-AR'),esOriginal:false,modulos});
+        c.modulosActualizados=modulos;
+        c.montoInspeccion=num($('rev-monto-inspeccion')?.value);
+        c.estado='revision_empresa';
+        c.observacionRevision=$('rev-obs')?.value.trim();
+      });
+    }
+
+    function aprobarCertificado(index){
+      const numero=$('rev-cert-num')?.value.trim();
+      const mes=$('rev-cert-mes')?.value.trim();
+      if(!numero||!mes){alert('Completá número y período de medición.');return;}
+      actualizarCert(index,c=>{
+        c.estado='aprobado';
+        c.certificacionNumero=numero;
+        c.mesCertificacion=mes;
+        c.montoInspeccion=num($('rev-monto-inspeccion')?.value)||c.montoInspeccion||'';
+        c.observacionRevision=$('rev-obs')?.value.trim();
+        c.revisadoPor='Coordinación';
+        c.fechaRevision=new Date().toLocaleString('es-AR');
+      });
+    }
+
+    function todasLasFilasCertificados(){
+      const rows=[];
+      const all=loadCerts();
+      Object.entries(all).forEach(([estId,certs])=>{
+        const est=ESTABLECIMIENTOS.find(e=>String(e.id)===String(estId))||{};
+        (certs||[]).forEach(c=>{
+          const original=(c.versiones||[]).find(v=>v.esOriginal)||{};
+          const actual=(c.versiones||[])[0]||{};
+          rows.push({
+            establecimiento:est.nombre||'',
+            zona:est.zona||c.zona||'',
+            certificado:actual.archivo||c.archivo||'',
+            estado:estadoLabel(c.estado),
+            archivo_original:original.archivo||c.archivo||'',
+            modulos_original:moduloOriginal(c),
+            archivo_actualizado:actual.esOriginal?'':actual.archivo||'',
+            modulos_actualizado:actual.esOriginal?'':moduloActual(c),
+            monto_empresa:montoEmpresa(c),
+            monto_inspeccion:montoInspeccion(c),
+            medicion:c.certificacionNumero||'',
+            periodo:c.mesCertificacion||'',
+            observaciones:c.observacionRevision||c.obs||''
+          });
+        });
+      });
+      return rows;
+    }
+
+    function exportarCertificadosExcel(medicion=''){
+      const rows=todasLasFilasCertificados().filter(r=>!medicion||String(r.medicion)===String(medicion));
+      if(!rows.length){alert('No hay certificados para exportar.');return;}
+      const headers=['Establecimiento','Monto Empresa','Monto Inspección','Observaciones'];
+      const body=rows.map(r=>[
+        r.certificado||r.establecimiento,
+        fmtMoney(r.monto_empresa),
+        fmtMoney(r.monto_inspeccion),
+        r.observaciones||`Se certifica en Medición Nº ${r.medicion} ${r.establecimiento}`
+      ]);
+      const table=`<table border="1" cellspacing="0" cellpadding="4">
+        <thead><tr>${headers.map(h=>`<th style="background:#000;color:#fff;font-weight:bold">${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody>${body.map(row=>`<tr>${row.map((v,i)=>`<td style="${i===0?'background:#f29aa0;':i===1||i===2?'background:#d9d9d9;':''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>`;
+      const blob=new Blob([`\ufeff${table}`],{type:'application/vnd.ms-excel;charset=utf-8;'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`medicion-${medicion||'todas'}-${new Date().toISOString().slice(0,10)}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
+    document.addEventListener('DOMContentLoaded',init);
+  </script>
+</body>
+</html>

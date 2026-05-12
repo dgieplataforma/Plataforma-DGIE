@@ -190,6 +190,18 @@
     },
     async actualizarEmpresa(zona, row){
       return client.from('empresas_zona').upsert({ zona, ...row }, { onConflict:'zona' }).select('*').single();
+    },
+    async listarCertificadosMedicion(){
+      return client.from('certificados_medicion').select('*').order('created_at', { ascending:false });
+    },
+    async crearCertificadoMedicion(row){
+      return client.from('certificados_medicion').insert(row).select('*').single();
+    },
+    async actualizarCertificadoMedicion(id, row){
+      return client.from('certificados_medicion').update(row).eq('id', id).select('*').single();
+    },
+    async eliminarCertificadoMedicion(id){
+      return client.from('certificados_medicion').delete().eq('id', id);
     }
   };
 })();

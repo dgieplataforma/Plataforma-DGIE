@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
 <script src="./dgie-supabase.js"></script>
@@ -5852,5 +5853,352 @@ function renderChartInsp(){
     font-weight: 400 !important;
   }
 </style>
+<style id="dgie-mediciones-certificados-2026-05-12">
+  .med-grid{display:grid;grid-template-columns:minmax(360px,.9fr) minmax(420px,1.1fr);gap:16px;align-items:start}
+  .med-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .med-card{border:1px solid var(--border);border-radius:14px;background:#fff;padding:14px;margin-bottom:10px}
+  .med-card-title{font-size:15px;font-weight:900;color:#123c69;line-height:1.25}
+  .med-card-meta{font-size:12px;color:var(--muted);line-height:1.45;margin-top:5px}
+  .med-version-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid #e5edf6;background:#f8fafc;border-radius:10px;padding:9px 10px;margin-top:8px}
+  .med-btn-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .med-btn{min-width:160px;text-align:left}
+  .med-btn strong{display:block;color:#123c69;font-size:15px}
+  .med-btn span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+  .med-inline-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .med-table{width:100%;border-collapse:collapse;background:#fff}
+  .med-table th{background:#000;color:#fff;text-align:left;font-size:12px;padding:6px 8px}
+  .med-table td{border:1px solid #a3a3a3;font-size:12px;padding:6px 8px}
+  .med-table td:first-child{background:#f29aa0}
+  .med-table td:nth-child(2),.med-table td:nth-child(3){background:#d9d9d9}
+  @media(max-width:980px){.med-grid,.med-inline-grid{grid-template-columns:1fr}}
+</style>
+<script id="dgie-mediciones-certificados-2026-05-12">
+(function(){
+  const LOCAL_KEY='dgie_certificados_medicion_v1';
+  const RESET_KEY='dgie_certificados_medicion_reset_version';
+  const RESET_VERSION='2026-05-12-base-limpia';
+  let CERTIFICADOS_MEDICION=[];
+  let certsLoaded=false;
+  let certsDbError='';
+
+  if(localStorage.getItem(RESET_KEY)!==RESET_VERSION){
+    ['dgie_certificados_medicion_v1','dgie_mediciones_empresa_produccion','dgie_certificados_empresa_demo'].forEach(k=>localStorage.removeItem(k));
+    localStorage.setItem(RESET_KEY,RESET_VERSION);
+  }
+
+  function n(v){return Number(String(v??'').replace(',','.'))||0}
+  function money(v){const x=n(v);return x?x.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2}):'-'}
+  function mods(v){return n(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
+  function fileUrl(c,kind='actual'){
+    if(kind==='original')return c.url_original||'';
+    return c.url_inspector||c.url_original||'';
+  }
+  function certEstadoLabel(e){
+    return {pendiente:'Pendiente de revisión',revision:'En revisión',medido:'En medición'}[e]||'Pendiente de revisión';
+  }
+  function certEstadoClass(e){
+    return e==='medido'?'b-ok':e==='revision'?'b-warn':'b-info';
+  }
+  function estById(id){return ESTABS.find(e=>Number(e.id)===Number(id))}
+  function certsZona(z){return CERTIFICADOS_MEDICION.filter(c=>Number(c.zona)===Number(z))}
+  function certsMedidos(data=CERTIFICADOS_MEDICION){return data.filter(c=>c.estado==='medido'&&c.medicion_numero)}
+  function modActual(c){return n(c.modulos_inspector||c.modulos_original)}
+  function montoInspeccion(c){return n(c.monto_inspeccion)}
+  function readLocalCerts(){try{return JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')||[]}catch(e){return []}}
+  function writeLocalCerts(){localStorage.setItem(LOCAL_KEY,JSON.stringify(CERTIFICADOS_MEDICION))}
+
+  async function leerG720(file){
+    if(!file||!window.XLSX||!/\.(xls|xlsx)$/i.test(file.name))return '';
+    const buffer=await file.arrayBuffer();
+    const wb=XLSX.read(buffer,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    return ws?.G720?.v ?? '';
+  }
+  window.autocompletarModuloCertificado=async function(fileId,inputId){
+    const file=$(fileId)?.files?.[0], input=$(inputId);
+    if(!file||!input)return;
+    try{const v=await leerG720(file);if(v!==''&&v!=null)input.value=String(v).replace(',','.');}
+    catch(e){console.warn('No se pudo leer G720',e)}
+  };
+
+  async function cargarCertificadosMedicion(force=false){
+    if(certsLoaded&&!force)return CERTIFICADOS_MEDICION;
+    certsLoaded=true;
+    certsDbError='';
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarCertificadosMedicion==='function'){
+      const {data,error}=await window.DGIE_DB.listarCertificadosMedicion();
+      if(!error){CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));return CERTIFICADOS_MEDICION;}
+      certsDbError=error.message||String(error);
+    }
+    CERTIFICADOS_MEDICION=readLocalCerts();
+    return CERTIFICADOS_MEDICION;
+  }
+  async function subirCertFile(file){
+    if(!file)return null;
+    if(typeof leerArchivoDGIE==='function')return leerArchivoDGIE(file,'certificados');
+    return {nombre:file.name,name:file.name,url:'',provider:'local'};
+  }
+  async function insertarCertificado(row){
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearCertificadoMedicion==='function'){
+      const {data,error}=await window.DGIE_DB.crearCertificadoMedicion(row);
+      if(error)throw error;
+      CERTIFICADOS_MEDICION.unshift({...data,localId:data.id});
+    }else{
+      const item={...row,id:'local_'+Date.now(),localId:'local_'+Date.now(),created_at:new Date().toISOString()};
+      CERTIFICADOS_MEDICION.unshift(item);
+      writeLocalCerts();
+    }
+  }
+  async function actualizarCertificado(id,patch){
+    const c=CERTIFICADOS_MEDICION.find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
+    if(!c)return;
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarCertificadoMedicion==='function'&&typeof c.id==='number'){
+      const {data,error}=await window.DGIE_DB.actualizarCertificadoMedicion(c.id,patch);
+      if(error)throw error;
+      Object.assign(c,data||patch);
+    }else{
+      Object.assign(c,patch,{updated_at:new Date().toISOString()});
+      writeLocalCerts();
+    }
+  }
+  async function borrarCertificado(id){
+    const idx=CERTIFICADOS_MEDICION.findIndex(x=>String(x.id)===String(id)||String(x.localId)===String(id));
+    if(idx<0)return;
+    const c=CERTIFICADOS_MEDICION[idx];
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarCertificadoMedicion==='function'&&typeof c.id==='number'){
+      const {error}=await window.DGIE_DB.eliminarCertificadoMedicion(c.id);
+      if(error)throw error;
+    }
+    CERTIFICADOS_MEDICION.splice(idx,1);
+    writeLocalCerts();
+  }
+
+  function dbNotice(){
+    return certsDbError?`<div class="form-error" style="display:block;margin-bottom:12px">Para guardar entre computadoras ejecutá <b>supabase-mediciones-certificados.sql</b>. Error actual: ${escapeHtml(certsDbError)}</div>`:'';
+  }
+
+  window.renderMedicionesEmpresa=async function(container,z){
+    container.innerHTML=`<div class="section-label">Empresa · Mediciones</div><div class="card"><div style="text-align:center;padding:30px;color:var(--muted)">Cargando certificados...</div></div>`;
+    await cargarCertificadosMedicion();
+    const estabs=establecimientosPorZona(Number(z));
+    const data=certsZona(z);
+    container.innerHTML=`<div class="section-label">Empresa · Mediciones · Zona ${Number(z)}</div>${dbNotice()}<div class="med-grid">
+      <section class="card">
+        <div class="card-header"><div><div class="card-title">Subir certificado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa solo carga archivo y observaciones.</div></div></div>
+        <div class="form-grid">
+          <div class="form-field full"><label class="form-label">Establecimiento</label><select class="form-select" id="cert-est">${estabs.map(e=>`<option value="${e.id}">${escapeHtml(e.n)}</option>`).join('')}</select></div>
+          <div class="form-field full"><label class="form-label">Archivo certificado</label><input class="form-input" id="cert-file" type="file" accept=".pdf,.xls,.xlsx,image/*" onchange="autocompletarModuloCertificado('cert-file','cert-modulos')"></div>
+          <div class="form-field"><label class="form-label">Módulos</label><input class="form-input" id="cert-modulos" type="number" step="0.001" placeholder="G720 si es Excel"></div>
+          <div class="form-field"><label class="form-label">Monto empresa</label><input class="form-input" id="cert-monto-empresa" type="number" step="0.01" placeholder="Opcional"></div>
+          <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="cert-obs" placeholder="Observaciones de la empresa..."></textarea></div>
+        </div>
+        <div class="form-error" id="cert-error">Seleccioná establecimiento, archivo y módulos.</div>
+        <div class="modal-actions"><button class="primary-btn" onclick="guardarCertificadoEmpresa()">Subir certificado</button></div>
+      </section>
+      <section class="card">
+        <div class="card-header"><div><div class="card-title">Certificados subidos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Solo lectura para empresa.</div></div><span class="badge b-info">${data.length} certificados</span></div>
+        ${renderCertificadosList(data,false)}
+      </section>
+    </div>`;
+  };
+
+  window.guardarCertificadoEmpresa=async function(){
+    const estId=Number($('cert-est')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value);
+    if(!est||!file||!mod){$('cert-error')&&( $('cert-error').style.display='block');return;}
+    $('cert-error')&&( $('cert-error').style.display='none');
+    const subida=await subirCertFile(file);
+    try{
+      await insertarCertificado({
+        establecimiento_id:est.id,
+        establecimiento_nombre:est.n,
+        zona:Number(est.zona||zonaEstablecimiento(est.id)),
+        archivo_original:file.name,
+        url_original:subida?.url||'',
+        public_id_original:subida?.publicId||null,
+        modulos_original:mod,
+        monto_empresa:n($('cert-monto-empresa')?.value),
+        observaciones_empresa:($('cert-obs')?.value||'').trim(),
+        estado:'pendiente',
+        creado_por:currentUser?.name||'Empresa',
+        actualizado_por:currentUser?.name||'Empresa'
+      });
+      renderMedicionesEmpresa($('main-content'),currentUser.zona);
+    }catch(error){
+      alert('No se pudo guardar el certificado: '+(error.message||error));
+    }
+  };
+
+  function renderCertificadosList(data,inspector){
+    if(!data.length)return '<div style="text-align:center;padding:30px;color:var(--muted)">Sin certificados cargados</div>';
+    return data.map(c=>`<div class="med-card">
+      <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
+      <div class="med-card-meta">
+        Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos: ${mods(c.modulos_original)} · Monto empresa: ${money(c.monto_empresa)}<br>
+        ${c.url_inspector?`Inspector: <a href="${fileUrl(c)}" target="_blank" rel="noopener">${escapeHtml(c.archivo_inspector||'Versión inspector')}</a> · Módulos: ${mods(c.modulos_inspector)} · Monto inspección: ${money(c.monto_inspeccion)}<br>`:''}
+        ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
+        ${c.observaciones_empresa?`Empresa: ${escapeHtml(c.observaciones_empresa)}<br>`:''}
+        ${c.observaciones_inspector?`Inspector: ${escapeHtml(c.observaciones_inspector)}`:''}
+      </div>
+      <div class="med-actions" style="margin-top:10px">
+        <span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span>
+        ${inspector?`<button class="secondary-btn" onclick="revisarCertificadoInspector('${c.id||c.localId}')">Revisar</button><button class="secondary-btn" onclick="editarCertificadoInspector('${c.id||c.localId}')">Editar</button><button class="secondary-btn" style="color:var(--danger)" onclick="eliminarCertificadoInspector('${c.id||c.localId}')">Eliminar</button>`:''}
+      </div>
+    </div>`).join('');
+  }
+
+  window.renderMedicionesInspector=async function(container,z=currentUser?.zona){
+    container.innerHTML=`<div class="section-label">Inspector · Mediciones</div><div class="card"><div style="text-align:center;padding:30px;color:var(--muted)">Cargando certificados...</div></div>`;
+    await cargarCertificadosMedicion();
+    const data=certsZona(z);
+    container.innerHTML=`<div class="section-label">Inspector · Mediciones · Zona ${Number(z)}</div>${dbNotice()}
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Certificados de empresa</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El inspector carga versión corregida, asigna medición, edita o elimina certificados.</div></div><span class="badge b-info">${data.length} certificados</span></div>
+        <div class="os-filters"><input class="estab-search" id="med-q" placeholder="Buscar establecimiento o archivo..." oninput="filtrarMedicionesInspector()"><select class="filter-sel" id="med-estado" onchange="filtrarMedicionesInspector()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="revision">En revisión</option><option value="medido">En medición</option></select></div>
+        <div id="med-list">${renderCertificadosList(data,true)}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Mediciones cerradas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Entrá por número de medición y descargá el Excel.</div></div></div>
+        ${renderBotonesMediciones(data)}
+      </div>`;
+  };
+  window.filtrarMedicionesInspector=function(){
+    const q=($('med-q')?.value||'').toLowerCase(), st=$('med-estado')?.value||'', z=Number(currentUser?.zona||0);
+    const data=certsZona(z).filter(c=>(!st||c.estado===st)&&(`${c.establecimiento_nombre||''} ${c.archivo_original||''} ${c.archivo_inspector||''}`.toLowerCase().includes(q)));
+    $('med-list')&&( $('med-list').innerHTML=renderCertificadosList(data,true));
+  };
+
+  function renderBotonesMediciones(data){
+    const grupos={};
+    certsMedidos(data).forEach(c=>{const k=String(c.medicion_numero);grupos[k]=grupos[k]||[];grupos[k].push(c);});
+    const nums=Object.keys(grupos).sort((a,b)=>Number(a)-Number(b));
+    if(!nums.length)return '<div style="text-align:center;padding:28px;color:var(--muted)">Todavía no hay mediciones cerradas.</div>';
+    return `<div class="med-btn-grid">${nums.map(num=>{
+      const total=grupos[num].reduce((a,c)=>a+modActual(c),0);
+      return `<button class="secondary-btn med-btn" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
+    }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`;
+  }
+  window.abrirMedicionInspector=function(numero){
+    const data=certsMedidos(certsZona(currentUser.zona)).filter(c=>String(c.medicion_numero)===String(numero));
+    const total=data.reduce((a,c)=>a+modActual(c),0);
+    const el=$('med-detalle');
+    if(!el)return;
+    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Medición Nº ${escapeHtml(numero)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div><div style="overflow:auto">${tablaMedicion(data)}</div></div>`;
+  };
+  function tablaMedicion(data){
+    return `<table class="med-table"><thead><tr><th>Establecimiento</th><th>Monto Empresa</th><th>Monto Inspección</th><th>Observaciones</th></tr></thead><tbody>${data.map(c=>`<tr><td>${escapeHtml(c.archivo_inspector||c.archivo_original||c.establecimiento_nombre)}</td><td>${money(c.monto_empresa)}</td><td>${money(c.monto_inspeccion)}</td><td>${escapeHtml(c.observaciones_inspector||c.observaciones_empresa||`Se certifica en Medición Nº ${c.medicion_numero} ${c.establecimiento_nombre}`)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  window.exportarMedicionExcel=function(numero){
+    const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
+    if(!data.length){alert('No hay certificados en esta medición.');return;}
+    const blob=new Blob([`\ufeff${tablaMedicion(data)}`],{type:'application/vnd.ms-excel;charset=utf-8;'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`medicion-${numero}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
+  };
+
+  window.revisarCertificadoInspector=function(id){
+    const c=CERTIFICADOS_MEDICION.find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
+    const cont=$('main-content');
+    if(!c||!cont)return;
+    cont.innerHTML=`<div class="section-label">Inspector · Revisar certificado</div><div class="card">
+      <button class="back-btn" onclick="renderMedicionesInspector($('main-content'),currentUser.zona)">‹ Volver a mediciones</button>
+      <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".pdf,.xls,.xlsx,image/*" onchange="autocompletarModuloCertificado('insp-cert-file','insp-cert-modulos')"></div>
+        <div class="form-field"><label class="form-label">Módulos inspección</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}"></div>
+        <div class="form-field"><label class="form-label">Monto inspección</label><input class="form-input" id="insp-cert-monto" type="number" step="0.01" value="${escapeHtml(c.monto_inspeccion||'')}"></div>
+        <div class="form-field"><label class="form-label">Medición Nº</label><input class="form-input" id="insp-cert-medicion" type="number" min="1" value="${escapeHtml(c.medicion_numero||'')}"></div>
+        <div class="form-field"><label class="form-label">Período</label><input class="form-input" id="insp-cert-periodo" placeholder="Ej: Mayo 2026" value="${escapeHtml(c.periodo||'')}"></div>
+        <div class="form-field full"><label class="form-label">Observaciones inspector</label><textarea class="form-textarea" id="insp-cert-obs">${escapeHtml(c.observaciones_inspector||'')}</textarea></div>
+      </div>
+      <div class="modal-actions"><button class="secondary-btn" onclick="guardarRevisionCertificado('${id}',false)">Guardar revisión</button><button class="primary-btn" onclick="guardarRevisionCertificado('${id}',true)">Guardar y pasar a medición</button></div>
+    </div>`;
+  };
+  window.guardarRevisionCertificado=async function(id,medir){
+    const c=CERTIFICADOS_MEDICION.find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
+    if(!c)return;
+    const file=$('insp-cert-file')?.files?.[0];
+    const patch={
+      modulos_inspector:n($('insp-cert-modulos')?.value),
+      monto_inspeccion:n($('insp-cert-monto')?.value),
+      observaciones_inspector:($('insp-cert-obs')?.value||'').trim(),
+      medicion_numero:$('insp-cert-medicion')?.value?Number($('insp-cert-medicion').value):null,
+      periodo:($('insp-cert-periodo')?.value||'').trim(),
+      estado:medir?'medido':'revision',
+      actualizado_por:currentUser?.name||'Inspector'
+    };
+    if(medir&&!patch.medicion_numero){alert('Para pasar a medición cargá el número de medición.');return;}
+    if(file){
+      const subida=await subirCertFile(file);
+      patch.archivo_inspector=file.name;
+      patch.url_inspector=subida?.url||'';
+      patch.public_id_inspector=subida?.publicId||null;
+    }
+    try{await actualizarCertificado(id,patch);renderMedicionesInspector($('main-content'),currentUser.zona);}
+    catch(error){alert('No se pudo guardar la revisión: '+(error.message||error));}
+  };
+  window.editarCertificadoInspector=function(id){revisarCertificadoInspector(id)};
+  window.eliminarCertificadoInspector=async function(id){
+    if(!confirm('¿Eliminar este certificado?'))return;
+    try{await borrarCertificado(id);renderMedicionesInspector($('main-content'),currentUser.zona);}
+    catch(error){alert('No se pudo eliminar: '+(error.message||error));}
+  };
+
+  window.renderOSEmpresa=function(c,z){
+    const data=typeof osPorZona==='function'?osPorZona(z):[];
+    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa puede consultar órdenes y descargar PDF. La carga operativa se realiza en Mediciones.</div></div>
+          <span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span>
+        </div>
+        <div class="os-filters">
+          <input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, establecimiento o tarea..." oninput="filterOSEmpresa()">
+          <select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select>
+        </div>
+        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th></tr></thead><tbody id="empresa-os-body"></tbody></table></div>
+      </div>`;
+    filterOSEmpresa();
+  };
+  window.filterOSEmpresa=function(){
+    const z=Number(currentUser?.zona||0), q=($('empresa-os-q')?.value||'').toLowerCase(), st=$('empresa-os-estado')?.value||'';
+    const data=(typeof osPorZona==='function'?osPorZona(z):[]).filter(o=>(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),'es',{numeric:true}));
+    const badge=$('empresa-os-count');
+    if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
+    const el=$('empresa-os-body');
+    if(!el)return;
+    el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td><span class="badge b-info">${escapeHtml(o.prio||'medio')}</span></td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td></tr>`).join(''):`<tr><td colspan="10" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
+  };
+
+  const prevDgieTabs=window.dgieTabsForUser;
+  window.dgieTabsForUser=function(user){
+    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Mediciones','Comunicaciones'];
+    if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Mediciones'];
+    return prevDgieTabs?prevDgieTabs(user):(window.tabsForUser?window.tabsForUser(user):['Dashboard']);
+  };
+  const prevTabsForUser=window.tabsForUser;
+  window.tabsForUser=function(user){
+    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Mediciones','Comunicaciones'];
+    if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Mediciones'];
+    return prevTabsForUser?prevTabsForUser(user):window.dgieTabsForUser(user);
+  };
+  const prevRenderTab=window.renderTab;
+  window.renderTab=function(i){
+    if(!currentUser)return;
+    const tabs=window.dgieTabsForUser?window.dgieTabsForUser(currentUser):window.tabsForUser(currentUser);
+    buildTabs(tabs);
+    setActiveTab(i);
+    hideGlobal();
+    currentFichaId=null;
+    const tab=tabs[i], c=$('main-content');
+    if(tab==='Mediciones'&&currentUser.role==='empresa'){renderMedicionesEmpresa(c,currentUser.zona);return;}
+    if(tab==='Mediciones'&&currentUser.role==='inspector'){renderMedicionesInspector(c,currentUser.zona);return;}
+    return prevRenderTab(i);
+  };
+})();
+</script>
 </body>
 </html>

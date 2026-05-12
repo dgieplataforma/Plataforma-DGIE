@@ -1,0 +1,11 @@
+CERTIFICADO DE PRUEBA
+
+Establecimiento: ESCUELA MAURO FERNANDEZ
+Empresa: Empresa Zona 15
+Fecha: 11/05/2026
+
+Este archivo sirve para probar el flujo de carga de certificados:
+1. La empresa lo sube.
+2. Coordinacion lo observa o aprueba.
+3. Si se observa, se carga una nueva version.
+4. Si se aprueba, pasa a Certificacion 1, 2, 3, etc.
