@@ -5978,11 +5978,11 @@ function renderChartInsp(){
   }
 
   window.renderMedicionesEmpresa=async function(container,z){
-    container.innerHTML=`<div class="section-label">Empresa · Mediciones</div><div class="card"><div style="text-align:center;padding:30px;color:var(--muted)">Cargando certificados...</div></div>`;
+    container.innerHTML=`<div class="section-label">Empresa · Certificación</div><div class="card"><div style="text-align:center;padding:30px;color:var(--muted)">Cargando certificados...</div></div>`;
     await cargarCertificadosMedicion();
     const estabs=establecimientosPorZona(Number(z));
     const data=certsZona(z);
-    container.innerHTML=`<div class="section-label">Empresa · Mediciones · Zona ${Number(z)}</div>${dbNotice()}<div class="med-grid">
+    container.innerHTML=`<div class="section-label">Empresa · Certificación · Zona ${Number(z)}</div>${dbNotice()}<div class="med-grid">
       <section class="card">
         <div class="card-header"><div><div class="card-title">Subir certificado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa solo carga archivo y observaciones.</div></div></div>
         <div class="form-grid">
@@ -6067,10 +6067,10 @@ function renderChartInsp(){
   }
 
   window.renderMedicionesInspector=async function(container,z=currentUser?.zona){
-    container.innerHTML=`<div class="section-label">Inspector · Mediciones</div><div class="card"><div style="text-align:center;padding:30px;color:var(--muted)">Cargando certificados...</div></div>`;
+    container.innerHTML=`<div class="section-label">Inspector · Certificación</div><div class="card"><div style="text-align:center;padding:30px;color:var(--muted)">Cargando certificados...</div></div>`;
     await cargarCertificadosMedicion();
     const data=certsZona(z);
-    container.innerHTML=`<div class="section-label">Inspector · Mediciones · Zona ${Number(z)}</div>${dbNotice()}
+    container.innerHTML=`<div class="section-label">Inspector · Certificación · Zona ${Number(z)}</div>${dbNotice()}
       <div class="card">
         <div class="card-header"><div><div class="card-title">Certificados de empresa</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El inspector carga versión corregida, asigna medición, edita o elimina certificados.</div></div><span class="badge b-info">${data.length} certificados</span></div>
         <div class="os-filters"><input class="estab-search" id="med-q" placeholder="Buscar establecimiento o archivo..." oninput="filtrarMedicionesInspector()"><select class="filter-sel" id="med-estado" onchange="filtrarMedicionesInspector()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="revision">En revisión</option><option value="medido">En medición</option></select></div>
@@ -6110,11 +6110,12 @@ function renderChartInsp(){
           ${escapeHtml(c.observaciones_inspector||c.observaciones_empresa||'Sin observaciones')}
         </div>
       </div>
+      <button class="secondary-btn" style="color:var(--danger);white-space:nowrap" onclick="volverCertificadoPendiente('${c.id||c.localId}')">Volver a pendiente</button>
     </div>`).join('');
   }
   function tablaMedicion(data){
     const th='background:#000;color:#fff;font-weight:bold;text-align:left;padding:6px 8px;border:1px solid #a3a3a3';
-    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;return `<tr><td style="${td}">${escapeHtml(c.archivo_inspector||c.archivo_original||c.establecimiento_nombre)}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(c.modulos_inspector||c.modulos_original)}</td><td style="${td}">${escapeHtml(c.observaciones_inspector||c.observaciones_empresa||`Se certifica en Medición Nº ${c.medicion_numero} ${c.establecimiento_nombre}`)}</td></tr>`}).join('')}</tbody></table>`;
+    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);return `<tr><td style="${td}">${escapeHtml(c.archivo_inspector||c.archivo_original||c.establecimiento_nombre)}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(c.observaciones_inspector||'')}</td></tr>`}).join('')}</tbody></table>`;
   }
   window.exportarMedicionExcel=function(numero){
     const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
@@ -6162,7 +6163,7 @@ function renderChartInsp(){
     const cont=$('main-content');
     if(!c||!cont)return;
     cont.innerHTML=`<div class="section-label">Inspector · Revisar certificado</div><div class="card">
-      <button class="back-btn" onclick="renderMedicionesInspector($('main-content'),currentUser.zona)">‹ Volver a mediciones</button>
+      <button class="back-btn" onclick="renderMedicionesInspector($('main-content'),currentUser.zona)">‹ Volver a certificación</button>
       <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
       <div class="form-grid">
         <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarModuloCertificado('insp-cert-file','insp-cert-modulos')"></div>
@@ -6206,13 +6207,18 @@ function renderChartInsp(){
     try{await borrarCertificado(id);renderMedicionesInspector($('main-content'),currentUser.zona);}
     catch(error){alert('No se pudo eliminar: '+(error.message||error));}
   };
+  window.volverCertificadoPendiente=async function(id){
+    if(!confirm('¿Volver este certificado a pendiente de revisión?'))return;
+    try{await actualizarCertificado(id,{estado:'pendiente',medicion_numero:null,periodo:'',actualizado_por:currentUser?.name||'Inspector'});renderMedicionesInspector($('main-content'),currentUser.zona);}
+    catch(error){alert('No se pudo actualizar: '+(error.message||error));}
+  };
 
   window.renderOSEmpresa=function(c,z){
     const data=typeof osPorZona==='function'?osPorZona(z):[];
     c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div>
       <div class="card">
         <div class="card-header">
-          <div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa puede consultar órdenes y descargar PDF. La carga operativa se realiza en Mediciones.</div></div>
+          <div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa puede consultar órdenes y descargar PDF. La carga operativa se realiza en Certificación.</div></div>
           <span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span>
         </div>
         <div class="os-filters">
@@ -6235,14 +6241,14 @@ function renderChartInsp(){
 
   const prevDgieTabs=window.dgieTabsForUser;
   window.dgieTabsForUser=function(user){
-    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Mediciones','Comunicaciones'];
-    if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Mediciones'];
+    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Certificación','Comunicaciones'];
+    if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Certificación'];
     return prevDgieTabs?prevDgieTabs(user):(window.tabsForUser?window.tabsForUser(user):['Dashboard']);
   };
   const prevTabsForUser=window.tabsForUser;
   window.tabsForUser=function(user){
-    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Mediciones','Comunicaciones'];
-    if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Mediciones'];
+    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Certificación','Comunicaciones'];
+    if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Certificación'];
     return prevTabsForUser?prevTabsForUser(user):window.dgieTabsForUser(user);
   };
   const prevRenderTab=window.renderTab;
@@ -6254,8 +6260,8 @@ function renderChartInsp(){
     hideGlobal();
     currentFichaId=null;
     const tab=tabs[i], c=$('main-content');
-    if(tab==='Mediciones'&&currentUser.role==='empresa'){renderMedicionesEmpresa(c,currentUser.zona);return;}
-    if(tab==='Mediciones'&&currentUser.role==='inspector'){renderMedicionesInspector(c,currentUser.zona);return;}
+    if(tab==='Certificación'&&currentUser.role==='empresa'){renderMedicionesEmpresa(c,currentUser.zona);return;}
+    if(tab==='Certificación'&&currentUser.role==='inspector'){renderMedicionesInspector(c,currentUser.zona);return;}
     return prevRenderTab(i);
   };
 })();
