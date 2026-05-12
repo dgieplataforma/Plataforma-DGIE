@@ -5912,13 +5912,34 @@ function renderChartInsp(){
     const buffer=await file.arrayBuffer();
     const wb=XLSX.read(buffer,{type:'array'});
     const ws=wb.Sheets[wb.SheetNames[0]];
-    return ws?.G720?.v ?? '';
+    // Intento 1: celda fija G720 (planilla base)
+    const fijo=ws?.G720?.v;
+    if(fijo!=null&&fijo!=='')return fijo;
+    // Intento 2: buscar la etiqueta "TOTAL DE MODULOS MEDIDOS" y leer la celda adyacente a la derecha
+    const ref=ws['!ref'];
+    if(!ref)return '';
+    const range=XLSX.utils.decode_range(ref);
+    function norm(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim()}
+    for(let r=range.s.r;r<=range.e.r;r++){
+      for(let c=range.s.c;c<=range.e.c;c++){
+        const cell=ws[XLSX.utils.encode_cell({r,c})];
+        if(!cell)continue;
+        const txt=norm(cell.v??cell.w??'');
+        if(txt.includes('TOTAL')&&txt.includes('MODULOS')&&txt.includes('MEDIDOS')){
+          for(let dc=1;dc<=5;dc++){
+            const adj=ws[XLSX.utils.encode_cell({r,c:c+dc})];
+            if(adj?.v!=null&&adj.v!=='')return adj.v;
+          }
+        }
+      }
+    }
+    return '';
   }
   window.autocompletarModuloCertificado=async function(fileId,inputId){
     const file=$(fileId)?.files?.[0], input=$(inputId);
     if(!file||!input)return;
     try{const v=await leerG720(file);if(v!==''&&v!=null)input.value=String(v).replace(',','.');}
-    catch(e){console.warn('No se pudo leer G720',e)}
+    catch(e){console.warn('No se pudo leer módulos del certificado',e)}
   };
 
   async function cargarCertificadosMedicion(force=false){
@@ -5986,8 +6007,7 @@ function renderChartInsp(){
       <section class="card">
         <div class="card-header"><div><div class="card-title">Subir certificado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa solo carga archivo y observaciones.</div></div></div>
         <div class="form-grid">
-          <div class="form-field full"><label class="form-label">Buscar establecimiento</label><input class="form-input" id="cert-est-search" placeholder="Buscar por nombre, CUE o dirección..." oninput="filtrarEstablecimientosCertEmpresa()"></div>
-          <div class="form-field full"><label class="form-label">Establecimiento</label><select class="form-select" id="cert-est">${estabs.map(e=>`<option value="${e.id}">${escapeHtml(e.n)}</option>`).join('')}</select></div>
+          <div class="form-field full" style="position:relative"><label class="form-label">Establecimiento</label><input class="form-input" id="cert-est-search" placeholder="Buscar por nombre, CUE o dirección..." oninput="filtrarEstablecimientosCertEmpresa()" onfocus="filtrarEstablecimientosCertEmpresa()" onblur="setTimeout(()=>{const s=$('cert-est-sugs');if(s)s.style.display='none'},150)" autocomplete="off"><input type="hidden" id="cert-est-id"><div id="cert-est-sugs" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:200"></div></div>
           <div class="form-field full"><label class="form-label">Archivo certificado Excel</label><input class="form-input" id="cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarModuloCertificado('cert-file','cert-modulos')"></div>
           <div class="form-field"><label class="form-label">Módulos leídos de G720</label><input class="form-input" id="cert-modulos" type="number" step="0.001" placeholder="Se completa automáticamente" readonly></div>
           <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="cert-obs" placeholder="Observaciones de la empresa..."></textarea></div>
@@ -6002,15 +6022,25 @@ function renderChartInsp(){
     </div>`;
   };
   window.filtrarEstablecimientosCertEmpresa=function(){
-    const z=Number(currentUser?.zona||0), q=($('cert-est-search')?.value||'').toLowerCase();
-    const sel=$('cert-est');
-    if(!sel)return;
+    const z=Number(currentUser?.zona||0), q=($('cert-est-search')?.value||'').toLowerCase().trim();
+    const hidden=$('cert-est-id'), sugs=$('cert-est-sugs');
+    if(hidden)hidden.value='';
+    if(!sugs)return;
+    if(!q){sugs.style.display='none';return;}
     const estabs=establecimientosPorZona(z).filter(e=>`${e.n||''} ${e.cue||''} ${e.dir||''}`.toLowerCase().includes(q));
-    sel.innerHTML=estabs.length?estabs.map(e=>`<option value="${e.id}">${escapeHtml(e.n)}</option>`).join(''):'<option value="">Sin resultados</option>';
+    if(!estabs.length){sugs.innerHTML='<div style="padding:10px 12px;font-size:13px;color:var(--muted)">Sin resultados</div>';sugs.style.display='block';return;}
+    sugs.innerHTML=estabs.slice(0,30).map(e=>`<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9" onmousedown="seleccionarEstablecimientoCert(${e.id},this)" onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background=''">${escapeHtml(e.n)}</div>`).join('');
+    sugs.style.display='block';
+  };
+  window.seleccionarEstablecimientoCert=function(id,el){
+    const input=$('cert-est-search'), hidden=$('cert-est-id'), sugs=$('cert-est-sugs');
+    if(input)input.value=el?.textContent||'';
+    if(hidden)hidden.value=id;
+    if(sugs)sugs.style.display='none';
   };
 
   window.guardarCertificadoEmpresa=async function(){
-    const estId=Number($('cert-est')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value);
+    const estId=Number($('cert-est-id')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value);
     if(!est||!file||!mod){$('cert-error')&&( $('cert-error').style.display='block');return;}
     $('cert-error')&&( $('cert-error').style.display='none');
     const subida=await subirCertFile(file);
