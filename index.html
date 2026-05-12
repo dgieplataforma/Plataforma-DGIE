@@ -474,7 +474,10 @@
       </div>
       <div class="login-field">
         <label class="login-field-label">Contraseña</label>
-        <input class="login-field-input" id="lm-password" type="password" placeholder="••••••••" autocomplete="current-password" />
+        <div style="position:relative">
+          <input class="login-field-input" id="lm-password" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px" />
+          <button type="button" id="lm-pass-toggle" onclick="(function(){const i=document.getElementById('lm-password'),b=document.getElementById('lm-pass-toggle');if(i.type==='password'){i.type='text';b.innerHTML='<svg width=\\'18\\' height=\\'18\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><path d=\\'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94\\'></path><path d=\\'M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19\\'></path><line x1=\\'1\\' y1=\\'1\\' x2=\\'23\\' y2=\\'23\\'></line></svg>';}else{i.type='password';b.innerHTML='<svg width=\\'18\\' height=\\'18\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><path d=\\'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\\'></path><circle cx=\\'12\\' cy=\\'12\\' r=\\'3\\'></circle></svg>';}})();" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;line-height:0;padding:4px;border-radius:6px" title="Mostrar/ocultar contraseña"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+        </div>
       </div>
     </div>
     <div class="login-modal-error" id="lm-error">Contraseña incorrecta. Intentá nuevamente.</div>
@@ -6088,7 +6091,7 @@ function renderChartInsp(){
     const medidos=certsMedidos(data);
     return `<div class="med-card">
       <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Certificados pendientes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Acá quedan los certificados sin aprobar o en revisión.</div></div><span class="badge b-info">${pendientes.length}</span></div>
-      ${renderCertificadosList(pendientes,inspector)}
+      <div style="max-height:500px;overflow-y:auto;padding-right:2px">${renderCertificadosList(pendientes,inspector)}</div>
     </div>
     <div class="med-card">
       <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Mediciones</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Los certificados aprobados se agrupan por número de medición.</div></div><span class="badge b-ok">${new Set(medidos.map(c=>c.medicion_numero)).size}</span></div>
@@ -6140,7 +6143,7 @@ function renderChartInsp(){
           ${escapeHtml(c.observaciones_inspector||c.observaciones_empresa||'Sin observaciones')}
         </div>
       </div>
-      <button class="secondary-btn" style="color:var(--danger);white-space:nowrap" onclick="volverCertificadoPendiente('${c.id||c.localId}')">Volver a pendiente</button>
+      ${currentUser?.role==='inspector'?`<button class="secondary-btn" style="color:var(--danger);white-space:nowrap" onclick="volverCertificadoPendiente('${c.id||c.localId}')">Volver a pendiente</button>`:''}
     </div>`).join('');
   }
   function tablaMedicion(data){
@@ -6255,7 +6258,7 @@ function renderChartInsp(){
           <input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, establecimiento o tarea..." oninput="filterOSEmpresa()">
           <select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select>
         </div>
-        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th></tr></thead><tbody id="empresa-os-body"></tbody></table></div>
+        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th><th>Finalizó</th></tr></thead><tbody id="empresa-os-body"></tbody></table></div>
       </div>`;
     filterOSEmpresa();
   };
@@ -6266,7 +6269,7 @@ function renderChartInsp(){
     if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
     const el=$('empresa-os-body');
     if(!el)return;
-    el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td><span class="badge b-info">${escapeHtml(o.prio||'medio')}</span></td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td></tr>`).join(''):`<tr><td colspan="10" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
+    el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td><span class="badge b-info">${escapeHtml(o.prio||'medio')}</span></td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800;cursor:pointer"><input type="checkbox" ${o.empresaFinalizo?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalicé</label></td></tr>`).join(''):`<tr><td colspan="11" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
   };
 
   const prevDgieTabs=window.dgieTabsForUser;
