@@ -6214,7 +6214,7 @@ function renderChartInsp(){
       <button class="back-btn" onclick="renderMedicionesInspector($('main-content'),currentUser.zona)">‹ Volver a certificación</button>
       <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
       <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarModuloCertificado('insp-cert-file','insp-cert-modulos')"></div>
+        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarModuloCertificado('insp-cert-file','insp-cert-modulos')">${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted)">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(c.archivo_inspector||'Archivo inspector')}</a></div>`:''}</div>
         <div class="form-field"><label class="form-label">Módulos inspección leídos de G720</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
         <div class="form-field"><label class="form-label">Medición Nº</label><input class="form-input" id="insp-cert-medicion" type="number" min="1" value="${escapeHtml(c.medicion_numero||'')}"></div>
         <div class="form-field"><label class="form-label">Período</label><input class="form-input" id="insp-cert-periodo" placeholder="Ej: Mayo 2026" value="${escapeHtml(c.periodo||'')}"></div>
@@ -6261,31 +6261,6 @@ function renderChartInsp(){
     catch(error){alert('No se pudo actualizar: '+(error.message||error));}
   };
 
-  window.renderOSEmpresa=function(c,z){
-    const data=typeof osPorZona==='function'?osPorZona(z):[];
-    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div>
-      <div class="card">
-        <div class="card-header">
-          <div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa puede consultar órdenes y descargar PDF. La carga operativa se realiza en Certificación.</div></div>
-          <span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span>
-        </div>
-        <div class="os-filters">
-          <input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, establecimiento o tarea..." oninput="filterOSEmpresa()">
-          <select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select>
-        </div>
-        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th><th>Finalizó</th></tr></thead><tbody id="empresa-os-body"></tbody></table></div>
-      </div>`;
-    filterOSEmpresa();
-  };
-  window.filterOSEmpresa=function(){
-    const z=Number(currentUser?.zona||0), q=($('empresa-os-q')?.value||'').toLowerCase(), st=$('empresa-os-estado')?.value||'';
-    const data=(typeof osPorZona==='function'?osPorZona(z):[]).filter(o=>(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))).sort((a,b)=>String(b.numero||'').localeCompare(String(a.numero||''),'es',{numeric:true}));
-    const badge=$('empresa-os-count');
-    if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
-    const el=$('empresa-os-body');
-    if(!el)return;
-    el.innerHTML=data.length?data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td><span class="badge b-info">${escapeHtml(o.prio||'medio')}</span></td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800;cursor:pointer"><input type="checkbox" ${o.empresaFinalizo?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalicé</label></td></tr>`).join(''):`<tr><td colspan="11" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
-  };
 
   const prevDgieTabs=window.dgieTabsForUser;
   window.dgieTabsForUser=function(user){
