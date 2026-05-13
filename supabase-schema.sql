@@ -207,6 +207,10 @@ create policy "fotos lectura por rol" on public.fotos
 for select using (
   public.mi_rol() in ('director','coordinador')
   or zona = public.mi_zona()
+  or (
+    public.mi_rol() = 'inspector'
+    and entidad_tipo = 'intervencion'
+  )
 );
 
 create policy "usuarios cargan fotos segun rol" on public.fotos

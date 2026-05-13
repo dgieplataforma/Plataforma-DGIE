@@ -7482,7 +7482,8 @@ function renderChartInsp(){
     partes.map(x=>x.trim()).filter(Boolean).forEach(x=>{
       const nums=String(x).match(/\d+/g);
       if(!nums)return;
-      out.push(String(Number(nums[nums.length-1])));
+      const n=Number(nums[nums.length-1]);
+      if(Number.isFinite(n))out.push(String(n).padStart(3,'0'));
     });
     return [...new Set(out.filter(x=>x&&x!=='NaN'))];
   }
@@ -7499,6 +7500,25 @@ function renderChartInsp(){
     const os=(ordenes?.length?ordenes:['SINOS']).join('-');
     return `${zona}-${os}-${certSanNombre(c?.establecimiento_nombre||'ESTABLECIMIENTO')}${ext}`;
   }
+  const certOrdenesBase=window.certOrdenes;
+  window.certOrdenes=function(c){
+    const arr=typeof certOrdenesBase==='function'?certOrdenesBase(c):[];
+    return (arr||[]).map(x=>{
+      const n=Number(String(x).match(/\d+/g)?.pop());
+      return Number.isFinite(n)?String(n).padStart(3,'0'):String(x||'').trim();
+    }).filter(Boolean);
+  };
+  try{certOrdenes=window.certOrdenes}catch(_){}
+  function ordenDuplicadaCertificado(ordenes,actual){
+    const set=new Set((ordenes||[]).map(x=>Number(x)).filter(Number.isFinite));
+    if(!set.size)return null;
+    const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+    return certs.find(c=>{
+      const mismo=String(c.id)===String(actual?.id)||String(c.localId)===String(actual?.localId);
+      if(mismo||String(c?.estado||'')==='eliminado')return false;
+      return window.certOrdenes(c).some(o=>set.has(Number(o)));
+    })||null;
+  }
   const revisarCertPrev=window.revisarCertificadoInspector;
   window.revisarCertificadoInspector=function(id){
     revisarCertPrev(id);
@@ -7511,7 +7531,7 @@ function renderChartInsp(){
       const mod=document.getElementById('insp-cert-modulos')?.closest('.form-field');
       const div=document.createElement('div');
       div.className='form-field';
-      div.innerHTML=`<label class="form-label">Nº de orden de servicio</label><input class="form-input" id="insp-cert-os-manual" placeholder="Ej: 19 o 19, 20" value="${escapeHtml((window.certOrdenes?.(c)||[]).join(', '))}">`;
+      div.innerHTML=`<label class="form-label">Nº de orden de servicio</label><input class="form-input" id="insp-cert-os-manual" placeholder="Ej: 074 o 074, 075" value="${escapeHtml((window.certOrdenes?.(c)||[]).join(', '))}"><div style="font-size:12px;color:var(--muted);margin-top:4px">Se guarda con tres digitos y no permite repetir una O.S. ya certificada.</div>`;
       mod?.parentNode?.insertBefore(div,mod);
     }
   };
@@ -7526,6 +7546,12 @@ function renderChartInsp(){
     if(medir&&!document.getElementById('insp-cert-medicion')?.value){alert('Para pasar a medición cargá el número de medición.');return;}
     if(medir&&!modInspector){alert('Para pasar a medición subí el Excel corregido para leer la celda G720.');return;}
     if(medir&&!ordenes.length){alert('Para pasar a medición cargá el/los números de orden de servicio.');return;}
+    const duplicado=ordenDuplicadaCertificado(ordenes,c);
+    if(duplicado){
+      const repetida=ordenes.find(o=>window.certOrdenes(duplicado).some(x=>Number(x)===Number(o)))||ordenes[0];
+      alert(`La O.S. ${repetida} ya está usada en otro certificado (${duplicado.establecimiento_nombre||'sin establecimiento'}). No se puede repetir.`);
+      return;
+    }
     const nombreRenombrado=file?nombreInspectorManual(file,c,ordenes):(window.certArchivoRenombrado?.(c)||c.archivo_inspector||'');
     let obsConMeta=[obsLimpia,`[OS_CERT:${ordenes.join(',')}]`,rubros.length?`[RUBROS_CERT:${rubros.join('-')}]`:'',nombreRenombrado?`[ARCHIVO_RENOMBRE:${nombreRenombrado}]`:'' ].filter(Boolean).join('\n');
     const conv=window.conversacionCert?.(c)||[];
@@ -7622,10 +7648,37 @@ function renderChartInsp(){
     </div>`;
   };
   window.renderIntervencionesInspector=function(c){
+    if(window.DGIE_DB?.isConfigured&&!window.__dgieRecargandoIntervencionesFotos){
+      window.__dgieRecargandoIntervencionesFotos=true;
+      window.cargarDatosPublicosDGIE?.().finally(()=>{
+        window.__dgieRecargandoIntervencionesFotos=false;
+        if(document.getElementById('intervenciones-dir-list')&&currentUser?.role==='inspector')window.renderIntervencionesInspector(document.getElementById('main-content'));
+      });
+    }
     const data=[...INTERVENCIONES].sort((a,b)=>(b.id||0)-(a.id||0));
     c.innerHTML=`<div class="section-label">Intervenciones · Todas las zonas</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones actualizadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado de avances cargados por los inspectores. Las fotos se muestran cuando están cargadas.</div></div><span class="badge b-info" id="int-dir-count-badge">${data.length} intervenciones</span></div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list"></div></div>`;
     if(typeof renderIntervencionesDireccionList==='function')renderIntervencionesDireccionList(data);
     else document.getElementById('intervenciones-dir-list').innerHTML=data.map(renderIntervencionCard).join('');
+  };
+  const volverCertPendientePrev=window.volverCertificadoPendiente;
+  window.volverCertificadoPendiente=async function(id){
+    const c=certById(id);
+    if(!c)return volverCertPendientePrev?.(id);
+    if(!confirm('¿Volver este certificado a pendiente de revisión?'))return;
+    const patch={
+      estado:'pendiente',
+      medicion_numero:null,
+      periodo:'',
+      archivo_inspector:c.archivo_inspector||null,
+      url_inspector:c.url_inspector||null,
+      public_id_inspector:c.public_id_inspector||null,
+      modulos_inspector:c.modulos_inspector||0,
+      monto_inspeccion:c.monto_inspeccion||c.modulos_inspector||0,
+      observaciones_inspector:c.observaciones_inspector||null,
+      actualizado_por:currentUser?.name||'Inspector'
+    };
+    try{await window.actualizarCertificado(id,patch);renderMedicionesInspector(document.getElementById('main-content'),currentUser.zona);}
+    catch(error){alert('No se pudo actualizar: '+(error.message||error));}
   };
   window.borrarComentarioIntervencion=async function(id,idx){
     const it=INTERVENCIONES.find(x=>String(x.id)===String(id));
