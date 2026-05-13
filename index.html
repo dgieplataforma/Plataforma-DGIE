@@ -2255,7 +2255,7 @@ function renderOSTable(data){const el=$('os-table-body');if(!el)return;data=(dat
 function sanitizeFileName(value){return String(value||'').replace(/[\/:*?"<>|]/g,'').trim()}
 function getOSFileBaseName(os){const z=zonaEstablecimiento(os.estId);const n=String(os.id||1).replace(/[^0-9]/g,'')||'1';const est=sanitizeFileName(os.establecimiento||'Establecimiento');return `Z${z} - O.S. ${n} - ${est}`}
 function numeroOSSoloNumero(numero){const match=String(numero||'').match(/(\d+)(?!.*\d)/);return match?String(Number(match[1])):''}
-function buildOSPrintHTML(id){const os=OS_ZONA.find(o=>o.id===id);if(!os)return '';const z=zonaEstablecimiento(os.estId);const datos=datosFijosZona(z);const est=ESTABS.find(e=>e.id===os.estId);const direccion=est?.dir||'#N/D';const titulo=`ORDEN DE SERVICIO - RENGLON N° ${String(id).padStart(2,'0')} - ZONA N° ${z}`;const nro=numeroOSSoloNumero(os.numero);return `
+function buildOSPrintHTML(id){const os=OS_ZONA.find(o=>o.id===id);if(!os)return '';const z=zonaEstablecimiento(os.estId);const datos=datosFijosZona(z);const est=ESTABS.find(e=>e.id===os.estId);const direccion=est?.dir||'#N/D';const titulo=`ORDEN DE SERVICIO - RENGLON N° ${String(z).padStart(2,'0')} - ZONA N° ${z}`;const nro=numeroOSSoloNumero(os.numero);return `
 <div class="os-export-name">Nombre sugerido: ${getOSFileBaseName(os)}.pdf</div>
 <div class="os-page">
     <div class="os-title-pdf">${titulo}</div>
@@ -2880,6 +2880,7 @@ async function actualizarOrdenSupabase(o){
   if(!o||!o._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.actualizarOrden!=='function')return;
   const estado=estadoOSCanon(o.estado);
   const {error}=await window.DGIE_DB.actualizarOrden(o.remoteId||o.id,{
+    numero:o.numero||null,
     establecimiento_id:Number(o.estId)||null,
     zona:Number(o.zona||zonaEstablecimiento(o.estId)||1),
     rubro:o.rubro||o.titulo||null,
@@ -5946,6 +5947,11 @@ function renderChartInsp(){
   let CERTIFICADOS_MEDICION=[];
   let certsLoaded=false;
   let certsDbError='';
+  function syncCertificadosGlobal(){
+    window.CERTIFICADOS_MEDICION=CERTIFICADOS_MEDICION;
+    window.certsLoaded=certsLoaded;
+  }
+  syncCertificadosGlobal();
 
   if(localStorage.getItem(RESET_KEY)!==RESET_VERSION){
     ['dgie_certificados_medicion_v1','dgie_mediciones_empresa_produccion','dgie_certificados_empresa_demo'].forEach(k=>localStorage.removeItem(k));
@@ -6017,6 +6023,8 @@ function renderChartInsp(){
   function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
   function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (c?.ordenes_servicio_certificado||c?.ordenes_certificado||m?.[1]||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
+  window.certVisible=certVisible;
+  window.certOrdenes=certOrdenes;
   function certArchivoRenombrado(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[ARCHIVO_RENOMBRE:([^\]]*)\]/);return m?.[1]||c?.archivo_inspector||''}
   function certKey(c){return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_')}
   function conversacionDesdeObs(txt){const m=String(txt||'').match(/\[CONV_CERT:([^\]]*)\]/);if(!m)return[];try{return JSON.parse(decodeURIComponent(m[1]))||[]}catch(e){return[]}}
@@ -6148,17 +6156,19 @@ function renderChartInsp(){
   };
 
   async function cargarCertificadosMedicion(force=false){
-    if(certsLoaded&&!force)return CERTIFICADOS_MEDICION;
+    if(certsLoaded&&!force){syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
     certsLoaded=true;
     certsDbError='';
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarCertificadosMedicion==='function'){
       const {data,error}=await window.DGIE_DB.listarCertificadosMedicion();
-      if(!error){CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));return CERTIFICADOS_MEDICION;}
+      if(!error){CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
       certsDbError=error.message||String(error);
     }
     CERTIFICADOS_MEDICION=readLocalCerts();
+    syncCertificadosGlobal();
     return CERTIFICADOS_MEDICION;
   }
+  window.cargarCertificadosMedicion=cargarCertificadosMedicion;
   async function subirCertFile(file){
     if(!file)return null;
     if(typeof leerArchivoDGIE==='function')return leerArchivoDGIE(file,'certificados');
@@ -6725,6 +6735,240 @@ function renderChartInsp(){
     c.respuestas.push({texto:txt,autor:currentUser?.name||'Inspector',fecha:new Date().toISOString()});
     try{await guardarRelRemoto(found.rel);saveAppState&&saveAppState();refrescarRel(found.estId);}
     catch(error){c.respuestas.pop();alert('No se pudo guardar la respuesta del relevamiento: '+(error.message||error));}
+  };
+})();
+</script>
+<script id="dgie-os-edicion-borrado-filtros-cert-2026-05-13">
+(function(){
+  function osNumValor(numero){
+    const m=String(numero||'').match(/\d+/g);
+    return m?Number(m[m.length-1])||0:0;
+  }
+  function fechaISOOS(value){
+    const s=String(value||'').trim();
+    if(!s)return '';
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+    const p=s.split('/');
+    if(p.length>=3){
+      const y=String(p[2]).length===2?'20'+p[2]:p[2];
+      return `${y}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
+    }
+    const d=new Date(s);
+    return Number.isNaN(d.getTime())?'':d.toISOString().slice(0,10);
+  }
+  function enRangoFechaOS(fecha,desde,hasta){
+    const f=fechaISOOS(fecha);
+    return !f||((!desde||f>=desde)&&(!hasta||f<=hasta));
+  }
+  function filtrosFechaOS(prefix,onchange){
+    return `<input class="filter-sel" id="${prefix}-desde" type="date" onchange="${onchange}" title="Desde">
+      <input class="filter-sel" id="${prefix}-hasta" type="date" onchange="${onchange}" title="Hasta">`;
+  }
+  function certsDisponibles(){
+    return Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+  }
+  function certsDeOS(o){
+    const n=osNumValor(o?.numero);
+    if(!n)return [];
+    return certsDisponibles().filter(c=>{
+      if(typeof certVisible==='function'&&!certVisible(c))return false;
+      const estado=String(c?.estado||'').toLowerCase();
+      const med=c?.medicion_numero;
+      if(!med||estado==='eliminado')return false;
+      return typeof certOrdenes==='function'&&certOrdenes(c).some(x=>Number(x)===n);
+    });
+  }
+  function medicionesDeOS(o){
+    return [...new Set(certsDeOS(o).map(c=>String(c.medicion_numero)).filter(Boolean))];
+  }
+  function medicionOptionsOS(){
+    const nums=[...new Set(certsDisponibles().map(c=>c?.medicion_numero).filter(Boolean).map(String))]
+      .sort((a,b)=>Number(a)-Number(b));
+    return nums.map(n=>`<option value="${escapeHtml(n)}">Medición Nº ${escapeHtml(n)}</option>`).join('');
+  }
+  function filtroCertificadoPasa(o,certFiltro,medicionFiltro){
+    const meds=medicionesDeOS(o);
+    if(certFiltro==='certificado'&&!meds.length)return false;
+    if(certFiltro==='sin'&&meds.length)return false;
+    if(medicionFiltro&&!meds.includes(String(medicionFiltro)))return false;
+    return true;
+  }
+  function certBadgeOS(o){
+    const meds=medicionesDeOS(o);
+    return meds.length?`<span class="badge b-ok" style="font-size:11px;font-weight:800">${meds.map(n=>'M'+n).join(', ')}</span>`:'—';
+  }
+  function volverListadoOS(){
+    const main=document.getElementById('main-content');
+    if(!main)return;
+    if(currentUser?.role==='empresa'){renderOSEmpresa(main,currentUser.zona);return;}
+    if(currentUser?.role==='inspector'){renderOSZona(main);return;}
+    renderOSGeneral(main);
+  }
+  window.volverListadoOS=volverListadoOS;
+
+  const _renderOSForm=window.renderOSForm;
+  window.renderOSForm=function(os=null){
+    _renderOSForm(os);
+    const n=document.getElementById('nos-numero');
+    if(n){
+      n.removeAttribute('readonly');
+      n.placeholder='Ej: Z15-OS-074';
+    }
+    document.querySelectorAll('button[onclick*="renderOSGeneral"]').forEach(btn=>{
+      btn.setAttribute('onclick','volverListadoOS()');
+    });
+  };
+
+  const _obtenerDatosOSForm=window.obtenerDatosOSForm;
+  window.obtenerDatosOSForm=function(editId=null){
+    const data=_obtenerDatosOSForm(editId);
+    if(data&&document.getElementById('nos-numero'))data.numero=normalizarNumeroOS(document.getElementById('nos-numero').value);
+    return data;
+  };
+
+  window.guardarEdicionOS=async function(id){
+    const os=OS_ZONA.find(o=>String(o.id)===String(id)),data=obtenerDatosOSForm(id);
+    if(!os||!data)return;
+    const numeroAnterior=os.numero;
+    Object.assign(os,{
+      numero:data.numero,
+      estId:data.estId,
+      zona:data.zona||Number(data.est?.zona)||Number(os.zona||zonaEstablecimiento(data.estId)||1),
+      est:data.est.n,
+      establecimiento:data.est.n,
+      titulo:data.rubro,
+      rubro:data.rubro,
+      tarea:data.tarea,
+      fecha:data.fecha,
+      fechaFinalizacion:data.estado==='finalizado'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,
+      estado:data.estado,
+      prio:data.prio,
+      monto:data.monto,
+      presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),
+      presupuestoItems:data.presupuestoItems
+    });
+    if(numeroAnterior&&numeroAnterior!==os.numero){
+      RECLAMOS_ZONA.forEach(r=>{if(String(r.os||'')===String(numeroAnterior))r.os=os.numero;});
+    }
+    saveAppState&&saveAppState();
+    await actualizarOrdenSupabase(os);
+    volverListadoOS();
+  };
+
+  window.eliminarOS=async function(id){
+    const idx=OS_ZONA.findIndex(o=>String(o.id)===String(id));
+    if(idx<0)return;
+    const o=OS_ZONA[idx];
+    if(!confirm(`¿Eliminar la orden de servicio ${o.numero || ''}?`))return;
+    if(o.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarOrden==='function'){
+      const {error}=await window.DGIE_DB.eliminarOrden(o.remoteId);
+      if(error){alert('No se pudo eliminar en Supabase: '+(error.message||error));return;}
+    }
+    OS_ZONA.splice(idx,1);
+    RECLAMOS_ZONA.forEach(r=>{if(String(r.os||'')===String(o.numero||''))r.os='Sin OS';});
+    saveAppState&&saveAppState();
+    volverListadoOS();
+  };
+
+  window.renderOSModule=function(title,isZona){
+    const baseCount=isZona?osPorZona(currentUser.zona).length:OS_ZONA.length;
+    return `<div class="card"><div class="card-header"><div><div class="card-title">${title}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado con filtros por establecimiento, rubro, estado, fecha y certificación.</div></div><span class="badge b-info">${baseCount} órdenes</span></div>${canCreateOS()?'<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button></div>':''}<div class="os-filters"><input class="estab-search" id="os-search" placeholder="Buscar por OS, establecimiento o tarea..." oninput="filterOS()"><select class="filter-sel" id="os-rubro" onchange="filterOS()"><option value="">Todos los rubros</option>${[...new Set(OS_ZONA.map(o=>o.rubro).filter(Boolean))].map(r=>`<option>${escapeHtml(r)}</option>`).join('')}</select><select class="filter-sel" id="os-estado" onchange="filterOS()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="os-prio" onchange="filterOS()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="os-cert" onchange="filterOS()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="os-medicion" onchange="filterOS()"><option value="">Todas las mediciones</option>${medicionOptionsOS()}</select>${filtrosFechaOS('os','filterOS()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden de servicio</th><th>Nº reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha de envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>Certificado</th><th>Acciones</th><th>PDF</th></tr></thead><tbody id="os-table-body"></tbody></table></div></div>`;
+  };
+
+  window.renderOSTable=function(data){
+    const el=document.getElementById('os-table-body');
+    if(!el)return;
+    data=(data||[]).slice().sort((a,b)=>osNumValor(b.numero)-osNumValor(a.numero));
+    if(!data.length){el.innerHTML=`<tr><td colspan="13" class="os-empty">No se encontraron órdenes de servicio</td></tr>`;return;}
+    el.innerHTML=data.map(o=>`<tr>
+      <td><div class="os-num">${escapeHtml(o.numero||'')}</div></td>
+      <td>${escapeHtml(o.reclamoNumero||'—')}</td>
+      <td>${escapeHtml(o.establecimiento||'')}</td>
+      <td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td>
+      <td>${escapeHtml(o.rubro||'')}</td>
+      <td>${escapeHtml(o.fecha||'')}</td>
+      <td>${escapeHtml(o.fechaFinalizacion||'—')}</td>
+      <td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td>
+      <td>${renderPrioridadOSControl(o)}</td>
+      <td>${renderEstadoOSControl(o)}</td>
+      <td>${certBadgeOS(o)}</td>
+      <td>${canManageOS()?`<div style="display:flex;gap:6px;align-items:center"><button class="edit-btn" onclick="editarOS(${o.id})">Editar</button><button class="secondary-btn" style="color:var(--danger);padding:7px 10px" onclick="eliminarOS(${o.id})">Eliminar</button></div>`:''}</td>
+      <td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">Descargar PDF</button></td>
+    </tr>`).join('');
+  };
+
+  window.renderOSZona=function(container){
+    container.innerHTML=renderOSModule(`Órdenes de servicio · Zona ${currentUser.zona}`,true);
+    filterOS();
+    if(!window.certsLoaded&&typeof cargarCertificadosMedicion==='function'){
+      cargarCertificadosMedicion().then(()=>{if(document.getElementById('os-table-body')){container.innerHTML=renderOSModule(`Órdenes de servicio · Zona ${currentUser.zona}`,true);filterOS();}}).catch(()=>{});
+    }
+  };
+  window.filterOS=function(){
+    const q=(document.getElementById('os-search')?.value||'').toLowerCase();
+    const rubro=document.getElementById('os-rubro')?.value||'';
+    const estado=document.getElementById('os-estado')?.value||'';
+    const prio=document.getElementById('os-prio')?.value||'';
+    const cert=document.getElementById('os-cert')?.value||'';
+    const medicion=document.getElementById('os-medicion')?.value||'';
+    const desde=document.getElementById('os-desde')?.value||'';
+    const hasta=document.getElementById('os-hasta')?.value||'';
+    const baseOS=currentUser?.role==='inspector'?osPorZona(currentUser.zona):OS_ZONA;
+    renderOSTable(baseOS.filter(o=>(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''}`.toLowerCase().includes(q))&&(!rubro||o.rubro===rubro)&&(!estado||getEstadoOS(o)===estado)&&(!prio||o.prio===prio)&&filtroCertificadoPasa(o,cert,medicion)&&enRangoFechaOS(o.fecha,desde,hasta)));
+  };
+
+  window.renderOSGeneral=function(c){
+    c.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Todas las órdenes de servicio de todas las zonas, con filtros.</div></div><span class="badge b-info">${OS_ZONA.length} órdenes</span></div><div class="os-filters"><select class="filter-sel" id="coord-os-zona" onchange="filterOSCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-os-estado" onchange="filterOSCoord()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="coord-os-cert" onchange="filterOSCoord()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="coord-os-medicion" onchange="filterOSCoord()"><option value="">Todas las mediciones</option>${medicionOptionsOS()}</select><input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, establecimiento, reclamo, rubro o tarea..." oninput="filterOSCoord()">${filtrosFechaOS('coord-os','filterOSCoord()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Zona</th><th>N° reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>Certificado</th><th>Acciones</th><th>PDF</th></tr></thead><tbody id="coord-os-body"></tbody></table></div></div>`;
+    filterOSCoord();
+    if(!window.certsLoaded&&typeof cargarCertificadosMedicion==='function'){
+      cargarCertificadosMedicion().then(()=>{if(document.getElementById('coord-os-body'))renderOSGeneral(c);}).catch(()=>{});
+    }
+  };
+  window.filterOSCoord=function(){
+    const z=document.getElementById('coord-os-zona')?.value||'';
+    const st=document.getElementById('coord-os-estado')?.value||'';
+    const cert=document.getElementById('coord-os-cert')?.value||'';
+    const medicion=document.getElementById('coord-os-medicion')?.value||'';
+    const q=(document.getElementById('coord-os-q')?.value||'').toLowerCase();
+    const desde=document.getElementById('coord-os-desde')?.value||'';
+    const hasta=document.getElementById('coord-os-hasta')?.value||'';
+    const data=OS_ZONA.filter(o=>(!z||String(Number(o.zona||zonaEstablecimiento(o.estId)))===z)&&(!st||getEstadoOS(o)===st)&&filtroCertificadoPasa(o,cert,medicion)&&(`${o.numero||''} ${o.reclamoNumero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))&&enRangoFechaOS(o.fecha,desde,hasta)).sort((a,b)=>osNumValor(b.numero)-osNumValor(a.numero));
+    const el=document.getElementById('coord-os-body');
+    if(!el)return;
+    if(!data.length){el.innerHTML=`<tr><td colspan="14" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;return;}
+    el.innerHTML=data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${Number(o.zona||zonaEstablecimiento(o.estId))||'—'}</td><td>${escapeHtml(o.reclamoNumero||'—')}</td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${typeof prioBadgeFecha==='function'?prioBadgeFecha(o.prio):renderPrioridadOSControl(o)}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td>${certBadgeOS(o)}</td><td><div style="display:flex;gap:6px"><button class="edit-btn" onclick="editarOS(${o.id})">Editar</button><button class="secondary-btn" style="color:var(--danger);padding:7px 10px" onclick="eliminarOS(${o.id})">Eliminar</button></div></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td></tr>`).join('');
+  };
+
+  const _renderOSEmpresaBase=window.renderOSEmpresa;
+  window.renderOSEmpresa=function(c,z){
+    _renderOSEmpresaBase(c,z);
+    const filters=document.querySelector('#empresa-os-q')?.closest('.os-filters');
+    if(filters&&!document.getElementById('empresa-os-cert')){
+      filters.insertAdjacentHTML('beforeend',`<select class="filter-sel" id="empresa-os-cert" onchange="filterOSEmpresa()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="empresa-os-medicion" onchange="filterOSEmpresa()"><option value="">Todas las mediciones</option>${medicionOptionsOS()}</select>`);
+    }
+    if(!window.certsLoaded&&typeof cargarCertificadosMedicion==='function'){
+      cargarCertificadosMedicion().then(()=>{if(document.getElementById('empresa-os-body'))renderOSEmpresa(c,z);}).catch(()=>{});
+    }
+  };
+  const _filterOSEmpresaBase=window.filterOSEmpresa;
+  window.filterOSEmpresa=function(){
+    _filterOSEmpresaBase();
+    const cert=document.getElementById('empresa-os-cert')?.value||'';
+    const medicion=document.getElementById('empresa-os-medicion')?.value||'';
+    if(!cert&&!medicion)return;
+    const z=Number(currentUser?.zona||0);
+    const q=(document.getElementById('empresa-os-q')?.value||'').toLowerCase();
+    const st=document.getElementById('empresa-os-estado')?.value||'';
+    const desde=document.getElementById('empresa-os-desde')?.value||'';
+    const hasta=document.getElementById('empresa-os-hasta')?.value||'';
+    const dir=document.getElementById('empresa-os-orden')?.value||'desc';
+    const data=osPorZona(z).filter(o=>(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))&&filtroCertificadoPasa(o,cert,medicion)&&enRangoFechaOS(o.fecha,desde,hasta)).sort((a,b)=>dir==='asc'?osNumValor(a.numero)-osNumValor(b.numero):osNumValor(b.numero)-osNumValor(a.numero));
+    const el=document.getElementById('empresa-os-body');
+    if(!el)return;
+    const badge=document.getElementById('empresa-os-count');
+    if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
+    if(!data.length){el.innerHTML=`<tr><td colspan="11" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;return;}
+    el.innerHTML=data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${typeof prioBadgeFecha==='function'?prioBadgeFecha(o.prio):''}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800"><input type="checkbox" ${o.empresaFinalizo?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td></tr>`).join('');
   };
 })();
 </script>

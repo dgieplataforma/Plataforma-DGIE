@@ -100,6 +100,9 @@
     async actualizarOrden(id, row){
       return client.from('ordenes_servicio').update(row).eq('id', id).select('*').single();
     },
+    async eliminarOrden(id){
+      return client.from('ordenes_servicio').delete().eq('id', id);
+    },
     async listarIntervenciones(){
       return client.from('intervenciones').select('*').order('created_at', { ascending:false });
     },
