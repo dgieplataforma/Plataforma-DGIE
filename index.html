@@ -5978,7 +5978,16 @@ function renderChartInsp(){
   }
   function estById(id){return ESTABS.find(e=>Number(e.id)===Number(id))}
   function certVisible(c){return c&&c.estado!=='eliminado'}
-  function certsZona(z){return CERTIFICADOS_MEDICION.filter(c=>certVisible(c)&&Number(c.zona)===Number(z))}
+  function zonaCertificado(c){
+    const directa=Number(c?.zona);
+    if(Number.isFinite(directa)&&directa>0)return directa;
+    const txt=String(c?.zona||'');
+    const m=txt.match(/\d+/);
+    if(m)return Number(m[0]);
+    const estId=Number(c?.establecimiento_id||c?.estId||0);
+    return estId?Number(zonaEstablecimiento(estId)||0):0;
+  }
+  function certsZona(z){return CERTIFICADOS_MEDICION.filter(c=>certVisible(c)&&zonaCertificado(c)===Number(z))}
   function certsMedidos(data=CERTIFICADOS_MEDICION){return data.filter(c=>certVisible(c)&&c.estado==='medido'&&c.medicion_numero)}
   function modActual(c){return n(c.modulos_inspector||c.modulos_original)}
   function readLocalCerts(){try{return JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')||[]}catch(e){return []}}
@@ -7383,10 +7392,12 @@ function renderChartInsp(){
     const s=String(v||'').trim();
     if(!s)return s;
     if(/^2020-\d{2}-\d{2}/.test(s))return '2026'+s.slice(4);
+    if(/^20-\d{2}-\d{2}/.test(s))return '26'+s.slice(2);
     const p=s.split('/');
     if(p.length>=3&&(p[2]==='20'||p[2]==='2020'))return `${p[0]}/${p[1]}/${p[2]==='20'?'26':'2026'}`;
     return s;
   }
+  window.corregirFechaOS2026=corregirFecha2026;
   async function normalizarFechasOrdenes2026(){
     let changed=false;
     for(const o of OS_ZONA){
@@ -7414,6 +7425,24 @@ function renderChartInsp(){
     renderOSFormPrevFecha(os);
     if(!os&&document.getElementById('nos-fecha'))document.getElementById('nos-fecha').value=localISODate();
   };
+
+  function normalizarFechasOSAntesDeRender(){
+    if(!Array.isArray(OS_ZONA))return;
+    let changed=false;
+    OS_ZONA.forEach(o=>{
+      const f=corregirFecha2026(o.fecha);
+      const ff=corregirFecha2026(o.fechaFinalizacion);
+      if(f!==o.fecha){o.fecha=f;changed=true;}
+      if(ff!==o.fechaFinalizacion){o.fechaFinalizacion=ff;changed=true;}
+    });
+    if(changed)saveAppState&&saveAppState();
+  }
+  const renderOSZonaFechaPrev=window.renderOSZona;
+  window.renderOSZona=function(container){normalizarFechasOSAntesDeRender();return renderOSZonaFechaPrev(container)};
+  const renderOSGeneralFechaPrev=window.renderOSGeneral;
+  window.renderOSGeneral=function(container){normalizarFechasOSAntesDeRender();return renderOSGeneralFechaPrev(container)};
+  const renderOSEmpresaFechaPrev=window.renderOSEmpresa;
+  window.renderOSEmpresa=function(container,zona){normalizarFechasOSAntesDeRender();return renderOSEmpresaFechaPrev(container,zona)};
 
   function reemplazarTextosModulos(root=document){
     root.querySelectorAll('label').forEach(l=>{
@@ -7561,12 +7590,22 @@ function renderChartInsp(){
   }
   function refrescarIntervFinal(){
     if(document.getElementById('intervenciones-dir-list')){
-      if(currentUser?.role==='inspector')renderIntervencionesInspector(document.getElementById('main-content'));
-      else filterIntervencionesDireccion();
+      if(typeof filterIntervencionesDireccion==='function')filterIntervencionesDireccion();
+      else renderIntervencionesInspector(document.getElementById('main-content'));
     }
     else if(document.getElementById('ficha-body'))switchFichaTab(2);
     else if(document.getElementById('map-ficha-body'))renderMapFichaBody(currentFichaId,2);
   }
+  window.renderFotosIntervencion=function(it){
+    const files=Array.isArray(it?.fotosArchivos)?it.fotosArchivos:[];
+    const imgs=files.map((f,i)=>{
+      const src=f?.url||f?.secure_url||f?.dataUrl||f?.src||'';
+      if(!src)return '';
+      return `<img src="${src}" title="${escapeHtml(f.nombre||f.name||'Foto '+(i+1))}" class="reclamo-foto-thumb" onclick="event.stopPropagation();window.open(this.src,'_blank')">`;
+    }).filter(Boolean).join('');
+    if(imgs)return imgs;
+    return Array.from({length:Number(it?.fotos)||0},(_,i)=>`<div class="intervencion-photo">Foto ${i+1}</div>`).join('');
+  };
   window.renderIntervencionCard=function(it){
     const est=ESTABS.find(e=>Number(e.id)===Number(it.estId));
     const canEdit=currentUser?.role==='inspector'&&Number(currentUser.zona)===Number(it.zona);
@@ -7583,9 +7622,10 @@ function renderChartInsp(){
     </div>`;
   };
   window.renderIntervencionesInspector=function(c){
-    const z=Number(currentUser?.zona||0);
-    const data=INTERVENCIONES.filter(it=>Number(it.zona||zonaEstablecimiento(it.estId))===z).sort((a,b)=>(b.id||0)-(a.id||0));
-    c.innerHTML=`<div class="section-label">Zona ${z} · Intervenciones</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones de la zona</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Avances cargados para tu zona.</div></div><span class="badge b-info">${data.length} intervenciones</span></div><div id="intervenciones-dir-list">${data.length?data.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">No hay intervenciones en tu zona</div>'}</div></div>`;
+    const data=[...INTERVENCIONES].sort((a,b)=>(b.id||0)-(a.id||0));
+    c.innerHTML=`<div class="section-label">Intervenciones · Todas las zonas</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones actualizadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado de avances cargados por los inspectores. Las fotos se muestran cuando están cargadas.</div></div><span class="badge b-info" id="int-dir-count-badge">${data.length} intervenciones</span></div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list"></div></div>`;
+    if(typeof renderIntervencionesDireccionList==='function')renderIntervencionesDireccionList(data);
+    else document.getElementById('intervenciones-dir-list').innerHTML=data.map(renderIntervencionCard).join('');
   };
   window.borrarComentarioIntervencion=async function(id,idx){
     const it=INTERVENCIONES.find(x=>String(x.id)===String(id));
