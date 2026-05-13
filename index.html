@@ -6025,11 +6025,16 @@ function renderChartInsp(){
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
   window.certVisible=certVisible;
   window.certOrdenes=certOrdenes;
+  window.certRubrosCodigos=certRubrosCodigos;
   function certArchivoRenombrado(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[ARCHIVO_RENOMBRE:([^\]]*)\]/);return m?.[1]||c?.archivo_inspector||''}
+  window.certArchivoRenombrado=certArchivoRenombrado;
   function certKey(c){return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_')}
   function conversacionDesdeObs(txt){const m=String(txt||'').match(/\[CONV_CERT:([^\]]*)\]/);if(!m)return[];try{return JSON.parse(decodeURIComponent(m[1]))||[]}catch(e){return[]}}
   function conversacionCert(c){const a=Array.isArray(c?.conversacion)?c.conversacion:[];const b=conversacionDesdeObs(c?.observaciones_inspector);return a.length?a:b}
   function obsConConversacion(txt,msgs){const base=String(txt||'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim();const meta=`[CONV_CERT:${encodeURIComponent(JSON.stringify(msgs||[]))}]`;return [base,meta].filter(Boolean).join('\n')}
+  window.limpiarObsCert=limpiarObsCert;
+  window.conversacionCert=conversacionCert;
+  window.obsConConversacion=obsConConversacion;
   function extraerTextoWorkbook(wb){
     const out=[];
     wb.SheetNames.forEach(name=>{
@@ -6174,6 +6179,7 @@ function renderChartInsp(){
     if(typeof leerArchivoDGIE==='function')return leerArchivoDGIE(file,'certificados');
     return {nombre:file.name,name:file.name,url:'',provider:'local'};
   }
+  window.subirCertFile=subirCertFile;
   async function insertarCertificado(row){
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearCertificadoMedicion==='function'){
       const {data,error}=await window.DGIE_DB.crearCertificadoMedicion(row);
@@ -6197,6 +6203,7 @@ function renderChartInsp(){
       writeLocalCerts();
     }
   }
+  window.actualizarCertificado=actualizarCertificado;
   async function borrarCertificado(id){
     const idx=CERTIFICADOS_MEDICION.findIndex(x=>String(x.id)===String(id)||String(x.localId)===String(id));
     if(idx<0)return;
@@ -7362,6 +7369,288 @@ function renderChartInsp(){
       <td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td>
       <td class="empresa-check-cell"><label class="empresa-os-check"><input type="checkbox" ${empresaFinalizoOS(o)?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td>
     </tr>`).join('');
+  };
+})();
+</script>
+<script id="dgie-ajustes-cert-fechas-comentarios-2026-05-13">
+(function(){
+  function localISODate(){
+    const d=new Date();
+    const off=d.getTimezoneOffset();
+    return new Date(d.getTime()-off*60000).toISOString().slice(0,10);
+  }
+  function corregirFecha2026(v){
+    const s=String(v||'').trim();
+    if(!s)return s;
+    if(/^2020-\d{2}-\d{2}/.test(s))return '2026'+s.slice(4);
+    const p=s.split('/');
+    if(p.length>=3&&(p[2]==='20'||p[2]==='2020'))return `${p[0]}/${p[1]}/${p[2]==='20'?'26':'2026'}`;
+    return s;
+  }
+  async function normalizarFechasOrdenes2026(){
+    let changed=false;
+    for(const o of OS_ZONA){
+      const f=corregirFecha2026(o.fecha);
+      const ff=corregirFecha2026(o.fechaFinalizacion);
+      if(f!==o.fecha||ff!==o.fechaFinalizacion){
+        o.fecha=f;
+        o.fechaFinalizacion=ff;
+        changed=true;
+        try{await actualizarOrdenSupabase(o)}catch(_){}
+      }
+    }
+    if(changed)saveAppState&&saveAppState();
+  }
+  setTimeout(normalizarFechasOrdenes2026,1200);
+  let intentosFechasOS=0;
+  const timerFechasOS=setInterval(()=>{
+    normalizarFechasOrdenes2026();
+    intentosFechasOS+=1;
+    if(intentosFechasOS>=5)clearInterval(timerFechasOS);
+  },2500);
+
+  const renderOSFormPrevFecha=window.renderOSForm;
+  window.renderOSForm=function(os=null){
+    renderOSFormPrevFecha(os);
+    if(!os&&document.getElementById('nos-fecha'))document.getElementById('nos-fecha').value=localISODate();
+  };
+
+  function reemplazarTextosModulos(root=document){
+    root.querySelectorAll('label').forEach(l=>{
+      const t=l.textContent.trim().toLowerCase();
+      if(t.includes('módulos leídos')||t.includes('módulos inspección leídos'))l.textContent='Módulos';
+    });
+  }
+  new MutationObserver(()=>reemplazarTextosModulos()).observe(document.documentElement,{childList:true,subtree:true});
+  reemplazarTextosModulos();
+
+  async function leerModuloG720(file){
+    if(!file||!window.XLSX||!/\.(xls|xlsx)$/i.test(file.name))return '';
+    const buffer=await file.arrayBuffer();
+    const wb=XLSX.read(buffer,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    return ws?.G720?.v ?? '';
+  }
+  window.autocompletarRevisionCertificado=async function(fileId,inputId){
+    const file=document.getElementById(fileId)?.files?.[0];
+    const input=document.getElementById(inputId);
+    const info=document.getElementById('insp-cert-info-archivo');
+    if(!file)return;
+    try{
+      const v=await leerModuloG720(file);
+      if(input&&v!==''&&v!=null)input.value=String(v).replace(',','.');
+      if(info)info.textContent='Archivo cargado. Ingresá manualmente la/s O.S. abajo.';
+    }catch(e){
+      if(info)info.textContent='No se pudieron leer los módulos del archivo.';
+    }
+  };
+
+  function parseOrdenesManual(v){
+    const raw=String(v||'').trim();
+    if(!raw)return [];
+    const partes=/[,;\n]/.test(raw)?raw.split(/[,;\n]+/):raw.split(/\s+/);
+    const out=[];
+    partes.map(x=>x.trim()).filter(Boolean).forEach(x=>{
+      const nums=String(x).match(/\d+/g);
+      if(!nums)return;
+      out.push(String(Number(nums[nums.length-1])));
+    });
+    return [...new Set(out.filter(x=>x&&x!=='NaN'))];
+  }
+  function safeCertId(id){return String(id).replace(/'/g,"\\'")}
+  function certById(id){
+    return (window.CERTIFICADOS_MEDICION||[]).find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
+  }
+  function certSanNombre(s){
+    return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90);
+  }
+  function nombreInspectorManual(file,c,ordenes){
+    const ext=(file?.name?.match(/\.[^.]+$/)?.[0]||'.xlsx').toLowerCase();
+    const zona=`Z${Number(c?.zona||currentUser?.zona||0)||''}`;
+    const os=(ordenes?.length?ordenes:['SINOS']).join('-');
+    return `${zona}-${os}-${certSanNombre(c?.establecimiento_nombre||'ESTABLECIMIENTO')}${ext}`;
+  }
+  const revisarCertPrev=window.revisarCertificadoInspector;
+  window.revisarCertificadoInspector=function(id){
+    revisarCertPrev(id);
+    const c=certById(id);
+    if(!c)return;
+    reemplazarTextosModulos();
+    const info=document.getElementById('insp-cert-info-archivo');
+    if(info)info.textContent='Subí el archivo corregido. La/s O.S. se cargan manualmente.';
+    if(!document.getElementById('insp-cert-os-manual')){
+      const mod=document.getElementById('insp-cert-modulos')?.closest('.form-field');
+      const div=document.createElement('div');
+      div.className='form-field';
+      div.innerHTML=`<label class="form-label">Nº de orden de servicio</label><input class="form-input" id="insp-cert-os-manual" placeholder="Ej: 19 o 19, 20" value="${escapeHtml((window.certOrdenes?.(c)||[]).join(', '))}">`;
+      mod?.parentNode?.insertBefore(div,mod);
+    }
+  };
+  window.guardarRevisionCertificado=async function(id,medir){
+    const c=certById(id);
+    if(!c)return;
+    const file=document.getElementById('insp-cert-file')?.files?.[0];
+    const modInspector=Number(String(document.getElementById('insp-cert-modulos')?.value||'').replace(',','.'))||0;
+    const ordenes=parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||'');
+    const rubros=window.certRubrosCodigos?.(c)||[];
+    const obsLimpia=(document.getElementById('insp-cert-obs')?.value||'').trim();
+    if(medir&&!document.getElementById('insp-cert-medicion')?.value){alert('Para pasar a medición cargá el número de medición.');return;}
+    if(medir&&!modInspector){alert('Para pasar a medición subí el Excel corregido para leer la celda G720.');return;}
+    if(medir&&!ordenes.length){alert('Para pasar a medición cargá el/los números de orden de servicio.');return;}
+    const nombreRenombrado=file?nombreInspectorManual(file,c,ordenes):(window.certArchivoRenombrado?.(c)||c.archivo_inspector||'');
+    let obsConMeta=[obsLimpia,`[OS_CERT:${ordenes.join(',')}]`,rubros.length?`[RUBROS_CERT:${rubros.join('-')}]`:'',nombreRenombrado?`[ARCHIVO_RENOMBRE:${nombreRenombrado}]`:'' ].filter(Boolean).join('\n');
+    const conv=window.conversacionCert?.(c)||[];
+    if(conv.length)obsConMeta=window.obsConConversacion(obsConMeta,conv);
+    const patch={
+      modulos_inspector:modInspector,
+      monto_empresa:Number(String(c.modulos_original||0).replace(',','.'))||0,
+      monto_inspeccion:modInspector,
+      observaciones_inspector:obsConMeta,
+      medicion_numero:document.getElementById('insp-cert-medicion')?.value?Number(document.getElementById('insp-cert-medicion').value):null,
+      periodo:(document.getElementById('insp-cert-periodo')?.value||'').trim(),
+      estado:medir?'medido':'revision',
+      actualizado_por:currentUser?.name||'Inspector'
+    };
+    if(file){
+      const archivoRenombrado=new File([file],nombreRenombrado,{type:file.type,lastModified:file.lastModified});
+      const subida=await window.subirCertFile(archivoRenombrado);
+      patch.archivo_inspector=nombreRenombrado;
+      patch.url_inspector=subida?.url||'';
+      patch.public_id_inspector=subida?.publicId||null;
+    }
+    try{await window.actualizarCertificado(id,patch);renderMedicionesInspector(document.getElementById('main-content'),currentUser.zona);}
+    catch(error){alert('No se pudo guardar la revisión: '+(error.message||error));}
+  };
+
+  const abrirMedPrev=window.abrirMedicionInspector;
+  window.abrirMedicionInspector=function(numero){
+    abrirMedPrev(numero);
+    if(currentUser?.role==='empresa'){
+      document.querySelectorAll('#med-detalle .med-actions button').forEach(btn=>{
+        const t=btn.textContent.toLowerCase();
+        if(t.includes('finalizada')||t.includes('revertir')||t.includes('marcar certificación'))btn.remove();
+      });
+    }
+  };
+
+  function comentarioPuedeBorrar(c){return String(c?.autor||'')===String(currentUser?.name||'');}
+  function fechaC(v){try{return new Date(v||Date.now()).toLocaleString('es-AR')}catch(_){return ''}}
+  function comentariosHTMLFinal(comentarios,tipo,id,zona){
+    comentarios=Array.isArray(comentarios)?comentarios:[];
+    const esCoord=['coordinador','director','direccion'].includes(currentUser?.role);
+    const esZona=currentUser?.role==='inspector'&&Number(currentUser.zona)===Number(zona);
+    if(!comentarios.length&&!esCoord)return '';
+    const enviar=tipo==='int'?'guardarComentarioIntervencion':'guardarComentarioRelevamiento';
+    const responder=tipo==='int'?'responderComentarioIntervencion':'responderComentarioRelevamiento';
+    const borrar=tipo==='int'?'borrarComentarioIntervencion':'borrarComentarioRelevamiento';
+    const borrarResp=tipo==='int'?'borrarRespuestaIntervencion':'borrarRespuestaRelevamiento';
+    return `<div style="margin-top:10px;padding:10px;border-radius:10px;background:#f8fafc;border:1px solid #dbe7f5;font-size:12px;color:#334155" onclick="event.stopPropagation()">
+      ${comentarios.map((c,idx)=>`<div style="padding:${idx?'10px 0 0':'0'};border-top:${idx?'1px solid #e5edf6':'0'}">
+        <div><strong>${escapeHtml(c.autor||'')}</strong>: ${escapeHtml(c.texto||'')} <span style="color:var(--muted)">(${fechaC(c.fecha)})</span> ${comentarioPuedeBorrar(c)?`<button class="secondary-btn" style="padding:3px 7px;margin-left:6px;color:var(--danger)" onclick="${borrar}('${id}',${idx})">Borrar</button>`:''}</div>
+        ${(c.respuestas||[]).map((r,ridx)=>`<div style="margin:7px 0 0 12px;padding:7px 9px;border-left:3px solid var(--blue);background:#fff;border-radius:8px"><strong>${escapeHtml(r.autor||'')}</strong>: ${escapeHtml(r.texto||'')} <span style="color:var(--muted)">(${fechaC(r.fecha)})</span> ${comentarioPuedeBorrar(r)?`<button class="secondary-btn" style="padding:3px 7px;margin-left:6px;color:var(--danger)" onclick="${borrarResp}('${id}',${idx},${ridx})">Borrar</button>`:''}</div>`).join('')}
+        ${esZona?`<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px"><input class="form-input" id="${tipo}-resp-${id}-${idx}" placeholder="Responder comentario..."><button class="secondary-btn" onclick="${responder}('${id}',${idx})">Responder</button></div>`:''}
+      </div>`).join('')}
+      ${esCoord?`<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:${comentarios.length?'10px':'0'}"><textarea class="form-textarea" id="${tipo}-comment-${id}" placeholder="Comentario para el inspector de la zona..." style="min-height:58px"></textarea><button class="secondary-btn" onclick="${enviar}('${id}')">Enviar comentario</button></div>`:''}
+    </div>`;
+  }
+  async function guardarIntervencionRemotaFinal(it){
+    if(it?.remoteId&&window.DGIE_DB?.actualizarIntervencion){
+      const {error}=await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion||[]});
+      if(error)throw error;
+    }
+  }
+  function refrescarIntervFinal(){
+    if(document.getElementById('intervenciones-dir-list')){
+      if(currentUser?.role==='inspector')renderIntervencionesInspector(document.getElementById('main-content'));
+      else filterIntervencionesDireccion();
+    }
+    else if(document.getElementById('ficha-body'))switchFichaTab(2);
+    else if(document.getElementById('map-ficha-body'))renderMapFichaBody(currentFichaId,2);
+  }
+  window.renderIntervencionCard=function(it){
+    const est=ESTABS.find(e=>Number(e.id)===Number(it.estId));
+    const canEdit=currentUser?.role==='inspector'&&Number(currentUser.zona)===Number(it.zona);
+    return `<div class="intervencion-card" onclick="verDetalleIntervencion(${it.id})">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div><div style="font-weight:900;color:#123c69">${escapeHtml(est?.n||'Establecimiento')}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${escapeHtml(it.fechaHora?new Date(it.fechaHora).toLocaleString('es-AR'):it.fecha||'')} · Zona ${it.zona} · ${escapeHtml(it.inspector||'')}</div></div>
+        <span class="badge b-info">${Number(it.avance||0)}%</span>
+      </div>
+      <div style="font-size:14px;margin-top:10px;color:#334155">${escapeHtml(it.descripcion||'')}</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Number(it.avance||0)}%"></div></div>
+      <div class="intervencion-photo-row">${renderFotosIntervencion(it)}</div>
+      ${comentariosHTMLFinal(it.comentariosCoordinacion,'int',it.id,it.zona)}
+      ${canEdit?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" onclick="event.stopPropagation();editarIntervencion(${it.id})">Editar</button><button class="secondary-btn" style="color:var(--danger)" onclick="event.stopPropagation();eliminarIntervencion(${it.id})">Eliminar</button></div>`:''}
+    </div>`;
+  };
+  window.renderIntervencionesInspector=function(c){
+    const z=Number(currentUser?.zona||0);
+    const data=INTERVENCIONES.filter(it=>Number(it.zona||zonaEstablecimiento(it.estId))===z).sort((a,b)=>(b.id||0)-(a.id||0));
+    c.innerHTML=`<div class="section-label">Zona ${z} · Intervenciones</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones de la zona</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Avances cargados para tu zona.</div></div><span class="badge b-info">${data.length} intervenciones</span></div><div id="intervenciones-dir-list">${data.length?data.map(renderIntervencionCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">No hay intervenciones en tu zona</div>'}</div></div>`;
+  };
+  window.borrarComentarioIntervencion=async function(id,idx){
+    const it=INTERVENCIONES.find(x=>String(x.id)===String(id));
+    if(!it?.comentariosCoordinacion?.[idx]||!comentarioPuedeBorrar(it.comentariosCoordinacion[idx]))return;
+    if(!confirm('¿Borrar este comentario?'))return;
+    it.comentariosCoordinacion.splice(idx,1);
+    try{await guardarIntervencionRemotaFinal(it);saveAppState&&saveAppState();refrescarIntervFinal();}catch(e){alert('No se pudo borrar: '+(e.message||e));}
+  };
+  window.borrarRespuestaIntervencion=async function(id,idx,ridx){
+    const it=INTERVENCIONES.find(x=>String(x.id)===String(id));
+    const r=it?.comentariosCoordinacion?.[idx]?.respuestas?.[ridx];
+    if(!r||!comentarioPuedeBorrar(r))return;
+    if(!confirm('¿Borrar esta respuesta?'))return;
+    it.comentariosCoordinacion[idx].respuestas.splice(ridx,1);
+    try{await guardarIntervencionRemotaFinal(it);saveAppState&&saveAppState();refrescarIntervFinal();}catch(e){alert('No se pudo borrar: '+(e.message||e));}
+  };
+
+  function relKeyFinal(r,estId){if(!r._relId)r._relId=`${estId}-${r.remoteId||r.ts||Date.now()}`;return r._relId}
+  function buscarRelFinal(id){
+    for(const [estId,arr] of Object.entries(RELEVAMIENTOS)){
+      const rel=(arr||[]).find(r=>relKeyFinal(r,estId)===String(id));
+      if(rel)return {rel,estId:Number(estId)};
+    }
+    return null;
+  }
+  async function guardarRelRemotoFinal(rel){
+    if(rel?.remoteId&&window.DGIE_DB?.actualizarRelevamiento){
+      const {error}=await window.DGIE_DB.actualizarRelevamiento(rel.remoteId,{datos:rel});
+      if(error)throw error;
+    }
+  }
+  function refrescarRelFinal(estId){
+    if(document.getElementById('relevamientos-dir-list'))filterRelevamientosDireccion();
+    else if(document.getElementById('ficha-body'))switchFichaTab(4);
+    else if(document.getElementById('map-ficha-body'))renderMapFichaBody(estId||currentFichaId,4);
+  }
+  window.borrarComentarioRelevamiento=async function(id,idx){
+    const found=buscarRelFinal(id);
+    const c=found?.rel?.comentariosCoordinacion?.[idx];
+    if(!found||!c||!comentarioPuedeBorrar(c))return;
+    if(!confirm('¿Borrar este comentario?'))return;
+    found.rel.comentariosCoordinacion.splice(idx,1);
+    try{await guardarRelRemotoFinal(found.rel);saveAppState&&saveAppState();refrescarRelFinal(found.estId);}catch(e){alert('No se pudo borrar: '+(e.message||e));}
+  };
+  window.borrarRespuestaRelevamiento=async function(id,idx,ridx){
+    const found=buscarRelFinal(id);
+    const r=found?.rel?.comentariosCoordinacion?.[idx]?.respuestas?.[ridx];
+    if(!found||!r||!comentarioPuedeBorrar(r))return;
+    if(!confirm('¿Borrar esta respuesta?'))return;
+    found.rel.comentariosCoordinacion[idx].respuestas.splice(ridx,1);
+    try{await guardarRelRemotoFinal(found.rel);saveAppState&&saveAppState();refrescarRelFinal(found.estId);}catch(e){alert('No se pudo borrar: '+(e.message||e));}
+  };
+  const renderRelFichaPrev=window.renderRelevamientoFicha;
+  window.renderRelevamientoFicha=function(estId){
+    const data=(RELEVAMIENTOS[estId]||[]).filter(r=>r.tipo==='relevamiento').slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+    const can=currentUser?.role==='inspector';
+    const fotosRel=r=>(r.fotosArchivos||[]).map((f,i)=>`<img src="${f.url||f.dataUrl||''}" class="reclamo-foto-thumb" title="${escapeHtml(f.nombre||'Foto '+(i+1))}" onclick="event.stopPropagation();window.open(this.src,'_blank')">`).join('');
+    return `<div class="card-header"><div><div class="card-title">Relevamientos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Informes de visita, observaciones y fotos.</div></div>${can?`<button class="primary-btn" onclick="openNuevoRelevamiento(${Number(estId)})">+ Nuevo relevamiento</button>`:''}</div>${data.length?data.map(r=>`<div class="intervencion-card"><div style="display:flex;justify-content:space-between;gap:12px"><div><b style="color:#123c69">${escapeHtml(r.fecha||'—')}</b><div style="font-size:12px;color:var(--muted)">Inspector: ${escapeHtml(r.inspector||'—')} · Zona ${escapeHtml(r.zona||'—')}</div></div><span class="badge b-info">Relevamiento</span></div><div style="margin-top:10px;font-size:14px;color:#334155">${escapeHtml(r.comentarios||r.descripcion||'Sin observaciones')}</div><div class="intervencion-photo-row">${fotosRel(r)}</div>${comentariosHTMLFinal(r.comentariosCoordinacion,'rel',relKeyFinal(r,estId),r.zona)}</div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin relevamientos registrados</div>'}`;
+  };
+  window.renderRelevamientosDireccionList=function(data){
+    const el=document.getElementById('relevamientos-dir-list');
+    if(!el)return;
+    if(!data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron relevamientos</div>';return}
+    const fotosRel=r=>(r.fotosArchivos||[]).map((f,i)=>`<img src="${f.url||f.dataUrl||''}" class="reclamo-foto-thumb" title="${escapeHtml(f.nombre||'Foto '+(i+1))}" onclick="event.stopPropagation();window.open(this.src,'_blank')">`).join('');
+    el.innerHTML=data.map(r=>{const est=ESTABS.find(e=>Number(e.id)===Number(r.estId));return `<div class="intervencion-card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-weight:900;color:#123c69">${escapeHtml(est?.n||'Establecimiento')}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${escapeHtml(r.fecha||'—')} · Zona ${escapeHtml(r.zona||'—')} · ${escapeHtml(r.inspector||'—')}</div></div><span class="badge b-ok">Relevamiento</span></div><div style="font-size:14px;margin-top:10px;color:#334155">${escapeHtml(r.comentarios||r.descripcion||'Sin observaciones')}</div><div class="intervencion-photo-row">${fotosRel(r)}</div>${comentariosHTMLFinal(r.comentariosCoordinacion,'rel',relKeyFinal(r,r.estId),r.zona)}</div>`}).join('');
   };
 })();
 </script>
