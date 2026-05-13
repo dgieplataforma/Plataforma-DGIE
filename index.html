@@ -6000,10 +6000,14 @@ function renderChartInsp(){
   };
   function normalizarCertTxt(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
   function sanitizarNombreCert(s){return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90)}
-  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').trim()}
+  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
   function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (c?.ordenes_servicio_certificado||c?.ordenes_certificado||m?.[1]||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
   function certArchivoRenombrado(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[ARCHIVO_RENOMBRE:([^\]]*)\]/);return m?.[1]||c?.archivo_inspector||''}
+  function certKey(c){return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_')}
+  function conversacionDesdeObs(txt){const m=String(txt||'').match(/\[CONV_CERT:([^\]]*)\]/);if(!m)return[];try{return JSON.parse(decodeURIComponent(m[1]))||[]}catch(e){return[]}}
+  function conversacionCert(c){const a=Array.isArray(c?.conversacion)?c.conversacion:[];const b=conversacionDesdeObs(c?.observaciones_inspector);return a.length?a:b}
+  function obsConConversacion(txt,msgs){const base=String(txt||'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim();const meta=`[CONV_CERT:${encodeURIComponent(JSON.stringify(msgs||[]))}]`;return [base,meta].filter(Boolean).join('\n')}
   function extraerTextoWorkbook(wb){
     const out=[];
     wb.SheetNames.forEach(name=>{
@@ -6260,9 +6264,8 @@ function renderChartInsp(){
   };
   function fmtConvFecha(iso){try{return new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
   function renderHiloConversacion(c,puedeEnviar){
-    const msgs=Array.isArray(c.conversacion)?c.conversacion:[];
-    const hayHilo=c.observaciones_inspector||msgs.length>0;
-    if(!hayHilo&&!puedeEnviar)return '';
+    const key=certKey(c);
+    const msgs=conversacionCert(c);
     const burbuja=(texto,autor,rol,fecha)=>{
       const esInspector=rol==='inspector';
       return `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:${esInspector?'#eef4ff':'#f1f5f9'};border-left:3px solid ${esInspector?'var(--blue)':'#94a3b8'}">
@@ -6270,12 +6273,12 @@ function renderChartInsp(){
         <div style="font-size:13px;color:#334155">${escapeHtml(texto)}</div>
       </div>`;
     };
-    const mensajesHTML=msgs.map(m=>burbuja(m.texto,m.autor,m.rol,fmtConvFecha(m.fecha))).join('');
+    const mensajesHTML=msgs.length?msgs.map(m=>burbuja(m.texto,m.autor,m.rol,fmtConvFecha(m.fecha))).join(''):`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Sin comentarios todavía.</div>`;
     const inputHTML=puedeEnviar?`<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:4px">
-      <textarea id="conv-txt-${c.id||c.localId}" class="form-textarea" style="font-size:13px;min-height:58px" placeholder="Escribí tu respuesta al inspector..."></textarea>
-      <button class="secondary-btn" style="align-self:flex-end" onclick="enviarMensajeCertificado('${c.id||c.localId}')">Enviar</button>
+      <textarea id="conv-txt-${key}" class="form-textarea" style="font-size:13px;min-height:58px" placeholder="Escribí un comentario sobre este certificado..."></textarea>
+      <button class="secondary-btn" style="align-self:flex-end" onclick="enviarMensajeCertificado('${key}')">Enviar</button>
     </div>`:'';
-    return `<div style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">${mensajesHTML}${inputHTML}</div>`;
+    return `<div style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px"><div style="font-size:13px;font-weight:900;color:#123c69;margin-bottom:8px">Comentarios</div>${mensajesHTML}${inputHTML}</div>`;
   }
 
   function renderCertificadosList(data,inspector){
@@ -6287,9 +6290,9 @@ function renderChartInsp(){
         ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}${certOrdenes(c).length?` · O.S. ${escapeHtml(certOrdenes(c).join(', '))}`:''}<br>`:''}
         ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
         ${c.observaciones_empresa?`<span style="color:#64748b">Empresa (inicial): ${escapeHtml(c.observaciones_empresa)}</span><br>`:''}
-        ${c.observaciones_inspector?`<span style="color:var(--blue)">Inspector: ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</span>`:''}
+        ${limpiarObsCert(c.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</span>`:''}
       </div>
-      ${renderHiloConversacion(c,!inspector&&!!c.observaciones_inspector)}
+      ${renderHiloConversacion(c,true)}
       ${(c.created_at||c.updated_at)?`<div style="font-size:10px;color:#b0bccc;margin-top:5px">${[c.created_at?'Cargado '+fmtCertFecha(c.created_at):'',c.updated_at&&c.updated_at!==c.created_at?(c.estado==='medido'?'Medición '+fmtCertFecha(c.updated_at):'Modificado '+fmtCertFecha(c.updated_at)):''].filter(Boolean).join(' · ')}</div>`:''}
       <div class="med-actions" style="margin-top:10px">
         <span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span>
@@ -6298,20 +6301,24 @@ function renderChartInsp(){
     </div>`).join('');
   }
 
-  window.enviarMensajeCertificado=async function(id){
-    const c=CERTIFICADOS_MEDICION.find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
-    const txt=(document.getElementById('conv-txt-'+id)?.value||'').trim();
+  window.enviarMensajeCertificado=async function(key){
+    const c=CERTIFICADOS_MEDICION.find(x=>certKey(x)===String(key)||String(x.id)===String(key)||String(x.localId)===String(key));
+    const txt=(document.getElementById('conv-txt-'+key)?.value||'').trim();
     if(!c||!txt)return;
-    if(!Array.isArray(c.conversacion))c.conversacion=[];
+    if(!Array.isArray(c.conversacion))c.conversacion=conversacionCert(c);
     const msg={texto:txt,autor:currentUser?.name||currentUser?.role,rol:currentUser?.role,fecha:new Date().toISOString()};
     c.conversacion.push(msg);
     try{
-      await actualizarCertificado(id,{conversacion:c.conversacion,actualizado_por:currentUser?.name||currentUser?.role});
+      try{
+        await actualizarCertificado(c.id||c.localId,{conversacion:c.conversacion,actualizado_por:currentUser?.name||currentUser?.role});
+      }catch(primaryError){
+        await actualizarCertificado(c.id||c.localId,{observaciones_inspector:obsConConversacion(c.observaciones_inspector,c.conversacion),actualizado_por:currentUser?.name||currentUser?.role});
+      }
       if(currentUser?.role==='empresa')renderMedicionesEmpresa($('main-content'),currentUser.zona);
       else renderMedicionesInspector($('main-content'),currentUser.zona);
     }catch(e){
       c.conversacion.pop();
-      alert('No se pudo enviar. Si es la primera vez, ejecutá el SQL para agregar la columna conversacion a certificados_medicion. Detalle: '+(e.message||e));
+      alert('No se pudo enviar el comentario: '+(e.message||e));
     }
   };
 
@@ -6432,11 +6439,11 @@ function renderChartInsp(){
     cont.innerHTML=`<div class="section-label">Inspector · Revisar certificado</div><div class="card">
       <button class="back-btn" onclick="renderMedicionesInspector($('main-content'),currentUser.zona)">‹ Volver a certificación</button>
       <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
-      ${c.observaciones_empresa||c.observaciones_inspector||(c.conversacion?.length)?`<div style="margin-bottom:14px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:13px">
+      <div style="margin-bottom:14px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:13px">
         ${c.observaciones_empresa?`<div style="margin-bottom:6px"><span style="font-weight:700;color:#64748b">Empresa (inicial):</span> ${escapeHtml(c.observaciones_empresa)}</div>`:''}
-        ${c.observaciones_inspector?`<div style="margin-bottom:6px"><span style="font-weight:700;color:var(--blue)">Inspector:</span> ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</div>`:''}
+        ${limpiarObsCert(c.observaciones_inspector)?`<div style="margin-bottom:6px"><span style="font-weight:700;color:var(--blue)">Inspector:</span> ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</div>`:''}
         ${renderHiloConversacion(c,true)}
-      </div>`:''}
+      </div>
       <div class="form-grid">
         <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
         <div class="form-field"><label class="form-label">Módulos inspección leídos de G720</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
@@ -6457,7 +6464,9 @@ function renderChartInsp(){
     if(!meta.rubros?.length)meta.rubros=certRubrosCodigos(c);
     const obsLimpia=($('insp-cert-obs')?.value||'').trim();
     const nombreRenombrado=file?nombreInspectorCertificado(file,c,meta):(certArchivoRenombrado(c)||c.archivo_inspector||'');
-    const obsConMeta=[obsLimpia,`[OS_CERT:${(meta.ordenes||[]).join(',')}]`,`[RUBROS_CERT:${(meta.rubros||[]).join('-')}]`,nombreRenombrado?`[ARCHIVO_RENOMBRE:${nombreRenombrado}]`:'' ].filter(Boolean).join('\n');
+    let obsConMeta=[obsLimpia,`[OS_CERT:${(meta.ordenes||[]).join(',')}]`,`[RUBROS_CERT:${(meta.rubros||[]).join('-')}]`,nombreRenombrado?`[ARCHIVO_RENOMBRE:${nombreRenombrado}]`:'' ].filter(Boolean).join('\n');
+    const comentariosActuales=conversacionCert(c);
+    if(comentariosActuales.length)obsConMeta=obsConConversacion(obsConMeta,comentariosActuales);
     const patch={
       modulos_inspector:modInspector,
       monto_empresa:n(c.modulos_original),
