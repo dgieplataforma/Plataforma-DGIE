@@ -1387,7 +1387,7 @@ function renderDashboardOSTable(data){const el=$('dash-os-table-body');if(!el)re
 function renderChartDashboardOS(data){const estados=['Finalizada','En ejecución','Presupuestado','Pendiente'];const values=estados.map(e=>data.filter(o=>o.estado===e).length);drawDonut('chart-os-zona-estado',values,estados,['#2e7d32','#0072ce','#d97706','#64748b'])}
 function renderChartDir(view='principal'){if(view==='principal'){const recAct=RECLAMOS_ZONA.length,recRes=RECLAMOS_ZONA.filter(r=>r.os&&r.os!=='Sin OS').length,osFin=OS_ZONA.filter(o=>o.estado==='Finalizada').length,osPend=Math.max(0,OS_ZONA.length-osFin);drawDonut('chart-dir-reclamos',[recAct||1,recRes],['Reclamos','Con OS'],['#0ea5e9','#2e7d32']);drawDonut('chart-dir-mantenimiento',[osFin,osPend||1],['Finalizadas','Pendientes / activas'],['#7c3aed','#f59e0b']);return}drawDonut('chart-reclamos-ejecucion',[19673,65],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-reclamos-prioridad',[17256,2472,10],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawDonut('chart-mant-ejecucion',[10791,1591,202,401],['Finalizado','Pendiente','Anulado','Trabajando'],['#7c3aed','#0ea5e9','#ef4444','#f8b400']);drawDonut('chart-mant-prioridad',[7661,4012,1312],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);[['chart-dir-rubro-reclamos',['Sanitarios','Electricidad','Herrería','Otro','Cubierta','Albañilería','Gas'],[36,24,15,8,7,7,2],RUBROS_RELEVAMIENTO.map(r=>r.color).concat(['#475569'])],['chart-dir-rubro-mant',['Sanitarios','Electricidad','Albañilería','Herrería','Cubierta','Gas','Otro'],[31,28,18,11,8,2,2],['#6cab43','#a6c93a','#7c3aed','#ef4444','#0ea5e9','#f59e0b','#111827']]].forEach(([id,labels,data,colors])=>{if(chartInstances[id])chartInstances[id].destroy();const el=$(id);if(el&&window.Chart)chartInstances[id]=new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:6}]},options:{plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{color:'#64748b',callback:v=>v+'%'}},x:{ticks:{color:'#64748b'}}}}})})}
 function renderDashboardInsp(){const z=currentUser.zona,d=zonaStats(z);return `<div class="section-label">Dashboard · Zona ${z}</div><div class="dashboard-tabs"><button class="dashboard-tab active" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div id="dashboard-zona-body">${renderDashboardZonaPrincipalBody(z,d)}</div>`}function renderDashboardZonaPrincipalBody(z,d){return `<div class="metrics-grid"><div class="metric-card"><div class="metric-lbl">Zona</div><div class="metric-val">${z}</div></div><div class="metric-card"><div class="metric-lbl">Establecimientos</div><div class="metric-val">${d.estabs}</div></div><div class="metric-card"><div class="metric-lbl">Reclamos</div><div class="metric-val">${d.relev}</div></div><div class="metric-card"><div class="metric-lbl">Órdenes</div><div class="metric-val">${d.os}</div></div><div class="metric-card"><div class="metric-lbl">Inspector</div><div class="metric-val" style="font-size:20px">${d.inspector}</div></div></div><div class="dashboard-map-grid"><div class="card"><div class="card-title">Establecimientos · Zona ${z}</div><div class="map-placeholder">${fakeMapDots()}<div style="position:absolute;left:18px;top:18px;background:#fff;border:1px solid #d9e2ef;border-radius:10px;padding:8px 10px;color:#123c69;font-weight:900">Mapa Zona ${z}</div></div></div><div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos<br>registrados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-reclamos"></canvas></div></div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos<br>ejecutados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-mantenimiento"></canvas></div></div></div></div>`}function renderDashboardZonaGestionBody(z,d){return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos en total</div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-rec-ejec"></canvas></div></div><div class="card"><div class="card-title">Reclamos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-rec-prio"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-man-ejec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-man-prio"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-rec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-man"></canvas></div></div></div>`}function switchDashboardZona(view){const z=currentUser.zona,d=ZONE_DATA[z],body=$('dashboard-zona-body');if(!body)return;if(view==='principal'){body.innerHTML=renderDashboardZonaPrincipalBody(z,d);setTimeout(()=>renderChartInsp('principal'),80)}else{body.innerHTML=renderDashboardZonaGestionBody(z,d);setTimeout(()=>renderChartInsp('gestion'),80)}}function renderChartInsp(view='principal'){const d=zonaStats(currentUser.zona);if(view==='principal'){drawDonut('chart-zona-reclamos',[d.relev,Math.max(5,Math.floor(d.relev*.08))],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-zona-mantenimiento',[d.os,Math.max(2,Math.floor(d.os*.12))],['Finalizado','Pendiente'],['#7c3aed','#f59e0b']);return}drawDonut('chart-zona-rec-ejec',[d.relev,Math.max(5,Math.floor(d.relev*.08))],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-zona-rec-prio',[Math.floor(d.relev*.6),Math.floor(d.relev*.3),Math.floor(d.relev*.1)],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawDonut('chart-zona-man-ejec',[d.os,Math.max(2,Math.floor(d.os*.25))],['Finalizado','Pendiente'],['#7c3aed','#0ea5e9']);drawDonut('chart-zona-man-prio',[Math.floor(d.os*.5),Math.floor(d.os*.35),Math.floor(d.os*.15)],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawBar('chart-zona-rubro-rec',[d.crit,Math.floor(d.crit*1.4),Math.floor(d.crit*1.1),Math.floor(d.crit*.8)]);drawBar('chart-zona-rubro-man',[Math.floor(d.os*.5),Math.floor(d.os*.35),Math.floor(d.os*.2),Math.floor(d.os*.1)])}
-function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function reclamoReiteradoDe(r){const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';if(directo)return String(directo);const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);return m?m[1]:''}function limpiarMetaReiterado(txt){return String(txt||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim()}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const reiterado=reclamoReiteradoDe(r);const extra=[r.numero,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${escapeHtml(r.titulo||'Reclamo')}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?escapeHtml(r.est||r.establecimiento||'')+' · ':''}${escapeHtml(r.fecha||'')}${extra?' · '+escapeHtml(extra):''}${reiterado?' · Reclamo original '+escapeHtml(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:var(--muted)">${escapeHtml(r.os||'Sin OS')}</span></div></div>`}function renderReclamos(container){
+function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function reclamoReiteradoDe(r){const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';if(directo)return String(directo);const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);return m?m[1]:''}function reclamoNumeroVisible(r){const rep=reclamoReiteradoDe(r);return rep||r?.numero||''}function limpiarMetaReiterado(txt){return String(txt||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim()}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const reiterado=reclamoReiteradoDe(r);const numeroVisible=reclamoNumeroVisible(r);const extra=[numeroVisible,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${escapeHtml(r.titulo||'Reclamo')}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?escapeHtml(r.est||r.establecimiento||'')+' · ':''}${escapeHtml(r.fecha||'')}${extra?' · '+escapeHtml(extra):''}${reiterado?' · Reclamo original '+escapeHtml(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:var(--muted)">${escapeHtml(r.os||'Sin OS')}</span></div></div>`}function renderReclamos(container){
   const z=currentUser.zona;
   const reclamosZona=RECLAMOS_ZONA.filter(r=>Number(r.zona)===Number(z)||zonaEstablecimiento(r.estId)===Number(z));
   const prioOrder={critico:0,alto:1,medio:2,bajo:3};
@@ -1798,7 +1798,7 @@ function actualizarReclamosAnteriores(){
     numeroField.placeholder='Ingresar número de reclamo';
     numeroField.value='';
   }
-  const anteriores=RECLAMOS_ZONA.filter(r=>r.estId===estId);
+  const anteriores=RECLAMOS_ZONA.filter(r=>r.estId===estId&&!reclamoReiteradoDe(r));
   if(anteriores.length===0){
     box.style.display='none';
     if(info) info.style.display='none';
@@ -2804,8 +2804,9 @@ async function persistirReclamoSupabase(r){
   if(!r||r._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearReclamo!=='function')return;
   const descripcionBase=limpiarMetaReiterado(r.descripcion||r.titulo||'');
   const descripcionConMeta=r.reiteradoDe?`${descripcionBase}\n[REITERADO_DE:${r.reiteradoDe}]`:descripcionBase;
+  const numeroParaDB=r.reiteradoDe?`${r.reiteradoDe}-REP-${Date.now()}`:r.numero;
   const {data,error}=await window.DGIE_DB.crearReclamo({
-    numero:r.numero,
+    numero:numeroParaDB,
     establecimiento_id:Number(r.estId)||null,
     zona:Number(r.zona||zonaEstablecimiento(r.estId)||1),
     titulo:r.titulo||'Reclamo',
@@ -5381,13 +5382,6 @@ function renderChartInsp(){
     if(!el||!table)return;
     const nx=s=>{const m=String(s||'').match(/\d+/g);return m?parseInt(m[m.length-1],10):0;};
     data=(data||[]).slice().sort((a,b)=>nx(b.numero)-nx(a.numero));
-    const head=table.querySelector('thead tr');
-    if(head&&!head.dataset.empresaCol){
-      const th=document.createElement('th');
-      th.textContent='EMPRESA';
-      head.insertBefore(th,head.children[10]||null);
-      head.dataset.empresaCol='1';
-    }
     if(!data.length){el.innerHTML=`<tr><td colspan="13" class="os-empty">No se encontraron órdenes de servicio</td></tr>`;return}
     el.innerHTML=data.map(o=>`<tr>
       <td><div class="os-num">${escapeHtml(o.numero||'')}</div></td>
@@ -5400,7 +5394,7 @@ function renderChartInsp(){
       <td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td>
       <td>${renderPrioridadOSControl(o)}</td>
       <td>${renderEstadoOSControl(o)}</td>
-      <td>${empresaCell(o)}</td>
+      <td>${(()=>{const nc=window.numeroCertificacionOS&&window.numeroCertificacionOS(o.numero);return nc?`<span class="badge b-ok" style="font-size:11px;font-weight:700">C${nc}</span>`:'—';})()} </td>
       <td>${canManageOS()?`<button class="edit-btn" onclick="editarOS(${o.id})">Editar</button>`:''}</td>
       <td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">Descargar PDF</button></td>
     </tr>`).join('');
@@ -5603,7 +5597,7 @@ function renderChartInsp(){
   }
 
   window.renderOSModule=function(title,isZona){
-    return `<div class="card"><div class="card-header"><div><div class="card-title">${title}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado con filtros por establecimiento, rubro, estado y fecha de envío.</div></div><span class="badge b-info">${isZona?osPorZona(currentUser.zona).length:OS_ZONA.length} órdenes</span></div>${canCreateOS()?'<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button></div>':''}<div class="os-filters"><input class="estab-search" id="os-search" placeholder="Buscar por OS, establecimiento o tarea..." oninput="filterOS()"><select class="filter-sel" id="os-rubro" onchange="filterOS()"><option value="">Todos los rubros</option>${[...new Set(OS_ZONA.map(o=>o.rubro).filter(Boolean))].map(r=>`<option>${escapeHtml(r)}</option>`).join('')}</select><select class="filter-sel" id="os-estado" onchange="filterOS()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="os-prio" onchange="filterOS()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select>${dateFiltersHTML('os','filterOS()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden de servicio</th><th>Nº reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha de envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>Empresa</th><th>Editar</th><th>PDF</th></tr></thead><tbody id="os-table-body"></tbody></table></div></div>`;
+    return `<div class="card"><div class="card-header"><div><div class="card-title">${title}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado con filtros por establecimiento, rubro, estado y fecha de envío.</div></div><span class="badge b-info">${isZona?osPorZona(currentUser.zona).length:OS_ZONA.length} órdenes</span></div>${canCreateOS()?'<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button></div>':''}<div class="os-filters"><input class="estab-search" id="os-search" placeholder="Buscar por OS, establecimiento o tarea..." oninput="filterOS()"><select class="filter-sel" id="os-rubro" onchange="filterOS()"><option value="">Todos los rubros</option>${[...new Set(OS_ZONA.map(o=>o.rubro).filter(Boolean))].map(r=>`<option>${escapeHtml(r)}</option>`).join('')}</select><select class="filter-sel" id="os-estado" onchange="filterOS()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="os-prio" onchange="filterOS()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select>${dateFiltersHTML('os','filterOS()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden de servicio</th><th>Nº reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha de envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>Certificado</th><th>Editar</th><th>PDF</th></tr></thead><tbody id="os-table-body"></tbody></table></div></div>`;
   };
   window.filterOS=function(){
     const q=($('os-search')?.value||'').toLowerCase();
@@ -5632,7 +5626,7 @@ function renderChartInsp(){
     const data=RECLAMOS_ZONA.filter(r=>{
       const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
       const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
-      return Number(zona)===Number(z)&&(!prio||(r.prio||r.prioridad||'').toLowerCase()===prio)&&(!osF||(osF==='con'?tieneOS:!tieneOS))&&(!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''}`.toLowerCase().includes(q))&&enRangoFecha(r.fecha,desde,hasta);
+      return Number(zona)===Number(z)&&(!prio||(r.prio||r.prioridad||'').toLowerCase()===prio)&&(!osF||(osF==='con'?tieneOS:!tieneOS))&&(!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''} ${reclamoNumeroVisible(r)}`.toLowerCase().includes(q))&&enRangoFecha(r.fecha,desde,hasta);
     }).sort((a,b)=>fechaToISO(b.fecha).localeCompare(fechaToISO(a.fecha)));
     const badge=$('insp-rec-count');
     if(badge)badge.textContent=`${data.length} reclamo${data.length!==1?'s':''}`;
@@ -5654,7 +5648,7 @@ function renderChartInsp(){
     const data=RECLAMOS_ZONA.filter(r=>{
       const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
       const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
-      return(!z||String(zona)===z)&&(!prio||(r.prio||r.prioridad||'').toLowerCase()===prio)&&(!osF||(osF==='con'?tieneOS:!tieneOS))&&(!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''}`.toLowerCase().includes(q))&&enRangoFecha(r.fecha,desde,hasta);
+      return(!z||String(zona)===z)&&(!prio||(r.prio||r.prioridad||'').toLowerCase()===prio)&&(!osF||(osF==='con'?tieneOS:!tieneOS))&&(!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''} ${reclamoNumeroVisible(r)}`.toLowerCase().includes(q))&&enRangoFecha(r.fecha,desde,hasta);
     }).sort((a,b)=>fechaToISO(b.fecha).localeCompare(fechaToISO(a.fecha)));
     const el=$('coord-rec-body');
     if(!el)return;
@@ -5666,7 +5660,7 @@ function renderChartInsp(){
       const p=r.prio||r.prioridad||'medio';
       const reiterado=reclamoReiteradoDe(r);
       const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
-      return `<tr><td><div class="os-num">${escapeHtml(r.numero||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado de ${escapeHtml(reiterado)}</span>`:''}</td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge b-ok">${escapeHtml(r.os)}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
+      return `<tr><td><div class="os-num">${escapeHtml(reclamoNumeroVisible(r)||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado</span>`:''}</td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge b-ok">${escapeHtml(r.os)}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
     }).join('');
   };
 
@@ -6003,6 +5997,136 @@ function renderChartInsp(){
     try{const v=await leerG720(file);if(v!==''&&v!=null)input.value=String(v).replace(',','.');}
     catch(e){console.warn('No se pudo leer módulos del certificado',e)}
   };
+  function normalizarCertTxt(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+  function sanitizarNombreCert(s){return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90)}
+  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').trim()}
+  function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (c?.ordenes_servicio_certificado||c?.ordenes_certificado||m?.[1]||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
+  function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
+  function certArchivoRenombrado(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[ARCHIVO_RENOMBRE:([^\]]*)\]/);return m?.[1]||c?.archivo_inspector||''}
+  function extraerTextoWorkbook(wb){
+    const out=[];
+    wb.SheetNames.forEach(name=>{
+      const ws=wb.Sheets[name], ref=ws?.['!ref'];
+      if(!ref)return;
+      const range=XLSX.utils.decode_range(ref);
+      for(let r=range.s.r;r<=range.e.r;r++){
+        for(let c=range.s.c;c<=range.e.c;c++){
+          const cell=ws[XLSX.utils.encode_cell({r,c})];
+          if(cell?.v!=null&&cell.v!=='')out.push(String(cell.w??cell.v));
+        }
+      }
+    });
+    return out.join(' ');
+  }
+  function buscarOrdenesEnCeldas(wb){
+    const normC=v=>String(v??'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+    // Hojas con "ORDEN" o "ANEXO" en el nombre tienen prioridad
+    const sheets=[
+      ...wb.SheetNames.filter(n=>/(ORDEN|ANEXO)/i.test(n)),
+      ...wb.SheetNames.filter(n=>!/(ORDEN|ANEXO)/i.test(n))
+    ];
+    for(const shName of sheets){
+      const ws=wb.Sheets[shName];
+      if(!ws?.['!ref'])continue;
+      const range=XLSX.utils.decode_range(ws['!ref']);
+      const getC=(r,c)=>{
+        if(r<range.s.r||r>range.e.r||c<range.s.c||c>range.e.c)return '';
+        const cell=ws[XLSX.utils.encode_cell({r,c})];
+        return cell?.v!=null?normC(String(cell.w??cell.v)):'';
+      };
+      for(let r=range.s.r;r<=range.e.r;r++){
+        for(let c=range.s.c;c<=range.e.c;c++){
+          const v=getC(r,c);
+          if(!v||!/ORDEN\s+DE\s+SERVICIO/.test(v))continue;
+          // Número inline en la misma celda — retorna de inmediato
+          const inline=v.match(/ORDEN\s+DE\s+SERVICIO\s+(?:NUMERO|N[°º]|NRO)[^0-9]{0,10}([0-9]{1,4})/);
+          if(inline&&Number(inline[1])>0)return[inline[1].padStart(3,'0')];
+          // Celda adyacente solo si la etiqueta tiene NUMERO/N°/NRO
+          if(!/(?:NUMERO|N[°º]|NRO)/.test(v))continue;
+          for(const [dr,dc] of [[0,1],[1,0]]){
+            const adj=getC(r+dr,c+dc);
+            const m=adj&&adj.match(/^(\d{1,4})$/);
+            if(m&&Number(m[1])>0)return[m[1].padStart(3,'0')];
+          }
+        }
+      }
+    }
+    return[];
+  }
+  async function leerDatosCertificadoInspector(file){
+    if(!file||!window.XLSX||!/\.(xls|xlsx)$/i.test(file.name))return {ordenes:[],rubros:[],modulos:''};
+    const buffer=await file.arrayBuffer();
+    const wb=XLSX.read(buffer,{type:'array'});
+    const texto=extraerTextoWorkbook(wb);
+    const normal=normalizarCertTxt(texto);
+    // Solo el primer "ORDEN DE SERVICIO NUMERO/N°/NRO X" encontrado en el texto
+    const mTexto=normal.match(/ORDEN\s+DE\s+SERVICIO\s+(?:NUMERO|N[°º]|NRO)[^0-9]{0,10}([0-9]{1,4})/);
+    const porTexto=mTexto&&Number(mTexto[1])>0?[mTexto[1].padStart(3,'0')]:[];
+    const porCeldas=buscarOrdenesEnCeldas(wb);
+    console.log('[CERT] porTexto:', porTexto, '| porCeldas:', porCeldas);
+    // Preferir resultado de celdas (más preciso); si no hay, usar texto
+    const ordenes=porCeldas.length?porCeldas:porTexto;
+    const reglas=[
+      ['IS',['INSTALACION SANITARIA','SANITARIO','SANITARIOS','DESAGUE','CLOACA','AGUA']],
+      ['IE',['INSTALACION ELECTRICA','ELECTRICIDAD','ELECTRICA','TABLERO','CABLEADO']],
+      ['GA',['GAS']],
+      ['CU',['CUBIERTA','TECHO','IMPERMEABILIZACION','MEMBRANA']],
+      ['AL',['ALBANILERIA','MAMPOSTERIA','REVOQUE','CONTRAPISO']],
+      ['HE',['HERRERIA','HIERRO','REJA','PORTON']],
+      ['PI',['PINTURA','PINTAR']]
+    ];
+    const rubros=reglas.filter(([,keys])=>keys.some(k=>normal.includes(k))).map(([cod])=>cod);
+    return {ordenes, rubros:[...new Set(rubros)], modulos:await leerG720(file)};
+  }
+  function nombreInspectorCertificado(file,c,meta){
+    const ext=(file?.name?.match(/\.[^.]+$/)?.[0]||'.xlsx').toLowerCase();
+    const zona=`Z${Number(c?.zona||currentUser?.zona||0)||''}`;
+    const ordenes=(meta.ordenes?.length?meta.ordenes:['SINOS']).join('-');
+    return `${zona}-${ordenes}-${sanitizarNombreCert(c?.establecimiento_nombre||'ESTABLECIMIENTO')}${ext}`;
+  }
+  function certNombreDescarga(c){
+    const src=certArchivoRenombrado(c)||c.archivo_inspector||c.archivo_original||'';
+    const ext=src.match(/\.[^.]+$/)?.[0]||'.xlsx';
+    const zona=`Z${Number(c.zona)||''}`;
+    const ordenes=certOrdenes(c).length?certOrdenes(c).join('-'):'SINOS';
+    return `${zona}-${ordenes}-${sanitizarNombreCert(c.establecimiento_nombre||'ESTABLECIMIENTO')}${ext}`;
+  }
+  window.descargarCertificadoArchivo=async function(id){
+    const c=CERTIFICADOS_MEDICION.find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
+    if(!c)return;
+    const url=fileUrl(c);
+    const nombre=certNombreDescarga(c);
+    if(!url){alert('El archivo no tiene URL de descarga.');return;}
+    try{
+      const res=await fetch(url);
+      if(!res.ok)throw new Error(res.status);
+      const blob=await res.blob();
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=nombre;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
+    }catch(e){
+      const a=document.createElement('a');
+      a.href=url;a.download=nombre;a.target='_blank';
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>a.remove(),0);
+    }
+  };
+  window.autocompletarRevisionCertificado=async function(fileId,inputId){
+    const file=$(fileId)?.files?.[0], input=$(inputId), info=$('insp-cert-info-archivo');
+    if(!file)return;
+    try{
+      const meta=await leerDatosCertificadoInspector(file);
+      window._certInspectorMeta=meta;
+      if(input&&meta.modulos!==''&&meta.modulos!=null)input.value=String(meta.modulos).replace(',','.');
+      console.log('[CERT] ordenes detectadas:', meta.ordenes);
+      const yasCert=meta.ordenes.filter(o=>window.osEstaCertificada&&window.osEstaCertificada(o));
+      const avisoHTML=yasCert.length?`<br><span style="color:#dc2626;font-weight:700">⚠ La O.S. ${escapeHtml(yasCert.join(', '))} ya fue certificada anteriormente.</span>`:'';
+      if(info)info.innerHTML=`<b>O.S. detectada:</b> ${escapeHtml(meta.ordenes.join(', ')||'No detectada')}${avisoHTML}`;
+    }catch(e){console.warn('No se pudo leer el certificado del inspector',e);if(info)info.textContent='No se pudieron leer O.S./rubros del archivo.';}
+  };
 
   async function cargarCertificadosMedicion(force=false){
     if(certsLoaded&&!force)return CERTIFICADOS_MEDICION;
@@ -6152,10 +6276,10 @@ function renderChartInsp(){
       <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
       <div class="med-card-meta">
         Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
-        ${c.url_inspector?`Inspector: <a href="${fileUrl(c)}" target="_blank" rel="noopener">${escapeHtml(c.archivo_inspector||'Versión inspector')}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
+        ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}${certOrdenes(c).length?` · O.S. ${escapeHtml(certOrdenes(c).join(', '))}`:''}<br>`:''}
         ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
         ${c.observaciones_empresa?`<span style="color:#64748b">Empresa (inicial): ${escapeHtml(c.observaciones_empresa)}</span><br>`:''}
-        ${c.observaciones_inspector?`<span style="color:var(--blue)">Inspector: ${escapeHtml(c.observaciones_inspector)}</span>`:''}
+        ${c.observaciones_inspector?`<span style="color:var(--blue)">Inspector: ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</span>`:''}
       </div>
       ${renderHiloConversacion(c,!inspector&&!!c.observaciones_inspector)}
       ${(c.created_at||c.updated_at)?`<div style="font-size:10px;color:#b0bccc;margin-top:5px">${[c.created_at?'Cargado '+fmtCertFecha(c.created_at):'',c.updated_at&&c.updated_at!==c.created_at?(c.estado==='medido'?'Medición '+fmtCertFecha(c.updated_at):'Modificado '+fmtCertFecha(c.updated_at)):''].filter(Boolean).join(' · ')}</div>`:''}
@@ -6220,7 +6344,9 @@ function renderChartInsp(){
     if(!nums.length)return '<div style="text-align:center;padding:28px;color:var(--muted)">Todavía no hay mediciones cerradas.</div>';
     return `<div class="med-btn-grid">${nums.map(num=>{
       const total=grupos[num].reduce((a,c)=>a+modActual(c),0);
-      return `<button class="secondary-btn med-btn" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
+      const fin=esMedicionFinalizada(num);
+      const badge=fin?`<span class="badge b-ok" style="font-size:11px;margin-left:4px">✓</span>`:'';
+      return `<button class="secondary-btn med-btn" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
     }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`;
   }
   window.abrirMedicionInspector=function(numero){
@@ -6228,7 +6354,12 @@ function renderChartInsp(){
     const total=data.reduce((a,c)=>a+modActual(c),0);
     const el=$('med-detalle');
     if(!el)return;
-    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Medición Nº ${escapeHtml(numero)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions"><button class="secondary-btn" onclick="descargarZipMedicion('${numero}')">Descargar ZIP</button><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div>${renderCertificadosMedicionDetalle(data)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
+    const fin=esMedicionFinalizada(numero);
+    const badgeFin=fin?`<span class="badge b-ok" style="font-size:12px;vertical-align:middle;margin-left:8px">✓ Certificación finalizada</span>`:'';
+    const btnFin=fin
+      ?`<button class="badge b-ok" style="cursor:pointer;border:none;padding:7px 14px;font-size:12px;border-radius:8px" onclick="revertirCertificacionFinalizada('${numero}')">✓ Finalizada · Revertir</button>`
+      :`<button class="secondary-btn" onclick="finalizarCertificacion('${numero}')">Marcar certificación finalizada</button>`;
+    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Medición Nº ${escapeHtml(numero)}${badgeFin}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions">${btnFin}<button class="secondary-btn" onclick="descargarZipMedicion('${numero}')">Descargar ZIP</button><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div>${renderCertificadosMedicionDetalle(data)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
   };
   function renderCertificadosMedicionDetalle(data){
     return data.map(c=>`<div class="med-version-row">
@@ -6236,8 +6367,8 @@ function renderChartInsp(){
         <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
         <div class="med-card-meta">
           Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
-          ${c.url_inspector?`Inspector: <a href="${fileUrl(c)}" target="_blank" rel="noopener">${escapeHtml(c.archivo_inspector||'Versión inspector')}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
-          ${escapeHtml(c.observaciones_inspector||c.observaciones_empresa||'Sin observaciones')}
+          ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}${certOrdenes(c).length?` · O.S. ${escapeHtml(certOrdenes(c).join(', '))}`:''}<br>`:''}
+          ${escapeHtml(limpiarObsCert(c.observaciones_inspector)||c.observaciones_empresa||'Sin observaciones')}
         </div>
       </div>
       ${currentUser?.role==='inspector'?`<button class="secondary-btn" style="color:var(--danger);white-space:nowrap" onclick="volverCertificadoPendiente('${c.id||c.localId}')">Volver a pendiente</button>`:''}
@@ -6245,7 +6376,7 @@ function renderChartInsp(){
   }
   function tablaMedicion(data){
     const th='background:#000;color:#fff;font-weight:bold;text-align:left;padding:6px 8px;border:1px solid #a3a3a3';
-    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);return `<tr><td style="${td}">${escapeHtml(c.archivo_inspector||c.archivo_original||c.establecimiento_nombre)}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(c.observaciones_inspector||'')}</td></tr>`}).join('')}</tbody></table>`;
+    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);return `<tr><td style="${td}">${escapeHtml(c.establecimiento_nombre||'')}</td><td style="${td}">${escapeHtml(certOrdenes(c).join(', ')||'')}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody></table>`;
   }
   window.exportarMedicionExcel=function(numero){
     const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
@@ -6275,9 +6406,7 @@ function renderChartInsp(){
     if(!window.JSZip){alert('No se pudo cargar JSZip.');return;}
     const zip=new JSZip();
     for(const c of data){
-      const folder=zip.folder(String(c.establecimiento_nombre||'establecimiento').replace(/[\\/:*?"<>|]+/g,'_'));
-      await addFileToZip(folder,c.url_original,c.archivo_original||'original');
-      if(c.url_inspector)await addFileToZip(folder,c.url_inspector,c.archivo_inspector||'inspector');
+      await addFileToZip(zip,c.url_inspector||c.url_original,certNombreDescarga(c));
     }
     const blob=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');
@@ -6297,15 +6426,15 @@ function renderChartInsp(){
       <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
       ${c.observaciones_empresa||c.observaciones_inspector||(c.conversacion?.length)?`<div style="margin-bottom:14px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:13px">
         ${c.observaciones_empresa?`<div style="margin-bottom:6px"><span style="font-weight:700;color:#64748b">Empresa (inicial):</span> ${escapeHtml(c.observaciones_empresa)}</div>`:''}
-        ${c.observaciones_inspector?`<div style="margin-bottom:6px"><span style="font-weight:700;color:var(--blue)">Inspector:</span> ${escapeHtml(c.observaciones_inspector)}</div>`:''}
+        ${c.observaciones_inspector?`<div style="margin-bottom:6px"><span style="font-weight:700;color:var(--blue)">Inspector:</span> ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</div>`:''}
         ${renderHiloConversacion(c,true)}
       </div>`:''}
       <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarModuloCertificado('insp-cert-file','insp-cert-modulos')">${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(c.archivo_inspector||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
+        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
         <div class="form-field"><label class="form-label">Módulos inspección leídos de G720</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
         <div class="form-field"><label class="form-label">Medición Nº</label><input class="form-input" id="insp-cert-medicion" type="number" min="1" value="${escapeHtml(c.medicion_numero||'')}"></div>
         <div class="form-field"><label class="form-label">Período</label><input class="form-input" id="insp-cert-periodo" placeholder="Ej: Mayo 2026" value="${escapeHtml(c.periodo||'')}"></div>
-        <div class="form-field full"><label class="form-label">Observaciones inspector</label><textarea class="form-textarea" id="insp-cert-obs">${escapeHtml(c.observaciones_inspector||'')}</textarea></div>
+        <div class="form-field full"><label class="form-label">Observaciones inspector</label><textarea class="form-textarea" id="insp-cert-obs">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</textarea></div>
       </div>
       <div class="modal-actions"><button class="secondary-btn" onclick="guardarRevisionCertificado('${id}',false)">Guardar revisión</button><button class="primary-btn" onclick="guardarRevisionCertificado('${id}',true)">Guardar y pasar a medición</button></div>
     </div>`;
@@ -6315,11 +6444,17 @@ function renderChartInsp(){
     if(!c)return;
     const file=$('insp-cert-file')?.files?.[0];
     const modInspector=n($('insp-cert-modulos')?.value);
+    let meta=file?await leerDatosCertificadoInspector(file):{ordenes:certOrdenes(c),rubros:certRubrosCodigos(c),modulos:modInspector};
+    if(!meta.ordenes?.length)meta.ordenes=certOrdenes(c);
+    if(!meta.rubros?.length)meta.rubros=certRubrosCodigos(c);
+    const obsLimpia=($('insp-cert-obs')?.value||'').trim();
+    const nombreRenombrado=file?nombreInspectorCertificado(file,c,meta):(certArchivoRenombrado(c)||c.archivo_inspector||'');
+    const obsConMeta=[obsLimpia,`[OS_CERT:${(meta.ordenes||[]).join(',')}]`,`[RUBROS_CERT:${(meta.rubros||[]).join('-')}]`,nombreRenombrado?`[ARCHIVO_RENOMBRE:${nombreRenombrado}]`:'' ].filter(Boolean).join('\n');
     const patch={
       modulos_inspector:modInspector,
       monto_empresa:n(c.modulos_original),
       monto_inspeccion:modInspector,
-      observaciones_inspector:($('insp-cert-obs')?.value||'').trim(),
+      observaciones_inspector:obsConMeta,
       medicion_numero:$('insp-cert-medicion')?.value?Number($('insp-cert-medicion').value):null,
       periodo:($('insp-cert-periodo')?.value||'').trim(),
       estado:medir?'medido':'revision',
@@ -6328,8 +6463,9 @@ function renderChartInsp(){
     if(medir&&!patch.medicion_numero){alert('Para pasar a medición cargá el número de medición.');return;}
     if(medir&&!patch.modulos_inspector){alert('Para pasar a medición subí el Excel corregido del inspector para leer la celda G720.');return;}
     if(file){
-      const subida=await subirCertFile(file);
-      patch.archivo_inspector=file.name;
+      const archivoRenombrado=new File([file],nombreRenombrado,{type:file.type,lastModified:file.lastModified});
+      const subida=await subirCertFile(archivoRenombrado);
+      patch.archivo_inspector=nombreRenombrado;
       patch.url_inspector=subida?.url||'';
       patch.public_id_inspector=subida?.publicId||null;
     }
@@ -6389,6 +6525,59 @@ function renderChartInsp(){
     if(tab==='Certificación'&&currentUser.role==='empresa'){renderMedicionesEmpresa(c,currentUser.zona);return;}
     if(tab==='Certificación'&&currentUser.role==='inspector'){renderMedicionesInspector(c,currentUser.zona);return;}
     return prevRenderTab(i);
+  };
+
+  // ── Finalización de certificación ─────────────────────────────────────────
+  // Estado de finalización en localStorage (no requiere columna en Supabase)
+  const _CERT_FIN_KEY='dgie_cert_finalizada_medicion_v1';
+  function _readFinMap(){try{return JSON.parse(localStorage.getItem(_CERT_FIN_KEY)||'{}')}catch(e){return {}}}
+  function _writeFinMap(m){localStorage.setItem(_CERT_FIN_KEY,JSON.stringify(m))}
+  function esMedicionFinalizada(numero){return !!_readFinMap()[String(numero)]}
+  window.numeroCertificacionOS=function(osNumero){
+    if(!osNumero)return null;
+    const map=_readFinMap();
+    if(!Object.keys(map).length)return null;
+    const m=String(osNumero).match(/(\d+)$/);
+    if(!m)return null;
+    const n=Number(m[1]);
+    if(!n)return null;
+    const cert=CERTIFICADOS_MEDICION.find(c=>!!map[String(c.medicion_numero)]&&certOrdenes(c).some(o=>Number(o)===n));
+    return cert?String(cert.medicion_numero):null;
+  };
+  window.osEstaCertificada=function(osNumero){return !!window.numeroCertificacionOS(osNumero)};
+  async function _toggleCertFinalizada(numero,valor){
+    const map=_readFinMap();
+    if(valor)map[String(numero)]=true;
+    else delete map[String(numero)];
+    _writeFinMap(map);
+    const medList=$('med-list');
+    if(medList)medList.innerHTML=renderSeguimientoCertificados(certsZona(currentUser?.zona),true);
+    setTimeout(()=>{abrirMedicionInspector(numero);filterOS&&filterOS();},0);
+  }
+  window.finalizarCertificacion=async function(numero){
+    if(!confirm(`¿Marcar la Medición Nº ${numero} como certificación finalizada?\nLas O.S. asociadas aparecerán como "Certificado" en el listado.`))return;
+    await _toggleCertFinalizada(numero,true);
+  };
+  window.revertirCertificacionFinalizada=async function(numero){
+    if(!confirm(`¿Revertir la certificación finalizada de la Medición Nº ${numero}?`))return;
+    await _toggleCertFinalizada(numero,false);
+  };
+  // Actualiza celda "Certificado" en tabla OS tras carga asíncrona de certs
+  const _baseOSTableCert=window.renderOSTable;
+  window.renderOSTable=function(data){
+    _baseOSTableCert(data);
+    setTimeout(async()=>{
+      if(!certsLoaded)await cargarCertificadosMedicion();
+      document.querySelectorAll('#os-table-body tr').forEach(tr=>{
+        const numEl=tr.querySelector('.os-num');
+        if(!numEl)return;
+        const numero=numEl.textContent.trim();
+        const certCell=tr.children[10];
+        if(!certCell)return;
+        const nc=window.numeroCertificacionOS&&window.numeroCertificacionOS(numero);
+        if(nc){certCell.innerHTML=`<span class="badge b-ok" style="font-size:11px;font-weight:700">C${nc}</span>`}
+      });
+    },0);
   };
 })();
 </script>
