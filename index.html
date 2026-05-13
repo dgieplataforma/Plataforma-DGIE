@@ -7935,6 +7935,88 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-fix-estado-reclamos-os-pendiente-2026-05-13">
+(function(){
+  const RECLAMO_LABELS_5=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'];
+  const RECLAMO_COLORS_5=['#f59e0b','#64748b','#2563eb','#16a34a','#991b1b'];
+  function norm(v){
+    return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+  function recNum(r){
+    if(typeof reclamoNumeroVisible==='function')return String(reclamoNumeroVisible(r)||'').trim();
+    return String(r?.numero||'').trim();
+  }
+  function osPendienteText(v){
+    const s=norm(v);
+    return !s||s==='sin os'||s==='pendiente'||s==='en tramite'||s==='en trámite';
+  }
+  window.findOSForReclamo=function(r,ordenes=OS_ZONA){
+    if(!r)return null;
+    const n=recNum(r);
+    const osRef=String(r.os||'').trim();
+    if(osRef&&!osPendienteText(osRef)){
+      const byNum=(ordenes||[]).find(o=>String(o.numero||'').trim()===osRef);
+      if(byNum)return byNum;
+    }
+    if(n){
+      const byRec=(ordenes||[]).find(o=>String(o.reclamoNumero||o.reclamo||'').split(',').map(x=>x.trim()).includes(n));
+      if(byRec)return byRec;
+    }
+    return null;
+  };
+  window.estadoReclamoCanon=function(r,ordenes=OS_ZONA){
+    const os=window.findOSForReclamo(r,ordenes);
+    if(!os)return 'pendiente';
+    const estado=typeof estadoOSCanon==='function'?estadoOSCanon(os.estado):norm(os.estado);
+    if(estado==='trabajando')return 'trabajando';
+    if(estado==='finalizado')return 'finalizado';
+    if(estado==='anulado')return 'anulado';
+    return 'orden_servicio';
+  };
+  window.reclamoEstadoCounts=function(arr,ordenes=OS_ZONA){
+    const counts={pendiente:0,orden_servicio:0,trabajando:0,finalizado:0,anulado:0};
+    (arr||[]).forEach(r=>{counts[window.estadoReclamoCanon(r,ordenes)]++});
+    return [counts.pendiente,counts.orden_servicio,counts.trabajando,counts.finalizado,counts.anulado];
+  };
+  function drawReclamos(id,recs,oss){
+    const el=document.getElementById(id);
+    if(window.Chart&&el&&typeof Chart.getChart==='function'){
+      const prev=Chart.getChart(el);
+      if(prev&&typeof prev.destroy==='function')prev.destroy();
+      if(window.chartInstances)chartInstances[id]=null;
+    }
+    if(typeof drawDonutSafe==='function')drawDonutSafe(id,window.reclamoEstadoCounts(recs,oss),RECLAMO_LABELS_5,RECLAMO_COLORS_5);
+  }
+  const prevRenderChartDir=window.renderChartDir;
+  window.renderChartDir=function(view='principal'){
+    if(view==='principal'){
+      const osFin=OS_ZONA.filter(o=>getEstadoOS(o)==='finalizado').length;
+      const osAct=OS_ZONA.length-osFin;
+      drawReclamos('chart-dir-reclamos',RECLAMOS_ZONA,OS_ZONA);
+      if(typeof drawDonutSafe==='function')drawDonutSafe('chart-dir-mantenimiento',[osFin,osAct],['Finalizadas','Pendientes / activas'],['#16a34a','#f59e0b']);
+      return;
+    }
+    if(typeof prevRenderChartDir==='function')prevRenderChartDir(view);
+    drawReclamos('chart-reclamos-ejecucion',RECLAMOS_ZONA,OS_ZONA);
+  };
+  const prevRenderChartInsp=window.renderChartInsp;
+  window.renderChartInsp=function(view='principal'){
+    const z=Number(currentUser?.zona||selectedZona||1);
+    const recs=RECLAMOS_ZONA.filter(r=>Number(r.zona)===z||zonaEstablecimiento(r.estId)===z);
+    const oss=OS_ZONA.filter(o=>Number(o.zona)===z||zonaEstablecimiento(o.estId)===z);
+    if(typeof prevRenderChartInsp==='function')prevRenderChartInsp(view);
+    drawReclamos('chart-zona-reclamos',recs,oss);
+    drawReclamos('chart-zona-rec-ejec',recs,oss);
+    drawReclamos('chart-insp-estado-reclamos',recs,oss);
+  };
+  const prevRenderChartCoord=window.renderChartCoordinadorDashboard;
+  window.renderChartCoordinadorDashboard=function(){
+    if(typeof prevRenderChartCoord==='function')prevRenderChartCoord();
+    const real=typeof coordDashboardData==='function'?coordDashboardData():{recs:RECLAMOS_ZONA,oss:OS_ZONA};
+    drawReclamos('chart-coord-estado-reclamos',real.recs,real.oss);
+  };
+})();
+</script>
 </body>
 </html>
 
