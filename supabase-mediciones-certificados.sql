@@ -66,5 +66,7 @@ create trigger trg_touch_certificados_medicion
 before update on public.certificados_medicion
 for each row execute function public.touch_certificados_medicion();
 
--- Deja la base lista para empezar sin certificados cargados.
-truncate table public.certificados_medicion restart identity;
+-- IMPORTANTE:
+-- No se limpian certificados desde este esquema.
+-- Si alguna vez necesitás borrar certificados de prueba, hacelo con un script separado
+-- y solo después de confirmar que no hay información productiva.

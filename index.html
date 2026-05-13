@@ -6170,7 +6170,7 @@ function renderChartInsp(){
   };
 
   async function cargarCertificadosMedicion(force=false){
-    if(certsLoaded&&!force){syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
+    if(certsLoaded&&!force&&CERTIFICADOS_MEDICION.length){syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
     certsLoaded=true;
     certsDbError='';
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarCertificadosMedicion==='function'){
