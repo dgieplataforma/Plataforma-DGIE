@@ -2983,16 +2983,16 @@ function getZonaCargaOS(){
 function nextOSNumero(zona){
   const z=Number(zona||1);
   const nums=OS_ZONA.filter(o=>Number(o.zona||zonaEstablecimiento(o.estId))===z)
-    .map(o=>String(o.numero||'').match(new RegExp('^Z'+z+'-OS-(\\d+)$','i')))
+    .map(o=>String(o.numero||'').match(new RegExp('^Z'+z+'-(?:OS-)?(\\d+)$','i')))
     .filter(Boolean).map(m=>Number(m[1]));
   const next=(nums.length?Math.max(...nums):0)+1;
-  return `Z${z}-OS-${String(next).padStart(3,'0')}`;
+  return `Z${z}-${String(next).padStart(3,'0')}`;
 }
 function normalizarOSExistentes(){
   OS_ZONA.forEach(o=>{
     o.estado=estadoOSCanon(o.estado);
     o.zona=Number(o.zona||zonaEstablecimiento(o.estId)||1);
-    if(!/^Z\d+-OS-\d+$/i.test(String(o.numero||''))){
+    if(!/^Z\d+-(?:OS-)?\d+$/i.test(String(o.numero||''))){
       // no renumero OS viejas para no romper referencias; las nuevas ya salen con nomenclatura correcta
     }
   });
@@ -6812,7 +6812,7 @@ function renderChartInsp(){
     const n=document.getElementById('nos-numero');
     if(n){
       n.removeAttribute('readonly');
-      n.placeholder='Ej: Z15-OS-074';
+      n.placeholder='Ej: Z15-074';
     }
     document.querySelectorAll('button[onclick*="renderOSGeneral"]').forEach(btn=>{
       btn.setAttribute('onclick','volverListadoOS()');
@@ -6969,6 +6969,190 @@ function renderChartInsp(){
     if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
     if(!data.length){el.innerHTML=`<tr><td colspan="11" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;return;}
     el.innerHTML=data.map(o=>`<tr><td><div class="os-num">${escapeHtml(o.numero||'')}</div></td><td>${escapeHtml(o.establecimiento||'')}</td><td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td><td>${escapeHtml(o.rubro||'')}</td><td>${escapeHtml(o.fecha||'')}</td><td>${escapeHtml(o.fechaFinalizacion||'—')}</td><td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td><td>${typeof prioBadgeFecha==='function'?prioBadgeFecha(o.prio):''}</td><td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td><td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td><td><label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:800"><input type="checkbox" ${o.empresaFinalizo?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td></tr>`).join('');
+  };
+})();
+</script>
+<style id="dgie-empresa-os-alineacion-2026-05-13">
+  .empresa-os-table{
+    table-layout:fixed;
+    min-width:1180px;
+  }
+  .empresa-os-table th,
+  .empresa-os-table td{
+    overflow:hidden;
+  }
+  .empresa-os-table .empresa-check-cell{
+    text-align:center;
+    vertical-align:middle;
+  }
+  .empresa-os-check{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    min-width:92px;
+    white-space:nowrap;
+    font-size:12px;
+    font-weight:800;
+    color:#334155;
+  }
+  .empresa-os-check input{
+    width:16px;
+    height:16px;
+    flex:0 0 16px;
+    margin:0;
+  }
+  .empresa-os-table .os-task{
+    max-width:none;
+  }
+</style>
+<script id="dgie-empresa-os-tabla-estable-2026-05-13">
+(function(){
+  function osNumEmpresa(numero){
+    const m=String(numero||'').match(/\d+/g);
+    return m?Number(m[m.length-1])||0:0;
+  }
+  function fechaISOEmpresa(value){
+    const s=String(value||'').trim();
+    if(!s)return '';
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+    const p=s.split('/');
+    if(p.length>=3){
+      const y=String(p[2]).length===2?'20'+p[2]:p[2];
+      return `${y}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
+    }
+    const d=new Date(s);
+    return Number.isNaN(d.getTime())?'':d.toISOString().slice(0,10);
+  }
+  function rangoEmpresa(fecha,desde,hasta){
+    const f=fechaISOEmpresa(fecha);
+    return !f||((!desde||f>=desde)&&(!hasta||f<=hasta));
+  }
+  function empresaStore(){
+    try{return JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}')||{}}
+    catch(e){return {}}
+  }
+  function empresaKeysOS(o){
+    return [o?.remoteId&&`remote:${o.remoteId}`,o?.numero&&`numero:${o.numero}`,o?.id&&`local:${o.id}`].filter(Boolean);
+  }
+  function empresaFinalizoVista(o){
+    const st=empresaStore();
+    return !!(o?.empresaFinalizo||empresaKeysOS(o).some(k=>st[k]));
+  }
+  function certsOS(o){
+    const n=osNumEmpresa(o?.numero);
+    const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+    if(!n||typeof window.certOrdenes!=='function')return [];
+    return certs.filter(c=>String(c?.estado||'')!=='eliminado'&&c?.medicion_numero&&window.certOrdenes(c).some(x=>Number(x)===n));
+  }
+  function medsOS(o){
+    return [...new Set(certsOS(o).map(c=>String(c.medicion_numero)).filter(Boolean))];
+  }
+  function pasaCertEmpresa(o,cert,med){
+    const meds=medsOS(o);
+    if(cert==='certificado'&&!meds.length)return false;
+    if(cert==='sin'&&meds.length)return false;
+    if(med&&!meds.includes(String(med)))return false;
+    return true;
+  }
+  function opcionesMedEmpresa(){
+    const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+    return [...new Set(certs.map(c=>c?.medicion_numero).filter(Boolean).map(String))]
+      .sort((a,b)=>Number(a)-Number(b))
+      .map(n=>`<option value="${escapeHtml(n)}">Medición Nº ${escapeHtml(n)}</option>`).join('');
+  }
+  function prioEmpresa(o){
+    if(typeof prioBadgeFecha==='function')return prioBadgeFecha(o.prio);
+    return `<span class="badge b-info">${escapeHtml(o.prio||'Media')}</span>`;
+  }
+  function estadoEmpresa(o){
+    const e=getEstadoOS(o);
+    return `<span class="badge ${e==='finalizado'?'b-ok':e==='trabajando'?'b-info':e==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span>`;
+  }
+  function filtrosFechaEmpresa(prefix,onchange){
+    return `<input class="filter-sel" id="${prefix}-desde" type="date" onchange="${onchange}" title="Desde">
+      <input class="filter-sel" id="${prefix}-hasta" type="date" onchange="${onchange}" title="Hasta">`;
+  }
+  function renderEmpresaRows(data){
+    const el=document.getElementById('empresa-os-body');
+    if(!el)return;
+    if(!data.length){
+      el.innerHTML=`<tr><td colspan="11" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
+      return;
+    }
+    el.innerHTML=data.map(o=>`<tr>
+      <td><div class="os-num">${escapeHtml(o.numero||'')}</div></td>
+      <td>${escapeHtml(o.establecimiento||'')}</td>
+      <td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td>
+      <td>${escapeHtml(o.rubro||'')}</td>
+      <td>${escapeHtml(o.fecha||'')}</td>
+      <td>${escapeHtml(o.fechaFinalizacion||'—')}</td>
+      <td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td>
+      <td>${prioEmpresa(o)}</td>
+      <td>${estadoEmpresa(o)}</td>
+      <td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td>
+      <td class="empresa-check-cell"><label class="empresa-os-check"><input type="checkbox" ${empresaFinalizoVista(o)?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td>
+    </tr>`).join('');
+  }
+  window.renderOSEmpresa=function(c,z){
+    const data=osPorZona(z);
+    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${z} · Solo lectura</div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Órdenes de servicio asignadas</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${escapeHtml(INSPECTORS[Number(z)-1]||'—')} · Zona ${z}</div>
+          </div>
+          <span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span>
+        </div>
+        <div class="os-filters">
+          <input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, establecimiento o tarea..." oninput="filterOSEmpresa()">
+          <select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select>
+          <select class="filter-sel" id="empresa-os-orden" onchange="filterOSEmpresa()"><option value="desc">Orden: mayor a menor</option><option value="asc">Orden: menor a mayor</option></select>
+          <select class="filter-sel" id="empresa-os-cert" onchange="filterOSEmpresa()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select>
+          <select class="filter-sel" id="empresa-os-medicion" onchange="filterOSEmpresa()"><option value="">Todas las mediciones</option>${opcionesMedEmpresa()}</select>
+          ${filtrosFechaEmpresa('empresa-os','filterOSEmpresa()')}
+        </div>
+        <div class="os-table-wrap">
+          <table class="os-table empresa-os-table">
+            <colgroup>
+              <col style="width:92px">
+              <col style="width:190px">
+              <col style="width:250px">
+              <col style="width:130px">
+              <col style="width:92px">
+              <col style="width:122px">
+              <col style="width:116px">
+              <col style="width:112px">
+              <col style="width:112px">
+              <col style="width:72px">
+              <col style="width:118px">
+            </colgroup>
+            <thead><tr><th>Orden</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th><th>Empresa</th></tr></thead>
+            <tbody id="empresa-os-body"></tbody>
+          </table>
+        </div>
+      </div>`;
+    filterOSEmpresa();
+    if(!window.certsLoaded&&typeof cargarCertificadosMedicion==='function'){
+      cargarCertificadosMedicion().then(()=>{if(document.getElementById('empresa-os-body'))renderOSEmpresa(c,z);}).catch(()=>{});
+    }
+  };
+  window.filterOSEmpresa=function(){
+    const z=Number(currentUser?.zona||0);
+    const q=(document.getElementById('empresa-os-q')?.value||'').toLowerCase();
+    const st=document.getElementById('empresa-os-estado')?.value||'';
+    const dir=document.getElementById('empresa-os-orden')?.value||'desc';
+    const cert=document.getElementById('empresa-os-cert')?.value||'';
+    const med=document.getElementById('empresa-os-medicion')?.value||'';
+    const desde=document.getElementById('empresa-os-desde')?.value||'';
+    const hasta=document.getElementById('empresa-os-hasta')?.value||'';
+    const data=osPorZona(z)
+      .filter(o=>(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))&&pasaCertEmpresa(o,cert,med)&&rangoEmpresa(o.fecha,desde,hasta))
+      .sort((a,b)=>dir==='asc'?osNumEmpresa(a.numero)-osNumEmpresa(b.numero):osNumEmpresa(b.numero)-osNumEmpresa(a.numero));
+    const badge=document.getElementById('empresa-os-count');
+    if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
+    renderEmpresaRows(data);
   };
 })();
 </script>
