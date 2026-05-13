@@ -257,6 +257,10 @@
 .reclamo-foto-thumb{width:82px;height:62px;border-radius:10px;object-fit:cover;border:1px solid var(--border);box-shadow:0 3px 8px rgba(15,23,42,.10);cursor:pointer;background:#f8fafc}
 .reclamo-foto-thumb:hover{transform:scale(1.03);border-color:var(--blue2)}
 .reclamo-fotos-badge{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:5px 9px;border-radius:999px;background:#e6f1fb;color:#005aa9;font-size:11px;font-weight:900}
+#insp-rec-list{max-height:620px;overflow-y:auto;padding-right:6px}
+#insp-rec-list::-webkit-scrollbar{width:10px}
+#insp-rec-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+#insp-rec-list::-webkit-scrollbar-track{background:#eef2f7;border-radius:999px}
 
 
 /* AJUSTES 02-05: layout compacto y paleta azul */
@@ -1979,8 +1983,8 @@ function openFicha(id){
   
   // Determinar contenedor y función de volver según el rol
   const esInspector=currentUser?.role==='inspector';
-  const contenedor=esInspector?document.getElementById('zona-content'):document.getElementById('main-content');
-  const volverFn=esInspector?'switchZonaTab(1)':'renderEstablecimientosDireccion(document.getElementById(\'main-content\'))';
+  const contenedor=esInspector?(document.getElementById('zona-content')||document.getElementById('main-content')):document.getElementById('main-content');
+  const volverFn=esInspector?'renderEstablecimientos(document.getElementById(\'main-content\'))':'renderEstablecimientosDireccion(document.getElementById(\'main-content\'))';
   
   if(!contenedor){console.warn('Contenedor no encontrado');return;}
   
@@ -2789,6 +2793,20 @@ async function persistirReclamoSupabase(r){
   if(error){console.warn('No se pudo guardar reclamo en Supabase',error);return;}
   r.remoteId=data?.id||r.remoteId;
   r._remoteSaved=true;
+  if(Array.isArray(r.fotos)&&r.fotos.length&&typeof window.DGIE_DB.actualizarReclamo==='function'){
+    const slimFotos=r.fotos.map(f=>({
+      provider:f.provider||'',
+      nombre:f.nombre||f.name||'Foto del reclamo',
+      url:f.url||f.secure_url||f.path||f.dataUrl||'',
+      publicId:f.publicId||f.public_id||null,
+      resourceType:f.resourceType||f.resource_type||null
+    })).filter(f=>f.url);
+    if(slimFotos.length){
+      const upd=await window.DGIE_DB.actualizarReclamo(r.remoteId,{fotos:slimFotos});
+      if(!upd?.error)r.fotos=slimFotos;
+      else console.warn('No se pudo guardar fotos dentro del reclamo. Ejecutá supabase-reclamos-fotos-json.sql.',upd.error);
+    }
+  }
   await persistirFotosSupabase('reclamo',r.remoteId,r.fotos,r.estId,r.zona);
 }
 async function persistirFotosSupabase(entidadTipo,entidadId,fotos,estId,zona){
@@ -4618,7 +4636,7 @@ function renderChartInsp(){
       os:'Sin OS',
       reiteradoDe:null,
       reiteraciones:0,
-      fotos:[]
+      fotos:Array.isArray(row.fotos)?row.fotos:[]
     };
   }
   function mapRemoteOrden(row,idx){
@@ -6313,13 +6331,13 @@ function renderChartInsp(){
 
   const prevDgieTabs=window.dgieTabsForUser;
   window.dgieTabsForUser=function(user){
-    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Certificación','Comunicaciones'];
+    if(user?.role==='inspector')return ['Dashboard','Reclamos','Establecimientos','Órdenes de servicio','Intervenciones','Certificación','Comunicaciones'];
     if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Certificación'];
     return prevDgieTabs?prevDgieTabs(user):(window.tabsForUser?window.tabsForUser(user):['Dashboard']);
   };
   const prevTabsForUser=window.tabsForUser;
   window.tabsForUser=function(user){
-    if(user?.role==='inspector')return ['Dashboard',`Zona ${user.zona}`,'Intervenciones','Certificación','Comunicaciones'];
+    if(user?.role==='inspector')return ['Dashboard','Reclamos','Establecimientos','Órdenes de servicio','Intervenciones','Certificación','Comunicaciones'];
     if(user?.role==='empresa')return [`Órdenes de servicio · Zona ${user.zona}`,'Certificación'];
     return prevTabsForUser?prevTabsForUser(user):window.dgieTabsForUser(user);
   };
@@ -6332,6 +6350,15 @@ function renderChartInsp(){
     hideGlobal();
     currentFichaId=null;
     const tab=tabs[i], c=$('main-content');
+    if(currentUser.role==='inspector'){
+      if(tab==='Dashboard'){c.innerHTML=renderDashboardInsp();setTimeout(()=>renderChartInsp('principal'),150);return;}
+      if(tab==='Reclamos'){renderReclamos(c);return;}
+      if(tab==='Establecimientos'){renderEstablecimientos(c);return;}
+      if(tab==='Órdenes de servicio'){renderOSZona(c);return;}
+      if(tab==='Intervenciones'){renderIntervencionesInspector(c);return;}
+      if(tab==='Certificación'){renderMedicionesInspector(c,currentUser.zona);return;}
+      if(tab==='Comunicaciones'){renderComunicaciones(c);setTimeout(renderCommDestino,0);setTimeout(toggleCommSurveyBuilder,0);return;}
+    }
     if(tab==='Certificación'&&currentUser.role==='empresa'){renderMedicionesEmpresa(c,currentUser.zona);return;}
     if(tab==='Certificación'&&currentUser.role==='inspector'){renderMedicionesInspector(c,currentUser.zona);return;}
     return prevRenderTab(i);
