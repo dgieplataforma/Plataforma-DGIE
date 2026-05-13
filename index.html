@@ -7156,5 +7156,214 @@ function renderChartInsp(){
   };
 })();
 </script>
+<style id="dgie-os-presupuesto-modal-2026-05-13">
+  .os-presupuesto-modal-backdrop{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:18px}
+  .os-presupuesto-modal{width:min(980px,100%);max-height:88vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28)}
+  .os-presupuesto-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);background:#f8fafc}
+  .os-presupuesto-modal-title{font-size:18px;font-weight:900;color:#123c69}
+  .os-presupuesto-modal-body{padding:18px 22px}
+  .os-empresa-badge-cell{min-width:130px}
+  .os-empresa-badge{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:11px;font-weight:900}
+</style>
+<script id="dgie-os-presupuesto-y-empresa-inspector-2026-05-13">
+(function(){
+  function osNumeroVal(numero){
+    const m=String(numero||'').match(/\d+/g);
+    return m?Number(m[m.length-1])||0:0;
+  }
+  function empresaStoreOS(){
+    try{return JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}')||{}}
+    catch(e){return {}}
+  }
+  function empresaKeysOSFinal(o){
+    return [o?.remoteId&&`remote:${o.remoteId}`,o?.numero&&`numero:${o.numero}`,o?.id&&`local:${o.id}`].filter(Boolean);
+  }
+  function empresaFinalizoOS(o){
+    const st=empresaStoreOS();
+    return !!(o?.empresaFinalizo||empresaKeysOSFinal(o).some(k=>st[k]));
+  }
+  function empresaBadgeOS(o){
+    return empresaFinalizoOS(o)
+      ? `<span class="badge b-ok os-empresa-badge">Finalizada por empresa</span>`
+      : `<span class="badge b-neutral os-empresa-badge">Sin finalizar</span>`;
+  }
+  function presupuestoBotonOS(o){
+    return `<button class="pdf-btn" onclick="openPresupuestoOS(${o.id})">Presupuesto</button>`;
+  }
+  function totalPresupuestoItems(items){
+    return (items||[]).reduce((a,it)=>a+Number(it.modulos||0),0);
+  }
+  function renderPresupuestoReadonly(items){
+    if(!items?.length){
+      return `<div style="text-align:center;padding:28px;color:var(--muted)">Esta orden no tiene ítems de presupuesto cargados.</div>`;
+    }
+    let lastRubro='',lastTipo='';
+    const rows=items.map(it=>{
+      const rubro=it.rubro||'—';
+      const tipo=it.tipo||'GENERAL';
+      let html='';
+      if(rubro!==lastRubro){
+        html+=`<tr class="budget-rubro-row"><td>${escapeHtml(rubro)}</td><td colspan="7"></td></tr>`;
+        lastRubro=rubro;
+        lastTipo='';
+      }
+      if(tipo!==lastTipo){
+        html+=`<tr class="budget-tipo-row"><td></td><td colspan="7">${escapeHtml(tipo)}</td></tr>`;
+        lastTipo=tipo;
+      }
+      html+=`<tr class="budget-item-row">
+        <td><b>${escapeHtml(it.codigo||'')}</b></td>
+        <td>${escapeHtml(it.descripcion||'')}</td>
+        <td>${escapeHtml(it.ud||'')}</td>
+        <td>${Number(it.coef||0).toFixed(3)}</td>
+        <td>${Number(it.cantidad||0).toFixed(2)}</td>
+        <td>${Number(it.modulos||0).toFixed(3)}</td>
+        <td>${escapeHtml(rubro)}</td>
+        <td>${escapeHtml(tipo)}</td>
+      </tr>`;
+      return html;
+    }).join('');
+    return `<div style="overflow:auto">
+      <table class="budget-table">
+        <thead><tr><th>Item</th><th>Descripción</th><th>UD</th><th>Coef.</th><th>Cantidad</th><th>Módulos</th><th>Rubro</th><th>Tipo</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="budget-total"><span>Total módulos:</span><span>${totalPresupuestoItems(items).toFixed(3)}</span></div>
+    </div>`;
+  }
+  window.openPresupuestoOS=function(id){
+    const o=OS_ZONA.find(x=>String(x.id)===String(id));
+    if(!o)return;
+    document.getElementById('os-presupuesto-modal-backdrop')?.remove();
+    const bd=document.createElement('div');
+    bd.id='os-presupuesto-modal-backdrop';
+    bd.className='os-presupuesto-modal-backdrop';
+    bd.innerHTML=`<div class="os-presupuesto-modal">
+      <div class="os-presupuesto-modal-header">
+        <div>
+          <div class="os-presupuesto-modal-title">Presupuesto · ${escapeHtml(o.numero||'Orden')}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">${escapeHtml(o.establecimiento||'')} · ${escapeHtml(o.rubro||'')}</div>
+        </div>
+        <button class="logout-btn" onclick="document.getElementById('os-presupuesto-modal-backdrop')?.remove()">Cerrar</button>
+      </div>
+      <div class="os-presupuesto-modal-body">${renderPresupuestoReadonly(o.presupuestoItems||[])}</div>
+    </div>`;
+    bd.addEventListener('click',e=>{if(e.target===bd)bd.remove();});
+    document.body.appendChild(bd);
+  };
+
+  const _renderOSModulePresupuesto=window.renderOSModule;
+  window.renderOSModule=function(title,isZona){
+    const html=_renderOSModulePresupuesto(title,isZona);
+    return html
+      .replace('<th>Presupuesto</th><th>Prioridad</th>', '<th>Monto</th><th>Presupuesto</th><th>Prioridad</th>')
+      .replace('<th>Certificado</th><th>Acciones</th>', '<th>Certificado</th><th>Empresa</th><th>Acciones</th>');
+  };
+  window.renderOSTable=function(data){
+    const el=document.getElementById('os-table-body');
+    if(!el)return;
+    data=(data||[]).slice().sort((a,b)=>osNumeroVal(b.numero)-osNumeroVal(a.numero));
+    if(!data.length){el.innerHTML=`<tr><td colspan="15" class="os-empty">No se encontraron órdenes de servicio</td></tr>`;return;}
+    const certBadge=(o)=>{
+      if(typeof window.numeroCertificacionOS==='function'){
+        const n=window.numeroCertificacionOS(o.numero);
+        if(n)return `<span class="badge b-ok" style="font-size:11px;font-weight:800">M${n}</span>`;
+      }
+      return '—';
+    };
+    el.innerHTML=data.map(o=>`<tr>
+      <td><div class="os-num">${escapeHtml(o.numero||'')}</div></td>
+      <td>${escapeHtml(o.reclamoNumero||'—')}</td>
+      <td>${escapeHtml(o.establecimiento||'')}</td>
+      <td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td>
+      <td>${escapeHtml(o.rubro||'')}</td>
+      <td>${escapeHtml(o.fecha||'')}</td>
+      <td>${escapeHtml(o.fechaFinalizacion||'—')}</td>
+      <td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td>
+      <td>${presupuestoBotonOS(o)}</td>
+      <td>${renderPrioridadOSControl(o)}</td>
+      <td>${renderEstadoOSControl(o)}</td>
+      <td>${certBadge(o)}</td>
+      <td class="os-empresa-badge-cell">${empresaBadgeOS(o)}</td>
+      <td>${canManageOS()?`<div style="display:flex;gap:6px;align-items:center"><button class="edit-btn" onclick="editarOS(${o.id})">Editar</button><button class="secondary-btn" style="color:var(--danger);padding:7px 10px" onclick="eliminarOS(${o.id})">Eliminar</button></div>`:''}</td>
+      <td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">Descargar PDF</button></td>
+    </tr>`).join('');
+  };
+
+  const _renderOSEmpresaPresupuesto=window.renderOSEmpresa;
+  window.renderOSEmpresa=function(c,z){
+    _renderOSEmpresaPresupuesto(c,z);
+    const table=c.querySelector('.empresa-os-table');
+    if(table&&!table.dataset.presupuestoCol){
+      table.dataset.presupuestoCol='1';
+      const head=table.querySelector('thead tr');
+      const cols=table.querySelector('colgroup');
+      if(cols){
+        const col=document.createElement('col');
+        col.setAttribute('style','width:110px');
+        cols.insertBefore(col,cols.children[7]||null);
+      }
+      if(head&&!head.querySelector('[data-presupuesto-th]')){
+        if(head.children[6])head.children[6].textContent='Monto';
+        const th=document.createElement('th');
+        th.dataset.presupuestoTh='1';
+        th.textContent='Presupuesto';
+        head.insertBefore(th,head.children[7]||null);
+      }
+    }
+    filterOSEmpresa();
+  };
+  const _filterOSEmpresaPresupuesto=window.filterOSEmpresa;
+  window.filterOSEmpresa=function(){
+    const z=Number(currentUser?.zona||0);
+    const q=(document.getElementById('empresa-os-q')?.value||'').toLowerCase();
+    const st=document.getElementById('empresa-os-estado')?.value||'';
+    const dir=document.getElementById('empresa-os-orden')?.value||'desc';
+    const cert=document.getElementById('empresa-os-cert')?.value||'';
+    const med=document.getElementById('empresa-os-medicion')?.value||'';
+    const desde=document.getElementById('empresa-os-desde')?.value||'';
+    const hasta=document.getElementById('empresa-os-hasta')?.value||'';
+    const rango=(fecha)=>{
+      const s=String(fecha||'').trim();
+      if(!s)return true;
+      let f='';
+      if(/^\d{4}-\d{2}-\d{2}/.test(s))f=s.slice(0,10);
+      else{const p=s.split('/'); if(p.length>=3)f=`${String(p[2]).length===2?'20'+p[2]:p[2]}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;}
+      return !f||((!desde||f>=desde)&&(!hasta||f<=hasta));
+    };
+    const pasaCert=(o)=>{
+      if(!cert&&!med)return true;
+      const n=osNumeroVal(o.numero);
+      const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+      const meds=[...new Set(certs.filter(c=>c?.medicion_numero&&typeof window.certOrdenes==='function'&&window.certOrdenes(c).some(x=>Number(x)===n)).map(c=>String(c.medicion_numero)))];
+      if(cert==='certificado'&&!meds.length)return false;
+      if(cert==='sin'&&meds.length)return false;
+      return !med||meds.includes(String(med));
+    };
+    const data=osPorZona(z)
+      .filter(o=>(!st||getEstadoOS(o)===st)&&(`${o.numero||''} ${o.establecimiento||''} ${o.tarea||''} ${o.rubro||''}`.toLowerCase().includes(q))&&pasaCert(o)&&rango(o.fecha))
+      .sort((a,b)=>dir==='asc'?osNumeroVal(a.numero)-osNumeroVal(b.numero):osNumeroVal(b.numero)-osNumeroVal(a.numero));
+    const badge=document.getElementById('empresa-os-count');
+    if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
+    const el=document.getElementById('empresa-os-body');
+    if(!el)return;
+    if(!data.length){el.innerHTML=`<tr><td colspan="12" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;return;}
+    el.innerHTML=data.map(o=>`<tr>
+      <td><div class="os-num">${escapeHtml(o.numero||'')}</div></td>
+      <td>${escapeHtml(o.establecimiento||'')}</td>
+      <td><div class="os-task">${escapeHtml(o.tarea||'')}</div></td>
+      <td>${escapeHtml(o.rubro||'')}</td>
+      <td>${escapeHtml(o.fecha||'')}</td>
+      <td>${escapeHtml(o.fechaFinalizacion||'—')}</td>
+      <td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td>
+      <td>${presupuestoBotonOS(o)}</td>
+      <td>${typeof prioBadgeFecha==='function'?prioBadgeFecha(o.prio):`<span class="badge b-info">${escapeHtml(o.prio||'Media')}</span>`}</td>
+      <td><span class="badge ${getEstadoOS(o)==='finalizado'?'b-ok':getEstadoOS(o)==='trabajando'?'b-info':getEstadoOS(o)==='anulado'?'b-danger':'b-warn'}">${estadoOSLabel(o.estado)}</span></td>
+      <td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">PDF</button></td>
+      <td class="empresa-check-cell"><label class="empresa-os-check"><input type="checkbox" ${empresaFinalizoOS(o)?'checked':''} onchange="marcarOSEmpresaFinalizada('${o.id}',this.checked)"> Finalizó</label></td>
+    </tr>`).join('');
+  };
+})();
+</script>
 </body>
 </html>
