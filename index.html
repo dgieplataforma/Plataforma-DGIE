@@ -1387,7 +1387,7 @@ function renderDashboardOSTable(data){const el=$('dash-os-table-body');if(!el)re
 function renderChartDashboardOS(data){const estados=['Finalizada','En ejecución','Presupuestado','Pendiente'];const values=estados.map(e=>data.filter(o=>o.estado===e).length);drawDonut('chart-os-zona-estado',values,estados,['#2e7d32','#0072ce','#d97706','#64748b'])}
 function renderChartDir(view='principal'){if(view==='principal'){const recAct=RECLAMOS_ZONA.length,recRes=RECLAMOS_ZONA.filter(r=>r.os&&r.os!=='Sin OS').length,osFin=OS_ZONA.filter(o=>o.estado==='Finalizada').length,osPend=Math.max(0,OS_ZONA.length-osFin);drawDonut('chart-dir-reclamos',[recAct||1,recRes],['Reclamos','Con OS'],['#0ea5e9','#2e7d32']);drawDonut('chart-dir-mantenimiento',[osFin,osPend||1],['Finalizadas','Pendientes / activas'],['#7c3aed','#f59e0b']);return}drawDonut('chart-reclamos-ejecucion',[19673,65],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-reclamos-prioridad',[17256,2472,10],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawDonut('chart-mant-ejecucion',[10791,1591,202,401],['Finalizado','Pendiente','Anulado','Trabajando'],['#7c3aed','#0ea5e9','#ef4444','#f8b400']);drawDonut('chart-mant-prioridad',[7661,4012,1312],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);[['chart-dir-rubro-reclamos',['Sanitarios','Electricidad','Herrería','Otro','Cubierta','Albañilería','Gas'],[36,24,15,8,7,7,2],RUBROS_RELEVAMIENTO.map(r=>r.color).concat(['#475569'])],['chart-dir-rubro-mant',['Sanitarios','Electricidad','Albañilería','Herrería','Cubierta','Gas','Otro'],[31,28,18,11,8,2,2],['#6cab43','#a6c93a','#7c3aed','#ef4444','#0ea5e9','#f59e0b','#111827']]].forEach(([id,labels,data,colors])=>{if(chartInstances[id])chartInstances[id].destroy();const el=$(id);if(el&&window.Chart)chartInstances[id]=new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:6}]},options:{plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{color:'#64748b',callback:v=>v+'%'}},x:{ticks:{color:'#64748b'}}}}})})}
 function renderDashboardInsp(){const z=currentUser.zona,d=zonaStats(z);return `<div class="section-label">Dashboard · Zona ${z}</div><div class="dashboard-tabs"><button class="dashboard-tab active" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div id="dashboard-zona-body">${renderDashboardZonaPrincipalBody(z,d)}</div>`}function renderDashboardZonaPrincipalBody(z,d){return `<div class="metrics-grid"><div class="metric-card"><div class="metric-lbl">Zona</div><div class="metric-val">${z}</div></div><div class="metric-card"><div class="metric-lbl">Establecimientos</div><div class="metric-val">${d.estabs}</div></div><div class="metric-card"><div class="metric-lbl">Reclamos</div><div class="metric-val">${d.relev}</div></div><div class="metric-card"><div class="metric-lbl">Órdenes</div><div class="metric-val">${d.os}</div></div><div class="metric-card"><div class="metric-lbl">Inspector</div><div class="metric-val" style="font-size:20px">${d.inspector}</div></div></div><div class="dashboard-map-grid"><div class="card"><div class="card-title">Establecimientos · Zona ${z}</div><div class="map-placeholder">${fakeMapDots()}<div style="position:absolute;left:18px;top:18px;background:#fff;border:1px solid #d9e2ef;border-radius:10px;padding:8px 10px;color:#123c69;font-weight:900">Mapa Zona ${z}</div></div></div><div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos<br>registrados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-reclamos"></canvas></div></div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos<br>ejecutados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-mantenimiento"></canvas></div></div></div></div>`}function renderDashboardZonaGestionBody(z,d){return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos en total</div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-rec-ejec"></canvas></div></div><div class="card"><div class="card-title">Reclamos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-rec-prio"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-man-ejec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-man-prio"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-rec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-man"></canvas></div></div></div>`}function switchDashboardZona(view){const z=currentUser.zona,d=ZONE_DATA[z],body=$('dashboard-zona-body');if(!body)return;if(view==='principal'){body.innerHTML=renderDashboardZonaPrincipalBody(z,d);setTimeout(()=>renderChartInsp('principal'),80)}else{body.innerHTML=renderDashboardZonaGestionBody(z,d);setTimeout(()=>renderChartInsp('gestion'),80)}}function renderChartInsp(view='principal'){const d=zonaStats(currentUser.zona);if(view==='principal'){drawDonut('chart-zona-reclamos',[d.relev,Math.max(5,Math.floor(d.relev*.08))],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-zona-mantenimiento',[d.os,Math.max(2,Math.floor(d.os*.12))],['Finalizado','Pendiente'],['#7c3aed','#f59e0b']);return}drawDonut('chart-zona-rec-ejec',[d.relev,Math.max(5,Math.floor(d.relev*.08))],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-zona-rec-prio',[Math.floor(d.relev*.6),Math.floor(d.relev*.3),Math.floor(d.relev*.1)],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawDonut('chart-zona-man-ejec',[d.os,Math.max(2,Math.floor(d.os*.25))],['Finalizado','Pendiente'],['#7c3aed','#0ea5e9']);drawDonut('chart-zona-man-prio',[Math.floor(d.os*.5),Math.floor(d.os*.35),Math.floor(d.os*.15)],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawBar('chart-zona-rubro-rec',[d.crit,Math.floor(d.crit*1.4),Math.floor(d.crit*1.1),Math.floor(d.crit*.8)]);drawBar('chart-zona-rubro-man',[Math.floor(d.os*.5),Math.floor(d.os*.35),Math.floor(d.os*.2),Math.floor(d.os*.1)])}
-function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const extra=[r.numero,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${r.titulo}</div><div class="reclamo-meta">${showEst?r.est+' · ':''}${r.fecha}${extra?' · '+extra:''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:var(--muted)">${r.os}</span></div></div>`}function renderReclamos(container){
+function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function reclamoReiteradoDe(r){const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';if(directo)return String(directo);const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);return m?m[1]:''}function limpiarMetaReiterado(txt){return String(txt||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim()}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const reiterado=reclamoReiteradoDe(r);const extra=[r.numero,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${escapeHtml(r.titulo||'Reclamo')}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?escapeHtml(r.est||r.establecimiento||'')+' · ':''}${escapeHtml(r.fecha||'')}${extra?' · '+escapeHtml(extra):''}${reiterado?' · Reclamo original '+escapeHtml(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:var(--muted)">${escapeHtml(r.os||'Sin OS')}</span></div></div>`}function renderReclamos(container){
   const z=currentUser.zona;
   const reclamosZona=RECLAMOS_ZONA.filter(r=>Number(r.zona)===Number(z)||zonaEstablecimiento(r.estId)===Number(z));
   const prioOrder={critico:0,alto:1,medio:2,bajo:3};
@@ -1597,11 +1597,17 @@ function clearAcEstab(){
   const hiddenId = document.getElementById('nr-establecimiento');
   const zonaDiv = document.getElementById('nr-zona-asignada');
   const reiteradoBox = document.getElementById('nr-reiterado-box');
+  const numeroField = document.getElementById('nr-numero');
   if(input){ input.value=''; input.focus(); }
   if(box) box.classList.remove('visible');
   if(hiddenId) hiddenId.value='';
   if(zonaDiv) zonaDiv.textContent='';
   if(reiteradoBox) reiteradoBox.style.display='none';
+  if(numeroField){
+    numeroField.disabled=false;
+    numeroField.placeholder='Ingresar número de reclamo';
+    numeroField.value='';
+  }
 }
 
 function closeAcDropdown(){
@@ -1785,7 +1791,13 @@ function actualizarReclamosAnteriores(){
   const box=document.getElementById('nr-reiterado-box');
   const sel=document.getElementById('nr-reclamo-anterior');
   const info=document.getElementById('nr-reiterado-info');
+  const numeroField=document.getElementById('nr-numero');
   if(!box||!sel) return;
+  if(numeroField){
+    numeroField.disabled=false;
+    numeroField.placeholder='Ingresar número de reclamo';
+    numeroField.value='';
+  }
   const anteriores=RECLAMOS_ZONA.filter(r=>r.estId===estId);
   if(anteriores.length===0){
     box.style.display='none';
@@ -1800,12 +1812,17 @@ function actualizarReclamosAnteriores(){
 function onReiteradoChange(){
   const sel=document.getElementById('nr-reclamo-anterior');
   const info=document.getElementById('nr-reiterado-info');
-  const msgField=document.getElementById('nr-mensaje');
   const rubroField=document.getElementById('nr-rubro');
+  const numeroField=document.getElementById('nr-numero');
   if(!sel||!info) return;
   const numeroAnterior=sel.value;
   if(!numeroAnterior){
     info.style.display='none';
+    if(numeroField){
+      numeroField.disabled=false;
+      numeroField.placeholder='Ingresar número de reclamo';
+      numeroField.value='';
+    }
     return;
   }
   // Es reiterado — mostrar info del reclamo anterior
@@ -1818,6 +1835,11 @@ function onReiteradoChange(){
       <strong>Descripción:</strong> ${anterior.titulo}`;
     // Pre-llenar rubro del anterior
     if(rubroField&&anterior.rubro) rubroField.value=anterior.rubro;
+    if(numeroField){
+      numeroField.value=anterior.numero||numeroAnterior;
+      numeroField.disabled=true;
+      numeroField.placeholder='Usa el número del reclamo original';
+    }
   }
 }
 function actualizarZonaNuevoReclamo(){
@@ -1898,14 +1920,14 @@ function actualizarZonaNuevoReclamo(){
 }async function guardarNuevoReclamo(){
   const estId=Number($('nr-establecimiento')?.value||0);
   const est=ESTABS.find(e=>e.id===estId);
-  const numero=$('nr-numero')?.value.trim();
+  const reclamoAnterior=$('nr-reclamo-anterior')?.value||'';
+  const numero=($('nr-numero')?.value.trim()||reclamoAnterior||'').trim();
   const prio=$('nr-prioridad')?.value;
   const rubro=$('nr-rubro')?.value;
   const fechaISO=$('nr-fecha')?.value;
   const mensaje=$('nr-mensaje')?.value.trim();
-  const reclamoAnterior=$('nr-reclamo-anterior')?.value||'';
   if(!est||!numero||!mensaje){
-    if($('nr-error')){$('nr-error').textContent='Completá establecimiento, número de reclamo y descripción.';$('nr-error').style.display='block';}
+    if($('nr-error')){$('nr-error').textContent=reclamoAnterior?'Completá establecimiento y descripción.':'Completá establecimiento, número de reclamo y descripción.';$('nr-error').style.display='block';}
     return;
   }
   const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');
@@ -2780,12 +2802,14 @@ function presupuestoOSParaDB(o){
 }
 async function persistirReclamoSupabase(r){
   if(!r||r._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearReclamo!=='function')return;
+  const descripcionBase=limpiarMetaReiterado(r.descripcion||r.titulo||'');
+  const descripcionConMeta=r.reiteradoDe?`${descripcionBase}\n[REITERADO_DE:${r.reiteradoDe}]`:descripcionBase;
   const {data,error}=await window.DGIE_DB.crearReclamo({
     numero:r.numero,
     establecimiento_id:Number(r.estId)||null,
     zona:Number(r.zona||zonaEstablecimiento(r.estId)||1),
     titulo:r.titulo||'Reclamo',
-    descripcion:r.descripcion||r.titulo||null,
+    descripcion:descripcionConMeta||null,
     prioridad:r.prio||'medio',
     rubro:r.rubro||null,
     fecha:fechaLocalAISO(r.fecha)
@@ -4620,6 +4644,8 @@ function renderChartInsp(){
     return ESTABS.find(e=>Number(e.id)===Number(id))?.n||'Establecimiento';
   }
   function mapRemoteReclamo(row,idx){
+    const descripcionLimpia=limpiarMetaReiterado(row.descripcion||'');
+    const reiteradoDe=reclamoReiteradoDe(row);
     return {
       id:idx+1,
       remoteId:row.id,
@@ -4628,13 +4654,13 @@ function renderChartInsp(){
       estId:Number(row.establecimiento_id)||null,
       zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
       est:establecimientoNombre(row.establecimiento_id),
-      titulo:row.titulo||row.descripcion||'Reclamo',
-      descripcion:row.descripcion||'',
+      titulo:row.titulo||descripcionLimpia||'Reclamo',
+      descripcion:descripcionLimpia,
       prio:row.prioridad||'medio',
       rubro:row.rubro||'Otro',
       fecha:normalizarFechaCorta(row.fecha),
       os:'Sin OS',
-      reiteradoDe:null,
+      reiteradoDe,
       reiteraciones:0,
       fotos:Array.isArray(row.fotos)?row.fotos:[]
     };
@@ -5638,8 +5664,9 @@ function renderChartInsp(){
     el.innerHTML=data.map(r=>{
       const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
       const p=r.prio||r.prioridad||'medio';
+      const reiterado=reclamoReiteradoDe(r);
       const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
-      return `<tr><td><div class="os-num">${escapeHtml(r.numero||'—')}</div></td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge b-ok">${escapeHtml(r.os)}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
+      return `<tr><td><div class="os-num">${escapeHtml(r.numero||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado de ${escapeHtml(reiterado)}</span>`:''}</td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge b-ok">${escapeHtml(r.os)}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
     }).join('');
   };
 
