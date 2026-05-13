@@ -5905,6 +5905,20 @@ function renderChartInsp(){
     font-weight: 400 !important;
   }
 </style>
+<style id="dgie-os-list-scroll-2026-05-13">
+  .os-table-wrap{
+    max-height:430px;
+    overflow:auto;
+  }
+  .os-table thead th{
+    position:sticky;
+    top:0;
+    z-index:3;
+  }
+  @media (max-width:760px){
+    .os-table-wrap{max-height:360px}
+  }
+</style>
 <style id="dgie-mediciones-certificados-2026-05-12">
   .med-grid{display:grid;grid-template-columns:minmax(360px,.9fr) minmax(420px,1.1fr);gap:16px;align-items:start}
   .med-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
