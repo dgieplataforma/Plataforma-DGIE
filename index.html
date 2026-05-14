@@ -1392,7 +1392,7 @@ function renderDashboardOSTable(data){const el=$('dash-os-table-body');if(!el)re
 function renderChartDashboardOS(data){const estados=['Finalizada','En ejecución','Presupuestado','Pendiente'];const values=estados.map(e=>data.filter(o=>o.estado===e).length);drawDonut('chart-os-zona-estado',values,estados,['#2e7d32','#0072ce','#d97706','#64748b'])}
 function renderChartDir(view='principal'){if(view==='principal'){const recAct=RECLAMOS_ZONA.length,recRes=RECLAMOS_ZONA.filter(r=>r.os&&r.os!=='Sin OS').length,osFin=OS_ZONA.filter(o=>o.estado==='Finalizada').length,osPend=Math.max(0,OS_ZONA.length-osFin);drawDonut('chart-dir-reclamos',[recAct||1,recRes],['Reclamos','Con OS'],['#0ea5e9','#2e7d32']);drawDonut('chart-dir-mantenimiento',[osFin,osPend||1],['Finalizadas','Pendientes / activas'],['#7c3aed','#f59e0b']);return}drawDonut('chart-reclamos-ejecucion',[19673,65],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-reclamos-prioridad',[17256,2472,10],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawDonut('chart-mant-ejecucion',[10791,1591,202,401],['Finalizado','Pendiente','Anulado','Trabajando'],['#7c3aed','#0ea5e9','#ef4444','#f8b400']);drawDonut('chart-mant-prioridad',[7661,4012,1312],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);[['chart-dir-rubro-reclamos',['Sanitarios','Electricidad','Herrería','Otro','Cubierta','Albañilería','Gas'],[36,24,15,8,7,7,2],RUBROS_RELEVAMIENTO.map(r=>r.color).concat(['#475569'])],['chart-dir-rubro-mant',['Sanitarios','Electricidad','Albañilería','Herrería','Cubierta','Gas','Otro'],[31,28,18,11,8,2,2],['#6cab43','#a6c93a','#7c3aed','#ef4444','#0ea5e9','#f59e0b','#111827']]].forEach(([id,labels,data,colors])=>{if(chartInstances[id])chartInstances[id].destroy();const el=$(id);if(el&&window.Chart)chartInstances[id]=new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:6}]},options:{plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{color:'#64748b',callback:v=>v+'%'}},x:{ticks:{color:'#64748b'}}}}})})}
 function renderDashboardInsp(){const z=currentUser.zona,d=zonaStats(z);return `<div class="section-label">Dashboard · Zona ${z}</div><div class="dashboard-tabs"><button class="dashboard-tab active" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div id="dashboard-zona-body">${renderDashboardZonaPrincipalBody(z,d)}</div>`}function renderDashboardZonaPrincipalBody(z,d){return `<div class="metrics-grid"><div class="metric-card"><div class="metric-lbl">Zona</div><div class="metric-val">${z}</div></div><div class="metric-card"><div class="metric-lbl">Establecimientos</div><div class="metric-val">${d.estabs}</div></div><div class="metric-card"><div class="metric-lbl">Reclamos</div><div class="metric-val">${d.relev}</div></div><div class="metric-card"><div class="metric-lbl">Órdenes</div><div class="metric-val">${d.os}</div></div><div class="metric-card"><div class="metric-lbl">Inspector</div><div class="metric-val" style="font-size:20px">${d.inspector}</div></div></div><div class="dashboard-map-grid"><div class="card"><div class="card-title">Establecimientos · Zona ${z}</div><div class="map-placeholder">${fakeMapDots()}<div style="position:absolute;left:18px;top:18px;background:#fff;border:1px solid #d9e2ef;border-radius:10px;padding:8px 10px;color:#123c69;font-weight:900">Mapa Zona ${z}</div></div></div><div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos<br>registrados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-reclamos"></canvas></div></div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos<br>ejecutados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-mantenimiento"></canvas></div></div></div></div>`}function renderDashboardZonaGestionBody(z,d){return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos en total</div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-rec-ejec"></canvas></div></div><div class="card"><div class="card-title">Reclamos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-rec-prio"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-man-ejec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-man-prio"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-rec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-man"></canvas></div></div></div>`}function switchDashboardZona(view){const z=currentUser.zona,d=ZONE_DATA[z],body=$('dashboard-zona-body');if(!body)return;if(view==='principal'){body.innerHTML=renderDashboardZonaPrincipalBody(z,d);setTimeout(()=>renderChartInsp('principal'),80)}else{body.innerHTML=renderDashboardZonaGestionBody(z,d);setTimeout(()=>renderChartInsp('gestion'),80)}}function renderChartInsp(view='principal'){const d=zonaStats(currentUser.zona);if(view==='principal'){drawDonut('chart-zona-reclamos',[d.relev,Math.max(5,Math.floor(d.relev*.08))],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-zona-mantenimiento',[d.os,Math.max(2,Math.floor(d.os*.12))],['Finalizado','Pendiente'],['#7c3aed','#f59e0b']);return}drawDonut('chart-zona-rec-ejec',[d.relev,Math.max(5,Math.floor(d.relev*.08))],['Reportado','Anulado'],['#0ea5e9','#ef4444']);drawDonut('chart-zona-rec-prio',[Math.floor(d.relev*.6),Math.floor(d.relev*.3),Math.floor(d.relev*.1)],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawDonut('chart-zona-man-ejec',[d.os,Math.max(2,Math.floor(d.os*.25))],['Finalizado','Pendiente'],['#7c3aed','#0ea5e9']);drawDonut('chart-zona-man-prio',[Math.floor(d.os*.5),Math.floor(d.os*.35),Math.floor(d.os*.15)],['Media','Alta','Baja'],['#f8b400','#ef4444','#7c3aed']);drawBar('chart-zona-rubro-rec',[d.crit,Math.floor(d.crit*1.4),Math.floor(d.crit*1.1),Math.floor(d.crit*.8)]);drawBar('chart-zona-rubro-man',[Math.floor(d.os*.5),Math.floor(d.os*.35),Math.floor(d.os*.2),Math.floor(d.os*.1)])}
-function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function reclamoReiteradoDe(r){const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';if(directo)return String(directo);const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);return m?m[1]:''}function reclamoNumeroVisible(r){const rep=reclamoReiteradoDe(r);return rep||r?.numero||''}function limpiarMetaReiterado(txt){return String(txt||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim()}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const reiterado=reclamoReiteradoDe(r);const numeroVisible=reclamoNumeroVisible(r);const extra=[numeroVisible,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${escapeHtml(r.titulo||'Reclamo')}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?escapeHtml(r.est||r.establecimiento||'')+' · ':''}${escapeHtml(r.fecha||'')}${extra?' · '+escapeHtml(extra):''}${reiterado?' · Reclamo original '+escapeHtml(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:var(--muted)">${escapeHtml(r.os||'Sin OS')}</span></div></div>`}function renderReclamos(container){
+function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function reclamoReiteradoDe(r){const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';if(directo)return String(directo);const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);return m?m[1]:''}function reclamoNumeroVisible(r){const rep=reclamoReiteradoDe(r);return rep||r?.numero||''}function limpiarMetaReiterado(txt){return String(txt||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim()}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const reiterado=reclamoReiteradoDe(r);const numeroVisible=reclamoNumeroVisible(r);const extra=[numeroVisible,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';const _osObj=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite'?OS_ZONA.find(x=>x.numero===r.os):null;const _osEst=_osObj?getEstadoOS(_osObj):'';const _osLbl=_osObj?estadoOSLabel(_osObj.estado):'';const _osDisplay=r.os&&r.os!=='Sin OS'?escapeHtml(r.os)+(_osLbl?' · '+_osLbl:''):'Sin OS';const _osClr=_osEst==='finalizado'?'#2e7d32':_osEst==='trabajando'?'#0072ce':_osEst==='anulado'?'#dc2626':_osEst==='pendiente'?'#d97706':'var(--muted)';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${escapeHtml(r.titulo||'Reclamo')}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?escapeHtml(r.est||r.establecimiento||'')+' · ':''}${escapeHtml(r.fecha||'')}${extra?' · '+escapeHtml(extra):''}${reiterado?' · Reclamo original '+escapeHtml(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:${_osClr};font-weight:${_osEst?'700':'400'}">${_osDisplay}</span></div></div>`}function renderReclamos(container){
   const z=currentUser.zona;
   const reclamosZona=RECLAMOS_ZONA.filter(r=>Number(r.zona)===Number(z)||zonaEstablecimiento(r.estId)===Number(z));
   const prioOrder={critico:0,alto:1,medio:2,bajo:3};
@@ -5735,7 +5735,7 @@ function renderChartInsp(){
   };
 
   window.renderReclamosCoordinador=function(c){
-    c.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Vista global de reclamos de todas las zonas.</div></div><span class="badge b-info" id="coord-reclamos-count">— reclamos</span></div><div class="os-filters"><input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título o rubro..." oninput="filterReclamosCoord()"><select class="filter-sel" id="coord-rec-zona" onchange="filterReclamosCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-rec-prio" onchange="filterReclamosCoord()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="coord-rec-os" onchange="filterReclamosCoord()"><option value="">Con y sin OS</option><option value="con">Con OS asignada</option><option value="sin">Sin OS</option></select>${dateFiltersHTML('coord-rec','filterReclamosCoord()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th></tr></thead><tbody id="coord-rec-body"></tbody></table></div></div>`;
+    c.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Vista global de reclamos de todas las zonas.</div></div><span class="badge b-info" id="coord-reclamos-count">— reclamos</span><button class="secondary-btn" style="margin-left:8px;padding:6px 13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px" onclick="exportarReclamosExcel()">⬇ Excel</button></div><div class="os-filters"><input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título o rubro..." oninput="filterReclamosCoord()"><select class="filter-sel" id="coord-rec-zona" onchange="filterReclamosCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-rec-prio" onchange="filterReclamosCoord()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="coord-rec-os" onchange="filterReclamosCoord()"><option value="">Con y sin OS</option><option value="con">Con OS asignada</option><option value="sin">Sin OS</option></select>${dateFiltersHTML('coord-rec','filterReclamosCoord()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th></tr></thead><tbody id="coord-rec-body"></tbody></table></div></div>`;
     filterReclamosCoord();
   };
   window.filterReclamosCoord=function(){
@@ -5760,7 +5760,8 @@ function renderChartInsp(){
       const p=r.prio||r.prioridad||'medio';
       const reiterado=reclamoReiteradoDe(r);
       const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
-      return `<tr><td><div class="os-num">${escapeHtml(reclamoNumeroVisible(r)||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado</span>`:''}</td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge b-ok">${escapeHtml(r.os)}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
+      const _osObjC=tieneOS?OS_ZONA.find(x=>x.numero===r.os):null;const _osEstC=_osObjC?getEstadoOS(_osObjC):'';const _osLblC=_osObjC?estadoOSLabel(_osObjC.estado):'';
+      return `<tr><td><div class="os-num">${escapeHtml(reclamoNumeroVisible(r)||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado</span>`:''}</td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge ${_osEstC==='finalizado'?'b-ok':_osEstC==='trabajando'?'b-info':_osEstC==='anulado'?'b-danger':'b-warn'}">${escapeHtml(r.os)}</span>${_osLblC?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${_osLblC}</div>`:''}` :'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
     }).join('');
   };
 
@@ -8014,6 +8015,173 @@ function renderChartInsp(){
     if(typeof prevRenderChartCoord==='function')prevRenderChartCoord();
     const real=typeof coordDashboardData==='function'?coordDashboardData():{recs:RECLAMOS_ZONA,oss:OS_ZONA};
     drawReclamos('chart-coord-estado-reclamos',real.recs,real.oss);
+  };
+})();
+</script>
+<script id="dgie-fix-cert-badge-coordinador-2026-05-14">
+(function(){
+  // Bug: certBadgeOS() muestra badge aunque la medición NO esté finalizada.
+  // numeroCertificacionOS() sí chequea finalizacion (via _readFinMap/localStorage).
+  // Fix: envolver filterOSCoord para re-parchar las celdas cert tras renderizar.
+  function certBadgeCorregido(numero){
+    if(typeof window.numeroCertificacionOS!=='function')return null;
+    return window.numeroCertificacionOS(numero);
+  }
+  function parcheBadgesCertCoord(){
+    const el=document.getElementById('coord-os-body');
+    if(!el)return;
+    el.querySelectorAll('tr').forEach(tr=>{
+      const numEl=tr.querySelector('.os-num');
+      if(!numEl)return;
+      const numero=numEl.textContent.trim();
+      // columna Certificado = índice 11 en la tabla coord (14 cols: Orden,Zona,Nrec,Est,Tarea,Rubro,FEnv,FFin,Pres,Prio,Estado,Cert,Acc,PDF)
+      const certTd=tr.children[11];
+      if(!certTd)return;
+      const nc=certBadgeCorregido(numero);
+      certTd.innerHTML=nc?`<span class="badge b-ok" style="font-size:11px;font-weight:800">M${nc}</span>`:'—';
+    });
+  }
+  const _prevFilterOSCoord=window.filterOSCoord;
+  window.filterOSCoord=function(){
+    if(typeof _prevFilterOSCoord==='function')_prevFilterOSCoord.apply(this,arguments);
+    // Parchar badges después de que el DOM esté actualizado
+    setTimeout(parcheBadgesCertCoord,0);
+    // Si los certs no están cargados, esperar y re-parchar
+    if(!window.certsLoaded&&typeof window.cargarCertificadosMedicion==='function'){
+      window.cargarCertificadosMedicion().then(()=>parcheBadgesCertCoord()).catch(()=>{});
+    }
+  };
+  // También fix para filterOS (inspector): la última renderOSTable usa numeroCertificacionOS
+  // correctamente, pero si los certs se cargan tarde, re-aplicar parche al cargar.
+  const _prevRenderOSZona=window.renderOSZona;
+  window.renderOSZona=function(container){
+    if(typeof _prevRenderOSZona==='function')_prevRenderOSZona.apply(this,arguments);
+    if(!window.certsLoaded&&typeof window.cargarCertificadosMedicion==='function'){
+      window.cargarCertificadosMedicion().then(()=>{
+        // renderOSTable ya es invocado de nuevo por renderOSZona al cargar certs
+      }).catch(()=>{});
+    }
+  };
+})();
+</script>
+<script id="dgie-exportar-reclamos-excel-2026-05-14">
+(function(){
+  function estadoReclamo(r){
+    const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
+    if(!tieneOS)return 'Pendiente';
+    const o=OS_ZONA.find(x=>x.numero===r.os);
+    if(!o)return 'Orden de servicio';
+    const e=typeof getEstadoOS==='function'?getEstadoOS(o):(o.estado||'').toLowerCase();
+    if(e==='trabajando')return 'Trabajando';
+    if(e==='finalizado')return 'Finalizado';
+    if(e==='anulado')return 'Anulado';
+    return 'Orden de servicio';
+  }
+  function zonaLabel(r){
+    return Number(r.zona||0)||'—';
+  }
+  function prioLabel(r){
+    const m={critico:'Crítico',alto:'Alto',medio:'Medio',bajo:'Bajo'};
+    return m[(r.prio||r.prioridad||'').toLowerCase()]||'—';
+  }
+  function inspectorLabel(zona){
+    const z=Number(zona)||0;
+    return (typeof INSPECTORS!=='undefined'&&INSPECTORS[z-1])||'—';
+  }
+  window.exportarReclamosExcel=function(){
+    if(!window.XLSX){alert('Librería Excel no disponible. Recargá la página.');return;}
+    // Leer filtros activos del panel de coordinador
+    const q=(document.getElementById('coord-rec-q')?.value||'').toLowerCase();
+    const zona=document.getElementById('coord-rec-zona')?.value||'';
+    const prio=document.getElementById('coord-rec-prio')?.value||'';
+    const osF=document.getElementById('coord-rec-os')?.value||'';
+    const desde=document.getElementById('coord-rec-desde')?.value||'';
+    const hasta=document.getElementById('coord-rec-hasta')?.value||'';
+    const data=RECLAMOS_ZONA.filter(r=>{
+      const z=Number(r.zona||zonaEstablecimiento(r.estId)||0);
+      const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
+      const estado=estadoReclamo(r);
+      const matchEstado=!osF||(osF==='con'?tieneOS:!tieneOS);
+      const matchZona=!zona||String(z)===zona;
+      const matchPrio=!prio||(r.prio||r.prioridad||'').toLowerCase()===prio;
+      const matchQ=!q||`${r.titulo||''} ${r.est||r.establecimiento||''} ${r.rubro||''} ${r.numero||''}`.toLowerCase().includes(q);
+      const matchFecha=typeof enRangoFecha==='function'?enRangoFecha(r.fecha,desde,hasta):true;
+      return matchZona&&matchPrio&&matchEstado&&matchQ&&matchFecha;
+    }).sort((a,b)=>{
+      const fa=typeof fechaToISO==='function'?fechaToISO(b.fecha):b.fecha||'';
+      const fb=typeof fechaToISO==='function'?fechaToISO(a.fecha):a.fecha||'';
+      return fa.localeCompare(fb);
+    });
+    if(!data.length){alert('No hay reclamos para exportar con los filtros actuales.');return;}
+    const rows=data.map(r=>({
+      'N° Reclamo':r.numero||reclamoNumeroVisible(r)||'—',
+      'Zona':zonaLabel(r),
+      'Inspector':inspectorLabel(r.zona||zonaEstablecimiento(r.estId)),
+      'Establecimiento':r.est||r.establecimiento||'—',
+      'Título':r.titulo||'—',
+      'Rubro':r.rubro||'—',
+      'Prioridad':prioLabel(r),
+      'Fecha':r.fecha||'—',
+      'OS asignada':r.os&&r.os!=='Sin OS'?r.os:'—',
+      'Estado reclamo':estadoReclamo(r)
+    }));
+    const ws=XLSX.utils.json_to_sheet(rows);
+    // Ancho de columnas aproximado
+    ws['!cols']=[{wch:14},{wch:6},{wch:22},{wch:36},{wch:32},{wch:16},{wch:10},{wch:12},{wch:14},{wch:16}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Reclamos');
+    const fecha=new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb,`DGIE_Reclamos_${fecha}.xlsx`);
+  };
+})();
+</script>
+<script id="dgie-empresa-finalizo-fix-2026-05-14">
+(function(){
+  // Toast simple para feedback visual
+  function toastDGIE(msg,tipo){
+    const div=document.createElement('div');
+    div.textContent=msg;
+    div.style.cssText=`position:fixed;bottom:28px;right:24px;z-index:99999;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:700;color:#fff;background:${tipo==='error'?'#dc2626':tipo==='warn'?'#d97706':'#2e7d32'};box-shadow:0 4px 18px rgba(0,0,0,.22);pointer-events:none;transition:opacity .4s`;
+    document.body.appendChild(div);
+    setTimeout(()=>{div.style.opacity='0';setTimeout(()=>div.remove(),420);},2800);
+  }
+
+  // Sobreescribe marcarOSEmpresaFinalizada con mejor manejo de errores y RPC
+  const _prevMarcar=window.marcarOSEmpresaFinalizada;
+  window.marcarOSEmpresaFinalizada=async function(id,val){
+    const o=OS_ZONA.find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id)||String(x.numero)===String(id));
+    if(!o){if(_prevMarcar)return _prevMarcar(id,val);return;}
+    const now=val?new Date().toISOString():null;
+    // Actualizar en memoria
+    o.empresaFinalizo=!!val;
+    o.empresaFinalizoFecha=now;
+    // Guardar en localStorage como respaldo
+    try{
+      const store=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}');
+      const keys=[o.remoteId&&`remote:${o.remoteId}`,o.numero&&`numero:${o.numero}`,o.id&&`local:${o.id}`].filter(Boolean);
+      keys.forEach(k=>{if(val)store[k]={valor:true,fecha:now};else delete store[k];});
+      localStorage.setItem('dgie_empresa_finalizo_os',JSON.stringify(store));
+    }catch(e){/*ignorar error localStorage*/}
+    saveAppState&&saveAppState();
+    // Intentar guardar en Supabase via RPC (evita restricción RLS para empresa)
+    if(o.remoteId&&window.DGIE_DB?.isConfigured){
+      let error=null;
+      if(typeof window.DGIE_DB.actualizarEmpresaFinalizo==='function'){
+        const res=await window.DGIE_DB.actualizarEmpresaFinalizo(o.remoteId,val);
+        error=res?.error||null;
+      } else {
+        const res=await window.DGIE_DB.actualizarOrden(o.remoteId,{empresa_finalizo:!!val,empresa_finalizo_fecha:now});
+        error=res?.error||null;
+      }
+      if(error){
+        console.warn('empresa_finalizo Supabase error:',error.message||error);
+        toastDGIE('⚠ Guardado solo localmente (error: '+((error.message||'sin permiso').slice(0,60))+')','warn');
+      } else {
+        toastDGIE(val?'✓ Empresa finalizó guardado en sistema':'✓ Desmarcado y guardado en sistema','ok');
+      }
+    }
+    // Refrescar vista
+    if(currentUser?.role==='empresa'&&typeof filterOSEmpresa==='function')filterOSEmpresa();
   };
 })();
 </script>

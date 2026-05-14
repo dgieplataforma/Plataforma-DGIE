@@ -100,6 +100,9 @@
     async actualizarOrden(id, row){
       return client.from('ordenes_servicio').update(row).eq('id', id).select('*').single();
     },
+    async actualizarEmpresaFinalizo(ordenId, valor){
+      return client.rpc('marcar_empresa_finalizo', { p_orden_id: String(ordenId), p_valor: !!valor });
+    },
     async eliminarOrden(id){
       return client.from('ordenes_servicio').delete().eq('id', id);
     },
