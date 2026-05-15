@@ -8324,7 +8324,7 @@ function renderChartInsp(){
     if(!el)return;
     el.querySelectorAll('tr').forEach(tr=>{
       const num=tr.querySelector('.os-num')?.textContent.trim();
-      const certTd=tr.children[10];
+      const certTd=tr.children[11];
       if(num&&certTd)certTd.innerHTML=window.certBadgeOS({numero:num});
     });
   };
