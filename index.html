@@ -4824,9 +4824,11 @@ function renderChartInsp(){
       zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
       rubros:datos.rubros||{},
       comentarios:datos.comentarios||'',
+      comentariosCoordinacion:Array.isArray(datos.comentariosCoordinacion)?datos.comentariosCoordinacion:[],
       fotosArchivos:datos.fotosArchivos||[],
       ts:row.created_at?new Date(row.created_at).getTime():Date.now(),
       remoteId:row.id,
+      estId:Number(row.establecimiento_id)||0,
       _remoteSaved:true
     };
   }
@@ -10193,6 +10195,81 @@ function renderChartInsp(){
     const nuevas=await fotosInput(); if(nuevas.length){it.fotosArchivos=[...(it.fotosArchivos||[]),...nuevas].slice(0,4);it.fotos=it.fotosArchivos.length}
     await persistirIntervencionSupabase(it);
     saveAppState&&saveAppState(); abrirPaqueteIntervencion(key);
+  };
+})();
+</script>
+<script id="dgie-unificar-columna-presupuesto-2026-05-18">
+(function(){
+  'use strict';
+  function byId(id){return document.getElementById(id);}
+
+  // ── INSPECTOR/ZONA: quitar columna "Monto", dejar solo botón Presupuesto ─────
+  // renderOSModule (línea 7379) agrega <th>Monto</th> antes de <th>Presupuesto</th>. Lo eliminamos.
+  const _prevModule = window.renderOSModule;
+  window.renderOSModule = function(title, isZona){
+    const html = typeof _prevModule === 'function' ? _prevModule.call(this, title, isZona) : '';
+    return html.replace(/<th[^>]*>\s*Monto\s*<\/th>/gi, '');
+  };
+
+  // renderOSTable (línea 8328): col7=monto, col8=botón presupuesto.
+  // Eliminamos col7 (monto) de cada fila y reajustamos el badge de cert al nuevo índice.
+  const _prevOSTable = window.renderOSTable;
+  window.renderOSTable = function(data){
+    if(typeof _prevOSTable === 'function') _prevOSTable.call(this, data);
+    const el = byId('os-table-body');
+    if(!el) return;
+    el.querySelectorAll('tr').forEach(tr => {
+      if(tr.children.length > 8) tr.children[7].remove();
+    });
+    // Cert badge: estaba en col[11]; al quitar col7 queda en col[10]
+    el.querySelectorAll('tr').forEach(tr => {
+      const num = tr.querySelector('.os-num')?.textContent.trim();
+      const certTd = tr.children[10];
+      if(num && certTd && typeof window.certBadgeOS === 'function')
+        certTd.innerHTML = window.certBadgeOS({numero: num});
+    });
+  };
+
+  // ── COORDINADOR: reemplazar texto monto (col8) con botón Presupuesto ──────────
+  const _prevFilterCoord = window.filterOSCoord;
+  window.filterOSCoord = function(){
+    if(typeof _prevFilterCoord === 'function') _prevFilterCoord.apply(this, arguments);
+    const el = byId('coord-os-body');
+    if(!el) return;
+    el.querySelectorAll('tr').forEach(tr => {
+      const numEl = tr.querySelector('.os-num');
+      if(!numEl || tr.children.length < 9) return;
+      const o = OS_ZONA.find(x => String(x.numero||'').trim() === numEl.textContent.trim());
+      if(!o) return;
+      tr.children[8].innerHTML = `<button class="pdf-btn" onclick="openPresupuestoOS(${o.id})">Presupuesto</button>`;
+    });
+  };
+
+  // ── EMPRESA: eliminar columna Monto del body y del header ────────────────────
+  // El filterOSEmpresa activo (línea 7474) ya renderiza 12 celdas por fila:
+  //   col6 = <span class="os-money"> (monto)   ← hay que ELIMINAR esta celda
+  //   col7 = botón Presupuesto                  ← conservar, pasa a ser col6
+  // El header tiene <th>Monto</th> en col6. Hay que eliminarlo también.
+
+  const _prevFilterEmpresa = window.filterOSEmpresa;
+  window.filterOSEmpresa = function(){
+    if(typeof _prevFilterEmpresa === 'function') _prevFilterEmpresa.apply(this, arguments);
+    const el = byId('empresa-os-body');
+    if(!el) return;
+    // Eliminar col6 (monto) de cada fila — col7 (botón) pasa a ser col6
+    el.querySelectorAll('tr').forEach(tr => {
+      if(tr.children.length > 7) tr.children[6].remove();
+    });
+    // Arreglar header: quitar SOLO el th "Monto" — el th "Presupuesto" que queda es el correcto
+    const table = el.closest('table');
+    if(table){
+      const head = table.querySelector('thead tr');
+      if(head){
+        [...head.querySelectorAll('th')].forEach(th => {
+          if(th.textContent.trim() === 'Monto') th.remove();
+        });
+      }
+    }
   };
 })();
 </script>
