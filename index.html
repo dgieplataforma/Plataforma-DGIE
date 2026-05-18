@@ -10273,6 +10273,142 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-fix-persistencia-comentarios-rel-y-vista-intervenciones-2026-05-18">
+(function(){
+  function $(id){return document.getElementById(id)}
+  function esc(v){
+    if(typeof escapeHtml==='function')return escapeHtml(v);
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function norm(v){return String(v??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+  function osNum(numero){const m=String(numero||'').match(/\d+/g);return m?Number(m[m.length-1])||0:0}
+  function osList(it){
+    if(Array.isArray(it?.osVinculadas))return it.osVinculadas.map(String).filter(Boolean);
+    return String(it?.osVinculada||it?.ordenServicio||it?.orden_servicio||it?.os||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function cleanOS(arr){return [...new Set((arr||[]).map(String).map(x=>x.trim()).filter(Boolean))].sort((a,b)=>osNum(a)-osNum(b)||String(a).localeCompare(String(b)))}
+  function keyOf(it){
+    if(it?.intervencionId||it?.paqueteId)return String(it.intervencionId||it.paqueteId);
+    const os=cleanOS(osList(it));
+    return `${Number(it?.estId||0)}|${os.length?os.join('+'):'sin-os'}`;
+  }
+  function fechaMs(it){
+    if(it?.fechaHora){const d=new Date(it.fechaHora);if(!Number.isNaN(d.getTime()))return d.getTime()}
+    const p=String(it?.fecha||'').split('/');
+    if(p.length>=3){const y=p[2].length===2?2000+Number(p[2]):Number(p[2]);return new Date(y,Number(p[1])-1,Number(p[0])).getTime()||0}
+    return Number(it?.id||0);
+  }
+  function estOf(it){return ESTABS.find(e=>Number(e.id)===Number(it?.estId))}
+  function osObj(numero){return OS_ZONA.find(o=>String(o.numero||'')===String(numero||''))||OS_ZONA.find(o=>osNum(o.numero)===osNum(numero))}
+  function osBadges(arr){
+    arr=cleanOS(arr);
+    if(!arr.length)return '<span class="badge b-neutral">Sin O.S. vinculada</span>';
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">${arr.map(n=>{
+      const o=osObj(n);
+      return `<span class="badge b-info" style="display:inline-flex;gap:6px;align-items:center">${esc(n)}${o?` <button class="pdf-btn" style="padding:3px 8px" onclick="event.stopPropagation();descargarOSPDF(${o.id})">PDF</button>`:' <span style="color:#a15c00">PDF no encontrado</span>'}</span>`;
+    }).join('')}</div>`;
+  }
+  function packageData(data){
+    const map={};
+    (data||[]).forEach(it=>{const k=keyOf(it);(map[k]=map[k]||[]).push(it)});
+    return Object.entries(map).map(([key,visitas])=>{
+      visitas.sort((a,b)=>fechaMs(b)-fechaMs(a));
+      return {key,visitas,ultima:visitas[0],os:cleanOS(visitas.flatMap(osList))};
+    }).sort((a,b)=>fechaMs(b.ultima)-fechaMs(a.ultima));
+  }
+  function visitaCard(it){
+    const fotos=typeof renderFotosIntervencion==='function'?renderFotosIntervencion(it):'';
+    const can=currentUser?.role==='inspector'&&Number(currentUser.zona)===Number(it.zona);
+    return `<div class="intervencion-card" onclick="verDetalleIntervencion(${it.id})">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div><div style="font-weight:900;color:#123c69">${esc(it.fechaHora?new Date(it.fechaHora).toLocaleString('es-AR'):it.fecha||'Visita')}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(it.inspector||'Inspector')} · Zona ${esc(it.zona||'—')} · Avance ${Number(it.avance||0)}%</div></div>
+        <span class="badge b-info">${Number(it.avance||0)}%</span>
+      </div>
+      <div style="font-size:14px;margin-top:10px;color:#334155">${esc(it.descripcion||'Sin descripción')}</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Number(it.avance||0)}%"></div></div>
+      <div class="intervencion-photo-row">${fotos}</div>
+      ${can?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" onclick="event.stopPropagation();editarIntervencion(${it.id})">Editar visita</button><button class="secondary-btn" style="color:var(--danger)" onclick="event.stopPropagation();eliminarIntervencion(${it.id})">Eliminar</button></div>`:''}
+    </div>`;
+  }
+  function paqueteCard(pkg){
+    const it=pkg.ultima, est=estOf(it);
+    return `<div class="intervencion-card" onclick="abrirPaqueteIntervencion('${esc(pkg.key)}')">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div><div style="font-weight:900;color:#123c69">${esc(est?.n||'Establecimiento')}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Zona ${esc(it.zona||est?.zona||'—')} · ${pkg.visitas.length} visita${pkg.visitas.length!==1?'s':''}</div>${osBadges(pkg.os)}</div>
+        <span class="badge b-info">${Number(it.avance||0)}%</span>
+      </div>
+      <div style="font-size:14px;margin-top:10px;color:#334155">${esc(it.descripcion||'Última visita registrada')}</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Number(it.avance||0)}%"></div></div>
+    </div>`;
+  }
+  window.renderIntervencionesInspector=function(c){
+    const paquetes=packageData(INTERVENCIONES);
+    c.innerHTML=`<div class="section-label">Intervenciones · Todas las zonas</div><div class="card"><div class="card-header"><div><div class="card-title">Paquetes de intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El inspector puede consultar intervenciones de todas las zonas. Solo puede editar las de su zona.</div></div>${currentUser?.role==='inspector'?'<button class="primary-btn" onclick="openNuevaIntervencionMadre()">+ Nueva intervención</button>':''}</div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector, O.S. o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list">${paquetes.length?paquetes.map(paqueteCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin intervenciones cargadas</div>'}</div></div>`;
+  };
+  window.filterIntervencionesDireccion=function(){
+    const z=$('int-dir-zona')?.value||'', q=norm($('int-dir-search')?.value||'');
+    const data=INTERVENCIONES.filter(it=>{
+      const est=estOf(it);
+      return(!z||String(it.zona||est?.zona)===z)&&norm(`${est?.n||''} ${it.inspector||''} ${it.descripcion||''} ${osList(it).join(' ')}`).includes(q);
+    });
+    const paquetes=packageData(data), el=$('intervenciones-dir-list');
+    if(el)el.innerHTML=paquetes.length?paquetes.map(paqueteCard).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron intervenciones</div>';
+  };
+
+  function relKey(r,estId){
+    const base=r?.remoteId||r?.id||r?.ts||`${r?.fecha||''}-${r?.inspector||''}-${r?.zona||''}`;
+    return `rel_${Number(estId)}_${String(base).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+  }
+  function buscarRel(id){
+    for(const [estId,arr] of Object.entries(RELEVAMIENTOS||{})){
+      const found=(arr||[]).find(r=>relKey(r,estId)===String(id));
+      if(found)return {rel:found,estId:Number(estId)};
+    }
+    return null;
+  }
+  async function guardarRelSeguro(rel){
+    saveAppState&&saveAppState();
+    if(!rel?.remoteId){
+      alert('El comentario quedó local, pero este relevamiento no tiene ID de Supabase. Recargá datos o revisá que el relevamiento esté sincronizado.');
+      return false;
+    }
+    if(window.DGIE_DB?.actualizarRelevamiento){
+      const {error}=await window.DGIE_DB.actualizarRelevamiento(rel.remoteId,{datos:rel});
+      if(error){
+        alert('No se pudo guardar el comentario en Supabase. Al actualizar se perderá. Detalle: '+(error.message||error));
+        return false;
+      }
+    }
+    return true;
+  }
+  function refrescarRel(estId){
+    if($('relevamientos-dir-list')&&typeof filterRelevamientosDireccion==='function')filterRelevamientosDireccion();
+    else if($('relevamientos-insp-list')&&typeof filterRelevamientosInspector==='function')filterRelevamientosInspector();
+    else if($('ficha-body')&&typeof switchFichaTab==='function')switchFichaTab(typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:5);
+    else if($('map-ficha-body')&&typeof renderMapFichaBody==='function')renderMapFichaBody(estId||currentFichaId,typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:5);
+  }
+  window.guardarComentarioRelevamiento=async function(id){
+    const found=buscarRel(id), txt=$(`rel-comment-${id}`)?.value.trim();
+    if(!found||!txt)return;
+    found.rel.comentariosCoordinacion=Array.isArray(found.rel.comentariosCoordinacion)?found.rel.comentariosCoordinacion:[];
+    found.rel.comentariosCoordinacion.unshift({texto:txt,autor:currentUser?.name||'Usuario',fecha:new Date().toISOString(),respuestas:[]});
+    const ok=await guardarRelSeguro(found.rel);
+    if(!ok)return;
+    refrescarRel(found.estId);
+  };
+  window.responderComentarioRelevamiento=async function(id,idx){
+    const found=buscarRel(id), txt=$(`rel-resp-${id}-${idx}`)?.value.trim();
+    if(!found||!txt)return;
+    found.rel.comentariosCoordinacion=Array.isArray(found.rel.comentariosCoordinacion)?found.rel.comentariosCoordinacion:[];
+    const c=found.rel.comentariosCoordinacion[idx]; if(!c)return;
+    c.respuestas=Array.isArray(c.respuestas)?c.respuestas:[];
+    c.respuestas.push({texto:txt,autor:currentUser?.name||'Usuario',fecha:new Date().toISOString()});
+    const ok=await guardarRelSeguro(found.rel);
+    if(!ok)return;
+    refrescarRel(found.estId);
+  };
+})();
+</script>
 </body>
 </html>
 
