@@ -4795,6 +4795,7 @@ function renderChartInsp(){
     };
   }
   function mapRemoteIntervencion(row,idx){
+    const datos=row.datos||{};
     return {
       id:idx+1,
       remoteId:row.id,
@@ -4802,10 +4803,14 @@ function renderChartInsp(){
       estId:Number(row.establecimiento_id)||null,
       zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
       fecha:normalizarFechaCorta(row.fecha||row.created_at),
-      inspector:ZONE_DATA[Number(row.zona)]?.inspector||currentUser?.name||'Inspector',
+      fechaHora:datos.fechaHora||row.created_at||null,
+      inspector:datos.inspector||ZONE_DATA[Number(row.zona)]?.inspector||currentUser?.name||'Inspector',
       descripcion:row.descripcion||'',
       avance:Number(row.avance)||0,
+      intervencionId:datos.intervencionId||datos.paqueteId||null,
+      osVinculadas:Array.isArray(datos.osVinculadas)?datos.osVinculadas.map(String).filter(Boolean):[],
       comentariosCoordinacion:Array.isArray(row.comentarios_coordinacion)?row.comentarios_coordinacion:[],
+      fotosArchivos:Array.isArray(datos.fotosArchivos)?datos.fotosArchivos:[],
       fotos:0
     };
   }
@@ -10075,6 +10080,119 @@ function renderChartInsp(){
     found.rel.comentariosCoordinacion[idx].respuestas.splice(ridx,1);
     await guardarRelSeguro(found.rel);
     refrescar(found.estId);
+  };
+})();
+</script>
+<script id="dgie-persistir-os-intervenciones-supabase-2026-05-18">
+(function(){
+  function $(id){return document.getElementById(id)}
+  function osNum(numero){const m=String(numero||'').match(/\d+/g);return m?Number(m[m.length-1])||0:0}
+  function cleanOS(arr){return [...new Set((arr||[]).map(String).map(x=>x.trim()).filter(Boolean))].sort((a,b)=>osNum(a)-osNum(b)||String(a).localeCompare(String(b)))}
+  function osList(it){
+    if(Array.isArray(it?.osVinculadas))return it.osVinculadas.map(String).filter(Boolean);
+    return String(it?.osVinculada||it?.ordenServicio||it?.orden_servicio||it?.os||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function keyOf(it){
+    if(it?.intervencionId||it?.paqueteId)return String(it.intervencionId||it.paqueteId);
+    const os=cleanOS(osList(it));
+    return `${Number(it?.estId||0)}|${os.length?os.join('+'):'sin-os'}`;
+  }
+  function fechaISOFromLocal(fecha){
+    const p=String(fecha||'').split('/');
+    if(p.length>=3){
+      const y=p[2].length===2?`20${p[2]}`:p[2];
+      return `${y}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
+    }
+    return new Date().toISOString().slice(0,10);
+  }
+  function datosBase(estId){
+    const e=ESTABS.find(x=>Number(x.id)===Number(estId));
+    const desc=($('int-desc')?.value||'').trim();
+    const avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0)));
+    const fechaISO=$('int-fecha')?.value||new Date().toISOString().slice(0,10);
+    if(!e||(!desc&&avance!==0))return null;
+    const z=Number(e.zona||currentUser?.zona||1);
+    return {e,desc:desc||'Avance registrado',avance,fechaISO,z,fecha:fechaISO.split('-').reverse().join('/').slice(0,8)};
+  }
+  async function fotosInput(){return Promise.all([...($('int-fotos')?.files||[])].slice(0,4).map(f=>leerArchivoDGIE(f,'intervenciones'))).then(a=>a.filter(Boolean))}
+  function payloadIntervencion(it){
+    return {
+      establecimiento_id:Number(it.estId)||null,
+      zona:Number(it.zona)||zonaEstablecimiento(it.estId)||1,
+      descripcion:it.descripcion||'Avance registrado',
+      avance:Number(it.avance)||0,
+      fecha:it.fechaHora?new Date(it.fechaHora).toISOString().slice(0,10):fechaISOFromLocal(it.fecha),
+      comentarios_coordinacion:Array.isArray(it.comentariosCoordinacion)?it.comentariosCoordinacion:[],
+      datos:{
+        intervencionId:it.intervencionId||it.paqueteId||keyOf(it),
+        osVinculadas:cleanOS(osList(it)),
+        fechaHora:it.fechaHora||new Date().toISOString(),
+        inspector:it.inspector||currentUser?.name||'Inspector',
+        fotosArchivos:Array.isArray(it.fotosArchivos)?it.fotosArchivos:[]
+      }
+    };
+  }
+  async function persistirIntervencionSupabase(it){
+    if(!window.DGIE_DB?.isConfigured)return {ok:true,local:true};
+    const payload=payloadIntervencion(it);
+    let res;
+    if(it.remoteId&&window.DGIE_DB.actualizarIntervencion){
+      res=await window.DGIE_DB.actualizarIntervencion(it.remoteId,payload);
+    }else if(window.DGIE_DB.crearIntervencion){
+      res=await window.DGIE_DB.crearIntervencion(payload);
+    }
+    if(res?.error){
+      const msg=String(res.error.message||res.error);
+      alert('No se pudo guardar la vinculación de O.S. en Supabase. Ejecutá el SQL que te dejo para agregar la columna datos en intervenciones. Detalle: '+msg);
+      return {ok:false,error:res.error};
+    }
+    if(res?.data?.id){it.remoteId=res.data.id;it._remoteSaved=true;}
+    return {ok:true,data:res?.data};
+  }
+  window.persistirIntervencionSupabase= persistirIntervencionSupabase;
+
+  window.guardarIntervencionMadre=async function(){
+    const estId=Number($('int-est')?.value||0), key=`int_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, base=datosBase(estId);
+    if(!base){if($('int-error'))$('int-error').style.display='block';return}
+    const fotosArchivos=await fotosInput(), os=cleanOS(window.__dgieIntervencionOSSeleccionadas||[]);
+    const it={id:Date.now(),intervencionId:key,estId,zona:base.z,fecha:base.fecha,fechaHora:new Date(`${base.fechaISO}T${new Date().toTimeString().slice(0,8)}`).toISOString(),inspector:ZONE_DATA[base.z]?.inspector||currentUser?.name||'Inspector',descripcion:base.desc,avance:base.avance,osVinculadas:os,fotos:fotosArchivos.length,fotosArchivos,comentariosCoordinacion:[]};
+    const saved=await persistirIntervencionSupabase(it);
+    if(saved.ok&&it.remoteId&&fotosArchivos.length)await persistirFotosSupabase?.('intervencion',it.remoteId,fotosArchivos,estId,base.z);
+    INTERVENCIONES.unshift(it);
+    saveAppState&&saveAppState(); abrirPaqueteIntervencion(key);
+  };
+  window.guardarVisitaIntervencion=async function(key){
+    const ref=INTERVENCIONES.find(it=>keyOf(it)===key), base=datosBase(ref?.estId);
+    if(!base||!ref){if($('int-error'))$('int-error').style.display='block';return}
+    const fotosArchivos=await fotosInput(), os=cleanOS(INTERVENCIONES.filter(it=>keyOf(it)===key).flatMap(osList));
+    const it={id:Date.now(),intervencionId:key,estId:ref.estId,zona:base.z,fecha:base.fecha,fechaHora:new Date(`${base.fechaISO}T${new Date().toTimeString().slice(0,8)}`).toISOString(),inspector:ZONE_DATA[base.z]?.inspector||currentUser?.name||'Inspector',descripcion:base.desc,avance:base.avance,osVinculadas:os,fotos:fotosArchivos.length,fotosArchivos,comentariosCoordinacion:[]};
+    const saved=await persistirIntervencionSupabase(it);
+    if(saved.ok&&it.remoteId&&fotosArchivos.length)await persistirFotosSupabase?.('intervencion',it.remoteId,fotosArchivos,ref.estId,base.z);
+    INTERVENCIONES.unshift(it);
+    saveAppState&&saveAppState(); abrirPaqueteIntervencion(key);
+  };
+  window.guardarEdicionIntervencionMadre=async function(key){
+    const visitas=INTERVENCIONES.filter(it=>keyOf(it)===key);
+    const estId=Number($('int-est')?.value||visitas[0]?.estId||0);
+    const e=ESTABS.find(x=>Number(x.id)===estId);
+    const os=cleanOS(window.__dgieIntervencionOSSeleccionadas||[]);
+    for(const it of visitas){
+      it.estId=estId;
+      it.zona=Number(e?.zona||it.zona||currentUser?.zona||1);
+      it.osVinculadas=os;
+      delete it.osVinculada;delete it.ordenServicio;delete it.orden_servicio;delete it.os;
+      await persistirIntervencionSupabase(it);
+    }
+    saveAppState&&saveAppState();
+    abrirPaqueteIntervencion(visitas[0]?keyOf(visitas[0]):key);
+  };
+  window.guardarEdicionVisitaIntervencion=async function(id,key){
+    const it=INTERVENCIONES.find(x=>String(x.id)===String(id)), base=datosBase(it?.estId);
+    if(!it||!base){if($('int-error'))$('int-error').style.display='block';return}
+    it.descripcion=base.desc; it.avance=base.avance; it.fecha=base.fecha; it.fechaHora=new Date(`${base.fechaISO}T${new Date().toTimeString().slice(0,8)}`).toISOString();
+    const nuevas=await fotosInput(); if(nuevas.length){it.fotosArchivos=[...(it.fotosArchivos||[]),...nuevas].slice(0,4);it.fotos=it.fotosArchivos.length}
+    await persistirIntervencionSupabase(it);
+    saveAppState&&saveAppState(); abrirPaqueteIntervencion(key);
   };
 })();
 </script>
