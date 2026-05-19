@@ -10409,6 +10409,174 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-fix-empresa-relevamientos-check-default-2026-05-19">
+(function(){
+  function $(id){return document.getElementById(id)}
+  function esc(v){
+    if(typeof escapeHtml==='function')return escapeHtml(v);
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function styleFixes(){
+    if($('dgie-fix-empresa-relevamientos-check-default-css'))return;
+    const st=document.createElement('style');
+    st.id='dgie-fix-empresa-relevamientos-check-default-css';
+    st.textContent=`
+      #empresa-os-body .empresa-check-cell,
+      .empresa-os-table .empresa-check-cell{min-width:170px;width:170px;max-width:none;white-space:nowrap;overflow:visible}
+      #empresa-os-body .empresa-os-check,
+      .empresa-os-table .empresa-os-check{display:inline-flex;align-items:center;gap:8px;min-width:145px;white-space:nowrap;overflow:visible}
+      #empresa-os-body .empresa-os-check input,
+      .empresa-os-table .empresa-os-check input{flex:0 0 auto;width:18px;height:18px}
+      .empresa-os-table th:last-child,
+      .empresa-os-table td:last-child{min-width:170px;width:170px;max-width:none}
+      .empresa-os-table{min-width:1420px}
+      .os-table-wrap:has(#empresa-os-body){overflow:auto;max-height:calc(100vh - 270px);padding-bottom:10px}
+    `;
+    document.head.appendChild(st);
+  }
+  styleFixes();
+
+  const prevRenderOSEmpresa=window.renderOSEmpresa;
+  window.renderOSEmpresa=function(container,zona){
+    const res=prevRenderOSEmpresa?prevRenderOSEmpresa.apply(this,arguments):undefined;
+    styleFixes();
+    setTimeout(function(){
+      const table=$('empresa-os-body')?.closest('table');
+      if(table)table.classList.add('empresa-os-table');
+      document.querySelectorAll('#empresa-os-body .empresa-check-cell').forEach(td=>{
+        td.style.minWidth='170px';
+        td.style.width='170px';
+        td.style.overflow='visible';
+      });
+      document.querySelectorAll('#empresa-os-body .empresa-os-check').forEach(label=>{
+        label.style.display='inline-flex';
+        label.style.alignItems='center';
+        label.style.gap='8px';
+        label.style.whiteSpace='nowrap';
+        label.style.minWidth='145px';
+        label.style.overflow='visible';
+      });
+    },0);
+    return res;
+  };
+
+  const prevGuardarNuevaOS=window.guardarNuevaOS;
+  window.guardarNuevaOS=async function(){
+    const before=new Set((OS_ZONA||[]).map(o=>String(o.id)));
+    const res=prevGuardarNuevaOS?await prevGuardarNuevaOS.apply(this,arguments):undefined;
+    const nuevas=(OS_ZONA||[]).filter(o=>!before.has(String(o.id)));
+    for(const o of nuevas){
+      o.empresaFinalizo=false;
+      o.empresaFinalizoFecha=null;
+      o.empresaFinalizoPor=null;
+      if(o.remoteId&&window.DGIE_DB?.actualizarOrden){
+        try{
+          await window.DGIE_DB.actualizarOrden(o.remoteId,{
+            empresa_finalizo:false,
+            empresa_finalizo_fecha:null,
+            empresa_finalizo_por:null,
+            updated_at:new Date().toISOString()
+          });
+        }catch(err){
+          console.warn('No se pudo asegurar check empresa en falso',err);
+        }
+      }
+    }
+    try{saveAppState&&saveAppState()}catch(_){}
+    return res;
+  };
+
+  function relKey(r,estId){
+    const base=r?.remoteId||r?.id||r?.ts||`${r?.fecha||''}-${r?.inspector||''}-${r?.zona||''}`;
+    return `rel_${Number(estId)}_${String(base).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+  }
+  function buscarRel(id){
+    for(const [estId,arr] of Object.entries(RELEVAMIENTOS||{})){
+      const rel=(arr||[]).find(r=>relKey(r,estId)===String(id));
+      if(rel)return {rel,estId:Number(estId),arr};
+    }
+    return null;
+  }
+  function creadorRel(r){
+    return String(r?.inspector||'').trim()===String(currentUser?.name||'').trim();
+  }
+  function fotosRel(r){
+    return (r.fotosArchivos||[]).map((f,i)=>`<img src="${f.url||f.dataUrl||''}" class="reclamo-foto-thumb" title="${esc(f.nombre||'Foto '+(i+1))}" onclick="event.stopPropagation();window.open(this.src,'_blank')">`).join('');
+  }
+  function comentariosRel(r,estId){
+    if(typeof window.comentariosHTMLFinal==='function')return window.comentariosHTMLFinal(r.comentariosCoordinacion,'rel',relKey(r,estId),r.zona);
+    return '';
+  }
+  function botonBorrarRel(r,estId){
+    return creadorRel(r)?`<button class="secondary-btn" style="color:var(--danger)" onclick="eliminarRelevamiento('${relKey(r,estId)}')">Eliminar</button>`:'';
+  }
+  function cardRel(r,estId,est){
+    return `<div class="intervencion-card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div>
+          <div style="font-weight:900;color:#123c69">${esc(est?.n||'Establecimiento')}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(r.fecha||'—')} · Zona ${esc(r.zona||est?.zona||'—')} · ${esc(r.inspector||'—')}</div>
+        </div>
+        <span class="badge b-ok">Relevamiento</span>
+      </div>
+      <div style="font-size:14px;margin-top:10px;color:#334155">${esc(r.comentarios||r.descripcion||'Sin observaciones')}</div>
+      <div class="intervencion-photo-row">${fotosRel(r)}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">${botonBorrarRel(r,estId)}</div>
+      ${comentariosRel(r,estId)}
+    </div>`;
+  }
+  async function borrarRelRemoto(rel){
+    if(!rel?.remoteId)return {ok:true};
+    if(window.DGIE_DB?.eliminarRelevamiento){
+      const {error}=await window.DGIE_DB.eliminarRelevamiento(rel.remoteId);
+      return error?{ok:false,error}:{ok:true};
+    }
+    if(window.DGIE_DB?.client){
+      const {error}=await window.DGIE_DB.client.from('relevamientos').delete().eq('id',rel.remoteId);
+      return error?{ok:false,error}:{ok:true};
+    }
+    return {ok:true};
+  }
+  function refrescarRel(estId){
+    if($('relevamientos-dir-list')&&typeof filterRelevamientosDireccion==='function')filterRelevamientosDireccion();
+    else if($('relevamientos-insp-list')&&typeof filterRelevamientosInspector==='function')filterRelevamientosInspector();
+    else if($('ficha-body')&&typeof switchFichaTab==='function')switchFichaTab(typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:5);
+    else if($('map-ficha-body')&&typeof renderMapFichaBody==='function')renderMapFichaBody(estId||currentFichaId,typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:5);
+  }
+  window.eliminarRelevamiento=async function(id){
+    const found=buscarRel(id);
+    if(!found||!creadorRel(found.rel))return;
+    if(!confirm('¿Eliminar este relevamiento?'))return;
+    const remoto=await borrarRelRemoto(found.rel);
+    if(!remoto.ok){
+      alert('No se pudo eliminar el relevamiento en Supabase. Detalle: '+(remoto.error?.message||remoto.error));
+      return;
+    }
+    const idx=found.arr.indexOf(found.rel);
+    if(idx>=0)found.arr.splice(idx,1);
+    try{saveAppState&&saveAppState()}catch(_){}
+    refrescarRel(found.estId);
+  };
+
+  window.renderRelevamientoFicha=function(estId){
+    const data=(RELEVAMIENTOS[estId]||[]).filter(r=>r.tipo==='relevamiento').slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+    const can=currentUser?.role==='inspector';
+    return `<div class="card-header"><div><div class="card-title">Relevamientos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Informes de visita, observaciones y fotos.</div></div>${can?`<button class="primary-btn" onclick="openNuevoRelevamiento(${Number(estId)})">+ Nuevo relevamiento</button>`:''}</div>${data.length?data.map(r=>cardRel(r,estId,ESTABS.find(e=>Number(e.id)===Number(estId)))).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin relevamientos registrados</div>'}`;
+  };
+  window.renderRelevamientosDireccionList=function(data){
+    const el=$('relevamientos-dir-list');
+    if(!el)return;
+    if(!data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron relevamientos</div>';return}
+    el.innerHTML=data.map(r=>cardRel(r,r.estId,ESTABS.find(e=>Number(e.id)===Number(r.estId)))).join('');
+  };
+  window.renderRelevamientosInspectorList=function(data){
+    const el=$('relevamientos-insp-list');
+    if(!el)return;
+    if(!data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron relevamientos</div>';return}
+    el.innerHTML=data.map(r=>cardRel(r,r.estId,ESTABS.find(e=>Number(e.id)===Number(r.estId)))).join('');
+  };
+})();
+</script>
 </body>
 </html>
 

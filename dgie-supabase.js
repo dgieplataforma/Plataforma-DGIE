@@ -127,6 +127,9 @@
     async actualizarRelevamiento(id, row){
       return client.from('relevamientos').update(row).eq('id', id).select('*').single();
     },
+    async eliminarRelevamiento(id){
+      return client.from('relevamientos').delete().eq('id', id);
+    },
     async listarComunicaciones(){
       return client.from('comunicaciones').select('*').order('created_at', { ascending:false });
     },
