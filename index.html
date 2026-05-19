@@ -4090,7 +4090,7 @@ function renderChartInsp(){
       creado_por_nombre:c.creadoPor||currentUser?.name||'Usuario',
       estados:c.estados||{},
       validaciones:c.validaciones||{},
-      encuesta:c.encuesta||null,
+      encuesta:c.encuesta||[],
       archivos:c.archivos||[]
     };
   }
@@ -4313,7 +4313,7 @@ function renderChartInsp(){
     const checked=[...document.querySelectorAll('.comm-zona-check:checked')].map(x=>Number(x.value));
     const encuestaPregunta=document.getElementById('comm-encuesta-pregunta')?.value.trim()||'';
     const encuestaOpciones=(document.getElementById('comm-encuesta-opciones')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
-    const encuesta=tipo==='tarea'&&encuestaPregunta&&encuestaOpciones.length?{pregunta:encuestaPregunta,opciones:encuestaOpciones}:null;
+    const encuesta=tipo==='tarea'&&encuestaPregunta&&encuestaOpciones.length?{pregunta:encuestaPregunta,opciones:encuestaOpciones}:[];
     const archivos=await leerArchivosComoDataUrl(document.getElementById('comm-archivos'));
     if(!titulo||!mensaje){const e=document.getElementById('comm-error');if(e)e.style.display='block';return;}
     if(tipo==='tarea'&&encuestaPregunta&&!encuestaOpciones.length){const e=document.getElementById('comm-error');if(e){e.textContent='Agregá al menos una opción para la encuesta.';e.style.display='block';}return;}
@@ -5057,10 +5057,10 @@ function renderChartInsp(){
     const comentario={texto:txt,autor:currentUser?.name||'Coordinación',fecha:new Date().toISOString()};
     if(!Array.isArray(it.comentariosCoordinacion))it.comentariosCoordinacion=[];
     it.comentariosCoordinacion.unshift(comentario);
-    const comm={id:Date.now(),tipo:'notificacion',titulo:'Comentario sobre intervención',mensaje:`${txt}`,alcance:'zona',zonas:[Number(it.zona)],creadoPor:currentUser?.name||'Coordinación',createdAt:new Date().toISOString(),estados:{},validaciones:{},encuesta:null,archivos:[],_remoteSaved:false};
+    const comm={id:Date.now(),tipo:'notificacion',titulo:'Comentario sobre intervención',mensaje:`${txt}`,alcance:'zona',zonas:[Number(it.zona)],creadoPor:currentUser?.name||'Coordinación',createdAt:new Date().toISOString(),estados:{},validaciones:{},encuesta:[],archivos:[],_remoteSaved:false};
     if(typeof COMUNICACIONES!=='undefined'&&Array.isArray(COMUNICACIONES))COMUNICACIONES.unshift(comm);
     if(window.DGIE_DB?.isConfigured&&window.DGIE_DB.crearComunicacion){
-      const {data,error}=await window.DGIE_DB.crearComunicacion({tipo:comm.tipo,titulo:comm.titulo,mensaje:comm.mensaje,alcance:comm.alcance,zonas:comm.zonas,creado_por_nombre:comm.creadoPor,estados:{},validaciones:{},encuesta:null,archivos:[]});
+      const {data,error}=await window.DGIE_DB.crearComunicacion({tipo:comm.tipo,titulo:comm.titulo,mensaje:comm.mensaje,alcance:comm.alcance,zonas:comm.zonas,creado_por_nombre:comm.creadoPor,estados:{},validaciones:{},encuesta:[],archivos:[]});
       if(!error){comm.remoteId=data?.id||comm.id;comm._remoteSaved=true;}
     }
     saveAppState&&saveAppState();
@@ -10657,6 +10657,49 @@ function renderChartInsp(){
   });
 
   document.addEventListener('DOMContentLoaded',()=>setTimeout(refrescarComunicacionesSiCorresponde,600));
+})();
+</script>
+<script id="dgie-fix-comunicaciones-encuesta-archivos-2026-05-19">
+(function(){
+  function asegurarInputArchivosComunicacion(){
+    const input=document.getElementById('comm-archivos');
+    if(!input)return;
+    input.setAttribute('multiple','multiple');
+    input.multiple=true;
+    input.accept='image/*,.pdf,application/pdf';
+    if(input.dataset.multiFix)return;
+    input.dataset.multiFix='1';
+    const info=document.createElement('div');
+    info.id='comm-archivos-info';
+    info.style.cssText='font-size:12px;color:#64748b;margin-top:6px;font-weight:800';
+    info.textContent='Podés seleccionar varios archivos usando Ctrl o Shift.';
+    input.insertAdjacentElement('afterend',info);
+    input.addEventListener('change',function(){
+      const n=input.files?.length||0;
+      info.textContent=n?`${n} archivo${n!==1?'s':''} seleccionado${n!==1?'s':''}.`:'Podés seleccionar varios archivos usando Ctrl o Shift.';
+    });
+  }
+
+  const prevRenderComunicaciones=window.renderComunicaciones;
+  window.renderComunicaciones=function(){
+    const res=prevRenderComunicaciones?prevRenderComunicaciones.apply(this,arguments):undefined;
+    setTimeout(asegurarInputArchivosComunicacion,0);
+    return res;
+  };
+
+  const prevCrear=window.guardarComunicacion;
+  if(typeof prevCrear==='function'){
+    window.guardarComunicacion=async function(){
+      const tipo=document.getElementById('comm-tipo')?.value||'notificacion';
+      if(tipo!=='tarea'){
+        const pregunta=document.getElementById('comm-encuesta-pregunta');
+        const opciones=document.getElementById('comm-encuesta-opciones');
+        if(pregunta)pregunta.value='';
+        if(opciones)opciones.value='';
+      }
+      return prevCrear.apply(this,arguments);
+    };
+  }
 })();
 </script>
 </body>
