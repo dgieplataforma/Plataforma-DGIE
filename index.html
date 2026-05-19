@@ -4826,6 +4826,9 @@ function renderChartInsp(){
       comentarios:datos.comentarios||'',
       comentariosCoordinacion:Array.isArray(datos.comentariosCoordinacion)?datos.comentariosCoordinacion:[],
       fotosArchivos:datos.fotosArchivos||[],
+      eliminado:!!datos.eliminado,
+      deleted_at:datos.deleted_at||null,
+      deleted_by:datos.deleted_by||null,
       ts:row.created_at?new Date(row.created_at).getTime():Date.now(),
       remoteId:row.id,
       estId:Number(row.establecimiento_id)||0,
@@ -10577,6 +10580,87 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-verificacion-comunicaciones-persistentes-2026-05-19">
+(function(){
+  function zonasDestinoComm(c){
+    if(c?.alcance==='general')return Array.from({length:17},(_,i)=>i+1);
+    if(Array.isArray(c?.zonas)&&c.zonas.length)return c.zonas.map(Number);
+    return [];
+  }
+  function estadoCommLocal(c,z){
+    return (c?.estados||{})[String(z)]||{estado:'pendiente'};
+  }
+  function commCompletada(c,z){
+    const tipo=String(c?.tipo||'');
+    const estado=estadoCommLocal(c,z).estado;
+    return (tipo==='notificacion'||tipo==='comunicado') ? estado==='visto' : estado==='completado';
+  }
+  function pendientesZona(z){
+    const zona=Number(z||currentUser?.zona||0);
+    if(!zona)return 0;
+    return (COMUNICACIONES||[]).filter(c=>zonasDestinoComm(c).includes(zona)&&!commCompletada(c,zona)).length;
+  }
+  function actualizarBadgeComunicaciones(){
+    if(currentUser?.role!=='inspector')return;
+    const pendientes=pendientesZona(currentUser.zona);
+    document.querySelectorAll('#nav-tabs .tab').forEach(tab=>{
+      const texto=String(tab.textContent||'').replace(/\d+/g,'').trim();
+      if(!texto.startsWith('Comunicaciones'))return;
+      tab.querySelector('.tab-badge')?.remove();
+      if(pendientes){
+        const span=document.createElement('span');
+        span.className='tab-badge';
+        span.textContent=String(pendientes);
+        tab.appendChild(span);
+      }
+    });
+  }
+  function refrescarComunicacionesSiCorresponde(){
+    actualizarBadgeComunicaciones();
+    const active=[...document.querySelectorAll('#nav-tabs .tab')].find(t=>t.classList.contains('active'));
+    if(active&&String(active.textContent||'').trim().startsWith('Comunicaciones')&&typeof renderComunicaciones==='function'){
+      renderComunicaciones(document.getElementById('main-content'));
+    }
+  }
+  window.dgieActualizarNotificacionesComunicaciones=refrescarComunicacionesSiCorresponde;
+
+  const prevCargar=window.cargarDatosPublicosDGIE;
+  window.cargarDatosPublicosDGIE=async function(){
+    const res=prevCargar?await prevCargar.apply(this,arguments):undefined;
+    refrescarComunicacionesSiCorresponde();
+    return res;
+  };
+
+  const prevLoad=window.loadUser;
+  window.loadUser=function(user){
+    const res=prevLoad?prevLoad.apply(this,arguments):undefined;
+    setTimeout(refrescarComunicacionesSiCorresponde,80);
+    setTimeout(()=>window.cargarDatosPublicosDGIE?.().finally(refrescarComunicacionesSiCorresponde),250);
+    return res;
+  };
+
+  const prevRenderTab=window.renderTab;
+  window.renderTab=function(i){
+    const res=prevRenderTab?prevRenderTab.apply(this,arguments):undefined;
+    setTimeout(refrescarComunicacionesSiCorresponde,0);
+    return res;
+  };
+
+  ['guardarComunicacion','cambiarEstadoComunicacion','validarComunicacion'].forEach(name=>{
+    const prev=window[name];
+    if(typeof prev!=='function')return;
+    window[name]=async function(){
+      const res=await prev.apply(this,arguments);
+      refrescarComunicacionesSiCorresponde();
+      return res;
+    };
+  });
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(refrescarComunicacionesSiCorresponde,600));
+})();
+</script>
 </body>
 </html>
+
+
 
