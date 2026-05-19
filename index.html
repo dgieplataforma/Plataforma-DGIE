@@ -4830,6 +4830,7 @@ function renderChartInsp(){
       comentarios:datos.comentarios||'',
       comentariosCoordinacion:Array.isArray(datos.comentariosCoordinacion)?datos.comentariosCoordinacion:[],
       fotosArchivos:datos.fotosArchivos||[],
+      osVinculadas:Array.isArray(datos.osVinculadas)?datos.osVinculadas.map(String).filter(Boolean):[],
       eliminado:!!datos.eliminado,
       deleted_at:datos.deleted_at||null,
       deleted_by:datos.deleted_by||null,
@@ -10706,6 +10707,272 @@ function renderChartInsp(){
       }
       return prevCrear.apply(this,arguments);
     };
+  }
+})();
+</script>
+<script id="dgie-relevamientos-vincular-os-2026-05-19">
+(function(){
+  function $(id){return document.getElementById(id)}
+  function esc(v){
+    if(typeof escapeHtml==='function')return escapeHtml(v);
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function fechaCorta(iso){
+    const s=String(iso||'');
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)){
+      const [y,m,d]=s.slice(0,10).split('-');
+      return `${d}/${m}/${String(y).slice(-2)}`;
+    }
+    return new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  }
+  function osNum(v){
+    const m=String(v||'').match(/\d+/g);
+    return m?Number(m[m.length-1])||0:0;
+  }
+  function osDeEstablecimiento(estId){
+    return (OS_ZONA||[])
+      .filter(o=>Number(o.estId)===Number(estId))
+      .sort((a,b)=>osNum(b.numero)-osNum(a.numero));
+  }
+  function relOSList(r){
+    if(Array.isArray(r?.osVinculadas))return r.osVinculadas.map(String).filter(Boolean);
+    return String(r?.osVinculada||r?.ordenServicio||r?.orden_servicio||r?.os||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function osBadges(r){
+    const arr=relOSList(r);
+    if(!arr.length)return '';
+    return `<div class="comm-targets" style="margin-top:8px">${arr.map(n=>{
+      const estId=Number(r?.estId||0);
+      const os=(OS_ZONA||[]).find(o=>String(o.numero)===String(n)&&(!estId||Number(o.estId)===estId));
+      const label=os?`${n} · ${(os.tarea||os.rubro||'').slice(0,70)}`:n;
+      return `<span class="badge b-info">O.S. ${esc(label)}</span>`;
+    }).join('')}</div>`;
+  }
+  function selectOSHTML(estId,selected=[]){
+    window.REL_OS_SELECTED=(selected||[]).map(String).filter(Boolean);
+    return `<div class="form-field full">
+      <label class="form-label">Órdenes de servicio vinculadas <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+      <div class="dgie-combo">
+        <input class="form-input" id="rel-os-combo" placeholder="Escribí cualquier dato de la O.S..." onfocus="renderRelOSCombo()" oninput="renderRelOSCombo()">
+        <div class="dgie-combo-dropdown" id="rel-os-dropdown"></div>
+      </div>
+      <div id="rel-os-selected" style="margin-top:8px"></div>
+    </div>`;
+  }
+  function relFormHTML(estId){
+    const e=ESTABS.find(x=>Number(x.id)===Number(estId));
+    if(!e)return '';
+    return `<button class="back-btn" onclick="volverFichaTab(${typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:4},${Number(estId)})">‹ Volver a relevamientos</button>
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Nuevo relevamiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${esc(e.n)}</div></div></div>
+        <div class="form-grid">
+          <div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="rel-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+          ${selectOSHTML(estId)}
+          <div class="form-field full"><label class="form-label">Observaciones / informe</label><textarea class="form-textarea" id="rel-comentarios" placeholder="Describir lo relevado, necesidades, urgencias y observaciones..."></textarea></div>
+          <div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="rel-fotos" type="file" multiple accept="image/*"></div>
+        </div>
+        <div class="modal-actions"><button class="secondary-btn" onclick="volverFichaTab(${typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:4},${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarRelevamiento(${Number(estId)})">Guardar relevamiento</button></div>
+      </div>`;
+  }
+  function relFormHTMLGlobal(estId){
+    return relFormHTML(estId)
+      .replace(/<button class="back-btn"[\s\S]*?<\/button>/,"<button class=\"back-btn\" onclick=\"renderRelevamientosInspector(document.getElementById('main-content'))\">‹ Volver a relevamientos</button>")
+      .replace(/onclick="volverFichaTab\([^"]+\)"/g,"onclick=\"renderRelevamientosInspector(document.getElementById('main-content'))\"");
+  }
+  function relKey(r,estId){
+    const base=r?.remoteId||r?.id||r?.ts||`${r?.fecha||''}-${r?.inspector||''}-${r?.zona||''}`;
+    return `rel_${Number(estId)}_${String(base).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+  }
+  function puedeBorrarRel(r){return String(r?.inspector||'').trim()===String(currentUser?.name||'').trim()}
+  function fotosRel(r){
+    return (r.fotosArchivos||[]).map((f,i)=>`<img src="${f.url||f.dataUrl||''}" class="reclamo-foto-thumb" title="${esc(f.nombre||'Foto '+(i+1))}" onclick="event.stopPropagation();window.open(this.src,'_blank')">`).join('');
+  }
+  function comentariosRel(r,estId){
+    return typeof window.comentariosHTMLFinal==='function'?window.comentariosHTMLFinal(r.comentariosCoordinacion,'rel',relKey(r,estId),r.zona):'';
+  }
+  function cardRel(r,estId){
+    const est=ESTABS.find(e=>Number(e.id)===Number(estId));
+    return `<div class="intervencion-card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div>
+          <div style="font-weight:900;color:#123c69">${esc(est?.n||'Establecimiento')}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(r.fecha||'—')} · Zona ${esc(r.zona||est?.zona||'—')} · ${esc(r.inspector||'—')}</div>
+        </div>
+        <span class="badge b-ok">Relevamiento</span>
+      </div>
+      ${osBadges(r)}
+      <div style="font-size:14px;margin-top:10px;color:#334155">${esc(r.comentarios||r.descripcion||'Sin observaciones')}</div>
+      <div class="intervencion-photo-row">${fotosRel(r)}</div>
+      ${puedeBorrarRel(r)?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" style="color:var(--danger)" onclick="eliminarRelevamiento('${relKey(r,estId)}')">Eliminar</button></div>`:''}
+      ${comentariosRel(r,estId)}
+    </div>`;
+  }
+  function relsInspector(){
+    const zona=Number(currentUser?.zona||0);
+    const data=[];
+    Object.entries(RELEVAMIENTOS||{}).forEach(([estId,rels])=>{
+      const est=ESTABS.find(e=>Number(e.id)===Number(estId));
+      (rels||[]).filter(r=>(!r.tipo||r.tipo==='relevamiento')&&!r.eliminado).forEach(r=>{
+        const rz=Number(r.zona||est?.zona||zonaEstablecimiento(Number(estId)));
+        if(rz===zona)data.push({...r,estId:Number(estId),zona:rz});
+      });
+    });
+    return data.sort((a,b)=>(b.ts||0)-(a.ts||0));
+  }
+  window.renderRelOSCombo=function(){
+    const dd=$('rel-os-dropdown');
+    if(!dd)return;
+    dd.style.display='block';
+    const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
+    const q=String($('rel-os-combo')?.value||'').toLowerCase();
+    const selected=new Set((window.REL_OS_SELECTED||[]).map(String));
+    const items=osDeEstablecimiento(estId).filter(o=>{
+      const hay=`${o.numero||''} ${o.tarea||''} ${o.rubro||''} ${o.estado||''}`.toLowerCase();
+      return !q||hay.includes(q);
+    });
+    if(!items.length){
+      dd.innerHTML='<div class="dgie-combo-empty">No hay O.S. para mostrar</div>';
+      return;
+    }
+    dd.innerHTML=items.map(o=>`<button type="button" class="dgie-combo-option ${selected.has(String(o.numero))?'is-selected':''}" onclick="toggleRelOS('${esc(o.numero||'')}')">${esc(o.numero||'')} · ${esc((o.tarea||o.rubro||'Orden de servicio').slice(0,140))} · ${esc(o.estado||'')}</button>`).join('');
+  };
+  window.toggleRelOS=function(numero){
+    const n=String(numero||'');
+    window.REL_OS_SELECTED=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED:[];
+    const i=window.REL_OS_SELECTED.indexOf(n);
+    if(i>=0)window.REL_OS_SELECTED.splice(i,1);
+    else window.REL_OS_SELECTED.push(n);
+    const input=$('rel-os-combo');
+    if(input)input.value='';
+    window.renderRelOSSeleccionadas();
+    window.renderRelOSCombo();
+  };
+  window.renderRelOSSeleccionadas=function(){
+    const box=$('rel-os-selected');
+    if(!box)return;
+    const arr=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED:[];
+    if(!arr.length){box.innerHTML='<div style="font-size:12px;color:var(--muted);font-weight:800">Sin O.S. vinculadas.</div>';return;}
+    box.innerHTML=`<div class="comm-targets">${arr.map(n=>`<span class="badge b-info">O.S. ${esc(n)} <button type="button" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer" onclick="toggleRelOS('${esc(n)}')">×</button></span>`).join('')}</div>`;
+  };
+  window.openNuevoRelevamiento=function(estId){
+    const fb=$('ficha-body')||$('map-ficha-body')||$('main-content');
+    if(!fb)return;
+    currentFichaId=Number(estId);
+    fb.innerHTML=relFormHTML(estId);
+    setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+  };
+  window.openNuevoRelevamientoDesdeSeccion=function(){
+    const c=$('main-content');
+    const zona=Number(currentUser?.zona||0);
+    const estabs=(ESTABS||[]).filter(e=>Number(e.zona)===zona).sort((a,b)=>String(a.n).localeCompare(String(b.n)));
+    if(!c)return;
+    c.innerHTML=`<div class="section-label">Zona ${esc(zona)} · Nuevo relevamiento</div>
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Nuevo relevamiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Seleccioná el establecimiento y cargá el informe.</div></div></div>
+        <div class="form-field full" style="margin-bottom:14px"><label class="form-label">Establecimiento</label><select class="form-select" id="rel-est-global" onchange="actualizarFormularioRelevamientoGlobal(Number(this.value))">${estabs.map(e=>`<option value="${e.id}">${esc(e.n)}</option>`).join('')}</select></div>
+        <div id="rel-global-form"></div>
+      </div>`;
+    const first=estabs[0]?.id;
+    if(first){
+      currentFichaId=Number(first);
+      const box=$('rel-global-form');
+      if(box)box.innerHTML=relFormHTMLGlobal(first);
+      setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+    }
+  };
+  window.actualizarFormularioRelevamientoGlobal=function(estId){
+    currentFichaId=Number(estId);
+    const box=$('rel-global-form');
+    if(box)box.innerHTML=relFormHTMLGlobal(estId);
+    setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+  };
+  window.guardarRelevamiento=async function(estId){
+    const fechaISO=$('rel-fecha')?.value||new Date().toISOString().slice(0,10);
+    const files=[...($('rel-fotos')?.files||[])];
+    const fotosArchivos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
+    const osVinculadas=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED.map(String).filter(Boolean):[];
+    const rel={
+      tipo:'relevamiento',
+      fecha:fechaCorta(fechaISO),
+      inspector:currentUser?.name||'',
+      zona:zonaEstablecimiento(estId),
+      comentarios:$('rel-comentarios')?.value||'',
+      fotosArchivos,
+      osVinculadas,
+      ts:Date.now()
+    };
+    let remoteId=null;
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){
+      const res=await window.DGIE_DB.crearRelevamiento({establecimiento_id:Number(estId),zona:rel.zona,datos:rel});
+      if(res?.error){alert('No se pudo guardar el relevamiento en Supabase: '+res.error.message);return;}
+      remoteId=res?.data?.id||null;
+      if(remoteId&&typeof persistirFotosSupabase==='function')await persistirFotosSupabase('relevamiento',remoteId,fotosArchivos,estId,rel.zona);
+    }
+    rel.remoteId=remoteId;
+    rel._remoteSaved=!!remoteId;
+    RELEVAMIENTOS[estId]=RELEVAMIENTOS[estId]||[];
+    RELEVAMIENTOS[estId].push(rel);
+    saveAppState&&saveAppState();
+    if($('rel-global-form'))renderRelevamientosInspector($('main-content'));
+    else volverFichaTab(typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:4,estId);
+  };
+  window.renderRelevamientoFicha=function(estId){
+    const data=(RELEVAMIENTOS[estId]||[]).filter(r=>(!r.tipo||r.tipo==='relevamiento')&&!r.eliminado).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+    const can=currentUser?.role==='inspector';
+    return `<div class="card-header"><div><div class="card-title">Relevamientos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Informes de visita, observaciones, fotos y O.S. vinculadas.</div></div>${can?`<button class="primary-btn" onclick="openNuevoRelevamiento(${Number(estId)})">+ Nuevo relevamiento</button>`:''}</div>${data.length?data.map(r=>cardRel(r,estId)).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin relevamientos registrados</div>'}`;
+  };
+  window.renderRelevamientosInspector=function(container){
+    const data=relsInspector();
+    container.innerHTML=`<div class="section-label">Zona ${esc(currentUser?.zona)} · Relevamientos</div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Relevamientos de la zona</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Listado de todos los relevamientos cargados en los establecimientos de tu zona.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="badge b-ok" id="rel-insp-count-badge">${data.length} relevamientos</span><button class="primary-btn" onclick="openNuevoRelevamientoDesdeSeccion()">+ Nuevo relevamiento</button></div>
+        </div>
+        <div class="os-filters">
+          <input class="estab-search" id="rel-insp-search" placeholder="Buscar por establecimiento, fecha, inspector, O.S. u observaciones..." oninput="filterRelevamientosInspector()">
+        </div>
+        <div id="relevamientos-insp-list"></div>
+      </div>`;
+    window.renderRelevamientosInspectorList(data);
+  };
+  window.filterRelevamientosInspector=function(){
+    const q=String($('rel-insp-search')?.value||'').toLowerCase();
+    const filtered=relsInspector().filter(r=>{
+      const est=ESTABS.find(e=>Number(e.id)===Number(r.estId));
+      return (`${est?.n||''} ${r.fecha||''} ${r.inspector||''} ${relOSList(r).join(' ')} ${r.comentarios||''} ${r.descripcion||''}`).toLowerCase().includes(q);
+    });
+    const badge=$('rel-insp-count-badge');
+    if(badge)badge.textContent=filtered.length+' relevamientos';
+    window.renderRelevamientosInspectorList(filtered);
+  };
+  window.renderRelevamientosInspectorList=function(data){
+    const el=$('relevamientos-insp-list');
+    if(!el)return;
+    if(!data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron relevamientos</div>';return}
+    el.innerHTML=data.map(r=>cardRel(r,r.estId)).join('');
+  };
+  window.renderRelevamientosDireccionList=function(data){
+    const el=$('relevamientos-dir-list');
+    if(!el)return;
+    const clean=(data||[]).filter(r=>!r.eliminado);
+    if(!clean.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron relevamientos</div>';return}
+    el.innerHTML=clean.map(r=>cardRel(r,r.estId)).join('');
+  };
+  document.addEventListener('click',function(ev){
+    if(!ev.target.closest('.dgie-combo')){
+      const dd=$('rel-os-dropdown');
+      if(dd)dd.style.display='none';
+    }
+  });
+  if(!$('dgie-rel-os-combo-style')){
+    const st=document.createElement('style');
+    st.id='dgie-rel-os-combo-style';
+    st.textContent='.dgie-combo-option.is-selected{background:#dbeafe;color:#005aa9;font-weight:900}.dgie-combo-option.is-selected:after{content:" ✓";float:right}';
+    document.head.appendChild(st);
   }
 })();
 </script>
