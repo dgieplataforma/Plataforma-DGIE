@@ -3050,7 +3050,11 @@ function normalizarNumeroOS(valor){
 function existeNumeroOS(numero,ignorarId=null){
   const n=normalizarNumeroOS(numero);
   if(!n)return false;
-  return OS_ZONA.some(o=>normalizarNumeroOS(o.numero)===n&&String(o.id)!==String(ignorarId));
+  const zonaActual=Number(getZonaCargaOS());
+  return OS_ZONA.some(o=>{
+    const zonaOrden=Number(o.zona||zonaEstablecimiento(o.estId));
+    return zonaOrden===zonaActual&&normalizarNumeroOS(o.numero)===n&&String(o.id)!==String(ignorarId);
+  });
 }
 function validarNumeroOSActual(ignorarId=null){
   const input=document.getElementById('nos-numero'),err=document.getElementById('nos-numero-error');
@@ -7622,10 +7626,13 @@ function renderChartInsp(){
   function ordenDuplicadaCertificado(ordenes,actual){
     const set=new Set((ordenes||[]).map(x=>Number(x)).filter(Number.isFinite));
     if(!set.size)return null;
+    const zonaActual=Number(actual?.zona||currentUser?.zona||0);
     const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
     return certs.find(c=>{
       const mismo=String(c.id)===String(actual?.id)||String(c.localId)===String(actual?.localId);
       if(mismo||String(c?.estado||'')==='eliminado')return false;
+      const zonaCert=Number(c?.zona||0);
+      if(zonaActual&&zonaCert&&zonaCert!==zonaActual)return false;
       return window.certOrdenes(c).some(o=>set.has(Number(o)));
     })||null;
   }
