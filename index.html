@@ -10725,6 +10725,16 @@ function renderChartInsp(){
     }
     return new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});
   }
+  function fechaInput(rel){
+    const s=String(rel?.fecha||'');
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+    const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if(m){
+      const yy=m[3].length===2?`20${m[3]}`:m[3];
+      return `${yy}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    }
+    return new Date().toISOString().slice(0,10);
+  }
   function osNum(v){
     const m=String(v||'').match(/\d+/g);
     return m?Number(m[m.length-1])||0:0;
@@ -10774,6 +10784,21 @@ function renderChartInsp(){
         <div class="modal-actions"><button class="secondary-btn" onclick="volverFichaTab(${typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:4},${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarRelevamiento(${Number(estId)})">Guardar relevamiento</button></div>
       </div>`;
   }
+  function relEditFormHTML(estId,key,rel){
+    const e=ESTABS.find(x=>Number(x.id)===Number(estId));
+    if(!e)return '';
+    return `<button class="back-btn" onclick="cancelarEdicionRelevamiento(${Number(estId)})">‹ Volver a relevamientos</button>
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Editar relevamiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${esc(e.n)}</div></div></div>
+        <div class="form-grid">
+          <div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="rel-fecha" type="date" value="${fechaInput(rel)}"></div>
+          ${selectOSHTML(estId,relOSList(rel))}
+          <div class="form-field full"><label class="form-label">Observaciones / informe</label><textarea class="form-textarea" id="rel-comentarios" placeholder="Describir lo relevado, necesidades, urgencias y observaciones...">${esc(rel.comentarios||rel.descripcion||'')}</textarea></div>
+          <div class="form-field full"><label class="form-label">Agregar fotos</label><input class="form-input" id="rel-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">Las fotos actuales se conservan. Las nuevas se agregan al relevamiento.</div></div>
+        </div>
+        <div class="modal-actions"><button class="secondary-btn" onclick="cancelarEdicionRelevamiento(${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEdicionRelevamiento('${esc(key)}')">Guardar cambios</button></div>
+      </div>`;
+  }
   function relFormHTMLGlobal(estId){
     return relFormHTML(estId)
       .replace(/<button class="back-btn"[\s\S]*?<\/button>/,"<button class=\"back-btn\" onclick=\"renderRelevamientosInspector(document.getElementById('main-content'))\">‹ Volver a relevamientos</button>")
@@ -10782,6 +10807,13 @@ function renderChartInsp(){
   function relKey(r,estId){
     const base=r?.remoteId||r?.id||r?.ts||`${r?.fecha||''}-${r?.inspector||''}-${r?.zona||''}`;
     return `rel_${Number(estId)}_${String(base).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+  }
+  function buscarRelPorKey(key){
+    for(const [estId,arr] of Object.entries(RELEVAMIENTOS||{})){
+      const rel=(arr||[]).find(r=>relKey(r,estId)===String(key));
+      if(rel)return {rel,estId:Number(estId),arr};
+    }
+    return null;
   }
   function puedeBorrarRel(r){return String(r?.inspector||'').trim()===String(currentUser?.name||'').trim()}
   function fotosRel(r){
@@ -10792,6 +10824,7 @@ function renderChartInsp(){
   }
   function cardRel(r,estId){
     const est=ESTABS.find(e=>Number(e.id)===Number(estId));
+    const key=relKey(r,estId);
     return `<div class="intervencion-card">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
         <div>
@@ -10803,7 +10836,7 @@ function renderChartInsp(){
       ${osBadges(r)}
       <div style="font-size:14px;margin-top:10px;color:#334155">${esc(r.comentarios||r.descripcion||'Sin observaciones')}</div>
       <div class="intervencion-photo-row">${fotosRel(r)}</div>
-      ${puedeBorrarRel(r)?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" style="color:var(--danger)" onclick="eliminarRelevamiento('${relKey(r,estId)}')">Eliminar</button></div>`:''}
+      ${puedeBorrarRel(r)?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" onclick="editarRelevamiento('${key}')">Editar</button><button class="secondary-btn" style="color:var(--danger)" onclick="eliminarRelevamiento('${key}')">Eliminar</button></div>`:''}
       ${comentariosRel(r,estId)}
     </div>`;
   }
@@ -10861,6 +10894,33 @@ function renderChartInsp(){
     fb.innerHTML=relFormHTML(estId);
     setTimeout(()=>window.renderRelOSSeleccionadas(),0);
   };
+  function contenedorRelevamientoActivo(){
+    const main=$('main-content');
+    if(main&&($('relevamientos-insp-list')||$('rel-insp-search')))return {el:main,ctx:'main'};
+    if($('map-ficha-body'))return {el:$('map-ficha-body'),ctx:'map'};
+    if($('ficha-body'))return {el:$('ficha-body'),ctx:'ficha'};
+    return {el:main,ctx:'main'};
+  }
+  function volverDespuesEditarRel(estId){
+    const ctx=window.REL_EDIT_CONTEXT||'ficha';
+    if(ctx==='main'&&typeof renderRelevamientosInspector==='function')renderRelevamientosInspector($('main-content'));
+    else if(ctx==='map'&&typeof renderMapFichaBody==='function')renderMapFichaBody(Number(estId),typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:4);
+    else if(typeof volverFichaTab==='function')volverFichaTab(typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:4,Number(estId));
+    else if(typeof renderRelevamientosInspector==='function')renderRelevamientosInspector($('main-content'));
+  }
+  window.cancelarEdicionRelevamiento=function(estId){
+    volverDespuesEditarRel(estId);
+  };
+  window.editarRelevamiento=function(key){
+    const found=buscarRelPorKey(key);
+    if(!found||!puedeBorrarRel(found.rel))return;
+    const target=contenedorRelevamientoActivo();
+    if(!target.el)return;
+    window.REL_EDIT_CONTEXT=target.ctx;
+    currentFichaId=Number(found.estId);
+    target.el.innerHTML=relEditFormHTML(found.estId,key,found.rel);
+    setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+  };
   window.openNuevoRelevamientoDesdeSeccion=function(){
     const c=$('main-content');
     const zona=Number(currentUser?.zona||0);
@@ -10915,6 +10975,31 @@ function renderChartInsp(){
     saveAppState&&saveAppState();
     if($('rel-global-form'))renderRelevamientosInspector($('main-content'));
     else volverFichaTab(typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:4,estId);
+  };
+  window.guardarEdicionRelevamiento=async function(key){
+    const found=buscarRelPorKey(key);
+    if(!found||!puedeBorrarRel(found.rel))return;
+    const fechaISO=$('rel-fecha')?.value||new Date().toISOString().slice(0,10);
+    const files=[...($('rel-fotos')?.files||[])];
+    const nuevasFotos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
+    const osVinculadas=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED.map(String).filter(Boolean):[];
+    const actualizado={
+      ...found.rel,
+      tipo:'relevamiento',
+      fecha:fechaCorta(fechaISO),
+      comentarios:$('rel-comentarios')?.value||'',
+      fotosArchivos:[...(found.rel.fotosArchivos||[]),...nuevasFotos],
+      osVinculadas,
+      editedAt:new Date().toISOString()
+    };
+    if(actualizado.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarRelevamiento==='function'){
+      const res=await window.DGIE_DB.actualizarRelevamiento(actualizado.remoteId,{datos:actualizado});
+      if(res?.error){alert('No se pudo actualizar el relevamiento en Supabase: '+res.error.message);return;}
+      if(nuevasFotos.length&&typeof persistirFotosSupabase==='function')await persistirFotosSupabase('relevamiento',actualizado.remoteId,nuevasFotos,found.estId,actualizado.zona);
+    }
+    Object.assign(found.rel,actualizado);
+    saveAppState&&saveAppState();
+    volverDespuesEditarRel(found.estId);
   };
   window.renderRelevamientoFicha=function(estId){
     const data=(RELEVAMIENTOS[estId]||[]).filter(r=>(!r.tipo||r.tipo==='relevamiento')&&!r.eliminado).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
