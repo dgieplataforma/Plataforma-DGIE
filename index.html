@@ -11066,15 +11066,34 @@ function renderChartInsp(){
   const KEY_USER='dgie_sesion_usuario_activa_v1';
   const KEY_TAB='dgie_sesion_tab_activa_v1';
   const KEY_LOGOUT='dgie_sesion_logout_manual_v1';
+  const KEY_OPEN='dgie_sesion_pestana_abierta_v1';
+  const storage=window.sessionStorage;
+  const legacyStorage=window.localStorage;
   function safeGet(key){
-    try{return localStorage.getItem(key)}catch(_){return null}
+    try{return storage.getItem(key)}catch(_){return null}
   }
   function safeSet(key,value){
-    try{localStorage.setItem(key,value)}catch(_){}
+    try{storage.setItem(key,value)}catch(_){}
   }
   function safeRemove(key){
-    try{localStorage.removeItem(key)}catch(_){}
+    try{storage.removeItem(key)}catch(_){}
   }
+  function clearLegacyKeys(){
+    try{
+      legacyStorage.removeItem(KEY_USER);
+      legacyStorage.removeItem(KEY_TAB);
+      legacyStorage.removeItem(KEY_LOGOUT);
+      legacyStorage.removeItem(KEY_OPEN);
+    }catch(_){}
+  }
+  function ocultarMientrasRestaura(){
+    if(safeGet(KEY_OPEN)==='1'&&safeGet(KEY_LOGOUT)!=='1')document.documentElement.style.visibility='hidden';
+  }
+  function mostrarPagina(){
+    document.documentElement.style.visibility='';
+  }
+  clearLegacyKeys();
+  ocultarMientrasRestaura();
   function perfilToSessionUser(perfil){
     if(typeof window.perfilToUser==='function')return window.perfilToUser(perfil);
     const rolMap={director:'direccion',coordinador:'coordinador',inspector:'inspector',empresa:'empresa',callcenter:'callcenter'};
@@ -11088,6 +11107,7 @@ function renderChartInsp(){
   function guardarUsuarioActivo(user){
     if(!user)return;
     safeRemove(KEY_LOGOUT);
+    safeSet(KEY_OPEN,'1');
     safeSet(KEY_USER,JSON.stringify({
       name:user.name,
       initials:user.initials,
@@ -11134,12 +11154,17 @@ function renderChartInsp(){
     safeSet(KEY_LOGOUT,'1');
     safeRemove(KEY_USER);
     safeRemove(KEY_TAB);
+    safeRemove(KEY_OPEN);
+    mostrarPagina();
     if(window.DGIE_DB?.signOut)window.DGIE_DB.signOut().catch(()=>{});
     return prevLogout?prevLogout.apply(this,arguments):undefined;
   };
 
   async function restaurarSesion(){
-    if(currentUser||safeGet(KEY_LOGOUT)==='1')return;
+    if(currentUser||safeGet(KEY_LOGOUT)==='1'||safeGet(KEY_OPEN)!=='1'){
+      mostrarPagina();
+      return;
+    }
     let user=null;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.currentProfile==='function'){
       try{
@@ -11148,18 +11173,25 @@ function renderChartInsp(){
       }catch(_){}
     }
     if(!user)user=usuarioGuardado();
-    if(!user||currentUser)return;
+    if(!user||currentUser){
+      mostrarPagina();
+      return;
+    }
     if(typeof window.loadUser==='function'){
       window.loadUser(user);
       restaurarTabLuego();
     }
+    setTimeout(mostrarPagina,260);
   }
 
   document.addEventListener('DOMContentLoaded',()=>{
     setTimeout(restaurarSesion,500);
     setTimeout(restaurarSesion,1500);
   });
-  window.addEventListener('load',()=>setTimeout(restaurarSesion,700));
+  window.addEventListener('load',()=>{
+    setTimeout(restaurarSesion,700);
+    setTimeout(mostrarPagina,2200);
+  });
 })();
 </script>
 </body>
