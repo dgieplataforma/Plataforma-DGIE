@@ -11194,6 +11194,262 @@ function renderChartInsp(){
   });
 })();
 </script>
+<script id="dgie-comunicaciones-empresas-destinos-2026-05-20">
+(function(){
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function esGestion(){return ['coordinador','direccion','director'].includes(currentUser?.role)}
+  function esEmpresa(){return currentUser?.role==='empresa'}
+  function esInspector(){return currentUser?.role==='inspector'}
+  function zonas(){return Array.from({length:17},(_,i)=>i+1)}
+  function zonaNombre(z){return `Zona ${z} · ${(window.INSPECTORS||[])[Number(z)-1]||''}`}
+  function keyInspector(z){return String(Number(z))}
+  function keyEmpresa(z){return `empresa-${Number(z)}`}
+  function labelDestinoKey(key){
+    const s=String(key);
+    if(s.startsWith('empresa-'))return `Empresa Zona ${Number(s.replace('empresa-',''))}`;
+    return `Zona ${Number(s)}`;
+  }
+  function destinosComm(c){
+    if(c?.alcance==='general')return zonas().map(z=>({key:keyInspector(z),zona:z,tipo:'inspector',label:`Zona ${z}`}));
+    if(c?.alcance==='zona')return (c.zonas||[]).map(Number).filter(Boolean).map(z=>({key:keyInspector(z),zona:z,tipo:'inspector',label:`Zona ${z}`}));
+    if(c?.alcance==='empresas')return zonas().map(z=>({key:keyEmpresa(z),zona:z,tipo:'empresa',label:`Empresa Zona ${z}`}));
+    if(c?.alcance==='empresa_zona')return (c.zonas||[]).map(Number).filter(Boolean).map(z=>({key:keyEmpresa(z),zona:z,tipo:'empresa',label:`Empresa Zona ${z}`}));
+    return [];
+  }
+  function estadoComm(c,key){return (c.estados||{})[String(key)]||{estado:'pendiente'}}
+  function esNotificacion(c){return String(c?.tipo||'')==='notificacion'||String(c?.tipo||'')==='comunicado'}
+  function esTarea(c){return String(c?.tipo||'')==='tarea'}
+  function completada(c,key){
+    const st=estadoComm(c,key).estado;
+    return esNotificacion(c)?st==='visto':st==='completado';
+  }
+  function alcanceLabel(c){
+    if(c.alcance==='general')return 'Todos los inspectores';
+    if(c.alcance==='zona')return (c.zonas||[]).map(z=>`Zona ${z}`).join(', ')||'Inspectores por zona';
+    if(c.alcance==='empresas')return 'Todas las empresas';
+    if(c.alcance==='empresa_zona')return (c.zonas||[]).map(z=>`Empresa Zona ${z}`).join(', ')||'Empresas por zona';
+    return 'Sin destino';
+  }
+  function commBadge(tipo){return {tarea:'b-warn',notificacion:'b-info',comunicado:'b-info'}[tipo]||'b-info'}
+  function estadoBadge(estado){return {visto:'b-info',en_proceso:'b-warn',completado:'b-ok',pendiente:'b-neutral'}[estado]||'b-neutral'}
+  function estadoLabel(estado){return {visto:'Visto',en_proceso:'En proceso',completado:'Completado',pendiente:'No visto'}[estado]||'No visto'}
+  function encuestaConfig(c){
+    if(!c?.encuesta)return null;
+    if(Array.isArray(c.encuesta))return c.encuesta.length?{pregunta:'Encuesta',opciones:c.encuesta}:null;
+    const opciones=Array.isArray(c.encuesta.opciones)?c.encuesta.opciones:[];
+    return c.encuesta.pregunta||opciones.length?{pregunta:c.encuesta.pregunta||'Encuesta',opciones}:null;
+  }
+  function pendientesInspector(z){return (window.COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='inspector'&&Number(d.zona)===Number(z))&&!completada(c,keyInspector(z))).length}
+  function pendientesEmpresa(z){return (window.COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='empresa'&&Number(d.zona)===Number(z))&&!completada(c,keyEmpresa(z))).length}
+  function archivosHTML(c){
+    const files=Array.isArray(c.archivos)?c.archivos:[];
+    if(!files.length)return '';
+    return `<div class="comm-targets">${files.map((f,i)=>`<a class="badge b-neutral" href="${esc(f.url||f.secure_url||f.dataUrl||'#')}" target="_blank" download="${esc(f.name||f.nombre||'archivo')}" style="text-decoration:none">Archivo ${i+1}: ${esc(f.name||f.nombre||'sin nombre')}</a>`).join('')}</div>`;
+  }
+  function miniBar(label,value,total,color){
+    const pct=total?Math.round(value*100/total):0;
+    return `<div class="comm-bar-row"><span>${esc(label)}</span><div class="comm-bar-track"><div class="comm-bar-fill" style="width:${pct}%;background:${color}"></div></div><strong>${value}</strong></div>`;
+  }
+  function encuestaTexto(respuestas,c){
+    if(respuestas?.opciones)respuestas=respuestas.opciones;
+    const cfg=encuestaConfig(c), keys=Object.keys(respuestas||{}).filter(k=>{const r=respuestas[k];return typeof r==='object'?!!r.checked:!!r});
+    if(!keys.length)return '';
+    return '<br>Encuesta:<br>'+keys.sort((a,b)=>Number(a)-Number(b)).map(k=>{
+      const r=respuestas[k];
+      const label=typeof r==='object'?(r.label||cfg?.opciones?.[Number(k)]):(cfg?.opciones?.[Number(k)]||('Opción '+(Number(k)+1)));
+      return `- ${esc(label)}`;
+    }).join('<br>');
+  }
+  function graficos(c){
+    const dest=destinosComm(c), total=dest.length;
+    if(!total)return '';
+    const completados=dest.filter(d=>completada(c,d.key)).length;
+    const vistos=dest.filter(d=>estadoComm(c,d.key).estado==='visto').length;
+    const proceso=dest.filter(d=>estadoComm(c,d.key).estado==='en_proceso').length;
+    const pendientes=total-completados-vistos-proceso;
+    const cfg=encuestaConfig(c);
+    let encuesta='';
+    if(cfg){
+      const totals=cfg.opciones.map(()=>0);
+      dest.forEach(d=>{
+        let ans=estadoComm(c,d.key).encuesta||{};
+        if(ans.opciones)ans=ans.opciones;
+        Object.keys(ans).forEach(k=>{const r=ans[k];if((typeof r==='object'?r.checked:r)&&totals[Number(k)]!==undefined)totals[Number(k)]++;});
+      });
+      encuesta=`<div class="comm-mini-panel"><div class="comm-mini-title">Respuestas de encuesta</div>${cfg.opciones.map((op,i)=>miniBar(op,totals[i]||0,total,'#005aa9')).join('')}</div>`;
+    }
+    return `<div class="comm-mini-grid"><div class="comm-mini-panel"><div class="comm-mini-title">${esNotificacion(c)?'Visto / no visto':'Completaron tarea'}</div>${miniBar(esNotificacion(c)?'Visto':'Completado',completados,total,'#16a34a')}${esTarea(c)?miniBar('En proceso',proceso,total,'#f59e0b'):''}${esTarea(c)?miniBar('Visto',vistos,total,'#2563eb'):''}${miniBar('Pendiente',pendientes,total,'#94a3b8')}</div>${encuesta}</div>`;
+  }
+  function estadoGestion(c,d){
+    const st=estadoComm(c,d.key), val=(c.validaciones||{})[String(d.key)]||{};
+    return `<div class="comm-status-row">
+      <div class="comm-status-top"><span>${esc(d.label)}</span><span class="badge ${estadoBadge(st.estado)}">${estadoLabel(st.estado)}</span></div>
+      <div class="comm-status-meta">${st.fecha?esc(new Date(st.fecha).toLocaleString('es-AR')):'Sin actividad'}${st.completadoPor?`<br>${esc(st.completadoPor)}`:''}${st.encuesta?encuestaTexto(st.encuesta,c):''}${st.observacion?`<br>Obs.: ${esc(st.observacion)}`:''}</div>
+      ${esTarea(c)&&st.estado==='completado'?`<label class="comm-check"><input type="checkbox" ${val.validado?'checked':''} onchange="validarComunicacion('${c.id}','${esc(d.key)}',this.checked)"> Validado por coordinación</label>`:''}
+    </div>`;
+  }
+  function gestionCard(c){
+    const dest=destinosComm(c), pendientes=dest.filter(d=>!completada(c,d.key));
+    return `<div class="comm-card">
+      <div class="comm-head"><div><div class="comm-title">${esc(c.titulo)}</div><div class="comm-meta">${new Date(c.createdAt||Date.now()).toLocaleString('es-AR')} · Por ${esc(c.creadoPor||'Coordinación')} · ${esc(alcanceLabel(c))}</div></div><span class="badge ${commBadge(c.tipo)}">${esc(c.tipo||'notificacion')}</span></div>
+      <div class="comm-msg">${esc(c.mensaje)}</div>${archivosHTML(c)}${graficos(c)}
+      <div class="comm-targets"><span class="badge b-ok">${dest.length-pendientes.length} ${esNotificacion(c)?'vistos':'completados'}</span><span class="badge ${pendientes.length?'b-warn':'b-neutral'}">${pendientes.length} pendientes</span></div>
+      <div class="comm-status-grid">${dest.map(d=>estadoGestion(c,d)).join('')}</div>
+    </div>`;
+  }
+  function renderGestion(){
+    return `<div class="section-label">Comunicaciones</div><div class="comms-layout">
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Nueva comunicación</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Enviar tareas o notificaciones a inspectores o empresas.</div></div></div>
+        <div class="form-grid">
+          <div class="form-field"><label class="form-label">Tipo</label><select class="form-select" id="comm-tipo" onchange="toggleCommSurveyBuilder()"><option value="tarea">Tarea</option><option value="notificacion">Notificación</option></select></div>
+          <div class="form-field"><label class="form-label">Destino</label><select class="form-select" id="comm-alcance" onchange="renderCommDestino()"><option value="general">Todos los inspectores</option><option value="zona">Inspectores por zona</option><option value="empresas">Todas las empresas</option><option value="empresa_zona">Empresas por zona</option></select></div>
+          <div class="form-field full" id="comm-destino-box"></div>
+          <div class="form-field full"><label class="form-label">Título</label><input class="form-input" id="comm-titulo" placeholder="Título de la comunicación"></div>
+          <div class="form-field full"><label class="form-label">Mensaje / tarea</label><textarea class="form-textarea" id="comm-mensaje" placeholder="Detalle de la tarea o notificación"></textarea></div>
+          <div class="form-field full" id="comm-survey-wrapper"><div class="comm-survey-builder"><div class="comm-survey-builder-title">Encuesta tipo WhatsApp</div><label class="form-label">Pregunta</label><input class="form-input" id="comm-encuesta-pregunta" placeholder="Ejemplo: ¿Se realizó la tarea?"><label class="form-label" style="margin-top:10px">Opciones <span style="font-weight:400;color:var(--muted)">(una opción por línea)</span></label><textarea class="form-textarea" id="comm-encuesta-opciones" placeholder="Sí&#10;No&#10;Parcialmente"></textarea></div></div>
+          <div class="form-field full"><label class="form-label">Archivos adjuntos <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input type="file" id="comm-archivos" multiple accept="image/*,.pdf,application/pdf" style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px"></div>
+        </div>
+        <div class="form-error" id="comm-error" style="display:none">Completá título y mensaje.</div>
+        <div class="modal-actions"><button class="primary-btn" onclick="guardarComunicacion()">Enviar comunicación</button></div>
+      </div>
+      <div><div class="card-header" style="margin-bottom:10px"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Estado por destinatario, completados y pendientes.</div></div><span class="badge b-info">${(window.COMUNICACIONES||[]).length} comunicaciones</span></div><div class="comms-list">${(window.COMUNICACIONES||[]).length?(window.COMUNICACIONES||[]).map(gestionCard).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">Sin comunicaciones cargadas.</div>'}</div></div>
+    </div>`;
+  }
+  function encuestaInspectorEmpresa(c,st,key){
+    const cfg=encuestaConfig(c);
+    if(!cfg)return esTarea(c)?'<div class="comm-empty-survey">Esta tarea no tiene encuesta cargada.</div>':'';
+    let respuestas=st.encuesta||{};
+    if(respuestas.opciones)respuestas=respuestas.opciones;
+    const locked=!!st.encuestaRespondida;
+    return `<div class="comm-status-row" style="margin:10px 0;background:#fff"><div class="comm-status-top">${esc(cfg.pregunta)}${locked?'<span class="badge b-ok">Respondida</span>':''}</div><div style="display:grid;gap:8px;margin-top:8px">${cfg.opciones.map((op,i)=>`<label class="comm-option${locked?' locked':''}"><input type="checkbox" class="comm-survey-answer" data-q="${i}" data-label="${esc(op)}" ${(typeof respuestas[i]==='object'?respuestas[i].checked:respuestas[i])?'checked':''} ${locked?'disabled':''}> <span>${esc(op)}</span></label>`).join('')}</div><label style="display:block;margin-top:10px"><div class="form-label">Observaciones</div><textarea class="form-textarea" id="comm-obs-${c.id}" ${locked?'disabled':''} placeholder="Agregar observación opcional" style="min-height:68px">${esc(st.observacion||'')}</textarea></label></div>`;
+  }
+  function renderAsignadaCard(c,key){
+    const st=estadoComm(c,key);
+    return `<div class="comm-card" id="comm-card-${c.id}">
+      <div class="comm-head"><div><div class="comm-title">${esc(c.titulo)}</div><div class="comm-meta">${new Date(c.createdAt||Date.now()).toLocaleString('es-AR')} · Por ${esc(c.creadoPor||'Coordinación')}</div></div><span class="badge ${commBadge(c.tipo)}">${esc(c.tipo||'notificacion')}</span></div>
+      <div class="comm-msg">${esc(c.mensaje)}</div>${archivosHTML(c)}${encuestaInspectorEmpresa(c,st,key)}
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="badge ${estadoBadge(st.estado)}">${estadoLabel(st.estado)}</span>${esNotificacion(c)?`<button class="primary-btn" style="padding:9px 14px" onclick="cambiarEstadoComunicacion('${c.id}','visto')" ${st.estado==='visto'?'disabled':''}>Marcar visto</button>`:`<select class="form-select" style="max-width:190px;padding:8px 10px" onchange="cambiarEstadoComunicacion('${c.id}',this.value)"><option value="pendiente" ${st.estado==='pendiente'?'selected':''}>Pendiente</option><option value="en_proceso" ${st.estado==='en_proceso'?'selected':''}>En proceso</option><option value="completado" ${st.estado==='completado'?'selected':''}>Completado</option></select>`}</div>
+      ${st.fecha?`<div class="comm-meta" style="margin-top:8px">Última actualización: ${esc(new Date(st.fecha).toLocaleString('es-AR'))}</div>`:''}
+    </div>`;
+  }
+  function renderAsignadas(tipo,z){
+    const key=tipo==='empresa'?keyEmpresa(z):keyInspector(z);
+    const data=(window.COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo===tipo&&Number(d.zona)===Number(z)));
+    const pendientes=data.filter(c=>!completada(c,key)).length;
+    const titulo=tipo==='empresa'?`Comunicaciones · Empresa Zona ${z}`:`Comunicaciones · Zona ${z}`;
+    return `<div class="section-label">${titulo}</div>${pendientes?`<div class="comm-alert">Tenés ${pendientes} comunicación${pendientes!==1?'es':''} sin completar.</div>`:''}<div class="comms-list">${data.length?data.map(c=>renderAsignadaCard(c,key)).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">No tenés comunicaciones asignadas.</div>'}</div>`;
+  }
+  window.renderCommDestino=function(){
+    const box=document.getElementById('comm-destino-box'), alcance=document.getElementById('comm-alcance')?.value||'general';
+    if(!box)return;
+    if(alcance==='general'){box.innerHTML='<div style="font-size:13px;color:#64748b;font-weight:800">Se enviará a todos los inspectores.</div>';return}
+    if(alcance==='empresas'){box.innerHTML='<div style="font-size:13px;color:#64748b;font-weight:800">Se enviará a todas las empresas.</div>';return}
+    const empresa=alcance==='empresa_zona';
+    const opts=zonas().map(z=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#334155"><input type="checkbox" class="comm-zona-check" value="${z}"> ${empresa?'Empresa ':''}${zonaNombre(z)}</label>`).join('');
+    box.innerHTML=`<label class="form-label">${empresa?'Empresas destinatarias':'Zonas destinatarias'}</label><div style="max-height:210px;overflow:auto;border:1px solid #d9e2ef;border-radius:12px;padding:10px;display:grid;gap:8px;background:#f8fafc">${opts}</div>`;
+  };
+  window.toggleCommSurveyBuilder=function(){
+    const tipo=document.getElementById('comm-tipo')?.value, wrapper=document.getElementById('comm-survey-wrapper');
+    if(wrapper)wrapper.style.display=tipo==='tarea'?'':'none';
+  };
+  async function leerArchivos(input){
+    const files=[...(input?.files||[])];
+    return Promise.all(files.map(file=>typeof leerArchivoDGIE==='function'?leerArchivoDGIE(file,'comunicaciones'):Promise.resolve({nombre:file.name,name:file.name,url:''}))).then(a=>a.filter(Boolean));
+  }
+  window.guardarComunicacion=async function(){
+    const tipo=document.getElementById('comm-tipo')?.value||'notificacion';
+    const alcance=document.getElementById('comm-alcance')?.value||'general';
+    const titulo=document.getElementById('comm-titulo')?.value.trim()||'', mensaje=document.getElementById('comm-mensaje')?.value.trim()||'';
+    const checked=[...document.querySelectorAll('.comm-zona-check:checked')].map(x=>Number(x.value));
+    const pregunta=document.getElementById('comm-encuesta-pregunta')?.value.trim()||'';
+    const opciones=(document.getElementById('comm-encuesta-opciones')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    const encuesta=tipo==='tarea'&&pregunta&&opciones.length?{pregunta,opciones}:[];
+    const archivos=await leerArchivos(document.getElementById('comm-archivos'));
+    const err=document.getElementById('comm-error');
+    if(!titulo||!mensaje){if(err){err.textContent='Completá título y mensaje.';err.style.display='block'}return}
+    if(tipo==='tarea'&&pregunta&&!opciones.length){if(err){err.textContent='Agregá al menos una opción para la encuesta.';err.style.display='block'}return}
+    if((alcance==='zona'||alcance==='empresa_zona')&&!checked.length){if(err){err.textContent='Seleccioná al menos una zona.';err.style.display='block'}return}
+    const c={id:Date.now(),tipo,titulo,mensaje,alcance,zonas:(alcance==='zona'||alcance==='empresa_zona')?checked:[],creadoPor:currentUser?.name||'Coordinación',createdAt:new Date().toISOString(),estados:{},validaciones:{},encuesta,archivos};
+    window.COMUNICACIONES.unshift(c);
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearComunicacion==='function'){
+      const row={tipo:c.tipo,titulo:c.titulo,mensaje:c.mensaje,alcance:c.alcance,zonas:c.zonas,creado_por_nombre:c.creadoPor,estados:c.estados,validaciones:c.validaciones,encuesta:c.encuesta||[],archivos:c.archivos||[]};
+      const {data,error}=await window.DGIE_DB.crearComunicacion(row);
+      if(error){alert('No se pudo guardar la comunicación en Supabase: '+error.message);return}
+      c.remoteId=data?.id;c._remoteSaved=true;
+    }
+    saveAppState&&saveAppState();
+    renderComunicaciones(document.getElementById('main-content'));
+    setTimeout(renderCommDestino,0);setTimeout(toggleCommSurveyBuilder,0);
+  };
+  function recogerEncuesta(cardId){
+    const out={}, scope=document.getElementById(cardId)||document;
+    scope.querySelectorAll('.comm-survey-answer').forEach(el=>{out[el.dataset.q]={label:el.dataset.label||'',checked:!!el.checked}});
+    return out;
+  }
+  async function actualizarRemote(c){
+    if(!c?._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.actualizarComunicacion!=='function')return;
+    const {error}=await window.DGIE_DB.actualizarComunicacion(c.remoteId||c.id,{estados:c.estados||{},validaciones:c.validaciones||{}});
+    if(error)alert('No se pudo actualizar la comunicación en Supabase: '+error.message);
+  }
+  window.cambiarEstadoComunicacion=async function(id,estado){
+    const c=(window.COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
+    const key=esEmpresa()?keyEmpresa(currentUser.zona):keyInspector(currentUser.zona);
+    c.estados=c.estados||{};
+    const prev={...(c.estados[key]||{})};
+    c.estados[key]={...prev,estado,usuario:currentUser?.name||currentUser?.role,fecha:new Date().toISOString()};
+    if(encuestaConfig(c)&&!c.estados[key].encuestaRespondida){
+      c.estados[key].encuesta={opciones:recogerEncuesta('comm-card-'+id)};
+      c.estados[key].observacion=document.getElementById('comm-obs-'+id)?.value.trim()||prev.observacion||'';
+      if(estado==='completado')c.estados[key].encuestaRespondida=true;
+    }
+    if(estado==='completado'||estado==='visto'){c.estados[key].completadoPor=currentUser?.name||currentUser?.role;c.estados[key].completadoFecha=new Date().toISOString()}
+    await actualizarRemote(c);saveAppState&&saveAppState();renderComunicaciones(document.getElementById('main-content'));
+  };
+  window.validarComunicacion=async function(id,key,validado){
+    const c=(window.COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
+    c.validaciones=c.validaciones||{};c.validaciones[String(key)]={validado,por:currentUser?.name||'Coordinación',fecha:new Date().toISOString()};
+    await actualizarRemote(c);saveAppState&&saveAppState();renderComunicaciones(document.getElementById('main-content'));
+  };
+  const mapRemotePrev=window.mapRemoteComunicacion;
+  window.mapRemoteComunicacion=function(row,idx){
+    const c=mapRemotePrev?mapRemotePrev(row,idx):{id:idx+1};
+    return {...c,alcance:row.alcance||c.alcance||'general',zonas:Array.isArray(row.zonas)?row.zonas.map(Number):(c.zonas||[]),archivos:Array.isArray(row.archivos)?row.archivos:(c.archivos||[])};
+  };
+  window.renderComunicaciones=function(container){
+    if(!container)return;
+    if(esGestion()){container.innerHTML=renderGestion();setTimeout(renderCommDestino,0);setTimeout(toggleCommSurveyBuilder,0);return}
+    if(esEmpresa()){container.innerHTML=renderAsignadas('empresa',Number(currentUser.zona||0));return}
+    container.innerHTML=renderAsignadas('inspector',Number(currentUser?.zona||0));
+  };
+  function addTab(tabs,name){return tabs.includes(name)?tabs:[...tabs,name]}
+  const prevDgieTabs=window.dgieTabsForUser;
+  window.dgieTabsForUser=function(user){
+    let tabs=prevDgieTabs?prevDgieTabs(user):(window.tabsForUser?window.tabsForUser(user):[]);
+    if(user?.role==='empresa')tabs=addTab(tabs,'Comunicaciones');
+    return tabs;
+  };
+  const prevTabs=window.tabsForUser;
+  window.tabsForUser=function(user){
+    let tabs=prevTabs?prevTabs(user):(prevDgieTabs?prevDgieTabs(user):[]);
+    if(user?.role==='empresa')tabs=addTab(tabs,'Comunicaciones');
+    return tabs;
+  };
+  const prevRenderTab=window.renderTab;
+  window.renderTab=function(i){
+    if(currentUser){
+      const tabs=window.dgieTabsForUser?window.dgieTabsForUser(currentUser):(window.tabsForUser?window.tabsForUser(currentUser):[]);
+      const tab=tabs[i];
+      if(tab==='Comunicaciones'){
+        buildTabs(tabs);setActiveTab(i);hideGlobal();currentFichaId=null;
+        renderComunicaciones(document.getElementById('main-content'));
+        return;
+      }
+    }
+    return prevRenderTab?prevRenderTab.apply(this,arguments):undefined;
+  };
+})();
+</script>
 </body>
 </html>
 
