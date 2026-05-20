@@ -11450,6 +11450,218 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-certificados-comentarios-independientes-2026-05-20">
+(function(){
+  function certs(){return Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[]}
+  function certKeySeguro(c){
+    return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_');
+  }
+  function certByKey(key){
+    return certs().find(c=>certKeySeguro(c)===String(key)||String(c.id)===String(key)||String(c.localId)===String(key));
+  }
+  function num(v){return Number(String(v??'').replace(',','.'))||0}
+  function parseOrdenesManual(v){
+    const raw=String(v||'').trim();
+    if(!raw)return [];
+    const partes=/[,;\n]/.test(raw)?raw.split(/[,;\n]+/):raw.split(/\s+/);
+    const out=[];
+    partes.map(x=>x.trim()).filter(Boolean).forEach(x=>{
+      const nums=String(x).match(/\d+/g);
+      if(!nums)return;
+      const n=Number(nums[nums.length-1]);
+      if(Number.isFinite(n)&&n>0)out.push(String(n).padStart(3,'0'));
+    });
+    return [...new Set(out)];
+  }
+  function limpiarObs(txt){
+    return typeof window.limpiarObsCert==='function'
+      ? window.limpiarObsCert(txt)
+      : String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim();
+  }
+  function conversaciones(c){
+    return typeof window.conversacionCert==='function'
+      ? window.conversacionCert(c)
+      : (Array.isArray(c?.conversacion)?c.conversacion:[]);
+  }
+  function obsConConversacionSeguro(obs,msgs){
+    if(typeof window.obsConConversacion==='function')return window.obsConConversacion(obs,msgs);
+    const base=String(obs||'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim();
+    const meta=`[CONV_CERT:${encodeURIComponent(JSON.stringify(msgs||[]))}]`;
+    return [base,meta].filter(Boolean).join('\n');
+  }
+  function certOrdenesSeguro(c){
+    const arr=typeof window.certOrdenes==='function'?window.certOrdenes(c):[];
+    return (arr||[]).map(x=>{
+      const n=Number(String(x).match(/\d+/g)?.pop());
+      return Number.isFinite(n)&&n>0?String(n).padStart(3,'0'):String(x||'').trim();
+    }).filter(Boolean);
+  }
+  function certRubrosSeguro(c){
+    return typeof window.certRubrosCodigos==='function'?(window.certRubrosCodigos(c)||[]):[];
+  }
+  function archivoRenombrado(c){
+    return typeof window.certArchivoRenombrado==='function'?(window.certArchivoRenombrado(c)||''):(c?.archivo_inspector||'');
+  }
+  function sanitizarNombre(s){
+    return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90);
+  }
+  function nombreInspector(file,c,ordenes){
+    const ext=(file?.name?.match(/\.[^.]+$/)?.[0]||'.xlsx').toLowerCase();
+    const zona=`Z${Number(c?.zona||currentUser?.zona||0)||''}`;
+    const os=(ordenes?.length?ordenes:['SINOS']).join('-');
+    return `${zona}-${os}-${sanitizarNombre(c?.establecimiento_nombre||'ESTABLECIMIENTO')}${ext}`;
+  }
+  function ordenDuplicada(ordenes,actual){
+    const set=new Set((ordenes||[]).map(x=>Number(x)).filter(Number.isFinite));
+    if(!set.size)return null;
+    const zonaActual=Number(actual?.zona||currentUser?.zona||0);
+    return certs().find(c=>{
+      const mismo=String(c.id)===String(actual?.id)||String(c.localId)===String(actual?.localId);
+      if(mismo||String(c?.estado||'')==='eliminado')return false;
+      const zonaCert=Number(c?.zona||0);
+      if(zonaActual&&zonaCert&&zonaCert!==zonaActual)return false;
+      return certOrdenesSeguro(c).some(o=>set.has(Number(o)));
+    })||null;
+  }
+  async function guardarSoloConversacion(c,msgs){
+    try{
+      await window.actualizarCertificado(c.id||c.localId,{conversacion:msgs,actualizado_por:currentUser?.name||currentUser?.role});
+    }catch(_){
+      await window.actualizarCertificado(c.id||c.localId,{observaciones_inspector:obsConConversacionSeguro(c.observaciones_inspector,msgs),actualizado_por:currentUser?.name||currentUser?.role});
+    }
+  }
+  function fechaMsg(v){
+    try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}
+  }
+  function puedeBorrarMsg(m){
+    return String(m?.autor||'')===String(currentUser?.name||'')||String(m?.rol||'')===String(currentUser?.role||'');
+  }
+  function renderHiloCertificadoSeguro(c){
+    const key=certKeySeguro(c);
+    const input=document.getElementById('conv-txt-'+key);
+    if(!input)return;
+    const wrap=input.closest('div[style*="grid-template-columns"]');
+    const cont=wrap?.parentElement;
+    if(!cont)return;
+    const msgs=conversaciones(c);
+    const mensajesHTML=msgs.length?msgs.map((m,idx)=>{
+      const esInspector=m.rol==='inspector';
+      const color=esInspector?'var(--blue)':'#64748b';
+      const bg=esInspector?'#eef4ff':'#f1f5f9';
+      return `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:${bg};border-left:3px solid ${esInspector?'var(--blue)':'#94a3b8'}">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div style="font-size:11px;font-weight:700;color:${color};margin-bottom:2px">${escapeHtml(m.autor||m.rol||'Usuario')} <span style="font-weight:400;color:#b0bccc">${fechaMsg(m.fecha)?'· '+fechaMsg(m.fecha):''}</span></div>
+          ${puedeBorrarMsg(m)?`<button class="secondary-btn" style="padding:3px 7px;color:var(--danger);font-size:11px" onclick="borrarMensajeCertificado('${key}',${idx})">Borrar</button>`:''}
+        </div>
+        <div style="font-size:13px;color:#334155">${escapeHtml(m.texto||'')}</div>
+      </div>`;
+    }).join(''):`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Sin comentarios todavía.</div>`;
+    cont.innerHTML=`<div style="font-size:13px;font-weight:900;color:#123c69;margin-bottom:8px">Comentarios</div>${mensajesHTML}<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:4px">
+      <textarea id="conv-txt-${key}" class="form-textarea" style="font-size:13px;min-height:58px" placeholder="Escribí un comentario sobre este certificado..."></textarea>
+      <button class="secondary-btn" style="align-self:flex-end" onclick="enviarMensajeCertificado('${key}')">Enviar</button>
+    </div>`;
+  }
+  window.enviarMensajeCertificado=async function(key){
+    const c=certByKey(key);
+    const input=document.getElementById('conv-txt-'+key);
+    const txt=(input?.value||'').trim();
+    if(!c||!txt)return;
+    const msgs=conversaciones(c).slice();
+    const msg={texto:txt,autor:currentUser?.name||currentUser?.role||'Usuario',rol:currentUser?.role||'usuario',fecha:new Date().toISOString()};
+    msgs.push(msg);
+    const prevConv=Array.isArray(c.conversacion)?c.conversacion.slice():null;
+    const prevObs=c.observaciones_inspector;
+    c.conversacion=msgs;
+    try{
+      await guardarSoloConversacion(c,msgs);
+      if(input)input.value='';
+      renderHiloCertificadoSeguro(c);
+    }catch(error){
+      if(prevConv)c.conversacion=prevConv;else delete c.conversacion;
+      c.observaciones_inspector=prevObs;
+      alert('No se pudo enviar el comentario: '+(error.message||error));
+    }
+  };
+  window.borrarMensajeCertificado=async function(key,idx){
+    const c=certByKey(key);
+    const msgs=conversaciones(c).slice();
+    const msg=msgs[idx];
+    if(!c||!msg||!puedeBorrarMsg(msg))return;
+    if(!confirm('¿Borrar este comentario?'))return;
+    const prevConv=Array.isArray(c.conversacion)?c.conversacion.slice():null;
+    const prevObs=c.observaciones_inspector;
+    msgs.splice(idx,1);
+    c.conversacion=msgs;
+    try{
+      await guardarSoloConversacion(c,msgs);
+      renderHiloCertificadoSeguro(c);
+    }catch(error){
+      if(prevConv)c.conversacion=prevConv;else delete c.conversacion;
+      c.observaciones_inspector=prevObs;
+      alert('No se pudo borrar el comentario: '+(error.message||error));
+    }
+  };
+  const revisarCertificadoInspectorPrev=window.revisarCertificadoInspector;
+  window.revisarCertificadoInspector=function(id){
+    const res=revisarCertificadoInspectorPrev?revisarCertificadoInspectorPrev.apply(this,arguments):undefined;
+    setTimeout(()=>{
+      const c=certByKey(id);
+      if(c)renderHiloCertificadoSeguro(c);
+    },0);
+    return res;
+  };
+  window.guardarRevisionCertificado=async function(id,medir){
+    const c=certByKey(id);
+    if(!c)return;
+    const file=document.getElementById('insp-cert-file')?.files?.[0];
+    const modInspector=num(document.getElementById('insp-cert-modulos')?.value);
+    const ordenes=parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||certOrdenesSeguro(c).join(', '));
+    const rubros=certRubrosSeguro(c);
+    const obsLimpia=(document.getElementById('insp-cert-obs')?.value||limpiarObs(c.observaciones_inspector)||'').trim();
+    if(medir&&!document.getElementById('insp-cert-medicion')?.value){alert('Para pasar a medición cargá el número de medición.');return;}
+    if(medir&&!modInspector){alert('Para pasar a medición subí el Excel corregido para leer la celda G720.');return;}
+    if(medir&&!ordenes.length){alert('Para pasar a medición cargá el/los números de orden de servicio.');return;}
+    const duplicado=ordenDuplicada(ordenes,c);
+    if(duplicado){
+      const repetida=ordenes.find(o=>certOrdenesSeguro(duplicado).some(x=>Number(x)===Number(o)))||ordenes[0];
+      alert(`La O.S. ${repetida} ya está usada en otro certificado de esta zona (${duplicado.establecimiento_nombre||'sin establecimiento'}). No se puede repetir.`);
+      return;
+    }
+    const nombre=file?nombreInspector(file,c,ordenes):archivoRenombrado(c);
+    let obsConMeta=[
+      obsLimpia,
+      ordenes.length?`[OS_CERT:${ordenes.join(',')}]`:'',
+      rubros.length?`[RUBROS_CERT:${rubros.join('-')}]`:'',
+      nombre?`[ARCHIVO_RENOMBRE:${nombre}]`:''
+    ].filter(Boolean).join('\n');
+    const conv=conversaciones(c);
+    if(conv.length)obsConMeta=obsConConversacionSeguro(obsConMeta,conv);
+    const patch={
+      modulos_inspector:modInspector,
+      monto_empresa:num(c.modulos_original),
+      monto_inspeccion:modInspector,
+      observaciones_inspector:obsConMeta,
+      medicion_numero:document.getElementById('insp-cert-medicion')?.value?Number(document.getElementById('insp-cert-medicion').value):null,
+      periodo:(document.getElementById('insp-cert-periodo')?.value||'').trim(),
+      estado:medir?'medido':'revision',
+      actualizado_por:currentUser?.name||'Inspector'
+    };
+    if(file){
+      const archivoRenombrado=new File([file],nombre,{type:file.type,lastModified:file.lastModified});
+      const subida=await window.subirCertFile(archivoRenombrado);
+      patch.archivo_inspector=nombre;
+      patch.url_inspector=subida?.url||'';
+      patch.public_id_inspector=subida?.publicId||null;
+    }
+    try{
+      await window.actualizarCertificado(id,patch);
+      if(typeof renderMedicionesInspector==='function')renderMedicionesInspector(document.getElementById('main-content'),currentUser.zona);
+    }catch(error){
+      alert('No se pudo guardar la revisión: '+(error.message||error));
+    }
+  };
+})();
+</script>
 </body>
 </html>
 
