@@ -11239,8 +11239,8 @@ function renderChartInsp(){
     const opciones=Array.isArray(c.encuesta.opciones)?c.encuesta.opciones:[];
     return c.encuesta.pregunta||opciones.length?{pregunta:c.encuesta.pregunta||'Encuesta',opciones}:null;
   }
-  function pendientesInspector(z){return (window.COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='inspector'&&Number(d.zona)===Number(z))&&!completada(c,keyInspector(z))).length}
-  function pendientesEmpresa(z){return (window.COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='empresa'&&Number(d.zona)===Number(z))&&!completada(c,keyEmpresa(z))).length}
+  function pendientesInspector(z){return (COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='inspector'&&Number(d.zona)===Number(z))&&!completada(c,keyInspector(z))).length}
+  function pendientesEmpresa(z){return (COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='empresa'&&Number(d.zona)===Number(z))&&!completada(c,keyEmpresa(z))).length}
   function archivosHTML(c){
     const files=Array.isArray(c.archivos)?c.archivos:[];
     if(!files.length)return '';
@@ -11325,7 +11325,7 @@ function renderChartInsp(){
         <div class="form-error" id="comm-error" style="display:none">Completá título y mensaje.</div>
         <div class="modal-actions"><button class="primary-btn" onclick="guardarComunicacion()">Enviar comunicación</button></div>
       </div>
-      <div><div class="card-header" style="margin-bottom:10px"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Estado por destinatario, completados y pendientes.</div></div><span class="badge b-info">${(window.COMUNICACIONES||[]).length} comunicaciones</span></div><div class="comms-list">${(window.COMUNICACIONES||[]).length?(window.COMUNICACIONES||[]).map(gestionCard).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">Sin comunicaciones cargadas.</div>'}</div></div>
+      <div><div class="card-header" style="margin-bottom:10px"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Estado por destinatario, completados y pendientes.</div></div><span class="badge b-info">${(COMUNICACIONES||[]).length} comunicaciones</span></div><div class="comms-list">${(COMUNICACIONES||[]).length?(COMUNICACIONES||[]).map(gestionCard).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">Sin comunicaciones cargadas.</div>'}</div></div>
     </div>`;
   }
   function encuestaInspectorEmpresa(c,st,key){
@@ -11357,7 +11357,7 @@ function renderChartInsp(){
   }
   function renderAsignadas(tipo,z){
     const key=tipo==='empresa'?keyEmpresa(z):keyInspector(z);
-    const data=(window.COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo===tipo&&Number(d.zona)===Number(z)));
+    const data=(COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo===tipo&&Number(d.zona)===Number(z)));
     const pendientes=data.filter(c=>!completada(c,key)).length;
     const titulo=tipo==='empresa'?`Comunicaciones · Empresa Zona ${z}`:`Comunicaciones · Zona ${z}`;
     return `<div class="section-label">${titulo}</div>${pendientes?`<div class="comm-alert">Tenés ${pendientes} comunicación${pendientes!==1?'es':''} sin completar.</div>`:''}<div class="comms-list">${data.length?data.map(c=>renderAsignadaCard(c,key)).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">No tenés comunicaciones asignadas.</div>'}</div>`;
@@ -11393,7 +11393,7 @@ function renderChartInsp(){
     if(tipo==='tarea'&&pregunta&&!opciones.length){if(err){err.textContent='Agregá al menos una opción para la encuesta.';err.style.display='block'}return}
     if((alcance==='zona'||alcance==='empresa_zona')&&!checked.length){if(err){err.textContent='Seleccioná al menos una zona.';err.style.display='block'}return}
     const c={id:Date.now(),tipo,titulo,mensaje,alcance,zonas:(alcance==='zona'||alcance==='empresa_zona')?checked:[],creadoPor:currentUser?.name||'Coordinación',createdAt:new Date().toISOString(),estados:{},validaciones:{},encuesta,archivos};
-    window.COMUNICACIONES.unshift(c);
+    COMUNICACIONES.unshift(c);
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearComunicacion==='function'){
       const row={tipo:c.tipo,titulo:c.titulo,mensaje:c.mensaje,alcance:c.alcance,zonas:c.zonas,creado_por_nombre:c.creadoPor,estados:c.estados,validaciones:c.validaciones,encuesta:c.encuesta||[],archivos:c.archivos||[]};
       const {data,error}=await window.DGIE_DB.crearComunicacion(row);
@@ -11426,14 +11426,14 @@ function renderChartInsp(){
     if(nuevos.length)c.estados[key].archivosRespuesta=[...(Array.isArray(prev.archivosRespuesta)?prev.archivosRespuesta:[]),...nuevos];
   }
   window.guardarRespuestaComunicacion=async function(id){
-    const c=(window.COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
+    const c=(COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
     const key=claveComunicacionActual();
     await aplicarRespuestaComunicacion(c,key);
     c.estados[key]={...(c.estados[key]||{}),usuario:currentUser?.name||currentUser?.role,fecha:new Date().toISOString()};
     await actualizarRemote(c);saveAppState&&saveAppState();renderComunicaciones(document.getElementById('main-content'));
   };
   window.cambiarEstadoComunicacion=async function(id,estado){
-    const c=(window.COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
+    const c=(COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
     const key=claveComunicacionActual();
     c.estados=c.estados||{};
     const prev={...(c.estados[key]||{})};
@@ -11449,7 +11449,7 @@ function renderChartInsp(){
     await actualizarRemote(c);saveAppState&&saveAppState();renderComunicaciones(document.getElementById('main-content'));
   };
   window.validarComunicacion=async function(id,key,validado){
-    const c=(window.COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
+    const c=(COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
     c.validaciones=c.validaciones||{};c.validaciones[String(key)]={validado,por:currentUser?.name||'Coordinación',fecha:new Date().toISOString()};
     await actualizarRemote(c);saveAppState&&saveAppState();renderComunicaciones(document.getElementById('main-content'));
   };
