@@ -11246,6 +11246,17 @@ function renderChartInsp(){
     if(!files.length)return '';
     return `<div class="comm-targets">${files.map((f,i)=>`<a class="badge b-neutral" href="${esc(f.url||f.secure_url||f.dataUrl||'#')}" target="_blank" download="${esc(f.name||f.nombre||'archivo')}" style="text-decoration:none">Archivo ${i+1}: ${esc(f.name||f.nombre||'sin nombre')}</a>`).join('')}</div>`;
   }
+  function archivosRespuestaHTML(st){
+    const files=Array.isArray(st?.archivosRespuesta)?st.archivosRespuesta:[];
+    if(!files.length)return '';
+    return `<div class="comm-targets" style="margin-top:8px">${files.map((f,i)=>`<a class="badge b-neutral" href="${esc(f.url||f.secure_url||f.dataUrl||'#')}" target="_blank" download="${esc(f.name||f.nombre||'archivo')}" style="text-decoration:none">Respuesta archivo ${i+1}: ${esc(f.name||f.nombre||'sin nombre')}</a>`).join('')}</div>`;
+  }
+  function respuestaTextoHTML(st){
+    const texto=(st?.respuestaTexto||'').trim();
+    const files=Array.isArray(st?.archivosRespuesta)?st.archivosRespuesta:[];
+    if(!texto&&!files.length)return '';
+    return `<div class="comm-status-meta" style="margin-top:8px"><strong>Respuesta:</strong>${texto?`<br>${esc(texto)}`:''}${archivosRespuestaHTML(st)}</div>`;
+  }
   function miniBar(label,value,total,color){
     const pct=total?Math.round(value*100/total):0;
     return `<div class="comm-bar-row"><span>${esc(label)}</span><div class="comm-bar-track"><div class="comm-bar-fill" style="width:${pct}%;background:${color}"></div></div><strong>${value}</strong></div>`;
@@ -11285,6 +11296,7 @@ function renderChartInsp(){
     return `<div class="comm-status-row">
       <div class="comm-status-top"><span>${esc(d.label)}</span><span class="badge ${estadoBadge(st.estado)}">${estadoLabel(st.estado)}</span></div>
       <div class="comm-status-meta">${st.fecha?esc(new Date(st.fecha).toLocaleString('es-AR')):'Sin actividad'}${st.completadoPor?`<br>${esc(st.completadoPor)}`:''}${st.encuesta?encuestaTexto(st.encuesta,c):''}${st.observacion?`<br>Obs.: ${esc(st.observacion)}`:''}</div>
+      ${respuestaTextoHTML(st)}
       ${esTarea(c)&&st.estado==='completado'?`<label class="comm-check"><input type="checkbox" ${val.validado?'checked':''} onchange="validarComunicacion('${c.id}','${esc(d.key)}',this.checked)"> Validado por coordinación</label>`:''}
     </div>`;
   }
@@ -11324,11 +11336,21 @@ function renderChartInsp(){
     const locked=!!st.encuestaRespondida;
     return `<div class="comm-status-row" style="margin:10px 0;background:#fff"><div class="comm-status-top">${esc(cfg.pregunta)}${locked?'<span class="badge b-ok">Respondida</span>':''}</div><div style="display:grid;gap:8px;margin-top:8px">${cfg.opciones.map((op,i)=>`<label class="comm-option${locked?' locked':''}"><input type="checkbox" class="comm-survey-answer" data-q="${i}" data-label="${esc(op)}" ${(typeof respuestas[i]==='object'?respuestas[i].checked:respuestas[i])?'checked':''} ${locked?'disabled':''}> <span>${esc(op)}</span></label>`).join('')}</div><label style="display:block;margin-top:10px"><div class="form-label">Observaciones</div><textarea class="form-textarea" id="comm-obs-${c.id}" ${locked?'disabled':''} placeholder="Agregar observación opcional" style="min-height:68px">${esc(st.observacion||'')}</textarea></label></div>`;
   }
+  function respuestaTareaForm(c,st){
+    if(!esTarea(c))return '';
+    return `<div class="comm-status-row" style="margin:10px 0;background:#fff">
+      <div class="comm-status-top"><span>Respuesta de la tarea</span>${(st.respuestaTexto||st.archivosRespuesta?.length)?'<span class="badge b-info">Guardada</span>':''}</div>
+      <label style="display:block;margin-top:10px"><div class="form-label">Texto de respuesta</div><textarea class="form-textarea" id="comm-respuesta-${c.id}" placeholder="Escribir respuesta para coordinación..." style="min-height:72px">${esc(st.respuestaTexto||'')}</textarea></label>
+      ${archivosRespuestaHTML(st)}
+      <label style="display:block;margin-top:10px"><div class="form-label">Archivos de respuesta <span style="font-weight:400;color:var(--muted)">(opcional)</span></div><input type="file" id="comm-respuesta-archivos-${c.id}" multiple accept="image/*,.pdf,application/pdf" style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px"></label>
+      <button class="secondary-btn" style="margin-top:10px" onclick="guardarRespuestaComunicacion('${c.id}')">Guardar respuesta</button>
+    </div>`;
+  }
   function renderAsignadaCard(c,key){
     const st=estadoComm(c,key);
     return `<div class="comm-card" id="comm-card-${c.id}">
       <div class="comm-head"><div><div class="comm-title">${esc(c.titulo)}</div><div class="comm-meta">${new Date(c.createdAt||Date.now()).toLocaleString('es-AR')} · Por ${esc(c.creadoPor||'Coordinación')}</div></div><span class="badge ${commBadge(c.tipo)}">${esc(c.tipo||'notificacion')}</span></div>
-      <div class="comm-msg">${esc(c.mensaje)}</div>${archivosHTML(c)}${encuestaInspectorEmpresa(c,st,key)}
+      <div class="comm-msg">${esc(c.mensaje)}</div>${archivosHTML(c)}${encuestaInspectorEmpresa(c,st,key)}${respuestaTareaForm(c,st)}
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="badge ${estadoBadge(st.estado)}">${estadoLabel(st.estado)}</span>${esNotificacion(c)?`<button class="primary-btn" style="padding:9px 14px" onclick="cambiarEstadoComunicacion('${c.id}','visto')" ${st.estado==='visto'?'disabled':''}>Marcar visto</button>`:`<select class="form-select" style="max-width:190px;padding:8px 10px" onchange="cambiarEstadoComunicacion('${c.id}',this.value)"><option value="pendiente" ${st.estado==='pendiente'?'selected':''}>Pendiente</option><option value="en_proceso" ${st.estado==='en_proceso'?'selected':''}>En proceso</option><option value="completado" ${st.estado==='completado'?'selected':''}>Completado</option></select>`}</div>
       ${st.fecha?`<div class="comm-meta" style="margin-top:8px">Última actualización: ${esc(new Date(st.fecha).toLocaleString('es-AR'))}</div>`:''}
     </div>`;
@@ -11392,12 +11414,32 @@ function renderChartInsp(){
     const {error}=await window.DGIE_DB.actualizarComunicacion(c.remoteId||c.id,{estados:c.estados||{},validaciones:c.validaciones||{}});
     if(error)alert('No se pudo actualizar la comunicación en Supabase: '+error.message);
   }
+  function claveComunicacionActual(){
+    return esEmpresa()?keyEmpresa(currentUser.zona):keyInspector(currentUser.zona);
+  }
+  async function aplicarRespuestaComunicacion(c,key){
+    const respuesta=document.getElementById('comm-respuesta-'+c.id)?.value.trim();
+    const nuevos=await leerArchivos(document.getElementById('comm-respuesta-archivos-'+c.id));
+    c.estados=c.estados||{};
+    const prev={...(c.estados[key]||{})};
+    c.estados[key]={...prev,respuestaTexto:respuesta||prev.respuestaTexto||''};
+    if(nuevos.length)c.estados[key].archivosRespuesta=[...(Array.isArray(prev.archivosRespuesta)?prev.archivosRespuesta:[]),...nuevos];
+  }
+  window.guardarRespuestaComunicacion=async function(id){
+    const c=(window.COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
+    const key=claveComunicacionActual();
+    await aplicarRespuestaComunicacion(c,key);
+    c.estados[key]={...(c.estados[key]||{}),usuario:currentUser?.name||currentUser?.role,fecha:new Date().toISOString()};
+    await actualizarRemote(c);saveAppState&&saveAppState();renderComunicaciones(document.getElementById('main-content'));
+  };
   window.cambiarEstadoComunicacion=async function(id,estado){
     const c=(window.COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));if(!c)return;
-    const key=esEmpresa()?keyEmpresa(currentUser.zona):keyInspector(currentUser.zona);
+    const key=claveComunicacionActual();
     c.estados=c.estados||{};
     const prev={...(c.estados[key]||{})};
     c.estados[key]={...prev,estado,usuario:currentUser?.name||currentUser?.role,fecha:new Date().toISOString()};
+    if(esTarea(c))await aplicarRespuestaComunicacion(c,key);
+    c.estados[key]={...(c.estados[key]||{}),estado,usuario:currentUser?.name||currentUser?.role,fecha:new Date().toISOString()};
     if(encuestaConfig(c)&&!c.estados[key].encuestaRespondida){
       c.estados[key].encuesta={opciones:recogerEncuesta('comm-card-'+id)};
       c.estados[key].observacion=document.getElementById('comm-obs-'+id)?.value.trim()||prev.observacion||'';
