@@ -11061,6 +11061,107 @@ function renderChartInsp(){
   }
 })();
 </script>
+<script id="dgie-persistencia-sesion-refresh-2026-05-20">
+(function(){
+  const KEY_USER='dgie_sesion_usuario_activa_v1';
+  const KEY_TAB='dgie_sesion_tab_activa_v1';
+  const KEY_LOGOUT='dgie_sesion_logout_manual_v1';
+  function safeGet(key){
+    try{return localStorage.getItem(key)}catch(_){return null}
+  }
+  function safeSet(key,value){
+    try{localStorage.setItem(key,value)}catch(_){}
+  }
+  function safeRemove(key){
+    try{localStorage.removeItem(key)}catch(_){}
+  }
+  function perfilToSessionUser(perfil){
+    if(typeof window.perfilToUser==='function')return window.perfilToUser(perfil);
+    const rolMap={director:'direccion',coordinador:'coordinador',inspector:'inspector',empresa:'empresa',callcenter:'callcenter'};
+    const nombre=perfil?.nombre||'Usuario';
+    const parts=String(nombre).trim().split(/\s+/).filter(Boolean);
+    const initials=((parts[0]?.[0]||'U')+(parts[1]?.[0]||parts[0]?.[1]||'')).toUpperCase();
+    const user={name:nombre,initials,role:rolMap[perfil?.rol]||perfil?.rol||'inspector'};
+    if(perfil?.zona)user.zona=Number(perfil.zona);
+    return user;
+  }
+  function guardarUsuarioActivo(user){
+    if(!user)return;
+    safeRemove(KEY_LOGOUT);
+    safeSet(KEY_USER,JSON.stringify({
+      name:user.name,
+      initials:user.initials,
+      role:user.role,
+      zona:user.zona||null,
+      savedAt:new Date().toISOString()
+    }));
+  }
+  function usuarioGuardado(){
+    try{
+      const parsed=JSON.parse(safeGet(KEY_USER)||'null');
+      return parsed&&parsed.role?parsed:null;
+    }catch(_){return null}
+  }
+  function tabGuardada(){
+    const n=Number(safeGet(KEY_TAB));
+    return Number.isFinite(n)&&n>=0?n:0;
+  }
+  function restaurarTabLuego(){
+    const idx=tabGuardada();
+    setTimeout(()=>{
+      if(!currentUser||typeof window.renderTab!=='function')return;
+      const tabs=(window.dgieTabsForUser?window.dgieTabsForUser(currentUser):(window.tabsForUser?window.tabsForUser(currentUser):[]))||[];
+      window.renderTab(Math.min(idx,Math.max(0,tabs.length-1)));
+    },180);
+  }
+
+  const prevLoadUser=window.loadUser;
+  window.loadUser=function(user){
+    const res=prevLoadUser?prevLoadUser.apply(this,arguments):undefined;
+    guardarUsuarioActivo(user);
+    return res;
+  };
+
+  const prevRenderTab=window.renderTab;
+  window.renderTab=function(i){
+    const res=prevRenderTab?prevRenderTab.apply(this,arguments):undefined;
+    if(currentUser&&Number.isFinite(Number(i)))safeSet(KEY_TAB,String(Number(i)));
+    return res;
+  };
+
+  const prevLogout=window.doLogout;
+  window.doLogout=function(){
+    safeSet(KEY_LOGOUT,'1');
+    safeRemove(KEY_USER);
+    safeRemove(KEY_TAB);
+    if(window.DGIE_DB?.signOut)window.DGIE_DB.signOut().catch(()=>{});
+    return prevLogout?prevLogout.apply(this,arguments):undefined;
+  };
+
+  async function restaurarSesion(){
+    if(currentUser||safeGet(KEY_LOGOUT)==='1')return;
+    let user=null;
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.currentProfile==='function'){
+      try{
+        const {data,error}=await window.DGIE_DB.currentProfile();
+        if(!error&&data)user=perfilToSessionUser(data);
+      }catch(_){}
+    }
+    if(!user)user=usuarioGuardado();
+    if(!user||currentUser)return;
+    if(typeof window.loadUser==='function'){
+      window.loadUser(user);
+      restaurarTabLuego();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(restaurarSesion,500);
+    setTimeout(restaurarSesion,1500);
+  });
+  window.addEventListener('load',()=>setTimeout(restaurarSesion,700));
+})();
+</script>
 </body>
 </html>
 
