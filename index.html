@@ -11704,6 +11704,82 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-comunicaciones-respuesta-inspector-2026-05-20">
+(function(){
+  function commKey(){
+    return currentUser?.role==='empresa'
+      ? 'empresa-'+Number(currentUser.zona)
+      : String(Number(currentUser?.zona));
+  }
+
+  // 1. Al guardar respuesta: auto-marcar como completado
+  const _prevGuardar=window.guardarRespuestaComunicacion;
+  window.guardarRespuestaComunicacion=async function(id){
+    if(typeof _prevGuardar==='function')await _prevGuardar.call(this,id);
+    const c=COMUNICACIONES.find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));
+    if(!c||String(c.tipo||'')!=='tarea')return;
+    const key=commKey();
+    c.estados=c.estados||{};
+    c.estados[key]={...(c.estados[key]||{}),estado:'completado',completadoPor:currentUser?.name||currentUser?.role,completadoFecha:new Date().toISOString()};
+    if(c._remoteSaved&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarComunicacion==='function'){
+      const {error}=await window.DGIE_DB.actualizarComunicacion(c.remoteId||c.id,{estados:c.estados,validaciones:c.validaciones||{}});
+      if(error)console.warn('Error al completar comunicación:',error.message);
+    }
+    saveAppState&&saveAppState();
+    renderComunicaciones(document.getElementById('main-content'));
+  };
+
+  // 2. Revertir a en_proceso para volver a editar
+  window.revertirRespuestaComunicacion=async function(id){
+    const c=COMUNICACIONES.find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));
+    if(!c)return;
+    const key=commKey();
+    c.estados=c.estados||{};
+    c.estados[key]={...(c.estados[key]||{}),estado:'en_proceso',completadoPor:null,completadoFecha:null};
+    if(c._remoteSaved&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarComunicacion==='function'){
+      const {error}=await window.DGIE_DB.actualizarComunicacion(c.remoteId||c.id,{estados:c.estados,validaciones:c.validaciones||{}});
+      if(error){alert('No se pudo revertir: '+error.message);return;}
+    }
+    saveAppState&&saveAppState();
+    renderComunicaciones(document.getElementById('main-content'));
+  };
+
+  // 3. Después de cada render: bloquear UI si completado, mostrar botón Revertir
+  const _prevRender=window.renderComunicaciones;
+  window.renderComunicaciones=function(container){
+    const res=typeof _prevRender==='function'?_prevRender.call(this,container):undefined;
+    setTimeout(()=>{
+      if(!container)return;
+      container.querySelectorAll('.comm-card[id^="comm-card-"]').forEach(card=>{
+        const id=card.id.replace('comm-card-','');
+        const c=COMUNICACIONES.find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id));
+        if(!c||String(c.tipo||'')!=='tarea')return;
+        const key=commKey();
+        const st=(c.estados||{})[key]||{};
+        if(st.estado!=='completado')return;
+        // Bloquear textarea
+        const ta=card.querySelector('#comm-respuesta-'+id);
+        if(ta){ta.disabled=true;ta.style.background='#f1f5f9';ta.style.color='#64748b';}
+        // Ocultar input de archivos
+        const fi=card.querySelector('#comm-respuesta-archivos-'+id);
+        if(fi&&fi.closest('label'))fi.closest('label').style.display='none';
+        // Reemplazar botón Guardar por Revertir
+        card.querySelectorAll('button').forEach(btn=>{
+          if((btn.getAttribute('onclick')||'').includes("guardarRespuestaComunicacion('"+id+"')")){
+            const rb=document.createElement('button');
+            rb.className='secondary-btn';
+            rb.style.cssText='margin-top:10px;border-color:#f59e0b;color:#b45309;font-size:13px';
+            rb.textContent='↩ Revertir y editar respuesta';
+            rb.onclick=()=>window.revertirRespuestaComunicacion(id);
+            btn.replaceWith(rb);
+          }
+        });
+      });
+    },0);
+    return res;
+  };
+})();
+</script>
 </body>
 </html>
 
