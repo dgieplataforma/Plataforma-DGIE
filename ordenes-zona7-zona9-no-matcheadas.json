@@ -1,0 +1,26 @@
+[
+  {
+    "fila": 35,
+    "zona": 9,
+    "establecimiento": "IPEM 136 Alfredo Palacios",
+    "os": 3
+  },
+  {
+    "fila": 37,
+    "zona": 9,
+    "establecimiento": "Escuela Teniente General Palbo Ricchieri",
+    "os": 5
+  },
+  {
+    "fila": 58,
+    "zona": 9,
+    "establecimiento": "CENNMA MANUEL DORREGO SEDE HOSPITAL ONCOLOGICO",
+    "os": 26
+  },
+  {
+    "fila": 105,
+    "zona": 9,
+    "establecimiento": "CENNMA MANUEL DORREGO SEDE HOSPITAL ONCOLOGICO",
+    "os": 73
+  }
+]

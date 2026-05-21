@@ -1,0 +1,56 @@
+﻿fila,zona,numero,establecimiento_id,establecimiento,reclamo,rubro,fecha,estado,tarea
+2,8,Z8-001,347,I.P.E.T. Nº 248 LEOPOLDO LUGONES,,Plomeria,2026-03-02,finalizado,"Corrección de filtración en cañería pluvial
+Ejecutar la corrección de filtración en cañería pluvial Ø110 mm, mediante la colocación de cupla de unión y sellado de los posibles puntos de fuga, garantizando la estanqueidad del sistema."
+3,8,Z8-002,347,I.P.E.T. Nº 248 LEOPOLDO LUGONES,,Plomeria,2026-03-02,finalizado,Provision y colocacion de mochilas de ceramica en baño d docentes
+4,8,Z8-003,347,I.P.E.T. Nº 248 LEOPOLDO LUGONES,,Plomeria,2026-03-02,finalizado,Ejecutar el recambio de cañerías colector en mal estado en el sector subsuelo correspondiente a sala de bombas y cisterna.
+5,8,Z8-004,333,ESCUELA SANTIAGO DE LAS CARRERAS,,Herreria,2026-03-02,finalizado,"Ejecutar la reparación de puerta caída, mediante el ajuste y/o recambio de bisagras, asegurando su correcta apertura y cierre."
+6,8,Z8-005,333,ESCUELA SANTIAGO DE LAS CARRERAS,,Electricidad,2026-03-02,finalizado,"Ejecutar la provisión y colocación de tubos LED en sala, reemplazando los artefactos existentes en mal estado.
+Ejecutar la provisión y colocación de focos en reemplazo de unidades quemadas, asegurando el correcto funcionamiento del sistema de iluminación."
+7,8,Z8-006,337,J.DE INF. JOSE MARIA TORRES,,Plomeria,2026-03-03,finalizado,"Ejecutar la reparación de inodoro en el segundo baño de la primera salita, debido a pérdidas de agua."
+8,8,Z8-007,337,J.DE INF. JOSE MARIA TORRES,,Herreria,2026-03-03,finalizado,"colocacion aberturas, arreglo de puerta y colocacion de pizarrones"
+9,8,Z8-008,355,ESCUELA ELENA AMALIA LOPEZ LALLANA (EX-S/N DE B° 1° DE MAYO),,Plomeria,2026-03-03,finalizado,"desobstruccion de bajadas pluviales
+Ejecutar el tapado de camara septica zocavada, asegurando condiciones de seguridad en el sector intervenido."
+10,8,Z8-009,336,J.DE INF. GENERAL MARTIN GUEMES,,Plomeria,2026-03-03,finalizado,"Ejecutar la provisión y colocación de flexible de conexión en el sector sanitario correspondiente, asegurando su correcta vinculación y estanqueidad.
+Ejecutar el ajuste de pileta, corrigiendo su fijación debido a movimientos detectados, garantizando su estabilidad y correcto uso."
+11,8,Z8-010,329,ESCUELA GOBERNADOR AMADEO SABATTINI,,Plomeria,2026-03-03,finalizado,"Ejecutar la provisión y colocación de mochila de descarga para inodoro, incluyendo la colocación de flotante, en baño de varones, asegurando su correcto funcionamiento y estanqueidad."
+12,8,Z8-011,329,ESCUELA GOBERNADOR AMADEO SABATTINI,,Plomeria,2026-03-04,finalizado,"Ejecutar la provisión y colocación de tanque cisterna, incluyendo su correcta instalación, vinculación a la red existente, reactivando el funcionaminto de bombeo del colegio, con el fin de aumentar capacidad de amacenaje sin sobrecargar estuctura del establecimiento 
+Ejecutar bypass en caso de corte del suministro de electridad"
+13,8,Z8-012,329,ESCUELA GOBERNADOR AMADEO SABATTINI,,PODA,2026-03-04,finalizado,"Ejecutar la poda de árboles de mora en el establecimiento, garantizando condiciones de seguridad y control del crecimiento."
+14,8,Z8-013,332,J.DE INF. SANTIAGO DE LAS CARRERAS,,Plomeria,2026-03-04,finalizado,"Proveer y colocar tanque de agua con sus correspondientes accesorios, garantizando su correcta instalación, vinculación a la red y funcionamiento."
+16,8,Z8-015,343,ESCUELA ESPAÑA,,Electricidad,2026-03-04,finalizado,"Ejecutar la canalización eléctrica para luminarias exteriores, incluyendo la colocación de aproximadamente 160 ml de cañería con grampas y cajas."
+17,8,Z8-016,343,ESCUELA ESPAÑA,,Herreria,2026-03-04,finalizado,"Proveer y colocar placas de policarbonato en distintas medidas, asegurando correcta fijación, sellado y terminación."
+18,8,Z8-017,343,ESCUELA ESPAÑA,,Albañileria,2026-03-05,finalizado,"Proveer y colocar cuatro (4)  divisorios de mingitorios en baño de varones, incluyendo estructura, fijación y terminación con pintura."
+19,8,Z8-018,343,ESCUELA ESPAÑA,,Albañileria,2026-03-06,finalizado,"Ejecutar la reparación de columnas mediante trabajos de albañilería, garantizando su estabilidad y correcta terminación."
+20,8,Z8-019,343,ESCUELA ESPAÑA,,Herreria,2026-03-06,finalizado,"Ejecutar la reparación de dos (2) enrolladores de persiana, incluyendo el reemplazo de correas y ajuste para su correcto funcionamiento."
+21,8,Z8-020,327,ESCUELA TRANSITO CACERES DE ALLENDE,,Electricidad,2026-03-06,finalizado,"Ejecutar el cambio de sistema de iluminación de fluorescente a LED en diez (10) plafones triples, mediante la colocación de treinta (30) tubos LED, garantizando correcta conexión y funcionamiento.
+Proveer y colocar tres (3) focos en SUM deportivo, asegurando su correcta instalación y funcionamiento."
+22,8,Z8-021,327,ESCUELA TRANSITO CACERES DE ALLENDE,,plomeria,2026-03-06,finalizado,Provision y colocacuion de mochila y cañeria de descarga para mingitorio/ arreglo de mochilas dañadas y con problema en su descarga (x2)
+23,8,Z8-022,327,ESCUELA TRANSITO CACERES DE ALLENDE,,herreria,2026-03-09,finalizado,Arreglo de porton de ingreso vehicular con refuerzo con puntos de soldadura
+24,8,Z8-023,359,ESC. NORMA QUARTINO,,Plomeria,2026-03-09,finalizado,"Ejecutar la provisión y colocación de bomba impulsora de agua desde cisterna a tanque, incluyendo la modificación del tablero eléctrico para su correcto funcionamiento."
+25,8,Z8-024,359,ESC. NORMA QUARTINO,,electricidad,2026-03-09,finalizado,"Ejecutar el cambio de sistema de iluminación de fluorescente a LED en cinco (5) plafones, mediante la adecuación de la instalación eléctrica y colocación de diez (10) tubos LED de 18W en aula de biblioteca.
+Reemplazar bomba de agua quemada"
+26,8,Z8-025,359,ESC. NORMA QUARTINO,,gas,2026-03-09,finalizado,"Ejecutar la provisión y colocación de flexible de cobre con boquillas de conexión, vinculando el zeppelin al regulador, asegurando correcta estanqueidad y funcionamiento."
+27,8,Z8-026,360,J. DE INF. DR. LAUREANO MARADONA,,Herreria,2026-03-09,finalizado,"Colocacion de tapas de camara (60 x 60 y 40 x40)-Ejecutar pilotes de hormigón para fijación de canillas exteriores, asegurando su correcta base, estabilidad y protección de la instalación sanitaria."
+28,8,Z8-027,348,ESCUELA MARIANO FRAGUEIRO,,Electricidad,2026-03-09,finalizado,"Ejecutar el reemplazo de dieciocho (18) tubos de iluminación tipo LED, asegurando su correcta instalación y funcionamiento."
+29,8,Z8-028,355,ESCUELA ELENA AMALIA LOPEZ LALLANA (EX-S/N DE B° 1° DE MAYO),,Plomeria,2026-03-09,finalizado,"Ejecutar la provisión y colocación de grifería tipo monocomando en cocina, asegurando su correcta instalación y funcionamiento."
+30,8,Z8-029,355,ESCUELA ELENA AMALIA LOPEZ LALLANA (EX-S/N DE B° 1° DE MAYO),,electricidad,2026-03-09,finalizado,"Ejecutar la colocación de cuatro (4) tomacorrientes, destinados al correcto funcionamiento de ventiladores en los sectores designados."
+31,8,Z8-030,348,ESCUELA MARIANO FRAGUEIRO,,Albañileria,2026-03-09,finalizado,"Ejecutar la reparación de alero en mal estado, incluyendo la extracción de revoque suelto o deteriorado y la ejecución de nuevo revoque, asegurando correcta adherencia y terminación del sector."
+32,8,Z8-031,348,ESCUELA MARIANO FRAGUEIRO,,Plomeria,2026-03-10,finalizado,"Ejecutar el sellado de griferías que presentan pérdidas o se encuentran sueltas, asegurando su correcta fijación y estanqueidad."
+33,8,Z8-032,350,ESCUELA ESTEBAN ECHEVERRIA,,Herreria,2026-03-10,finalizado,"Colocacion de 4 ventiladores en SUM y 1 en biblioteca y extraccion de ventiladores de techo-Provision y colocacion de tubos LED, reempplazar zocalos en aulas marcadas por inspeccion debido a su mal estado"
+34,8,Z8-033,350,ESCUELA ESTEBAN ECHEVERRIA,,Electricidad,2026-03-10,finalizado,"Proveer y colocar dos (2) puertas de madera, incluyendo la colocación de bisagras necesarias para su correcto funcionamiento."
+35,8,Z8-034,350,ESCUELA ESTEBAN ECHEVERRIA,,Plomeria,2026-03-10,finalizado,"Ejecutar el ajuste de mochilas de inodoros, incluyendo la colocación de tapas correspondientes."
+36,8,Z8-035,362,J.DE INF. MARIANO FRAGUEIRO,,plomeria,2026-03-10,finalizado,"Proveer y colocar grifería y flexible de conexión en el sector indicado, asegurando su correcta instalación y estanqueidad."
+37,8,Z8-036,362,J.DE INF. MARIANO FRAGUEIRO,,plomeria,2026-03-10,finalizado,Cambio de canilla monocomando de cocina
+38,8,Z8-037,363,Escuela Secundaria con Formación Profesional Sede Müller,,Electricidad,2026-03-10,finalizado,"Detectar y corregir cortocircuito en caja estanca de derivación, ubicada en sector de patio a la salida de aula.
+Ejecutar la reparación de conductores eléctricos afectados, incluyendo el reemplazo de tramos deteriorados y la realización de nuevos empalmes mediante bornera en el interior de la caja."
+39,8,Z8-038,362,J.DE INF. MARIANO FRAGUEIRO,,Plomeria,2026-03-10,finalizado,"Ejecutar la desobstrucción de tres (3) desagües de cañerías de cocina, asegurando el normal escurrimiento del sistema."
+40,8,Z8-039,342,I.P.E.M. Nº 181 BRIG. GRAL. CORNELIO SAAVEDRA,,Herreria,2026-03-10,finalizado,arreglo de abertura de aluminio hacia patio
+41,8,Z8-040,351,ESCUELA ANGEL FAUSTO AVALOS,,Electricidad,2026-03-10,finalizado,"Reemplazo de focos, tubos LED, artefactos estancos y portalámparas, así como la adecuación de las instalaciones existentes para garantizar el correcto funcionamiento del sistema."
+42,8,Z8-041,344,ESCUELA GENERAL MARTIN GUEMES,,Plomeria,2026-03-11,finalizado,"Ejecución de sistema pluvial en cubierta mediante colocación de embudo, bajada Ø110 mm y accesorios.
+Ajuste de unión en tanque de agua para eliminación de pérdidas."
+43,8,Z8-042,344,ESCUELA GENERAL MARTIN GUEMES,,Electricidad,2026-03-11,finalizado,"Reparación de cortocircuitos en artefactos de iluminación.
+Colocación de plafones LED, focos y canalización eléctrica."
+44,8,Z8-043,344,ESCUELA GENERAL MARTIN GUEMES,,Albañileria,2026-03-11,finalizado,"Demolición y ejecución de tabiques de durlock, reconstrucción de revoques, reemplazo de placas de cielorraso, colocación de zócalos y pintura general en sectores interiores."
+45,8,Z8-044,344,ESCUELA GENERAL MARTIN GUEMES,,Albañileria,2026-03-11,finalizado,"Ejecución de rampa en patio, relleno y nivelación de cantero"
+46,8,Z8-045,344,ESCUELA GENERAL MARTIN GUEMES,,Cubierta,2026-03-11,finalizado,Extracción de membrana existente y sellado de cubierta de chapa y canaletas para evitar filtraciones.
+47,8,Z8-046,340,ESCUELA ESPECIAL DR. RAUL CARREA,,Electricidad,2026-03-11,finalizado,Cambio de ubicacion de aire acondicionado para que quede ventilado

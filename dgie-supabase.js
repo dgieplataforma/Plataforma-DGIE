@@ -203,8 +203,12 @@
     async actualizarEmpresa(zona, row){
       return client.from('empresas_zona').upsert({ zona, ...row }, { onConflict:'zona' }).select('*').single();
     },
-    async listarCertificadosMedicion(){
-      return client.from('certificados_medicion').select('*').order('created_at', { ascending:false });
+    async listarCertificadosMedicion(zona){
+      let query = client.from('certificados_medicion').select('*');
+      if(zona !== undefined && zona !== null && zona !== ''){
+        query = query.eq('zona', Number(zona));
+      }
+      return query.order('created_at', { ascending:false }).limit(1000);
     },
     async crearCertificadoMedicion(row){
       return client.from('certificados_medicion').insert(row).select('*').single();
