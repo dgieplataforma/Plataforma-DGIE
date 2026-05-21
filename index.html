@@ -11579,8 +11579,9 @@ function renderChartInsp(){
       : (Array.isArray(c?.conversacion)?c.conversacion:[]);
   }
   function obsConConversacionSeguro(obs,msgs){
-    if(typeof window.obsConConversacion==='function')return window.obsConConversacion(obs,msgs);
     const base=String(obs||'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim();
+    if(!Array.isArray(msgs)||!msgs.length)return base;
+    if(typeof window.obsConConversacion==='function')return window.obsConConversacion(base,msgs);
     const meta=`[CONV_CERT:${encodeURIComponent(JSON.stringify(msgs||[]))}]`;
     return [base,meta].filter(Boolean).join('\n');
   }
@@ -11619,11 +11620,14 @@ function renderChartInsp(){
     })||null;
   }
   async function guardarSoloConversacion(c,msgs){
+    const observaciones=obsConConversacionSeguro(c.observaciones_inspector,msgs);
     try{
-      await window.actualizarCertificado(c.id||c.localId,{conversacion:msgs,actualizado_por:currentUser?.name||currentUser?.role});
+      await window.actualizarCertificado(c.id||c.localId,{conversacion:msgs,observaciones_inspector:observaciones,actualizado_por:currentUser?.name||currentUser?.role});
     }catch(_){
-      await window.actualizarCertificado(c.id||c.localId,{observaciones_inspector:obsConConversacionSeguro(c.observaciones_inspector,msgs),actualizado_por:currentUser?.name||currentUser?.role});
+      await window.actualizarCertificado(c.id||c.localId,{observaciones_inspector:observaciones,actualizado_por:currentUser?.name||currentUser?.role});
     }
+    c.conversacion=msgs;
+    c.observaciones_inspector=observaciones;
   }
   function fechaMsg(v){
     try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}
