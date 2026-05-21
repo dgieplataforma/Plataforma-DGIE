@@ -6114,6 +6114,32 @@ function renderChartInsp(){
   function modActual(c){return n(c.modulos_inspector||c.modulos_original)}
   function readLocalCerts(){try{return JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')||[]}catch(e){return []}}
   function writeLocalCerts(){localStorage.setItem(LOCAL_KEY,JSON.stringify(CERTIFICADOS_MEDICION))}
+  const CERT_MAX_BYTES=5*1024*1024;
+  const CERT_MAX_MB=5;
+  const CERT_COMPRESS_HELP='assets/instructivo-comprimir-excel.png';
+  function certSizeText(bytes){return (bytes/1024/1024).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+' MB'}
+  function certLimitHelpHTML(){
+    return `<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span>Límite máximo: ${CERT_MAX_MB} MB.</span>
+      <button type="button" class="secondary-btn" style="padding:5px 9px;font-size:12px" onclick="window.open('${CERT_COMPRESS_HELP}','_blank')">Ver instructivo para comprimir</button>
+    </div>`;
+  }
+  function validarTamanoCertificado(file){
+    if(!file)return true;
+    if(file.size<=CERT_MAX_BYTES)return true;
+    alert(`El certificado pesa ${certSizeText(file.size)}. El límite máximo permitido es ${CERT_MAX_MB} MB. Comprimí el Excel antes de subirlo.`);
+    return false;
+  }
+  window.validarTamanoCertificado=validarTamanoCertificado;
+  window.validarYAutocompletarCertificado=function(fileId,inputId){
+    const inputFile=$(fileId), file=inputFile?.files?.[0], mod=$(inputId);
+    if(file&&!validarTamanoCertificado(file)){
+      if(inputFile)inputFile.value='';
+      if(mod)mod.value='';
+      return;
+    }
+    autocompletarModuloCertificado(fileId,inputId);
+  };
 
   async function leerG720(file){
     if(!file||!window.XLSX||!/\.(xls|xlsx)$/i.test(file.name))return '';
@@ -6290,6 +6316,17 @@ function renderChartInsp(){
       if(info)info.innerHTML=`<b>O.S. detectada:</b> ${escapeHtml(meta.ordenes.join(', ')||'No detectada')}${avisoHTML}`;
     }catch(e){console.warn('No se pudo leer el certificado del inspector',e);if(info)info.textContent='No se pudieron leer O.S./rubros del archivo.';}
   };
+  window.validarYAutocompletarRevisionCertificado=function(fileId,inputId){
+    const inputFile=$(fileId), file=inputFile?.files?.[0], mod=$(inputId);
+    if(file&&!validarTamanoCertificado(file)){
+      if(inputFile)inputFile.value='';
+      if(mod)mod.value='';
+      const info=$('insp-cert-info-archivo');
+      if(info)info.textContent='El archivo supera el límite de 5 MB.';
+      return;
+    }
+    autocompletarRevisionCertificado(fileId,inputId);
+  };
 
   async function cargarCertificadosMedicion(force=false){
     if(certsLoaded&&!force&&CERTIFICADOS_MEDICION.length){syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
@@ -6369,7 +6406,7 @@ function renderChartInsp(){
         <div class="card-header"><div><div class="card-title">Subir certificado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa solo carga archivo y observaciones.</div></div></div>
         <div class="form-grid">
           <div class="form-field full" style="position:relative"><label class="form-label">Establecimiento</label><input class="form-input" id="cert-est-search" placeholder="Buscar por nombre, CUE o dirección..." oninput="filtrarEstablecimientosCertEmpresa()" onfocus="filtrarEstablecimientosCertEmpresa()" onblur="setTimeout(()=>{const s=$('cert-est-sugs');if(s)s.style.display='none'},150)" autocomplete="off"><input type="hidden" id="cert-est-id"><div id="cert-est-sugs" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:200"></div></div>
-          <div class="form-field full"><label class="form-label">Archivo certificado Excel</label><input class="form-input" id="cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarModuloCertificado('cert-file','cert-modulos')"></div>
+          <div class="form-field full"><label class="form-label">Archivo certificado Excel</label><input class="form-input" id="cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarCertificado('cert-file','cert-modulos')">${certLimitHelpHTML()}</div>
           <div class="form-field"><label class="form-label">Módulos leídos de G720</label><input class="form-input" id="cert-modulos" type="number" step="0.001" placeholder="Se completa automáticamente" readonly></div>
           <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="cert-obs" placeholder="Observaciones de la empresa..."></textarea></div>
         </div>
@@ -6402,6 +6439,7 @@ function renderChartInsp(){
 
   window.guardarCertificadoEmpresa=async function(){
     const estId=Number($('cert-est-id')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value);
+    if(file&&!validarTamanoCertificado(file))return;
     if(!est||!file||!mod){$('cert-error')&&( $('cert-error').style.display='block');return;}
     $('cert-error')&&( $('cert-error').style.display='none');
     const subida=await subirCertFile(file);
@@ -6608,7 +6646,7 @@ function renderChartInsp(){
         ${renderHiloConversacion(c,true)}
       </div>
       <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="autocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
+        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${certLimitHelpHTML()}${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
         <div class="form-field"><label class="form-label">Módulos inspección leídos de G720</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
         <div class="form-field"><label class="form-label">Medición Nº</label><input class="form-input" id="insp-cert-medicion" type="number" min="1" value="${escapeHtml(c.medicion_numero||'')}"></div>
         <div class="form-field"><label class="form-label">Período</label><input class="form-input" id="insp-cert-periodo" placeholder="Ej: Mayo 2026" value="${escapeHtml(c.periodo||'')}"></div>
@@ -6621,6 +6659,7 @@ function renderChartInsp(){
     const c=CERTIFICADOS_MEDICION.find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
     if(!c)return;
     const file=$('insp-cert-file')?.files?.[0];
+    if(file&&!validarTamanoCertificado(file))return;
     const modInspector=n($('insp-cert-modulos')?.value);
     let meta=file?await leerDatosCertificadoInspector(file):{ordenes:certOrdenes(c),rubros:certRubrosCodigos(c),modulos:modInspector};
     if(!meta.ordenes?.length)meta.ordenes=certOrdenes(c);
@@ -7665,6 +7704,7 @@ function renderChartInsp(){
     const c=certById(id);
     if(!c)return;
     const file=document.getElementById('insp-cert-file')?.files?.[0];
+    if(file&&window.validarTamanoCertificado&&!window.validarTamanoCertificado(file))return;
     const modInspector=Number(String(document.getElementById('insp-cert-modulos')?.value||'').replace(',','.'))||0;
     const ordenes=parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||'');
     const rubros=window.certRubrosCodigos?.(c)||[];
@@ -11664,6 +11704,7 @@ function renderChartInsp(){
     const c=certByKey(id);
     if(!c)return;
     const file=document.getElementById('insp-cert-file')?.files?.[0];
+    if(file&&window.validarTamanoCertificado&&!window.validarTamanoCertificado(file))return;
     const modInspector=num(document.getElementById('insp-cert-modulos')?.value);
     const ordenes=parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||certOrdenesSeguro(c).join(', '));
     const rubros=certRubrosSeguro(c);
