@@ -6467,14 +6467,19 @@ function renderChartInsp(){
   function renderHiloConversacion(c,puedeEnviar){
     const key=certKey(c);
     const msgs=conversacionCert(c);
-    const burbuja=(texto,autor,rol,fecha)=>{
+    const puedeBorrar=(m)=>String(m?.autor||'')===String(currentUser?.name||'');
+    const burbuja=(m,idx)=>{
+      const texto=m?.texto, autor=m?.autor, rol=m?.rol, fecha=m?.fecha;
       const esInspector=rol==='inspector';
       return `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:${esInspector?'#eef4ff':'#f1f5f9'};border-left:3px solid ${esInspector?'var(--blue)':'#94a3b8'}">
-        <div style="font-size:11px;font-weight:700;color:${esInspector?'var(--blue)':'#64748b'};margin-bottom:2px">${escapeHtml(autor||rol)} <span style="font-weight:400;color:#b0bccc">${fecha?'· '+fecha:''}</span></div>
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div style="font-size:11px;font-weight:700;color:${esInspector?'var(--blue)':'#64748b'};margin-bottom:2px">${escapeHtml(autor||rol)} <span style="font-weight:400;color:#b0bccc">${fecha?'· '+fecha:''}</span></div>
+          ${puedeBorrar(m)?`<button class="secondary-btn" style="padding:3px 7px;color:var(--danger);font-size:11px" onclick="borrarMensajeCertificado('${key}',${idx})">Borrar</button>`:''}
+        </div>
         <div style="font-size:13px;color:#334155">${escapeHtml(texto)}</div>
       </div>`;
     };
-    const mensajesHTML=msgs.length?msgs.map(m=>burbuja(m.texto,m.autor,m.rol,fmtConvFecha(m.fecha))).join(''):`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Sin comentarios todavía.</div>`;
+    const mensajesHTML=msgs.length?msgs.map((m,idx)=>burbuja({...m,fecha:fmtConvFecha(m.fecha)},idx)).join(''):`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Sin comentarios todavía.</div>`;
     const inputHTML=puedeEnviar?`<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:4px">
       <textarea id="conv-txt-${key}" class="form-textarea" style="font-size:13px;min-height:58px" placeholder="Escribí un comentario sobre este certificado..."></textarea>
       <button class="secondary-btn" style="align-self:flex-end" onclick="enviarMensajeCertificado('${key}')">Enviar</button>
@@ -11624,7 +11629,7 @@ function renderChartInsp(){
     try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}
   }
   function puedeBorrarMsg(m){
-    return String(m?.autor||'')===String(currentUser?.name||'')||String(m?.rol||'')===String(currentUser?.role||'');
+    return String(m?.autor||'')===String(currentUser?.name||'');
   }
   function renderHiloCertificadoSeguro(c){
     const key=certKeySeguro(c);
