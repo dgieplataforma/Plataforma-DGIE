@@ -4,7 +4,7 @@ window.DGIE_SUPABASE = {
 };
 
 window.DGIE_CLOUDINARY = {
-  cloudName: "dcodybbjo",
+  cloudName: "dj7xqbens",
   uploadPreset: "dgie_unsigned",
   folder: "dgie"
 };
