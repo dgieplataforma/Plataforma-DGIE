@@ -1,6 +1,6 @@
 # Plataforma DGIE - paquete de produccion
 
-Este paquete contiene la version web publicable de la plataforma.
+Este paquete contiene la version web publicable de la plataforma para control, gestion y trazabilidad del mantenimiento de la infraestructura educativa de Cordoba Capital.
 
 ## Archivos de produccion
 
