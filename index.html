@@ -877,18 +877,8 @@ function selectEmpresa(z){
   }
 }
 function doLoginEmpresa(){
-  const pass=document.getElementById('empresa-pass')?.value||'';
-  if(pass===`empresa${selectedEmpresa}`){
-    document.getElementById('empresa-error').style.display='none';
-    loadUser({
-      name:`Empresa · Zona ${selectedEmpresa}`,
-      initials:`E${selectedEmpresa}`,
-      role:'empresa',
-      zona:selectedEmpresa
-    });
-  } else {
-    document.getElementById('empresa-error').style.display='block';
-  }
+  const err=document.getElementById('empresa-error');
+  if(err){err.textContent='Usá el acceso principal con usuario y contraseña.';err.style.display='block';}
 }
 // ───────────────────────────────────────────────────────────────────
 
@@ -1054,7 +1044,7 @@ function openEditInspector(idx){
         <div class="form-field"><label class="form-label">CUIT</label>
           <input class="form-input" id="ins-cuit" value="${ins.cuit||''}"/></div>
         <div class="form-field"><label class="form-label">Contraseña de acceso</label>
-          <input class="form-input" id="ins-pass" type="text" placeholder="zona${z} (por defecto)"/></div>
+          <input class="form-input" id="ins-pass" type="text" placeholder="Gestionar desde Supabase Auth"/></div>
       </div>
       <div class="modal-actions">
         <button class="secondary-btn" onclick="renderAdmInspectores(document.getElementById('adm-body'))">Cancelar</button>
@@ -1334,7 +1324,7 @@ async function eliminarEstab(id){
 }
 // ────────────────────────────────────────────────────────────────────
 
-function buildZonaGrid(){safeHTML('zona-grid',Array.from({length:17},(_,i)=>{const z=i+1;return `<div class="zona-btn" onclick="selectZona(${z})"><div class="zona-btn-num">Zona ${z}</div><div class="zona-btn-label">${ZONE_DATA[z].inspector.split(' ')[0]}</div></div>`}).join(''))}function selectZona(z){selectedZona=z;document.querySelectorAll('.zona-btn').forEach((b,i)=>b.classList.toggle('selected',i===z-1));$('pass-popup')?.classList.add('visible');if($('pass-popup-title'))$('pass-popup-title').textContent=`Zona ${z} · Ingresá tu contraseña`;if($('zona-pass')){$('zona-pass').value='';$('zona-pass').focus()}if($('zona-error'))$('zona-error').style.display='none'}function doLoginZona(){if($('zona-pass')?.value===`zona${selectedZona}`)loadUser({name:`Inspector · Zona ${selectedZona}`,initials:`Z${selectedZona}`,role:'inspector',zona:selectedZona});else if($('zona-error'))$('zona-error').style.display='block'}function selectDir(key, nombre){
+function buildZonaGrid(){safeHTML('zona-grid',Array.from({length:17},(_,i)=>{const z=i+1;return `<div class="zona-btn" onclick="selectZona(${z})"><div class="zona-btn-num">Zona ${z}</div><div class="zona-btn-label">${ZONE_DATA[z].inspector.split(' ')[0]}</div></div>`}).join(''))}function selectZona(z){selectedZona=z;document.querySelectorAll('.zona-btn').forEach((b,i)=>b.classList.toggle('selected',i===z-1));$('pass-popup')?.classList.add('visible');if($('pass-popup-title'))$('pass-popup-title').textContent=`Zona ${z} · Ingresá con el acceso principal`;if($('zona-pass')){$('zona-pass').value='';$('zona-pass').focus()}if($('zona-error')){$('zona-error').textContent='Usá el acceso principal con usuario y contraseña.';$('zona-error').style.display='none'}}function doLoginZona(){if($('zona-error')){$('zona-error').textContent='Usá el acceso principal con usuario y contraseña.';$('zona-error').style.display='block'}}function selectDir(key, nombre){
   selectedDir=key;
   document.querySelectorAll('#dir-grid .zona-btn').forEach(b=>b.classList.remove('selected'));
   event.currentTarget.classList.add('selected');
@@ -1348,27 +1338,8 @@ function buildZonaGrid(){safeHTML('zona-grid',Array.from({length:17},(_,i)=>{con
   }
 }
 function doLoginDir(key){
-  const passwords={
-    director:'director2024',
-    coord1:'coord2024',
-    coord2:'coord2024',
-    callcenter:'callcenter2024'
-  };
-  const users={
-    director:{name:'Franco Dardati',initials:'FD',role:'direccion'},
-    coord1:{name:'Rocio Peralta',initials:'RP',role:'coordinador'},
-    coord2:{name:'Augusto Zamora',initials:'AZ',role:'coordinador'},
-    callcenter:{name:'Call Center',initials:'CC',role:'callcenter'}
-  };
-  const k=key||selectedDir;
-  const pass=document.getElementById('dir-zona-pass')?.value||'';
-  if(pass===passwords[k]){
-    document.getElementById('dir-zona-error').style.display='none';
-    loadUser({...users[k]});
-    document.getElementById('dir-pass-popup')?.classList.remove('visible');
-  } else {
-    document.getElementById('dir-zona-error').style.display='block';
-  }
+  const err=document.getElementById('dir-zona-error');
+  if(err){err.textContent='Usá el acceso principal con usuario y contraseña.';err.style.display='block';}
 }
 function buildDirGrid(){
   const grid=document.getElementById('dir-grid');
