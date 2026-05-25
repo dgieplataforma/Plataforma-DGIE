@@ -1,19 +1,25 @@
-# Plataforma DGIE - paquete de lanzamiento
+# Plataforma DGIE - paquete de produccion
 
-Este paquete contiene la version web publicable del prototipo.
+Este paquete contiene la version web publicable de la plataforma.
 
-## Archivo principal
+## Archivos de produccion
 
 - `index.html`: plataforma completa lista para abrir en navegador o subir a hosting.
+- `assets/`: imagenes y recursos usados por la plataforma.
 - `netlify.toml`: configuracion minima para publicar en Netlify.
 - `supabase-config.js`: conexion publica al proyecto Supabase.
+- `supabase-config.example.js`: plantilla para configurar otro entorno.
 - `dgie-supabase.js`: cliente inicial para consultar Supabase desde la plataforma.
-- `supabase-schema.sql`: tablas y politicas de seguridad para la base de datos.
-- `supabase-fix-rls-recursion.sql`: reparacion si Supabase informa `stack depth limit exceeded`.
+
+## Archivo de trabajo
+
+Los archivos historicos, SQL, datos de carga, prototipos y backups fueron movidos a `_archivo_trabajo/`.
+No son necesarios para servir el sitio, pero se conservan para auditoria, recuperacion y mantenimiento.
 
 ## Publicacion estatica
 
-Se puede subir esta carpeta completa a Netlify, Vercel o un servidor institucional.
+Se puede subir la raiz de esta carpeta a Netlify, Vercel o un servidor institucional.
+Para un deploy limpio, excluir `_archivo_trabajo/`.
 
 En Netlify:
 
@@ -43,4 +49,4 @@ Proyecto conectado:
 
 No usar nunca la `service_role key` dentro de archivos publicos.
 
-Si al probar la API aparece `stack depth limit exceeded`, ejecutar `supabase-fix-rls-recursion.sql` en Supabase SQL Editor.
+Si al probar la API aparece `stack depth limit exceeded`, revisar `_archivo_trabajo/sql/supabase-fix-rls-recursion.sql` y ejecutarlo en Supabase SQL Editor.
