@@ -11830,11 +11830,24 @@ function renderChartInsp(){
       .trim();
   }
 
-  function normalizarRubro(valor){
+  function inferirRubroPorTexto(texto){
+    const k = claveRubro(texto);
+    if(!k) return '';
+    if(k.includes('PINTURA') || k.includes('PINTAR')) return 'Pintura';
+    if(k.includes('AIRE ACONDICIONADO') || k.includes('SPLIT') || k.includes('ELECTRIC') || k.includes('ILUMINACION') || k.includes('LUMINARIA')) return 'Instalacion electrica';
+    if(k.includes('BOMBA') || k.includes('CISTERNA') || k.includes('SANITAR') || k.includes('INODOR') || k.includes('CLOAC') || k.includes('DESOBSTRU') || k.includes('GRIFER') || k.includes('CANILLA')) return 'Instalacion sanitaria';
+    if(k.includes('CUBIERTA') || k.includes('TECHO') || k.includes('FILTRACION') || k.includes('IMPERMEABIL') || k.includes('CANALETA') || k.includes('PLUVIAL')) return 'Cubierta de techos';
+    if(k.includes('REJA') || k.includes('PORTON') || k.includes('CERRADURA') || k.includes('PICAPORTE') || k.includes('BISAGRA') || k.includes('METALIC') || k.includes('HERRER')) return 'Herreria';
+    if(k.includes('VIDRIO') || k.includes('ESPEJO') || k.includes('POLICARBONATO') || k.includes('PODA') || k.includes('ARBOL') || k.includes('ESTRUCTUR') || k.includes('DINTEL') || k.includes('NIVEL OPTICO') || k.includes('PIZARRON')) return 'Albañileria';
+    return '';
+  }
+
+  function normalizarRubro(valor, texto){
     const k = claveRubro(valor);
     if(!k) return '';
     if(k === 'CUBIERTA' || k === 'CUBIERTA DE TECHOS') return 'Cubierta de techos';
-    if(k === 'PINTURA' || k === 'PINTURA ALBANILERIA HERRERIA') return 'Pintura';
+    if(k === 'PINTURA') return 'Pintura';
+    if(k === 'PINTURA ALBANILERIA HERRERIA') return inferirRubroPorTexto(texto) || 'Albañileria';
     if(k === 'ALBANILERIA') return 'Albañileria';
     if(k === 'HERRERIA') return 'Herreria';
     if(k === 'ELECTRICIDAD' || k === 'INSTALACION ELECTRICA') return 'Instalacion electrica';
@@ -11843,8 +11856,8 @@ function renderChartInsp(){
     return String(valor || '').trim();
   }
 
-  function rubroParaGrafico(valor){
-    const normal = normalizarRubro(valor);
+  function rubroParaGrafico(valor, texto){
+    const normal = normalizarRubro(valor, texto);
     return RUBROS_OFICIALES.includes(normal) ? normal : 'Sin clasificar';
   }
 
@@ -11868,7 +11881,7 @@ function renderChartInsp(){
 
   function normalizarItemConRubro(item){
     if(item && Object.prototype.hasOwnProperty.call(item, 'rubro')){
-      item.rubro = normalizarRubro(item.rubro);
+      item.rubro = normalizarRubro(item.rubro, item.tarea || item.titulo || item.descripcion || item.mensaje || '');
     }
     return item;
   }
@@ -11993,7 +12006,7 @@ function renderChartInsp(){
     const counts = Object.fromEntries(RUBROS_OFICIALES.map(r => [r, 0]));
     let sinClasificar = 0;
     (items || []).forEach(item => {
-      const rubro = rubroParaGrafico(getter ? getter(item) : item?.rubro);
+      const rubro = rubroParaGrafico(getter ? getter(item) : item?.rubro, item?.tarea || item?.titulo || item?.descripcion || item?.mensaje || '');
       if(counts[rubro] == null) sinClasificar++;
       else counts[rubro]++;
     });
@@ -12104,8 +12117,8 @@ function renderChartInsp(){
 
   function envolverDashboards(){
     if(envolverDashboards.__done) return;
-    if(typeof window.getRubroOS === 'function') window.getRubroOS = o => rubroParaGrafico(o?.rubro || o?.titulo);
-    window.normalizarRubroReclamo = item => rubroParaGrafico(item?.rubro || item);
+    if(typeof window.getRubroOS === 'function') window.getRubroOS = o => rubroParaGrafico(o?.rubro || o?.titulo, o?.tarea || o?.titulo);
+    window.normalizarRubroReclamo = item => rubroParaGrafico(item?.rubro || item, item?.tarea || item?.titulo || item?.descripcion || item?.mensaje);
     window.rubroLabelsAndData = function(arr, fn){
       return contarPorRubros(arr, item => fn ? fn(item) : item?.rubro);
     };
