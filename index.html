@@ -12123,6 +12123,30 @@ function renderChartInsp(){
       return contarPorRubros(arr, item => fn ? fn(item) : item?.rubro);
     };
     window.colorRubro = label => coloresRubros()[label] || '#475569';
+    window.renderLmRubroReclamos = function(zonaParam){
+      normalizarColeccionesRubros();
+      const cont = document.getElementById('lm-rubro-reclamos-bars');
+      if(!cont) return;
+      const zona = zonaParam !== undefined ? zonaParam : (window._lcZonaGraficosActiva || null);
+      const reclamos = typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : [];
+      const base = zona
+        ? reclamos.filter(r => Number(r.zona) === Number(zona) || zonaItem(r) === Number(zona))
+        : reclamos.slice();
+      const {labels, data} = contarPorRubros(base, r => r.rubro);
+      const filtered = labels
+        .map((label, i) => ({label, val: data[i] || 0}))
+        .filter(row => row.label !== 'Sin clasificar' || row.val > 0);
+      const total = filtered.reduce((sum, row) => sum + row.val, 0);
+      const colors = coloresRubros();
+      cont.innerHTML = filtered.length ? filtered.map(row => {
+        const pct = total ? Math.round(row.val / total * 100) : 0;
+        return `<div class="lm-rubro-reclamo-row" title="${row.label}: ${row.val} reclamo${row.val !== 1 ? 's' : ''}">
+          <div class="lm-rubro-reclamo-lbl">${row.label}</div>
+          <div class="lm-rubro-reclamo-track"><div class="lm-rubro-reclamo-fill" style="width:${pct}%;background:${colors[row.label] || '#475569'}"></div></div>
+          <div class="lm-rubro-reclamo-pct">${pct}%</div>
+        </div>`;
+      }).join('') : '<div class="lm-rubro-reclamo-empty">Sin reclamos cargados para el alcance seleccionado.</div>';
+    };
 
     if(typeof window.renderChartDir === 'function'){
       const previo = window.renderChartDir;
