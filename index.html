@@ -11809,6 +11809,343 @@ function renderChartInsp(){
   };
 })();
 </script>
+<script id="dgie-rubros-oficiales">
+(function(){
+  const RUBROS_OFICIALES = [
+    'Cubierta de techos',
+    'Pintura',
+    'Albañileria',
+    'Herreria',
+    'Instalacion electrica',
+    'Instalacion sanitaria',
+    'Gas'
+  ];
+
+  function claveRubro(valor){
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function normalizarRubro(valor){
+    const k = claveRubro(valor);
+    if(!k) return '';
+    if(k === 'CUBIERTA' || k === 'CUBIERTA DE TECHOS') return 'Cubierta de techos';
+    if(k === 'PINTURA' || k === 'PINTURA ALBANILERIA HERRERIA') return 'Pintura';
+    if(k === 'ALBANILERIA') return 'Albañileria';
+    if(k === 'HERRERIA') return 'Herreria';
+    if(k === 'ELECTRICIDAD' || k === 'INSTALACION ELECTRICA') return 'Instalacion electrica';
+    if(k === 'SANITARIOS' || k === 'PLOMERIA' || k === 'INSTALACION SANITARIA') return 'Instalacion sanitaria';
+    if(k === 'GAS' || k === 'INSTALACION DE GAS') return 'Gas';
+    return String(valor || '').trim();
+  }
+
+  function rubroParaGrafico(valor){
+    const normal = normalizarRubro(valor);
+    return RUBROS_OFICIALES.includes(normal) ? normal : 'Sin clasificar';
+  }
+
+  function coloresRubros(){
+    return {
+      'Cubierta de techos': '#2563eb',
+      'Pintura': '#db2777',
+      'Albañileria': '#64748b',
+      'Herreria': '#7c3aed',
+      'Instalacion electrica': '#f59e0b',
+      'Instalacion sanitaria': '#0f766e',
+      'Gas': '#dc2626',
+      'Sin clasificar': '#475569'
+    };
+  }
+
+  function opcionesRubrosHTML(valorActual){
+    const normal = normalizarRubro(valorActual) || 'Instalacion sanitaria';
+    return RUBROS_OFICIALES.map(r => `<option value="${r}" ${r === normal ? 'selected' : ''}>${r}</option>`).join('');
+  }
+
+  function normalizarItemConRubro(item){
+    if(item && Object.prototype.hasOwnProperty.call(item, 'rubro')){
+      item.rubro = normalizarRubro(item.rubro);
+    }
+    return item;
+  }
+
+  function normalizarColeccionesRubros(){
+    const ordenes = typeof OS_ZONA !== 'undefined' ? OS_ZONA : window.OS_ZONA;
+    const reclamos = typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : window.RECLAMOS_ZONA;
+    const rubrosRel = typeof RUBROS_RELEVAMIENTO !== 'undefined' ? RUBROS_RELEVAMIENTO : window.RUBROS_RELEVAMIENTO;
+    if(Array.isArray(ordenes)) ordenes.forEach(normalizarItemConRubro);
+    if(Array.isArray(reclamos)) reclamos.forEach(normalizarItemConRubro);
+    if(Array.isArray(rubrosRel)){
+      const labels = {
+        sanitarios: 'Instalacion sanitaria',
+        electricidad: 'Instalacion electrica',
+        cubierta: 'Cubierta de techos',
+        albanileria: 'Albañileria',
+        herreria: 'Herreria',
+        pintura: 'Pintura',
+        gas: 'Gas'
+      };
+      for(let i = rubrosRel.length - 1; i >= 0; i--){
+        const r = rubrosRel[i];
+        if(r.key === 'carpinteria') rubrosRel.splice(i, 1);
+        else if(labels[r.key]) r.label = labels[r.key];
+      }
+    }
+  }
+
+  function normalizarSelectRubros(){
+    ['modal-nr-rubro', 'nr-rubro', 'nos-rubro'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = opcionesRubrosHTML(el.value);
+    });
+  }
+
+  function envolverDB(){
+    const db = window.DGIE_DB;
+    if(!db || db.__rubrosOficiales) return;
+    ['crearReclamo', 'actualizarReclamo', 'crearOrden', 'actualizarOrden'].forEach(fn => {
+      if(typeof db[fn] !== 'function') return;
+      const previo = db[fn].bind(db);
+      db[fn] = function(...args){
+        const row = args.length > 1 ? args[1] : args[0];
+        normalizarItemConRubro(row);
+        return previo(...args);
+      };
+    });
+    db.__rubrosOficiales = true;
+  }
+
+  function envolverFormularios(){
+    if(typeof window.prepareNuevoReclamoForm === 'function' && !window.prepareNuevoReclamoForm.__rubrosOficiales){
+      const previo = window.prepareNuevoReclamoForm;
+      window.prepareNuevoReclamoForm = function(...args){
+        const res = previo.apply(this, args);
+        normalizarSelectRubros();
+        return res;
+      };
+      window.prepareNuevoReclamoForm.__rubrosOficiales = true;
+    }
+    if(typeof window.renderOSForm === 'function' && !window.renderOSForm.__rubrosOficiales){
+      const previo = window.renderOSForm;
+      window.renderOSForm = function(os, ...args){
+        if(os) os.rubro = normalizarRubro(os.rubro);
+        const res = previo.call(this, os, ...args);
+        setTimeout(normalizarSelectRubros, 0);
+        return res;
+      };
+      window.renderOSForm.__rubrosOficiales = true;
+    }
+    if(typeof window.obtenerDatosOSForm === 'function' && !window.obtenerDatosOSForm.__rubrosOficiales){
+      const previo = window.obtenerDatosOSForm;
+      window.obtenerDatosOSForm = function(...args){
+        const data = previo.apply(this, args);
+        return normalizarItemConRubro(data);
+      };
+      window.obtenerDatosOSForm.__rubrosOficiales = true;
+    }
+    if(typeof window.renderCallCenterNuevoReclamo === 'function' && !window.renderCallCenterNuevoReclamo.__rubrosOficiales){
+      const previo = window.renderCallCenterNuevoReclamo;
+      window.renderCallCenterNuevoReclamo = function(...args){
+        const html = previo.apply(this, args);
+        setTimeout(normalizarSelectRubros, 0);
+        return html;
+      };
+      window.renderCallCenterNuevoReclamo.__rubrosOficiales = true;
+    }
+  }
+
+  function aplicarRubrosOficiales(){
+    normalizarColeccionesRubros();
+    normalizarSelectRubros();
+    envolverDB();
+    envolverFormularios();
+    envolverDashboards();
+  }
+
+  function zonaItem(item){
+    if(item && item.zona) return Number(item.zona);
+    if(item && item.estId && typeof zonaEstablecimiento === 'function') return Number(zonaEstablecimiento(item.estId));
+    return null;
+  }
+
+  function estadoCanon(item){
+    const raw = typeof getEstadoOS === 'function' ? getEstadoOS(item) : item?.estado;
+    const k = String(raw || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if(k.includes('final')) return 'finalizado';
+    if(k.includes('trab') || k.includes('ejec')) return 'trabajando';
+    if(k.includes('anul')) return 'anulado';
+    return 'pendiente';
+  }
+
+  function prioridadCanon(item){
+    const k = String(item?.prio || item?.prioridad || 'medio').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if(k.includes('critic')) return 'critico';
+    if(k.includes('alt')) return 'alto';
+    if(k.includes('baj')) return 'bajo';
+    return 'medio';
+  }
+
+  function contarPorRubros(items, getter){
+    const counts = Object.fromEntries(RUBROS_OFICIALES.map(r => [r, 0]));
+    let sinClasificar = 0;
+    (items || []).forEach(item => {
+      const rubro = rubroParaGrafico(getter ? getter(item) : item?.rubro);
+      if(counts[rubro] == null) sinClasificar++;
+      else counts[rubro]++;
+    });
+    const labels = RUBROS_OFICIALES.slice();
+    const data = labels.map(label => counts[label] || 0);
+    if(sinClasificar){
+      labels.push('Sin clasificar');
+      data.push(sinClasificar);
+    }
+    return {labels, data};
+  }
+
+  function drawBarRubros(id, arr, getter){
+    const el = document.getElementById(id);
+    if(!el || !window.Chart) return;
+    const chartStore = window.chartInstances || (window.chartInstances = {});
+    if(chartStore[id]) chartStore[id].destroy();
+    if(typeof Chart.getChart === 'function'){
+      const prev = Chart.getChart(el);
+      if(prev) prev.destroy();
+    }
+    const {labels, data} = contarPorRubros(arr, getter);
+    const colors = coloresRubros();
+    chartStore[id] = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{data, backgroundColor: labels.map(l => colors[l] || '#475569'), borderRadius: 7}]
+      },
+      options: {
+        indexAxis: labels.length > 7 ? 'y' : 'x',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {legend: {display: false}},
+        scales: {
+          y: {beginAtZero: true, ticks: {precision: 0, color: '#64748b'}, grid: {color: 'rgba(15,23,42,.06)'}},
+          x: {ticks: {color: '#334155', maxRotation: 35}, grid: {display: false}}
+        }
+      }
+    });
+  }
+
+  function drawDonutRubros(id, data, labels, colors){
+    if(typeof window.drawDonutSafe === 'function'){
+      window.drawDonutSafe(id, data, labels, colors);
+    }else if(typeof window.drawDonut === 'function'){
+      const has = (data || []).some(n => Number(n) > 0);
+      window.drawDonut(id, has ? data : [1], has ? labels : ['Sin datos'], has ? colors : ['#e2e8f0']);
+    }
+  }
+
+  function renderDashboardRubrosDireccion(view){
+    normalizarColeccionesRubros();
+    const ordenes = typeof OS_ZONA !== 'undefined' ? OS_ZONA : [];
+    const reclamos = typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : [];
+    if(view === 'principal'){
+      const conOS = reclamos.filter(r => r.os && r.os !== 'Sin OS').length;
+      const fin = ordenes.filter(o => estadoCanon(o) === 'finalizado').length;
+      drawDonutRubros('chart-dir-reclamos', [reclamos.length - conOS, conOS], ['Sin OS','Con OS'], ['#0ea5e9','#2e7d32']);
+      drawDonutRubros('chart-dir-mantenimiento', [fin, ordenes.length - fin], ['Finalizadas','Pendientes / activas'], ['#7c3aed','#f59e0b']);
+      return;
+    }
+    const prios = ['critico','alto','medio','bajo'].map(p => reclamos.filter(r => prioridadCanon(r) === p).length);
+    const osPrios = ['critico','alto','medio','bajo'].map(p => ordenes.filter(o => prioridadCanon(o) === p).length);
+    const estados = ['pendiente','trabajando','finalizado','anulado'].map(e => ordenes.filter(o => estadoCanon(o) === e).length);
+    const conOS = reclamos.filter(r => r.os && r.os !== 'Sin OS').length;
+    drawDonutRubros('chart-reclamos-ejecucion', [reclamos.length - conOS, conOS], ['Sin OS','Con OS'], ['#0ea5e9','#2e7d32']);
+    drawDonutRubros('chart-reclamos-prioridad', prios, ['Crítico','Alto','Medio','Bajo'], ['#dc2626','#f59e0b','#2563eb','#16a34a']);
+    drawDonutRubros('chart-mant-ejecucion', [estados[2], estados[1], estados[0], estados[3]], ['Finalizado','Trabajando','Pendiente','Anulado'], ['#16a34a','#2563eb','#f59e0b','#dc2626']);
+    drawDonutRubros('chart-mant-prioridad', osPrios, ['Crítico','Alto','Medio','Bajo'], ['#dc2626','#f59e0b','#2563eb','#16a34a']);
+    drawBarRubros('chart-dir-rubro-reclamos', reclamos, r => r.rubro);
+    drawBarRubros('chart-dir-rubro-mant', ordenes.filter(o => estadoCanon(o) === 'finalizado'), o => o.rubro || o.titulo);
+  }
+
+  function renderDashboardRubrosZona(view){
+    normalizarColeccionesRubros();
+    const z = Number((typeof currentUser !== 'undefined' && currentUser?.zona) || (typeof selectedZona !== 'undefined' && selectedZona) || 1);
+    const ordenes = (typeof OS_ZONA !== 'undefined' ? OS_ZONA : []).filter(o => zonaItem(o) === z);
+    const reclamos = (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : []).filter(r => zonaItem(r) === z);
+    if(view === 'principal'){
+      const conOS = reclamos.filter(r => r.os && r.os !== 'Sin OS').length;
+      const fin = ordenes.filter(o => estadoCanon(o) === 'finalizado').length;
+      drawDonutRubros('chart-zona-reclamos', [reclamos.length - conOS, conOS], ['Sin OS','Con OS'], ['#0ea5e9','#2e7d32']);
+      drawDonutRubros('chart-zona-mantenimiento', [fin, ordenes.length - fin], ['Finalizado','Pendiente / activo'], ['#7c3aed','#f59e0b']);
+    }
+    const conOS = reclamos.filter(r => r.os && r.os !== 'Sin OS').length;
+    const prios = ['critico','alto','medio','bajo'].map(p => reclamos.filter(r => prioridadCanon(r) === p).length);
+    const osPrios = ['critico','alto','medio','bajo'].map(p => ordenes.filter(o => prioridadCanon(o) === p).length);
+    const estados = ['pendiente','trabajando','finalizado','anulado'].map(e => ordenes.filter(o => estadoCanon(o) === e).length);
+    drawDonutRubros('chart-zona-rec-ejec', [reclamos.length - conOS, conOS], ['Sin OS','Con OS'], ['#0ea5e9','#2e7d32']);
+    drawDonutRubros('chart-zona-rec-prio', prios, ['Crítico','Alto','Medio','Bajo'], ['#dc2626','#f59e0b','#2563eb','#16a34a']);
+    drawDonutRubros('chart-zona-man-ejec', [estados[2], estados[1], estados[0], estados[3]], ['Finalizado','Trabajando','Pendiente','Anulado'], ['#16a34a','#2563eb','#f59e0b','#dc2626']);
+    drawDonutRubros('chart-zona-man-prio', osPrios, ['Crítico','Alto','Medio','Bajo'], ['#dc2626','#f59e0b','#2563eb','#16a34a']);
+    drawBarRubros('chart-zona-rubro-rec', reclamos, r => r.rubro);
+    drawBarRubros('chart-zona-rubro-man', ordenes.filter(o => estadoCanon(o) === 'finalizado'), o => o.rubro || o.titulo);
+    drawBarRubros('chart-insp-rubro-reclamos', reclamos, r => r.rubro);
+    drawBarRubros('chart-insp-rubro-mantenimientos', ordenes.filter(o => estadoCanon(o) === 'finalizado'), o => o.rubro || o.titulo);
+  }
+
+  function renderDashboardRubrosCoordinador(){
+    normalizarColeccionesRubros();
+    const real = typeof dashboardScopeData === 'function' ? dashboardScopeData() : null;
+    const reclamos = real?.recs || (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : []);
+    const ordenes = real?.oss || (typeof OS_ZONA !== 'undefined' ? OS_ZONA : []);
+    drawBarRubros('chart-coord-rubro-reclamos', reclamos, r => r.rubro);
+    drawBarRubros('chart-coord-rubro-mantenimientos', ordenes.filter(o => estadoCanon(o) === 'finalizado'), o => o.rubro || o.titulo);
+  }
+
+  function envolverDashboards(){
+    if(envolverDashboards.__done) return;
+    if(typeof window.getRubroOS === 'function') window.getRubroOS = o => rubroParaGrafico(o?.rubro || o?.titulo);
+    window.normalizarRubroReclamo = item => rubroParaGrafico(item?.rubro || item);
+    window.rubroLabelsAndData = function(arr, fn){
+      return contarPorRubros(arr, item => fn ? fn(item) : item?.rubro);
+    };
+    window.colorRubro = label => coloresRubros()[label] || '#475569';
+
+    if(typeof window.renderChartDir === 'function'){
+      const previo = window.renderChartDir;
+      window.renderChartDir = function(view = 'principal'){
+        const res = previo.call(this, view);
+        renderDashboardRubrosDireccion(view);
+        return res;
+      };
+    }
+    if(typeof window.renderChartInsp === 'function'){
+      const previo = window.renderChartInsp;
+      window.renderChartInsp = function(view = 'principal'){
+        const res = previo.call(this, view);
+        renderDashboardRubrosZona(view);
+        return res;
+      };
+    }
+    if(typeof window.renderChartCoordinadorDashboard === 'function'){
+      const previo = window.renderChartCoordinadorDashboard;
+      window.renderChartCoordinadorDashboard = function(...args){
+        const res = previo.apply(this, args);
+        renderDashboardRubrosCoordinador();
+        return res;
+      };
+    }
+    envolverDashboards.__done = true;
+  }
+
+  window.DGIE_RUBROS_OFICIALES = RUBROS_OFICIALES;
+  window.normalizarRubroDGIE = normalizarRubro;
+  window.rubroParaGraficoDGIE = rubroParaGrafico;
+  document.addEventListener('DOMContentLoaded', aplicarRubrosOficiales);
+  setTimeout(aplicarRubrosOficiales, 500);
+  setTimeout(aplicarRubrosOficiales, 2000);
+})();
+</script>
 </body>
 </html>
 
