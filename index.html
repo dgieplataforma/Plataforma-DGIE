@@ -12509,6 +12509,104 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
+<script id="dgie-coordinador-certificacion-zona">
+(function(){
+  const TAB = 'Certificación';
+
+  function esc(v){
+    if(typeof escapeHtml === 'function') return escapeHtml(v);
+    return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function addTab(tabs, tab){
+    const list = Array.isArray(tabs) ? tabs.slice() : [];
+    if(!list.includes(tab)){
+      const idx = list.indexOf('Comunicaciones');
+      if(idx >= 0) list.splice(idx, 0, tab);
+      else list.push(tab);
+    }
+    return list;
+  }
+
+  function zonaOptions(){
+    return Array.from({length:17}, (_, i) => {
+      const z = i + 1;
+      const inspector = (typeof INSPECTORS !== 'undefined' && INSPECTORS[i]) ? ` · ${INSPECTORS[i]}` : '';
+      return `<option value="${z}">Zona ${z}${esc(inspector)}</option>`;
+    }).join('');
+  }
+
+  window.renderCertificacionCoordinador = function(container){
+    if(!container) return;
+    container.innerHTML = `<div class="section-label">Coordinación · Certificación</div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Certificación por zona</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Seleccioná una zona para consultar la información de certificación.</div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label class="form-label">Zona</label>
+            <select class="form-select" id="coord-cert-zona" onchange="renderCertificacionCoordinadorZona()">
+              <option value="">Seleccionar zona</option>
+              ${zonaOptions()}
+            </select>
+          </div>
+        </div>
+        <div id="coord-cert-zona-body" style="margin-top:16px">
+          <div style="text-align:center;padding:32px;color:var(--muted);border:1px dashed var(--border);border-radius:14px;background:#f8fafc">Seleccioná una zona para continuar.</div>
+        </div>
+      </div>`;
+  };
+
+  window.renderCertificacionCoordinadorZona = function(){
+    const z = Number(document.getElementById('coord-cert-zona')?.value || 0);
+    const body = document.getElementById('coord-cert-zona-body');
+    if(!body) return;
+    if(!z){
+      body.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted);border:1px dashed var(--border);border-radius:14px;background:#f8fafc">Seleccioná una zona para continuar.</div>`;
+      return;
+    }
+    const inspector = (typeof INSPECTORS !== 'undefined' && INSPECTORS[z - 1]) ? INSPECTORS[z - 1] : '';
+    body.innerHTML = `<div class="fixed-zone-box" style="opacity:1;margin-top:0">
+      <div class="fixed-zone-title">Zona seleccionada</div>
+      <div class="fixed-zone-grid">
+        <div class="fixed-zone-item">
+          <div class="fixed-zone-label">Zona</div>
+          <div class="fixed-zone-value">Zona ${z}</div>
+        </div>
+        <div class="fixed-zone-item">
+          <div class="fixed-zone-label">Inspector/a</div>
+          <div class="fixed-zone-value">${esc(inspector || 'Sin inspector asignado')}</div>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const prevTabs = window.dgieTabsForUser;
+  window.dgieTabsForUser = function(user){
+    const tabs = typeof prevTabs === 'function' ? prevTabs(user) : [];
+    return user?.role === 'coordinador' ? addTab(tabs, TAB) : tabs;
+  };
+
+  const prevRenderTab = window.renderTab;
+  window.renderTab = function(i){
+    const tabs = typeof window.dgieTabsForUser === 'function' ? window.dgieTabsForUser(currentUser) : [];
+    const tab = tabs[i];
+    if(tab === TAB && currentUser?.role === 'coordinador'){
+      buildTabs(tabs);
+      setActiveTab(i);
+      hideGlobal();
+      currentFichaId = null;
+      window.renderCertificacionCoordinador(document.getElementById('main-content'));
+      return;
+    }
+    return typeof prevRenderTab === 'function' ? prevRenderTab.apply(this, arguments) : undefined;
+  };
+})();
+</script>
 </body>
 </html>
 
