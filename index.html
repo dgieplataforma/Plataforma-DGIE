@@ -683,7 +683,7 @@ async function guardarRelevamiento(estId){
   RUBROS_RELEVAMIENTO.forEach(r=>{ rubros[r.key]=Number(document.getElementById('rel-'+r.key)?.value||0); });
   const comentarios = document.getElementById('rel-comentarios')?.value.trim()||'';
   const fechaISO = fechaEl.value;
-  const fecha = fechaISO.split('-').reverse().join('/').slice(0,8);
+  const fecha = normalizarFechaCorta(fechaISO);
   const zona=Number(currentUser?.zona||zonaEstablecimiento(estId)||1);
   const promedio=Math.round(Object.values(rubros).reduce((a,b)=>a+Number(b||0),0)/RUBROS_RELEVAMIENTO.length);
   const relLocal={
@@ -1682,7 +1682,7 @@ async function guardarNuevoReclamoModal(){
     if($('modal-nr-error')) $('modal-nr-error').style.display='block';
     return;
   }
-  const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');
+  const fecha=normalizarFechaCorta(fechaISO);
   const fotos=await leerFotosInputReclamo(document.getElementById('modal-nr-fotos'));
   RECLAMOS_ZONA.unshift({
     titulo:mensaje, est:est.n, prio, fecha, os:'Sin OS',
@@ -1913,7 +1913,7 @@ function actualizarZonaNuevoReclamo(){
     if($('nr-error')){$('nr-error').textContent=reclamoAnterior?'Completá establecimiento y descripción.':'Completá establecimiento, número de reclamo y descripción.';$('nr-error').style.display='block';}
     return;
   }
-  const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');
+  const fecha=normalizarFechaCorta(fechaISO);
   const fotosInput=document.getElementById('nr-fotos');
   const fotos=await leerFotosInputReclamo(fotosInput);
   const nuevoReclamo={
@@ -2035,7 +2035,7 @@ function renderFotosIntervencion(it){
 }
 function renderIntervencionCard(it){const est=ESTABS.find(e=>e.id===it.estId);return `<div class="intervencion-card" onclick="verDetalleIntervencion(${it.id})"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-weight:900;color:#123c69">${est?.n||'Establecimiento'}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${it.fecha} · Zona ${it.zona} · ${it.inspector}</div></div><span class="badge b-info">${it.avance}%</span></div><div style="font-size:14px;margin-top:10px;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${renderFotosIntervencion(it)}</div></div>`}
 function openNuevaIntervencion(){const e=ESTABS.find(x=>x.id===currentFichaId);const fb=$('ficha-body');if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="switchFichaTab(3)">‹ Volver a intervenciones</button><div class="card-header"><div><div class="card-title">Nueva intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${e.n}</div></div></div><div class="form-grid"><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="int-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-field"><label class="form-label">Porcentaje de avance</label><input class="form-input" id="int-avance" type="number" min="0" max="100" value="50"></div><div class="form-field full"><label class="form-label">Intervención realizada / en curso</label><textarea class="form-textarea" id="int-desc" placeholder="Describir brevemente la intervención que se está realizando..."></textarea></div><div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="int-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">Las imágenes se optimizan y se guardan en Cloudinary cuando está configurado.</div></div></div><div class="form-error" id="int-error">Completá descripción y porcentaje de avance.</div><div class="modal-actions"><button class="secondary-btn" onclick="switchFichaTab(3)">Cancelar</button><button class="primary-btn" onclick="guardarIntervencion()">Guardar intervención</button></div>`}
-async function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');const fotosFiles=[...($('int-fotos')?.files||[])];const fotosArchivos=await Promise.all(fotosFiles.map(file=>leerArchivoDGIE(file,'intervenciones'))).then(arr=>arr.filter(Boolean));const fotos=fotosArchivos.length||fotosFiles.length||0;const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);let remoteId=null;if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10)});if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar en Supabase: '+error.message;$('int-error').style.display='block';}return}remoteId=data?.id||null;await persistirFotosSupabase('intervencion',remoteId,fotosArchivos,currentFichaId,z)}INTERVENCIONES.unshift({id:Date.now(),remoteId,_remoteSaved:!!remoteId,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos,fotosArchivos});saveAppState&&saveAppState();switchFichaTab(3)}
+async function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=normalizarFechaCorta(fechaISO);const fotosFiles=[...($('int-fotos')?.files||[])];const fotosArchivos=await Promise.all(fotosFiles.map(file=>leerArchivoDGIE(file,'intervenciones'))).then(arr=>arr.filter(Boolean));const fotos=fotosArchivos.length||fotosFiles.length||0;const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);let remoteId=null;if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10)});if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar en Supabase: '+error.message;$('int-error').style.display='block';}return}remoteId=data?.id||null;await persistirFotosSupabase('intervencion',remoteId,fotosArchivos,currentFichaId,z)}INTERVENCIONES.unshift({id:Date.now(),remoteId,_remoteSaved:!!remoteId,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos,fotosArchivos});saveAppState&&saveAppState();switchFichaTab(3)}
 function verDetalleIntervencion(id){const it=INTERVENCIONES.find(x=>x.id===id);const est=ESTABS.find(e=>e.id===it?.estId);const fb=$('ficha-body')||$('main-content');if(!it||!fb)return;fb.innerHTML=`<button class="back-btn" onclick="${currentUser?.role==='inspector'?'switchFichaTab(3)':'renderIntervencionesDireccion($(\'main-content\'))'}">‹ Volver</button><div class="card-header"><div><div class="card-title">Detalle de intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${est?.n||'Establecimiento'} · Zona ${it.zona}</div></div><span class="badge b-info">${it.avance}% avance</span></div><div class="ficha-datos"><div class="ficha-dato"><div class="ficha-dato-lbl">Fecha</div><div class="ficha-dato-val">${it.fecha}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Inspector</div><div class="ficha-dato-val">${it.inspector}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Establecimiento</div><div class="ficha-dato-val">${est?.n||'—'}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Avance</div><div class="ficha-dato-val">${it.avance}%</div></div></div><div style="margin-top:14px;font-size:15px;line-height:1.5;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${renderFotosIntervencion(it)||'<div style="font-size:13px;color:var(--muted)">Sin fotos cargadas</div>'}</div>`}
 function renderIntervencionesDireccion(container){const data=[...INTERVENCIONES].sort((a,b)=>b.id-a.id);container.innerHTML=`<div class="section-label">Dirección · Intervenciones por inspector</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones actualizadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado de avances cargados por los inspectores en las fichas de establecimientos.</div></div><span class="badge b-info" id="int-dir-count-badge">${data.length} intervenciones</span></div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list"></div></div>`;renderIntervencionesDireccionList(data)}
 function filterIntervencionesDireccion(){const z=$('int-dir-zona')?.value||'',q=($('int-dir-search')?.value||'').toLowerCase();const data=INTERVENCIONES.filter(it=>{const est=ESTABS.find(e=>e.id===it.estId);return (!z||String(it.zona)===z)&&(`${est?.n||''} ${it.inspector} ${it.descripcion}`.toLowerCase().includes(q))}).sort((a,b)=>b.id-a.id);const badge=$('int-dir-count-badge');if(badge)badge.textContent=data.length+' intervenciones';renderIntervencionesDireccionList(data)}
@@ -2215,7 +2215,7 @@ function dateToInput(fecha){if(!fecha)return '';const p=String(fecha).split('/')
     telefono:emp.telefono||'—',
     email:emp.email||'—'
   };
-}function actualizarFormularioOS(editId=null){const estId=Number($('nos-establecimiento')?.value||0),z=zonaEstablecimiento(estId),datos=datosFijosZona(z);if($('nos-empresa'))$('nos-empresa').textContent=datos.empresa;if($('nos-cuit'))$('nos-cuit').textContent=datos.cuit;if($('nos-exp'))$('nos-exp').textContent=datos.exp;if($('nos-inspector'))$('nos-inspector').textContent=datos.inspector;const reclamos=RECLAMOS_ZONA.filter(r=>r.estId===estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite')),box=$('nos-reclamos-box');if(!box)return;box.innerHTML=reclamos.length?`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="sin_reclamo"><div><div class="check-title">No responde a ningún reclamo</div><div class="check-meta">Usar cuando la orden surge por inspección o mantenimiento preventivo.</div></div></label>${reclamos.map((r,idx)=>`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="${idx}"><div><div class="check-title">${r.titulo}</div><div class="check-meta">${r.fecha} · ${r.rubro||'Sin rubro'} · ${r.os}</div></div></label>`).join('')}`:`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="sin_reclamo" checked><div><div class="check-title">No hay reclamos pendientes</div><div class="check-meta">La orden se cargará sin reclamo asociado.</div></div></label>`}function formatInputDate(fechaISO){return fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):''}
+}function actualizarFormularioOS(editId=null){const estId=Number($('nos-establecimiento')?.value||0),z=zonaEstablecimiento(estId),datos=datosFijosZona(z);if($('nos-empresa'))$('nos-empresa').textContent=datos.empresa;if($('nos-cuit'))$('nos-cuit').textContent=datos.cuit;if($('nos-exp'))$('nos-exp').textContent=datos.exp;if($('nos-inspector'))$('nos-inspector').textContent=datos.inspector;const reclamos=RECLAMOS_ZONA.filter(r=>r.estId===estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite')),box=$('nos-reclamos-box');if(!box)return;box.innerHTML=reclamos.length?`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="sin_reclamo"><div><div class="check-title">No responde a ningún reclamo</div><div class="check-meta">Usar cuando la orden surge por inspección o mantenimiento preventivo.</div></div></label>${reclamos.map((r,idx)=>`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="${idx}"><div><div class="check-title">${r.titulo}</div><div class="check-meta">${r.fecha} · ${r.rubro||'Sin rubro'} · ${r.os}</div></div></label>`).join('')}`:`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="sin_reclamo" checked><div><div class="check-title">No hay reclamos pendientes</div><div class="check-meta">La orden se cargará sin reclamo asociado.</div></div></label>`}function formatInputDate(fechaISO){return fechaISO?normalizarFechaCorta(fechaISO):''}
 function obtenerDatosOSForm(){const estId=Number($('nos-establecimiento')?.value||0),est=ESTABS.find(e=>e.id===estId),numero=$('nos-numero')?.value.trim(),rubro=$('nos-rubro')?.value,tarea=$('nos-tarea')?.value.trim(),fechaISO=$('nos-fecha')?.value,fechaFinISO=$('nos-fecha-fin')?.value,estado=$('nos-estado')?.value||'Pendiente',prio=$('nos-prio')?.value||'medio',monto=$('nos-monto')?.value||'—';if(!est||!numero||!rubro||!tarea){if($('nos-error'))$('nos-error').style.display='block';return null}return{estId,est,numero,rubro,tarea,fecha:formatInputDate(fechaISO),fechaFinalizacion:formatInputDate(fechaFinISO),estado,prio,monto,presupuestoItems:getPresupuestoItemsFromDOM()} }
 function guardarNuevaOS(){const data=obtenerDatosOSForm();if(!data)return;const checks=[...document.querySelectorAll('input[name="nos-reclamo"]:checked')].map(x=>x.value).filter(v=>v!=='sin_reclamo'),pendientes=RECLAMOS_ZONA.filter(r=>r.estId===data.estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite'));const reclamoNumero=checks.map(v=>pendientes[Number(v)]?.numero).filter(Boolean).join(', ');OS_ZONA.unshift({id:(OS_ZONA.length?Math.max(...OS_ZONA.map(o=>o.id)):0)+1,numero:data.numero,reclamoNumero,titulo:data.rubro,est:data.est.n,establecimiento:data.est.n,tarea:data.tarea,rubro:data.rubro,estado:data.estado,fecha:data.fecha,fechaFinalizacion:data.estado==='Finalizada'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems,prio:data.prio,estId:data.estId});checks.forEach(v=>{const r=pendientes[Number(v)];if(r)r.os=data.numero});if(currentUser?.role==='inspector'){
     renderOSZona($('main-content'));
@@ -2769,7 +2769,27 @@ function _drawLc(id,type,labels,data,colors){
 // ════════════════════════════════════════════════════════════════════
 const APP_STORAGE_KEY='plataforma_infra_produccion_state';
 try{localStorage.removeItem('plataforma_infra_v2_state');}catch(e){}
-function normalizarFechaCorta(fechaISO){if(!fechaISO)return new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});const iso=String(fechaISO).slice(0,10);return iso.split('-').reverse().join('/').slice(0,8);} 
+function normalizarFechaCorta(fechaISO){
+  const fallback=()=>new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  if(!fechaISO)return fallback();
+  const s=String(fechaISO).trim();
+  const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso)return `${iso[3]}/${iso[2]}/${iso[1].slice(-2)}`;
+  const local=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(local)return `${local[1].padStart(2,'0')}/${local[2].padStart(2,'0')}/${String(local[3]).slice(-2)}`;
+  const d=new Date(s);
+  if(!Number.isNaN(d.getTime()))return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  return s;
+} 
+function corregirFechaLegacy2020(fecha,createdAt){
+  const f=String(fecha||'').trim();
+  const c=String(createdAt||'').trim();
+  const fm=f.match(/^2020-(\d{2})-(\d{2})/);
+  const cm=c.match(/^(\d{4})-/);
+  const y=cm?Number(cm[1]):0;
+  if(fm&&y>2020&&y<=new Date().getFullYear()+1)return `${y}-${fm[1]}-${fm[2]}`;
+  return fecha;
+}
 function fechaLocalAISO(fecha){
   if(!fecha)return new Date().toISOString().slice(0,10);
   const s=String(fecha).trim();
@@ -4741,7 +4761,7 @@ function renderChartInsp(){
       descripcion:descripcionLimpia,
       prio:row.prioridad||'medio',
       rubro:row.rubro||'Otro',
-      fecha:normalizarFechaCorta(row.fecha),
+      fecha:normalizarFechaCorta(corregirFechaLegacy2020(row.fecha,row.created_at)),
       os:'Sin OS',
       reiteradoDe,
       reiteraciones:0,
@@ -4763,7 +4783,7 @@ function renderChartInsp(){
       tarea:row.tarea||'',
       rubro:row.rubro||'Otro',
       estado:estadoOSCanon(row.estado),
-      fecha:normalizarFechaCorta(row.fecha_envio),
+      fecha:normalizarFechaCorta(corregirFechaLegacy2020(row.fecha_envio,row.created_at)),
       fechaFinalizacion:row.fecha_finalizacion?normalizarFechaCorta(row.fecha_finalizacion):'',
       monto:row.monto||'',
       presupuesto:modulos,
@@ -4971,7 +4991,7 @@ function renderChartInsp(){
   window.guardarRelevamiento=async function(estId){
     const fechaISO=$('rel-fecha')?.value||new Date().toISOString().slice(0,10);
     const files=[...($('rel-fotos')?.files||[])], fotosArchivos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
-    const rel={tipo:'relevamiento',fecha:fechaISO.split('-').reverse().join('/').slice(0,8),inspector:currentUser?.name||'',zona:zonaEstablecimiento(estId),comentarios:$('rel-comentarios')?.value||'',fotosArchivos,ts:Date.now()};
+    const rel={tipo:'relevamiento',fecha:normalizarFechaCorta(fechaISO),inspector:currentUser?.name||'',zona:zonaEstablecimiento(estId),comentarios:$('rel-comentarios')?.value||'',fotosArchivos,ts:Date.now()};
     let remoteId=null;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){const res=await window.DGIE_DB.crearRelevamiento({establecimiento_id:estId,zona:rel.zona,datos:rel});remoteId=res?.data?.id; if(remoteId)await persistirFotosSupabase('relevamiento',remoteId,fotosArchivos,estId,rel.zona);}
     rel.remoteId=remoteId; RELEVAMIENTOS[estId]=RELEVAMIENTOS[estId]||[]; RELEVAMIENTOS[estId].push(rel); saveAppState&&saveAppState(); volverFichaTab(5,estId);
@@ -5002,7 +5022,7 @@ function renderChartInsp(){
   const baseCard=window.renderIntervencionCard;
   window.renderIntervencionCard=function(it){const html=baseCard(it);const can=currentUser?.role==='inspector'&&Number(currentUser.zona)===Number(it.zona);return html.replace('</div>',`${can?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" onclick="event.stopPropagation();editarIntervencion(${it.id})">Editar</button><button class="secondary-btn" style="color:var(--danger)" onclick="event.stopPropagation();eliminarIntervencion(${it.id})">Eliminar</button></div>`:''}</div>`)}
   window.editarIntervencion=function(id){const it=INTERVENCIONES.find(x=>Number(x.id)===Number(id));if(!it)return;currentFichaId=it.estId;openNuevaIntervencion();setTimeout(()=>{if($('int-desc'))$('int-desc').value=it.descripcion||'';if($('int-avance'))$('int-avance').value=it.avance||0;if($('int-fecha'))$('int-fecha').value=fechaInputFromCorta(it.fecha);const btn=[...document.querySelectorAll('.primary-btn')].find(b=>b.textContent.includes('Guardar intervención'));if(btn)btn.setAttribute('onclick',`guardarEdicionIntervencion(${id})`)},0)}
-  window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.find(x=>Number(x.id)===Number(id));if(!it)return;it.descripcion=$('int-desc')?.value||'';it.avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0)));it.fecha=($('int-fecha')?.value||'').split('-').reverse().join('/').slice(0,8)||it.fecha;if(it.remoteId&&window.DGIE_DB?.actualizarIntervencion)await window.DGIE_DB.actualizarIntervencion(it.remoteId,{descripcion:it.descripcion,avance:it.avance,fecha:($('int-fecha')?.value||new Date().toISOString().slice(0,10))});saveAppState&&saveAppState();switchFichaTab(3)}
+window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.find(x=>Number(x.id)===Number(id));if(!it)return;it.descripcion=$('int-desc')?.value||'';it.avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0)));it.fecha=normalizarFechaCorta($('int-fecha')?.value)||it.fecha;if(it.remoteId&&window.DGIE_DB?.actualizarIntervencion)await window.DGIE_DB.actualizarIntervencion(it.remoteId,{descripcion:it.descripcion,avance:it.avance,fecha:($('int-fecha')?.value||new Date().toISOString().slice(0,10))});saveAppState&&saveAppState();switchFichaTab(3)}
   window.eliminarIntervencion=async function(id){if(!confirm('¿Eliminar esta intervención?'))return;const i=INTERVENCIONES.findIndex(x=>Number(x.id)===Number(id));if(i<0)return;const it=INTERVENCIONES[i];if(it.remoteId&&window.DGIE_DB?.eliminarIntervencion){const{error}=await window.DGIE_DB.eliminarIntervencion(it.remoteId);if(error){alert('No se pudo eliminar: '+error.message);return;}}INTERVENCIONES.splice(i,1);saveAppState&&saveAppState();if($('ficha-body'))switchFichaTab(2);else renderTab([...document.querySelectorAll('#nav-tabs .tab')].findIndex(t=>t.classList.contains('active')))}
   window.renderIntervencionesInspector=function(c){renderIntervencionesDireccion(c);}
   window.renderOSGeneral=function(c){c.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Vista tipo empresa, con todas las zonas y filtros.</div></div><span class="badge b-info">${OS_ZONA.length} órdenes</span></div><div class="os-filters"><select class="filter-sel" id="coord-os-zona" onchange="filterOSCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-os-estado" onchange="filterOSCoord()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, establecimiento o tarea..." oninput="filterOSCoord()"></div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>Orden</th><th>Zona</th><th>N° reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th><th>PDF</th></tr></thead><tbody id="coord-os-body"></tbody></table></div></div>`;filterOSCoord()}
@@ -5154,7 +5174,7 @@ function renderChartInsp(){
     const fechaISO=$('rel-fecha')?.value||new Date().toISOString().slice(0,10);
     const files=[...($('rel-fotos')?.files||[])];
     const fotosArchivos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
-    const rel={tipo:'relevamiento',fecha:fechaISO.split('-').reverse().join('/').slice(0,8),inspector:currentUser?.name||'',zona:zonaEstablecimiento(estId),comentarios:$('rel-comentarios')?.value||'',fotosArchivos,ts:Date.now()};
+    const rel={tipo:'relevamiento',fecha:normalizarFechaCorta(fechaISO),inspector:currentUser?.name||'',zona:zonaEstablecimiento(estId),comentarios:$('rel-comentarios')?.value||'',fotosArchivos,ts:Date.now()};
     let remoteId=null;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){
       const res=await window.DGIE_DB.crearRelevamiento({establecimiento_id:estId,zona:rel.zona,datos:rel});
@@ -5175,7 +5195,7 @@ function renderChartInsp(){
     const allFiles=[...($('int-fotos')?.files||[])];
     if(allFiles.length>4)alert('Se guardarán solo las primeras 4 fotos de la intervención.');
     const fotosFiles=allFiles.slice(0,4);
-    const fecha=fechaISO?fechaISO.split('-').reverse().join('/').slice(0,8):new Date().toLocaleDateString('es-AR');
+    const fecha=normalizarFechaCorta(fechaISO);
     const fotosArchivos=await Promise.all(fotosFiles.map(file=>leerArchivoDGIE(file,'intervenciones'))).then(arr=>arr.filter(Boolean));
     const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);
     let remoteId=null;
@@ -8643,7 +8663,7 @@ function renderChartInsp(){
     const files=[...($('int-fotos')?.files||[])].slice(0,4);
     const fotosArchivos=await Promise.all(files.map(file=>leerArchivoDGIE(file,'intervenciones'))).then(arr=>arr.filter(Boolean));
     const z=Number(e.zona||currentUser?.zona||1);
-    const fecha=fechaISO.split('-').reverse().join('/').slice(0,8);
+    const fecha=normalizarFechaCorta(fechaISO);
     INTERVENCIONES.unshift({
       id:Date.now(),
       estId,
@@ -9013,7 +9033,7 @@ function renderChartInsp(){
     const fechaISO=$('int-fecha')?.value||new Date().toISOString().slice(0,10);
     if(!e||(!desc&&avance!==0))return null;
     const z=Number(e.zona||currentUser?.zona||1);
-    return {e,desc:desc||'Avance registrado',avance,fechaISO,z,fecha:fechaISO.split('-').reverse().join('/').slice(0,8),osList:osKeyList(osList),key};
+    return {e,desc:desc||'Avance registrado',avance,fechaISO,z,fecha:normalizarFechaCorta(fechaISO),osList:osKeyList(osList),key};
   }
   window.guardarIntervencionMadre=async function(){
     const estId=Number($('int-est')?.value||0);
@@ -9387,7 +9407,7 @@ function renderChartInsp(){
     const e=ESTABS.find(x=>Number(x.id)===Number(estId)), desc=($('int-desc')?.value||'').trim(), avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))), fechaISO=$('int-fecha')?.value||new Date().toISOString().slice(0,10);
     if(!e||(!desc&&avance!==0))return null;
     const z=Number(e.zona||currentUser?.zona||1);
-    return {e,desc:desc||'Avance registrado',avance,fechaISO,z,fecha:fechaISO.split('-').reverse().join('/').slice(0,8)};
+    return {e,desc:desc||'Avance registrado',avance,fechaISO,z,fecha:normalizarFechaCorta(fechaISO)};
   }
   window.guardarIntervencionMadre=async function(){
     const estId=Number($('int-est')?.value||0), key=`int_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, base=datosBase(estId);
@@ -10149,7 +10169,7 @@ function renderChartInsp(){
     const fechaISO=$('int-fecha')?.value||new Date().toISOString().slice(0,10);
     if(!e||(!desc&&avance!==0))return null;
     const z=Number(e.zona||currentUser?.zona||1);
-    return {e,desc:desc||'Avance registrado',avance,fechaISO,z,fecha:fechaISO.split('-').reverse().join('/').slice(0,8)};
+    return {e,desc:desc||'Avance registrado',avance,fechaISO,z,fecha:normalizarFechaCorta(fechaISO)};
   }
   async function fotosInput(){return Promise.all([...($('int-fotos')?.files||[])].slice(0,4).map(f=>leerArchivoDGIE(f,'intervenciones'))).then(a=>a.filter(Boolean))}
   function payloadIntervencion(it){
@@ -12219,12 +12239,86 @@ function renderChartInsp(){
 
   function reclamoFechaMs(r){
     const s = String(r?.fecha || '');
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])).getTime();
     const p = s.split('/');
     if(p.length >= 3){
       const yy = p[2].length <= 2 ? 2000 + Number(p[2]) : Number(p[2]);
       return new Date(yy, Number(p[1]) - 1, Number(p[0])).getTime();
     }
     return 0;
+  }
+
+  function reclamoMes(r){
+    const s = String(r?.fecha || '');
+    const iso = s.match(/^(\d{4})-(\d{2})-\d{2}/);
+    if(iso) return `${iso[1]}-${iso[2]}`;
+    const p = s.split('/');
+    if(p.length >= 3){
+      const yy = p[2].length <= 2 ? 2000 + Number(p[2]) : Number(p[2]);
+      return `${yy}-${String(p[1]).padStart(2, '0')}`;
+    }
+    return '';
+  }
+
+  function reclamosCallcenterFiltrados(){
+    const q = String(document.getElementById('cc-rec-q')?.value || '').toLowerCase();
+    const zona = String(document.getElementById('cc-rec-zona')?.value || '');
+    const estado = String(document.getElementById('cc-rec-estado')?.value || '');
+    const rubro = String(document.getElementById('cc-rec-rubro')?.value || '');
+    const mes = String(document.getElementById('cc-rec-mes')?.value || '');
+    return (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : [])
+      .filter(r => {
+        const z = String(Number(r.zona || (typeof zonaEstablecimiento === 'function' ? zonaEstablecimiento(r.estId) : 0)) || '');
+        const st = estadoReclamoCallcenter(r);
+        const rb = typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : String(r.rubro || '');
+        const hay = `${r.numero || ''} ${r.est || r.establecimiento || ''} ${r.titulo || ''} ${r.descripcion || ''} ${r.rubro || ''} ${r.os || ''}`.toLowerCase();
+        const estadoOk = !estado || (estado === 'pendientes' ? !['finalizado','anulado'].includes(st.key) : st.key === estado);
+        return (!q || hay.includes(q)) && (!zona || z === zona) && estadoOk && (!rubro || rb === rubro) && (!mes || reclamoMes(r) === mes);
+      })
+      .sort((a,b) => reclamoFechaMs(b) - reclamoFechaMs(a));
+  }
+
+  function filtrosCallcenterResumen(){
+    const parts = [];
+    const q = document.getElementById('cc-rec-q')?.value?.trim();
+    const zona = document.getElementById('cc-rec-zona')?.value;
+    const estadoSel = document.getElementById('cc-rec-estado');
+    const rubroSel = document.getElementById('cc-rec-rubro');
+    const mes = document.getElementById('cc-rec-mes')?.value;
+    if(q) parts.push(`Búsqueda: ${q}`);
+    if(zona) parts.push(`Zona ${zona}`);
+    if(estadoSel?.value) parts.push(`Estado: ${estadoSel.options[estadoSel.selectedIndex]?.text || estadoSel.value}`);
+    if(rubroSel?.value) parts.push(`Rubro: ${rubroSel.value}`);
+    if(mes) parts.push(`Mes: ${mes}`);
+    return parts.length ? parts.join(' · ') : 'Sin filtros aplicados';
+  }
+
+  let currentCCReportHTML = '';
+  let currentCCReportName = 'listado-reclamos-callcenter';
+
+  function setPrintPreviewToolbarCallcenter(){
+    const preview = document.getElementById('os-print-preview');
+    if(!preview) return;
+    const title = preview.querySelector('.print-preview-toolbar > div:first-child');
+    const downloadBtn = preview.querySelector('.print-preview-toolbar button:nth-child(2)');
+    if(title) title.textContent = 'Vista previa de listado de reclamos';
+    if(downloadBtn){
+      downloadBtn.textContent = 'Descargar HTML';
+      downloadBtn.setAttribute('onclick', 'descargarReclamosHTMLActual()');
+    }
+  }
+
+  function setPrintPreviewToolbarOS(){
+    const preview = document.getElementById('os-print-preview');
+    if(!preview) return;
+    const title = preview.querySelector('.print-preview-toolbar > div:first-child');
+    const downloadBtn = preview.querySelector('.print-preview-toolbar button:nth-child(2)');
+    if(title) title.textContent = 'Vista previa de Orden de Servicio';
+    if(downloadBtn){
+      downloadBtn.textContent = 'Descargar HTML';
+      downloadBtn.setAttribute('onclick', 'descargarOSHTMLActual()');
+    }
   }
 
   function renderCallCenterReclamos(){
@@ -12249,6 +12343,7 @@ function renderChartInsp(){
           </select>
           <select class="filter-sel" id="cc-rec-estado" onchange="filtrarReclamosCallcenter()">
             <option value="">Todos los estados</option>
+            <option value="pendientes">Pendientes / no finalizados</option>
             <option value="sin_os">Sin OS</option>
             <option value="con_os">Con OS pendiente</option>
             <option value="trabajando">Con OS trabajando</option>
@@ -12259,6 +12354,8 @@ function renderChartInsp(){
           <select class="filter-sel" id="cc-rec-rubro" onchange="filtrarReclamosCallcenter()">
             <option value="">Todos los rubros</option>${rubros}
           </select>
+          <input class="filter-sel" id="cc-rec-mes" type="month" onchange="filtrarReclamosCallcenter()" title="Filtrar por mes">
+          <button class="primary-btn" type="button" onclick="descargarPDFReclamosCallcenter()">Descargar PDF filtrado</button>
         </div>
         <div class="os-table-wrap">
           <table class="os-table">
@@ -12283,19 +12380,7 @@ function renderChartInsp(){
   }
 
   window.filtrarReclamosCallcenter = function(){
-    const q = String(document.getElementById('cc-rec-q')?.value || '').toLowerCase();
-    const zona = String(document.getElementById('cc-rec-zona')?.value || '');
-    const estado = String(document.getElementById('cc-rec-estado')?.value || '');
-    const rubro = String(document.getElementById('cc-rec-rubro')?.value || '');
-    const rows = (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : [])
-      .filter(r => {
-        const z = String(Number(r.zona || (typeof zonaEstablecimiento === 'function' ? zonaEstablecimiento(r.estId) : 0)) || '');
-        const st = estadoReclamoCallcenter(r);
-        const rb = typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : String(r.rubro || '');
-        const hay = `${r.numero || ''} ${r.est || r.establecimiento || ''} ${r.titulo || ''} ${r.rubro || ''} ${r.os || ''}`.toLowerCase();
-        return (!q || hay.includes(q)) && (!zona || z === zona) && (!estado || st.key === estado) && (!rubro || rb === rubro);
-      })
-      .sort((a,b) => reclamoFechaMs(b) - reclamoFechaMs(a));
+    const rows = reclamosCallcenterFiltrados();
     const el = document.getElementById('cc-rec-body');
     if(!el) return;
     el.innerHTML = rows.length ? rows.map(r => {
@@ -12318,6 +12403,87 @@ function renderChartInsp(){
       </tr>`;
     }).join('') : `<tr><td colspan="10" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
   };
+
+  window.descargarPDFReclamosCallcenter = function(){
+    const rows = reclamosCallcenterFiltrados();
+    if(!rows.length){ alert('No hay reclamos para exportar con esos filtros.'); return; }
+    const resumen = filtrosCallcenterResumen();
+    const hoy = new Date().toLocaleString('es-AR');
+    const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => String(s ?? ''));
+    const body = rows.map(r => {
+      const st = estadoReclamoCallcenter(r);
+      const z = Number(r.zona || (typeof zonaEstablecimiento === 'function' ? zonaEstablecimiento(r.estId) : 0)) || '—';
+      const rb = typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : String(r.rubro || '—');
+      return `<tr>
+        <td>${esc(r.numero || 'S/N')}</td>
+        <td>${z}</td>
+        <td>${esc(r.est || r.establecimiento || '—')}</td>
+        <td>${esc((r.titulo || r.descripcion || '—')).slice(0, 260)}</td>
+        <td>${esc(rb || '—')}</td>
+        <td>${esc(r.fecha || '—')}</td>
+        <td>${esc(r.prio || r.prioridad || 'medio')}</td>
+        <td>${esc(st.label)}</td>
+        <td>${esc(r.os || 'Sin OS')}</td>
+      </tr>`;
+    }).join('');
+    const html = `<style>
+      .cc-report{font-family:Arial,Helvetica,sans-serif;color:#111827;padding:16px}
+      .cc-report h1{font-size:18px;margin:0 0 4px;color:#123c69}
+      .cc-report .meta{font-size:11px;color:#475569;margin-bottom:10px}
+      .cc-report .summary{font-size:12px;font-weight:700;margin:8px 0 12px;color:#334155}
+      .cc-report table{width:100%;border-collapse:collapse;font-size:10px}
+      .cc-report th{background:#e6f1fb;color:#123c69;text-align:left;padding:6px;border:1px solid #cbd5e1}
+      .cc-report td{padding:5px;border:1px solid #dbe7f5;vertical-align:top}
+      .cc-report tr:nth-child(even) td{background:#f8fafc}
+    </style>
+    <div class="cc-report">
+      <h1>Listado de reclamos - Call Center</h1>
+      <div class="meta">Generado: ${esc(hoy)} · Total exportado: ${rows.length}</div>
+      <div class="summary">${esc(resumen)}</div>
+      <table>
+        <thead><tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>OS</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+    currentCCReportHTML = html;
+    currentCCReportName = `listado-reclamos-${new Date().toISOString().slice(0,10)}`;
+    const preview = document.getElementById('os-print-preview');
+    const content = document.getElementById('os-print-content');
+    if(preview && content){
+      setPrintPreviewToolbarCallcenter();
+      content.innerHTML = html;
+      preview.classList.add('visible');
+      return;
+    }
+    const win = window.open('', '_blank');
+    if(win){
+      win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Listado de reclamos</title></head><body>${html}</body></html>`);
+      win.document.close();
+      win.print();
+    }
+  };
+
+  window.descargarReclamosHTMLActual = function(){
+    if(!currentCCReportHTML) return;
+    const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Listado de reclamos</title></head><body>${currentCCReportHTML}</body></html>`;
+    const blob = new Blob([doc], {type:'text/html;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${currentCCReportName}.html`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  };
+
+  const prevDescargarOSPDFCallcenter = window.descargarOSPDF;
+  if(typeof prevDescargarOSPDFCallcenter === 'function' && !prevDescargarOSPDFCallcenter.__ccToolbarFix){
+    window.descargarOSPDF = function(...args){
+      currentCCReportHTML = '';
+      setPrintPreviewToolbarOS();
+      return prevDescargarOSPDFCallcenter.apply(this, args);
+    };
+    window.descargarOSPDF.__ccToolbarFix = true;
+  }
 
   const prevTabs = window.dgieTabsForUser;
   window.dgieTabsForUser = function(user){
