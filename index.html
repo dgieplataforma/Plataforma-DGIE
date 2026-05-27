@@ -12183,6 +12183,166 @@ function renderChartInsp(){
   setTimeout(aplicarRubrosOficiales, 2000);
 })();
 </script>
+<script id="dgie-callcenter-listado-reclamos">
+(function(){
+  function reclamoOS(r){
+    const n = String(r?.os || '').trim();
+    if(!n || ['Sin OS','Pendiente','En trámite','En tramite'].includes(n)) return null;
+    return (typeof OS_ZONA !== 'undefined' ? OS_ZONA : []).find(o => String(o.numero || '') === n) || null;
+  }
+
+  function estadoReclamoCallcenter(r){
+    const os = reclamoOS(r);
+    if(os){
+      const estado = typeof getEstadoOS === 'function' ? getEstadoOS(os) : String(os.estado || '').toLowerCase();
+      if(estado === 'finalizado') return {key:'finalizado', label:'Finalizado', cls:'b-ok'};
+      if(estado === 'trabajando') return {key:'trabajando', label:'Con OS trabajando', cls:'b-info'};
+      if(estado === 'anulado') return {key:'anulado', label:'OS anulada', cls:'b-danger'};
+      return {key:'con_os', label:'Con OS pendiente', cls:'b-warn'};
+    }
+    const raw = String(r?.os || '').trim();
+    if(raw && raw !== 'Sin OS') return {key:'en_tramite', label:raw, cls:'b-info'};
+    return {key:'sin_os', label:'Sin OS', cls:'b-neutral'};
+  }
+
+  function prioBadgeCallcenter(p){
+    const v = String(p || 'medio').toLowerCase();
+    const map = {
+      critico: ['Crítico','b-danger'],
+      alto: ['Alto','b-warn'],
+      medio: ['Medio','b-info'],
+      bajo: ['Bajo','b-ok']
+    };
+    const [label, cls] = map[v] || ['Medio','b-info'];
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
+  function reclamoFechaMs(r){
+    const s = String(r?.fecha || '');
+    const p = s.split('/');
+    if(p.length >= 3){
+      const yy = p[2].length <= 2 ? 2000 + Number(p[2]) : Number(p[2]);
+      return new Date(yy, Number(p[1]) - 1, Number(p[0])).getTime();
+    }
+    return 0;
+  }
+
+  function renderCallCenterReclamos(){
+    const total = (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : []).length;
+    const zonas = Array.from({length:17}, (_,i) => i + 1);
+    const rubros = (window.DGIE_RUBROS_OFICIALES || [])
+      .map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`)
+      .join('');
+    return `<div class="section-label">Call Center · Seguimiento de reclamos</div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Listado de reclamos</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Consulta general con estado, zona, establecimiento, rubro, prioridad y orden asociada.</div>
+          </div>
+          <span class="badge b-info">${total} reclamos</span>
+        </div>
+        <div class="os-filters">
+          <input class="estab-search" id="cc-rec-q" placeholder="Buscar por número, escuela, descripción, rubro u OS..." oninput="filtrarReclamosCallcenter()">
+          <select class="filter-sel" id="cc-rec-zona" onchange="filtrarReclamosCallcenter()">
+            <option value="">Todas las zonas</option>${zonas.map(z => `<option value="${z}">Zona ${z}</option>`).join('')}
+          </select>
+          <select class="filter-sel" id="cc-rec-estado" onchange="filtrarReclamosCallcenter()">
+            <option value="">Todos los estados</option>
+            <option value="sin_os">Sin OS</option>
+            <option value="con_os">Con OS pendiente</option>
+            <option value="trabajando">Con OS trabajando</option>
+            <option value="finalizado">Finalizado</option>
+            <option value="anulado">OS anulada</option>
+            <option value="en_tramite">En trámite</option>
+          </select>
+          <select class="filter-sel" id="cc-rec-rubro" onchange="filtrarReclamosCallcenter()">
+            <option value="">Todos los rubros</option>${rubros}
+          </select>
+        </div>
+        <div class="os-table-wrap">
+          <table class="os-table">
+            <thead>
+              <tr>
+                <th>Reclamo</th>
+                <th>Zona</th>
+                <th>Establecimiento</th>
+                <th>Descripción</th>
+                <th>Rubro</th>
+                <th>Fecha</th>
+                <th>Prioridad</th>
+                <th>Estado</th>
+                <th>OS</th>
+                <th>Fotos</th>
+              </tr>
+            </thead>
+            <tbody id="cc-rec-body"></tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  window.filtrarReclamosCallcenter = function(){
+    const q = String(document.getElementById('cc-rec-q')?.value || '').toLowerCase();
+    const zona = String(document.getElementById('cc-rec-zona')?.value || '');
+    const estado = String(document.getElementById('cc-rec-estado')?.value || '');
+    const rubro = String(document.getElementById('cc-rec-rubro')?.value || '');
+    const rows = (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : [])
+      .filter(r => {
+        const z = String(Number(r.zona || (typeof zonaEstablecimiento === 'function' ? zonaEstablecimiento(r.estId) : 0)) || '');
+        const st = estadoReclamoCallcenter(r);
+        const rb = typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : String(r.rubro || '');
+        const hay = `${r.numero || ''} ${r.est || r.establecimiento || ''} ${r.titulo || ''} ${r.rubro || ''} ${r.os || ''}`.toLowerCase();
+        return (!q || hay.includes(q)) && (!zona || z === zona) && (!estado || st.key === estado) && (!rubro || rb === rubro);
+      })
+      .sort((a,b) => reclamoFechaMs(b) - reclamoFechaMs(a));
+    const el = document.getElementById('cc-rec-body');
+    if(!el) return;
+    el.innerHTML = rows.length ? rows.map(r => {
+      const st = estadoReclamoCallcenter(r);
+      const z = Number(r.zona || (typeof zonaEstablecimiento === 'function' ? zonaEstablecimiento(r.estId) : 0)) || '—';
+      const rb = typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : String(r.rubro || '—');
+      const fotos = Array.isArray(r.fotos) ? r.fotos.length : 0;
+      const reiterado = typeof reclamoReiteradoDe === 'function' ? reclamoReiteradoDe(r) : (r.reiteradoDe || '');
+      return `<tr>
+        <td><div class="os-num">${escapeHtml(r.numero || 'S/N')}</div>${reiterado ? `<div style="font-size:11px;color:#b45309;font-weight:800;margin-top:4px">Reiterado de ${escapeHtml(reiterado)}</div>` : ''}</td>
+        <td>${z}</td>
+        <td>${escapeHtml(r.est || r.establecimiento || '—')}</td>
+        <td><div class="os-task">${escapeHtml(r.titulo || r.descripcion || '—')}</div></td>
+        <td>${escapeHtml(rb || '—')}</td>
+        <td>${escapeHtml(r.fecha || '—')}</td>
+        <td>${prioBadgeCallcenter(r.prio || r.prioridad)}</td>
+        <td><span class="badge ${st.cls}">${escapeHtml(st.label)}</span></td>
+        <td>${escapeHtml(r.os || 'Sin OS')}</td>
+        <td>${fotos ? `<span class="badge b-info">${fotos}</span>` : '—'}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="10" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
+  };
+
+  const prevTabs = window.dgieTabsForUser;
+  window.dgieTabsForUser = function(user){
+    if(user?.role === 'callcenter') return ['Nuevo reclamo', 'Listado de reclamos'];
+    return typeof prevTabs === 'function' ? prevTabs(user) : [];
+  };
+
+  const prevRenderTab = window.renderTab;
+  window.renderTab = function(i){
+    const tab = typeof window.dgieTabsForUser === 'function' ? window.dgieTabsForUser(currentUser)[i] : '';
+    if(tab === 'Listado de reclamos'){
+      buildTabs(window.dgieTabsForUser(currentUser));
+      setActiveTab(i);
+      hideGlobal();
+      const c = document.getElementById('main-content');
+      if(c){
+        c.innerHTML = renderCallCenterReclamos();
+        setTimeout(window.filtrarReclamosCallcenter, 0);
+      }
+      return;
+    }
+    return typeof prevRenderTab === 'function' ? prevRenderTab.call(this, i) : undefined;
+  };
+})();
+</script>
 </body>
 </html>
 
