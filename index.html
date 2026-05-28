@@ -6757,16 +6757,24 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const _CERT_FIN_KEY='dgie_cert_finalizada_medicion_v1';
   function _readFinMap(){try{return JSON.parse(localStorage.getItem(_CERT_FIN_KEY)||'{}')}catch(e){return {}}}
   function _writeFinMap(m){localStorage.setItem(_CERT_FIN_KEY,JSON.stringify(m))}
-  function esMedicionFinalizada(numero){return !!_readFinMap()[String(numero)]}
+  const _CERT_FIN_RE=/\n?\[MEDICION_FINALIZADA:[^\]]+\]/g;
+  function _certTieneFin(c){return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''))}
+  function _obsConFin(obs,valor){
+    const limpia=String(obs||'').replace(_CERT_FIN_RE,'').trim();
+    return valor?[limpia,`[MEDICION_FINALIZADA:${new Date().toISOString()}]`].filter(Boolean).join('\n'):limpia;
+  }
+  function _medicionTieneFinPersistida(numero){
+    return CERTIFICADOS_MEDICION.some(c=>String(c.medicion_numero)===String(numero)&&_certTieneFin(c));
+  }
+  function esMedicionFinalizada(numero){return !!_readFinMap()[String(numero)]||_medicionTieneFinPersistida(numero)}
   window.numeroCertificacionOS=function(osNumero){
     if(!osNumero)return null;
     const map=_readFinMap();
-    if(!Object.keys(map).length)return null;
     const m=String(osNumero).match(/(\d+)$/);
     if(!m)return null;
     const n=Number(m[1]);
     if(!n)return null;
-    const cert=CERTIFICADOS_MEDICION.find(c=>!!map[String(c.medicion_numero)]&&certOrdenes(c).some(o=>Number(o)===n));
+    const cert=CERTIFICADOS_MEDICION.find(c=>(!!map[String(c.medicion_numero)]||_certTieneFin(c))&&certOrdenes(c).some(o=>Number(o)===n));
     return cert?String(cert.medicion_numero):null;
   };
   window.osEstaCertificada=function(osNumero){return !!window.numeroCertificacionOS(osNumero)};
@@ -6775,6 +6783,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(valor)map[String(numero)]=true;
     else delete map[String(numero)];
     _writeFinMap(map);
+    const certs=CERTIFICADOS_MEDICION.filter(c=>String(c.medicion_numero)===String(numero)&&c.estado==='medido');
+    for(const c of certs){
+      try{
+        await actualizarCertificado(c.id||c.localId,{
+          observaciones_inspector:_obsConFin(c.observaciones_inspector,valor),
+          actualizado_por:currentUser?.name||'Inspector'
+        });
+      }catch(error){
+        console.warn('No se pudo persistir finalización de medición',error);
+      }
+    }
     const medList=$('med-list');
     if(medList)medList.innerHTML=renderSeguimientoCertificados(certsZona(currentUser?.zona),true);
     setTimeout(()=>{abrirMedicionInspector(numero);filterOS&&filterOS();},0);
@@ -8343,6 +8362,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const CERT_FIN_KEY='dgie_cert_finalizada_medicion_v1';
   function finMap(){try{return JSON.parse(localStorage.getItem(CERT_FIN_KEY)||'{}')||{}}catch(_){return {}}}
   function medFinalizada(numero){return !!finMap()[String(numero)]}
+  function certTieneFinPersistida(c){return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''))}
   function osValor(numero){
     const m=String(numero||'').match(/\d+/g);
     return m?Number(m[m.length-1])||0:0;
@@ -8350,7 +8370,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function certVisibleFinal(c){
     if(!c||String(c.estado||'').toLowerCase()==='eliminado')return false;
     if(typeof window.certVisible==='function'&&!window.certVisible(c))return false;
-    return String(c.estado||'').toLowerCase()==='medido'&&!!c.medicion_numero&&medFinalizada(c.medicion_numero);
+    return String(c.estado||'').toLowerCase()==='medido'&&!!c.medicion_numero&&(medFinalizada(c.medicion_numero)||certTieneFinPersistida(c));
   }
   function certOrdenesFinal(c){
     if(typeof window.certOrdenes==='function')return window.certOrdenes(c);
@@ -12546,6 +12566,177 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }).join('');
   }
 
+  function num(v){
+    return Number(String(v ?? '').replace(',','.')) || 0;
+  }
+
+  function fmtMods(v){
+    return num(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3});
+  }
+
+  function zonaCertCoord(c){
+    const directa = Number(c?.zona);
+    if(Number.isFinite(directa) && directa > 0) return directa;
+    const estId = Number(c?.establecimiento_id || c?.estId || 0);
+    return estId && typeof zonaEstablecimiento === 'function' ? Number(zonaEstablecimiento(estId) || 0) : 0;
+  }
+
+  function certVisibleCoord(c){
+    if(!c || String(c.estado || '').toLowerCase() === 'eliminado') return false;
+    return typeof window.certVisible === 'function' ? window.certVisible(c) : true;
+  }
+
+  function certOrdenesCoord(c){
+    if(typeof window.certOrdenes === 'function') return window.certOrdenes(c);
+    const src = String(c?.observaciones_inspector || '');
+    const m = src.match(/\[OS_CERT:([^\]]*)\]/);
+    return String(c?.ordenes_servicio_certificado || c?.ordenes_certificado || m?.[1] || '')
+      .split(',')
+      .map(x => x.trim())
+      .filter(Boolean);
+  }
+
+  function obsInspectorCoord(c){
+    let src = String(c?.observaciones_inspector || '');
+    try{src = decodeURIComponent(src)}catch(_){}
+    return src
+      .replace(/\[OS_CERT:[^\]]*\]/g,'')
+      .replace(/\[RUBROS_CERT:[^\]]*\]/g,'')
+      .replace(/\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'')
+      .replace(/\[MEDICION_FINALIZADA:[^\]]*\]/g,'')
+      .replace(/\[CONV_CERT:[\s\S]*$/g,'')
+      .replace(/\[CONVERSACION:[\s\S]*?\]/g,'')
+      .trim();
+  }
+
+  function certActualMods(c){
+    return num(c?.modulos_inspector || c?.modulos_original);
+  }
+
+  function certLinkCoord(c){
+    const url = c?.url_inspector || c?.url_original || '';
+    const name = c?.archivo_inspector || c?.archivo_original || 'Archivo';
+    return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>` : esc(name);
+  }
+
+  function readCertFinMapCoord(){
+    try{return JSON.parse(localStorage.getItem('dgie_cert_finalizada_medicion_v1') || '{}') || {}}
+    catch(_){return {}}
+  }
+
+  function certTieneFinCoord(c){
+    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector || ''));
+  }
+
+  function medicionFinalizadaCoord(numero){
+    return !!readCertFinMapCoord()[String(numero)];
+  }
+
+  function certificadosZonaCoord(z){
+    const certs = Array.isArray(window.CERTIFICADOS_MEDICION) ? window.CERTIFICADOS_MEDICION : [];
+    return certs.filter(c => certVisibleCoord(c) && zonaCertCoord(c) === Number(z));
+  }
+
+  function certificadosMedicionFinalizadaCoord(z){
+    return certificadosZonaCoord(z).filter(c =>
+      String(c?.estado || '').toLowerCase() === 'medido' &&
+      c?.medicion_numero &&
+      (medicionFinalizadaCoord(c.medicion_numero) || certTieneFinCoord(c))
+    );
+  }
+
+  function gruposMedicionesCoord(certs){
+    return certs.reduce((acc, c) => {
+      const key = String(c.medicion_numero);
+      acc[key] = acc[key] || [];
+      acc[key].push(c);
+      return acc;
+    }, {});
+  }
+
+  const MODULOS_CERT_COORD = {
+    total:11300,
+    y2026:9420,
+    y2027:1880
+  };
+
+  function renderResumenModulosCoord(grupos){
+    const nums = Object.keys(grupos).sort((a,b) => Number(a) - Number(b));
+    let acumulado = 0;
+    const rows = nums.map(num => {
+      const data = grupos[num];
+      const mod = data.reduce((acc, c) => acc + certActualMods(c), 0);
+      acumulado += mod;
+      return `<tr>
+        <td>Medición Nº ${esc(num)}</td>
+        <td>${data.length}</td>
+        <td>${fmtMods(mod)}</td>
+        <td>${fmtMods(acumulado)}</td>
+        <td><button class="secondary-btn" style="padding:6px 10px" onclick="abrirMedicionCoordinador(Number(document.getElementById('coord-cert-zona')?.value||0), '${esc(num)}')">Ver</button></td>
+      </tr>`;
+    }).join('');
+    const saldo = MODULOS_CERT_COORD.total - acumulado;
+    const tableStyle='width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px';
+    const thStyle='text-align:left;background:#eef3f8;color:#0f2f57;font-weight:900;padding:10px 12px;border-bottom:1px solid #dbe6f2';
+    const tdStyle='padding:10px 12px;border-bottom:1px solid #e5edf6;color:#123c69;vertical-align:middle';
+    const tdNum='padding:10px 12px;border-bottom:1px solid #e5edf6;color:#123c69;text-align:right;font-variant-numeric:tabular-nums;vertical-align:middle';
+    return `<div class="med-card" style="margin-top:14px">
+      <div class="card-title">Módulos de certificación</div>
+      <div class="med-inline-grid" style="margin-top:10px">
+        <div>
+          <table style="${tableStyle}">
+            <tbody>
+              <tr><th style="${thStyle}">Concepto</th><th style="${thStyle};text-align:right">Módulos</th></tr>
+              <tr><td style="${tdStyle}">Módulos totales</td><td style="${tdNum}">${fmtMods(MODULOS_CERT_COORD.total)}</td></tr>
+              <tr><td style="${tdStyle}">Módulos 2026</td><td style="${tdNum}">${fmtMods(MODULOS_CERT_COORD.y2026)}</td></tr>
+              <tr><td style="${tdStyle}">Módulos 2027</td><td style="${tdNum}">${fmtMods(MODULOS_CERT_COORD.y2027)}</td></tr>
+              <tr><td style="${tdStyle}">Módulos consumidos</td><td style="${tdNum}">${fmtMods(acumulado)}</td></tr>
+              <tr><td style="${tdStyle}">Saldo disponible</td><td style="${tdNum}">${fmtMods(saldo)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <table style="${tableStyle}">
+            <thead><tr><th style="${thStyle}">Medición</th><th style="${thStyle};width:90px;text-align:right">Cert.</th><th style="${thStyle};text-align:right">Módulos</th><th style="${thStyle};text-align:right">Acum.</th><th style="${thStyle};width:70px"></th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="5" style="${tdStyle};text-align:center;color:var(--muted)">Sin mediciones finalizadas.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderTablaMedicionCoord(data){
+    if(!data.length) return '';
+    return `<div class="os-table-wrap" style="margin-top:12px"><table class="os-table">
+      <thead><tr><th>Establecimiento</th><th>O.S.</th><th>Archivo</th><th>Módulos empresa</th><th>Módulos inspección</th><th>Período</th><th>Observaciones</th></tr></thead>
+      <tbody>${data.map(c => `<tr>
+        <td>${esc(c.establecimiento_nombre || '')}</td>
+        <td>${esc(certOrdenesCoord(c).join(', ') || '—')}</td>
+        <td>${certLinkCoord(c)}</td>
+        <td>${fmtMods(c.modulos_original)}</td>
+        <td>${fmtMods(certActualMods(c))}</td>
+        <td>${esc(c.periodo || '—')}</td>
+        <td>${esc(obsInspectorCoord(c) || '—')}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  window.abrirMedicionCoordinador = function(z, numero){
+    const body = document.getElementById('coord-cert-medicion-detalle');
+    if(!body) return;
+    const data = certificadosMedicionFinalizadaCoord(z).filter(c => String(c.medicion_numero) === String(numero));
+    const total = data.reduce((acc, c) => acc + certActualMods(c), 0);
+    body.innerHTML = `<div class="med-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Medición Nº ${esc(numero)} <span class="badge b-ok" style="font-size:11px;margin-left:6px">Finalizada por inspector</span></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${fmtMods(total)}</div>
+        </div>
+      </div>
+      ${renderTablaMedicionCoord(data)}
+    </div>`;
+  };
+
   window.renderCertificacionCoordinador = function(container){
     if(!container) return;
     container.innerHTML = `<div class="section-label">Coordinación · Certificación</div>
@@ -12571,7 +12762,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       </div>`;
   };
 
-  window.renderCertificacionCoordinadorZona = function(){
+  window.renderCertificacionCoordinadorZona = async function(){
     const z = Number(document.getElementById('coord-cert-zona')?.value || 0);
     const body = document.getElementById('coord-cert-zona-body');
     if(!body) return;
@@ -12579,7 +12770,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       body.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted);border:1px dashed var(--border);border-radius:14px;background:#f8fafc">Seleccioná una zona para continuar.</div>`;
       return;
     }
+    body.innerHTML = `<div style="text-align:center;padding:28px;color:var(--muted);border:1px dashed var(--border);border-radius:14px;background:#f8fafc">Cargando mediciones finalizadas...</div>`;
+    if(typeof window.cargarCertificadosMedicion === 'function') await window.cargarCertificadosMedicion();
     const inspector = (typeof INSPECTORS !== 'undefined' && INSPECTORS[z - 1]) ? INSPECTORS[z - 1] : '';
+    const todosZona = certificadosZonaCoord(z);
+    const enMedicion = todosZona.filter(c => String(c?.estado || '').toLowerCase() === 'medido' && c?.medicion_numero);
+    const finalizados = certificadosMedicionFinalizadaCoord(z);
+    const grupos = gruposMedicionesCoord(finalizados);
+    const nums = Object.keys(grupos).sort((a,b) => Number(a) - Number(b));
     body.innerHTML = `<div class="fixed-zone-box" style="opacity:1;margin-top:0">
       <div class="fixed-zone-title">Zona seleccionada</div>
       <div class="fixed-zone-grid">
@@ -12592,6 +12790,22 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           <div class="fixed-zone-value">${esc(inspector || 'Sin inspector asignado')}</div>
         </div>
       </div>
+    </div>
+    ${renderResumenModulosCoord(grupos)}
+    <div class="med-card" style="margin-top:14px">
+      <div class="card-header" style="margin-bottom:8px">
+        <div>
+          <div class="card-title">Mediciones finalizadas por inspector</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Aparecen acá cuando el inspector marca la medición como finalizada.</div>
+        </div>
+        <span class="badge b-ok">${nums.length}</span>
+      </div>
+      ${nums.length ? `<div class="med-btn-grid">${nums.map(num => {
+        const data = grupos[num];
+        const total = data.reduce((acc, c) => acc + certActualMods(c), 0);
+        return `<button class="secondary-btn med-btn" onclick="abrirMedicionCoordinador(${z}, '${esc(num)}')"><strong>Medición Nº ${esc(num)} <span class="badge b-ok" style="font-size:10px">✓</span></strong><span>${data.length} certificados · ${fmtMods(total)} módulos</span></button>`;
+      }).join('')}</div><div id="coord-cert-medicion-detalle" style="margin-top:14px"></div>`
+      : `<div style="text-align:center;padding:26px;color:var(--muted);border:1px dashed var(--border);border-radius:12px;background:#f8fafc">Todavía no hay mediciones finalizadas para Zona ${z}.</div>`}
     </div>`;
   };
 
