@@ -2570,11 +2570,18 @@ function renderLcGraficos(zona){
   const recBase = z
     ? RECLAMOS_ZONA.filter(r=>Number(r.zona)===z||zonaEstablecimiento(r.estId)===z)
     : RECLAMOS_ZONA.slice();
+  const prioCanon = (r)=>{
+    const raw=String(r?.prio||r?.prioridad||'medio').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(raw.includes('critic')) return 'critico';
+    if(raw.includes('alt')) return 'alto';
+    if(raw.includes('baj')) return 'bajo';
+    return 'medio';
+  };
   const recs={
-    critico:recBase.filter(r=>r.prio==='critico').length,
-    alto:recBase.filter(r=>r.prio==='alto').length,
-    medio:recBase.filter(r=>r.prio==='medio').length,
-    bajo:recBase.filter(r=>r.prio==='bajo').length
+    critico:recBase.filter(r=>prioCanon(r)==='critico').length,
+    alto:recBase.filter(r=>prioCanon(r)==='alto').length,
+    medio:recBase.filter(r=>prioCanon(r)==='medio').length,
+    bajo:recBase.filter(r=>prioCanon(r)==='bajo').length
   };
   const totalRecs=recs.critico+recs.alto+recs.medio+recs.bajo;
   _drawLc('lc-reclamos','doughnut',
@@ -2590,10 +2597,13 @@ function renderLcGraficos(zona){
   const estados=['pendiente','trabajando','finalizado','anulado'];
   const estadoLabels=['Pendiente','Trabajando','Finalizado','Anulado'];
   const estadoColors=['#f59e0b','#2563eb','#16a34a','#991b1b'];
-  const estadoData=estados.map(est=>osBase.filter(o=>{
-    const e=typeof getEstadoOS==='function'?getEstadoOS(o):String(o.estado||'').toLowerCase();
-    return e===est;
-  }).length);
+  const estadoData = (typeof reclamoEstadoCounts==='function')
+    ? reclamoEstadoCounts(recBase, osBase)
+    : estados.map(est=>recBase.filter(r=>{
+      const os=typeof findOSForReclamo==='function'?findOSForReclamo(r, osBase):null;
+      const e=os?(typeof getEstadoOS==='function'?getEstadoOS(os):String(os.estado||'').toLowerCase()):'pendiente';
+      return e===est;
+    }).length);
   const totalEstados=estadoData.reduce((a,b)=>a+b,0);
   _drawLc('lc-mant-estados','doughnut',estadoLabels,totalEstados?estadoData:[1,1,1,1],estadoColors);
 }
