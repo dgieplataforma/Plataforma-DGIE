@@ -6598,7 +6598,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function tablaMedicion(data){
     const th='background:#000;color:#fff;font-weight:bold;text-align:left;padding:6px 8px;border:1px solid #a3a3a3';
-    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);return `<tr><td style="${td}">${escapeHtml(c.establecimiento_nombre||'')}</td><td style="${td}">${escapeHtml(certOrdenes(c).join(', ')||'')}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody></table>`;
+    const totalEmpresa=data.reduce((a,c)=>a+n(c.modulos_original),0);
+    const totalInspeccion=data.reduce((a,c)=>a+modActual(c),0);
+    const totalDiff=totalInspeccion-totalEmpresa;
+    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);return `<tr><td style="${td}">${escapeHtml(c.establecimiento_nombre||'')}</td><td style="${td}">${escapeHtml(certOrdenes(c).join(', ')||'')}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="2">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}"></td></tr></tfoot></table>`;
   }
   window.exportarMedicionExcel=function(numero){
     const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
@@ -12707,17 +12710,29 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   function renderTablaMedicionCoord(data){
     if(!data.length) return '';
+    const totalEmpresa = data.reduce((acc, c) => acc + num(c?.modulos_original), 0);
+    const totalInspeccion = data.reduce((acc, c) => acc + certActualMods(c), 0);
+    const totalDiff = totalInspeccion - totalEmpresa;
     return `<div class="os-table-wrap" style="margin-top:12px"><table class="os-table">
-      <thead><tr><th>Establecimiento</th><th>O.S.</th><th>Archivo</th><th>Módulos empresa</th><th>Módulos inspección</th><th>Período</th><th>Observaciones</th></tr></thead>
+      <thead><tr><th>Establecimiento</th><th>O.S.</th><th>Archivo</th><th>Módulos empresa</th><th>Módulos inspección</th><th>Diferencia (inspección - empresa)</th><th>Período</th><th>Observaciones</th></tr></thead>
       <tbody>${data.map(c => `<tr>
         <td>${esc(c.establecimiento_nombre || '')}</td>
         <td>${esc(certOrdenesCoord(c).join(', ') || '—')}</td>
         <td>${certLinkCoord(c)}</td>
         <td>${fmtMods(c.modulos_original)}</td>
         <td>${fmtMods(certActualMods(c))}</td>
+        <td>${fmtMods(certActualMods(c) - num(c?.modulos_original))}</td>
         <td>${esc(c.periodo || '—')}</td>
         <td>${esc(obsInspectorCoord(c) || '—')}</td>
       </tr>`).join('')}</tbody>
+      <tfoot><tr>
+        <th colspan="3">Totales</th>
+        <th>${fmtMods(totalEmpresa)}</th>
+        <th>${fmtMods(totalInspeccion)}</th>
+        <th>${fmtMods(totalDiff)}</th>
+        <th></th>
+        <th></th>
+      </tr></tfoot>
     </table></div>`;
   }
 
