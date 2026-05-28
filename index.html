@@ -11310,6 +11310,45 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function commBadge(tipo){return {tarea:'b-warn',notificacion:'b-info',comunicado:'b-info'}[tipo]||'b-info'}
   function estadoBadge(estado){return {visto:'b-info',en_proceso:'b-warn',completado:'b-ok',pendiente:'b-neutral'}[estado]||'b-neutral'}
   function estadoLabel(estado){return {visto:'Visto',en_proceso:'En proceso',completado:'Completado',pendiente:'No visto'}[estado]||'No visto'}
+  function nombreArchivoComm(f){
+    return f?.name||f?.nombre||f?.filename||'archivo';
+  }
+  function urlArchivoComm(f){
+    if(!f)return '';
+    if(f.url||f.secure_url||f.dataUrl)return f.url||f.secure_url||f.dataUrl;
+    const cc=window.DGIE_CLOUDINARY||{};
+    if(f.publicId&&cc.cloudName){
+      const rt=f.resourceType||f.resource_type||'raw';
+      return `https://res.cloudinary.com/${encodeURIComponent(cc.cloudName)}/${encodeURIComponent(rt)}/upload/${String(f.publicId).replace(/^\/+/,'')}`;
+    }
+    return '';
+  }
+  function urlDescargaCloudinary(url,nombre){
+    if(!url||!url.includes('res.cloudinary.com')||!url.includes('/upload/'))return url;
+    const safe=String(nombre||'archivo').replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_')||'archivo';
+    if(url.includes('/upload/fl_attachment'))return url;
+    return url.replace('/upload/',`/upload/fl_attachment:${encodeURIComponent(safe)}/`);
+  }
+  window.descargarArchivoComunicacion=async function(url,nombre){
+    const href=urlDescargaCloudinary(url,nombre);
+    if(!href||href==='#'){alert('Este archivo no tiene una URL de descarga válida.');return;}
+    const a=document.createElement('a');
+    a.href=href;
+    a.download=nombre||'archivo';
+    a.target='_blank';
+    a.rel='noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>a.remove(),0);
+  };
+  function archivosCommHTML(files,prefix='Archivo'){
+    const arr=Array.isArray(files)?files:[];
+    if(!arr.length)return '';
+    return `<div class="comm-targets">${arr.map((f,i)=>{
+      const nombre=nombreArchivoComm(f), href=urlArchivoComm(f);
+      return `<button type="button" class="badge b-neutral" style="border:0;cursor:pointer;text-decoration:none" onclick="descargarArchivoComunicacion(${esc(JSON.stringify(href))},${esc(JSON.stringify(nombre))})">${esc(prefix)} ${i+1}: ${esc(nombre)}</button>`;
+    }).join('')}</div>`;
+  }
   function encuestaConfig(c){
     if(!c?.encuesta)return null;
     if(Array.isArray(c.encuesta))return c.encuesta.length?{pregunta:'Encuesta',opciones:c.encuesta}:null;
@@ -11319,14 +11358,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function pendientesInspector(z){return (COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='inspector'&&Number(d.zona)===Number(z))&&!completada(c,keyInspector(z))).length}
   function pendientesEmpresa(z){return (COMUNICACIONES||[]).filter(c=>destinosComm(c).some(d=>d.tipo==='empresa'&&Number(d.zona)===Number(z))&&!completada(c,keyEmpresa(z))).length}
   function archivosHTML(c){
-    const files=Array.isArray(c.archivos)?c.archivos:[];
-    if(!files.length)return '';
-    return `<div class="comm-targets">${files.map((f,i)=>`<a class="badge b-neutral" href="${esc(f.url||f.secure_url||f.dataUrl||'#')}" target="_blank" download="${esc(f.name||f.nombre||'archivo')}" style="text-decoration:none">Archivo ${i+1}: ${esc(f.name||f.nombre||'sin nombre')}</a>`).join('')}</div>`;
+    return archivosCommHTML(c.archivos,'Archivo');
   }
   function archivosRespuestaHTML(st){
-    const files=Array.isArray(st?.archivosRespuesta)?st.archivosRespuesta:[];
-    if(!files.length)return '';
-    return `<div class="comm-targets" style="margin-top:8px">${files.map((f,i)=>`<a class="badge b-neutral" href="${esc(f.url||f.secure_url||f.dataUrl||'#')}" target="_blank" download="${esc(f.name||f.nombre||'archivo')}" style="text-decoration:none">Respuesta archivo ${i+1}: ${esc(f.name||f.nombre||'sin nombre')}</a>`).join('')}</div>`;
+    return archivosCommHTML(st?.archivosRespuesta,'Respuesta archivo');
   }
   function respuestaTextoHTML(st){
     const texto=(st?.respuestaTexto||'').trim();
