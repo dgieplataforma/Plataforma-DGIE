@@ -5758,9 +5758,21 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 
   window.renderReclamosCoordinador=function(c){
-    c.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Vista global de reclamos de todas las zonas.</div></div><span class="badge b-info" id="coord-reclamos-count">— reclamos</span><button class="secondary-btn" style="margin-left:8px;padding:6px 13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px" onclick="exportarReclamosExcel()">⬇ Excel</button></div><div class="os-filters"><input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título o rubro..." oninput="filterReclamosCoord()"><select class="filter-sel" id="coord-rec-zona" onchange="filterReclamosCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-rec-prio" onchange="filterReclamosCoord()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="coord-rec-os" onchange="filterReclamosCoord()"><option value="">Con y sin OS</option><option value="con">Con OS asignada</option><option value="sin">Sin OS</option></select>${dateFiltersHTML('coord-rec','filterReclamosCoord()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th></tr></thead><tbody id="coord-rec-body"></tbody></table></div></div>`;
+    c.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Vista global de reclamos de todas las zonas.</div></div><span class="badge b-info" id="coord-reclamos-count">— reclamos</span><button class="secondary-btn" style="margin-left:8px;padding:6px 13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px" onclick="exportarReclamosExcel()">⬇ Excel</button></div><div class="os-filters"><input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título o rubro..." oninput="filterReclamosCoord()"><select class="filter-sel" id="coord-rec-zona" onchange="filterReclamosCoord()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><select class="filter-sel" id="coord-rec-prio" onchange="filterReclamosCoord()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="coord-rec-os" onchange="filterReclamosCoord()"><option value="">Con y sin OS</option><option value="con">Con OS asignada</option><option value="sin">Sin OS</option></select>${dateFiltersHTML('coord-rec','filterReclamosCoord()')}</div><div class="os-table-wrap"><table class="os-table"><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th><th>Fotos</th></tr></thead><tbody id="coord-rec-body"></tbody></table></div></div>`;
     filterReclamosCoord();
   };
+  function fotosReclamoCoordHTML(r){
+    const fotos=Array.isArray(r.fotos)?r.fotos:[];
+    if(fotos.length){
+      return `<div style="display:flex;gap:6px;flex-wrap:wrap;min-width:96px">${fotos.map((f,i)=>{
+        const src=typeof fotoUrlDGIE==='function'?fotoUrlDGIE(f):(f?.url||f?.secure_url||f?.dataUrl||f?.path||'');
+        const nombre=typeof fotoNombreDGIE==='function'?fotoNombreDGIE(f,'Foto del reclamo'):(f?.nombre||f?.name||`Foto ${i+1}`);
+        return src?`<img src="${src}" alt="${escapeHtml(nombre)}" title="${escapeHtml(nombre)}" class="reclamo-foto-thumb" style="width:46px;height:46px" onclick="event.stopPropagation();window.open(this.src,'_blank')">`: '';
+      }).join('')}</div>`;
+    }
+    if(Number(r.fotos)>0)return `<span class="badge b-info">${Number(r.fotos)} foto${Number(r.fotos)===1?'':'s'}</span>`;
+    return '<span style="color:var(--muted);font-size:12px">—</span>';
+  }
   window.filterReclamosCoord=function(){
     const q=($('coord-rec-q')?.value||'').toLowerCase();
     const z=$('coord-rec-zona')?.value||'';
@@ -5777,14 +5789,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!el)return;
     const badge=$('coord-reclamos-count');
     if(badge)badge.textContent=`${data.length} reclamo${data.length!==1?'s':''}`;
-    if(!data.length){el.innerHTML=`<tr><td colspan="8" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;return;}
+    if(!data.length){el.innerHTML=`<tr><td colspan="9" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;return;}
     el.innerHTML=data.map(r=>{
       const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
       const p=r.prio||r.prioridad||'medio';
       const reiterado=reclamoReiteradoDe(r);
       const tieneOS=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite';
       const _osObjC=tieneOS?OS_ZONA.find(x=>x.numero===r.os):null;const _osEstC=_osObjC?getEstadoOS(_osObjC):'';const _osLblC=_osObjC?estadoOSLabel(_osObjC.estado):'';
-      return `<tr><td><div class="os-num">${escapeHtml(reclamoNumeroVisible(r)||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado</span>`:''}</td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge ${_osEstC==='finalizado'?'b-ok':_osEstC==='trabajando'?'b-info':_osEstC==='anulado'?'b-danger':'b-warn'}">${escapeHtml(r.os)}</span>${_osLblC?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${_osLblC}</div>`:''}` :'<span class="badge b-neutral">Sin OS</span>'}</td></tr>`;
+      return `<tr><td><div class="os-num">${escapeHtml(reclamoNumeroVisible(r)||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado</span>`:''}</td><td>${zona||'—'}</td><td>${escapeHtml(r.est||r.establecimiento||'—')}</td><td>${escapeHtml(r.titulo||'—')}</td><td>${escapeHtml(r.rubro||'—')}</td><td>${escapeHtml(r.fecha||'—')}</td><td>${prioBadgeFecha(p)}</td><td>${tieneOS?`<span class="badge ${_osEstC==='finalizado'?'b-ok':_osEstC==='trabajando'?'b-info':_osEstC==='anulado'?'b-danger':'b-warn'}">${escapeHtml(r.os)}</span>${_osLblC?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${_osLblC}</div>`:''}` :'<span class="badge b-neutral">Sin OS</span>'}</td><td>${fotosReclamoCoordHTML(r)}</td></tr>`;
     }).join('');
   };
 
@@ -11326,20 +11338,36 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function urlDescargaCloudinary(url,nombre){
     if(!url||!url.includes('res.cloudinary.com')||!url.includes('/upload/'))return url;
     const safe=String(nombre||'archivo').replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_')||'archivo';
+    if(url.includes('/image/upload/')&&String(url).toLowerCase().split('?')[0].endsWith('.pdf'))return url;
     if(url.includes('/upload/fl_attachment'))return url;
     return url.replace('/upload/',`/upload/fl_attachment:${encodeURIComponent(safe)}/`);
+  }
+  function archivoCloudinaryPdfNoDescargable(url){
+    return !!url&&url.includes('res.cloudinary.com')&&url.includes('/image/upload/')&&String(url).toLowerCase().split('?')[0].endsWith('.pdf');
   }
   window.descargarArchivoComunicacion=async function(url,nombre){
     const href=urlDescargaCloudinary(url,nombre);
     if(!href||href==='#'){alert('Este archivo no tiene una URL de descarga válida.');return;}
-    const a=document.createElement('a');
-    a.href=href;
-    a.download=nombre||'archivo';
-    a.target='_blank';
-    a.rel='noopener';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>a.remove(),0);
+    try{
+      const res=await fetch(href);
+      if(!res.ok)throw new Error(String(res.status));
+      const blob=await res.blob();
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=nombre||'archivo';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},0);
+    }catch(error){
+      const a=document.createElement('a');
+      a.href=href;
+      a.download=nombre||'archivo';
+      a.target='_blank';
+      a.rel='noopener';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>a.remove(),0);
+    }
   };
   function archivosCommHTML(files,prefix='Archivo'){
     const arr=Array.isArray(files)?files:[];
