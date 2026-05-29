@@ -5773,6 +5773,18 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(Number(r.fotos)>0)return `<span class="badge b-info">${Number(r.fotos)} foto${Number(r.fotos)===1?'':'s'}</span>`;
     return '<span style="color:var(--muted);font-size:12px">—</span>';
   }
+  function estadoReclamoCoordKey(r){
+    if(typeof estadoReclamoCanon==='function')return estadoReclamoCanon(r,OS_ZONA);
+    const os=r?.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite'
+      ? OS_ZONA.find(o=>String(o.numero)===String(r.os))
+      : null;
+    return os&&typeof getEstadoOS==='function'?getEstadoOS(os):'pendiente';
+  }
+  function resumenEstadosReclamosCoord(data){
+    const counts={pendiente:0,trabajando:0,finalizado:0,anulado:0};
+    (data||[]).forEach(r=>{const k=estadoReclamoCoordKey(r);counts[counts[k]!==undefined?k:'pendiente']++;});
+    return `<span class="badge b-warn">${counts.pendiente} pendientes</span> <span class="badge b-info">${counts.trabajando} trabajando</span> <span class="badge b-ok">${counts.finalizado} finalizados</span> <span class="badge b-danger">${counts.anulado} anulados</span>`;
+  }
   window.filterReclamosCoord=function(){
     const q=($('coord-rec-q')?.value||'').toLowerCase();
     const z=$('coord-rec-zona')?.value||'';
@@ -5788,7 +5800,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const el=$('coord-rec-body');
     if(!el)return;
     const badge=$('coord-reclamos-count');
-    if(badge)badge.textContent=`${data.length} reclamo${data.length!==1?'s':''}`;
+    if(badge)badge.innerHTML=`${data.length} reclamo${data.length!==1?'s':''} · ${resumenEstadosReclamosCoord(data)}`;
     if(!data.length){el.innerHTML=`<tr><td colspan="9" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;return;}
     el.innerHTML=data.map(r=>{
       const zona=Number(r.zona||zonaEstablecimiento(r.estId)||0);
