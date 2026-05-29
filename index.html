@@ -12659,7 +12659,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
                 <th>Fecha</th>
                 <th>Prioridad</th>
                 <th>Estado</th>
-                <th>OS</th>
                 <th>Fotos</th>
                 <th>Carga / edición</th>
                 <th>Acciones</th>
@@ -12691,12 +12690,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <td>${escapeHtml(r.fecha || '—')}</td>
         <td>${prioBadgeCallcenter(r.prio || r.prioridad)}</td>
         <td><span class="badge ${st.cls}">${escapeHtml(st.label)}</span></td>
-        <td>${escapeHtml(r.os || 'Sin OS')}</td>
         <td>${fotos ? `<span class="badge b-info">${fotos}</span>` : '—'}</td>
         <td>${auditoriaReclamoCallcenter(r)}</td>
         <td><button class="edit-btn" type="button" onclick='abrirEdicionReclamoCallcenter(${JSON.stringify(key)})'>Editar</button></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="12" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
+    }).join('') : `<tr><td colspan="11" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
   };
 
   window.cerrarEdicionReclamoCallcenter = function(){
@@ -12830,7 +12828,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <td>${esc(r.fecha || '—')}</td>
         <td>${esc(r.prio || r.prioridad || 'medio')}</td>
         <td>${esc(st.label)}</td>
-        <td>${esc(r.os || 'Sin OS')}</td>
         <td>${esc(fechaHoraCallcenter(reclamoCreadoEnCallcenter(r)))}${reclamoFueEditadoCallcenter(r) ? `<br>Editado: ${esc(fechaHoraCallcenter(reclamoEditadoEnCallcenter(r)))}` : ''}</td>
       </tr>`;
     }).join('');
@@ -12849,7 +12846,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="meta">Generado: ${esc(hoy)} · Total exportado: ${rows.length}</div>
       <div class="summary">${esc(resumen)}</div>
       <table>
-        <thead><tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>OS</th><th>Carga / edición</th></tr></thead>
+        <thead><tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>Carga / edición</th></tr></thead>
         <tbody>${body}</tbody>
       </table>
     </div>`;
