@@ -7986,6 +7986,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(typeof reclamoNumeroVisible==='function')return reclamoNumeroVisible(r);
     return r?.numero||'';
   }
+  function mismaZonaOEstablecimiento(r,o){
+    const recEst=Number(r?.estId||r?.establecimiento_id||0);
+    const osEst=Number(o?.estId||o?.establecimiento_id||0);
+    if(recEst&&osEst)return recEst===osEst;
+    const recZona=Number(r?.zona||(typeof zonaEstablecimiento==='function'&&recEst?zonaEstablecimiento(recEst):0));
+    const osZona=Number(o?.zona||(typeof zonaEstablecimiento==='function'&&osEst?zonaEstablecimiento(osEst):0));
+    return !recZona||!osZona||recZona===osZona;
+  }
   function recSeleccionados(){
     return [...new Set([...document.querySelectorAll('input[name="nos-reclamo"]:checked')]
       .map(x=>String(x.value||'').trim())
@@ -7997,7 +8005,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const actuales=new Set(String(os?.reclamoNumero||'').split(',').map(x=>x.trim()).filter(Boolean));
     RECLAMOS_ZONA.forEach(r=>{
       if(numeroAnterior&&String(r.os||'')===String(numeroAnterior))r.os='Sin OS';
-      if(actuales.has(String(recNumero(r)||'')))r.os=os.numero;
+      if(actuales.has(String(recNumero(r)||''))&&mismaZonaOEstablecimiento(r,os))r.os=os.numero;
     });
   }
   function volverOS(){
@@ -8080,6 +8088,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(typeof reclamoNumeroVisible==='function')return String(reclamoNumeroVisible(r)||'').trim();
     return String(r?.numero||'').trim();
   }
+  function mismaZonaOEstablecimiento(r,o){
+    const recEst=Number(r?.estId||r?.establecimiento_id||0);
+    const osEst=Number(o?.estId||o?.establecimiento_id||0);
+    if(recEst&&osEst)return recEst===osEst;
+    const recZona=Number(r?.zona||(typeof zonaEstablecimiento==='function'&&recEst?zonaEstablecimiento(recEst):0));
+    const osZona=Number(o?.zona||(typeof zonaEstablecimiento==='function'&&osEst?zonaEstablecimiento(osEst):0));
+    return !recZona||!osZona||recZona===osZona;
+  }
   function osPendienteText(v){
     const s=norm(v);
     return !s||s==='sin os'||s==='pendiente'||s==='en tramite'||s==='en trámite';
@@ -8090,10 +8106,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const osRef=String(r.os||'').trim();
     if(osRef&&!osPendienteText(osRef)){
       const byNum=(ordenes||[]).find(o=>String(o.numero||'').trim()===osRef);
-      if(byNum)return byNum;
+      if(byNum&&mismaZonaOEstablecimiento(r,byNum))return byNum;
     }
     if(n){
-      const byRec=(ordenes||[]).find(o=>String(o.reclamoNumero||o.reclamo||'').split(',').map(x=>x.trim()).includes(n));
+      const byRec=(ordenes||[]).find(o=>String(o.reclamoNumero||o.reclamo||'').split(',').map(x=>x.trim()).includes(n)&&mismaZonaOEstablecimiento(r,o));
       if(byRec)return byRec;
     }
     return null;
@@ -12372,6 +12388,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return 0;
   }
 
+  function fechaFiltroMsCallcenter(value){
+    const s = String(value || '').trim();
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!iso) return 0;
+    return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])).getTime();
+  }
+
   function reclamoMes(r){
     const s = String(r?.fecha || '');
     const iso = s.match(/^(\d{4})-(\d{2})-\d{2}/);
@@ -12489,7 +12512,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const zona = String(document.getElementById('cc-rec-zona')?.value || '');
     const estado = String(document.getElementById('cc-rec-estado')?.value || '');
     const rubro = String(document.getElementById('cc-rec-rubro')?.value || '');
-    const mes = String(document.getElementById('cc-rec-mes')?.value || '');
+    const desde = fechaFiltroMsCallcenter(document.getElementById('cc-rec-desde')?.value || '');
+    const hasta = fechaFiltroMsCallcenter(document.getElementById('cc-rec-hasta')?.value || '');
     return (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : [])
       .filter(r => {
         const z = String(Number(r.zona || (typeof zonaEstablecimiento === 'function' ? zonaEstablecimiento(r.estId) : 0)) || '');
@@ -12497,7 +12521,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         const rb = typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : String(r.rubro || '');
         const hay = `${r.numero || ''} ${r.est || r.establecimiento || ''} ${r.titulo || ''} ${r.descripcion || ''} ${r.rubro || ''} ${r.os || ''}`.toLowerCase();
         const estadoOk = !estado || (estado === 'pendientes' ? !['finalizado','anulado'].includes(st.key) : st.key === estado);
-        return (!q || hay.includes(q)) && (!zona || z === zona) && estadoOk && (!rubro || rb === rubro) && (!mes || reclamoMes(r) === mes);
+        const fecha = reclamoFechaMs(r);
+        const fechaOk = (!desde || (fecha && fecha >= desde)) && (!hasta || (fecha && fecha <= hasta));
+        return (!q || hay.includes(q)) && (!zona || z === zona) && estadoOk && (!rubro || rb === rubro) && fechaOk;
       })
       .sort((a,b) => reclamoFechaMs(b) - reclamoFechaMs(a));
   }
@@ -12508,12 +12534,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const zona = document.getElementById('cc-rec-zona')?.value;
     const estadoSel = document.getElementById('cc-rec-estado');
     const rubroSel = document.getElementById('cc-rec-rubro');
-    const mes = document.getElementById('cc-rec-mes')?.value;
+    const desde = document.getElementById('cc-rec-desde')?.value;
+    const hasta = document.getElementById('cc-rec-hasta')?.value;
     if(q) parts.push(`Búsqueda: ${q}`);
     if(zona) parts.push(`Zona ${zona}`);
     if(estadoSel?.value) parts.push(`Estado: ${estadoSel.options[estadoSel.selectedIndex]?.text || estadoSel.value}`);
     if(rubroSel?.value) parts.push(`Rubro: ${rubroSel.value}`);
-    if(mes) parts.push(`Mes: ${mes}`);
+    if(desde && hasta && desde === hasta) parts.push(`Fecha: ${desde}`);
+    else {
+      if(desde) parts.push(`Desde: ${desde}`);
+      if(hasta) parts.push(`Hasta: ${hasta}`);
+    }
     return parts.length ? parts.join(' · ') : 'Sin filtros aplicados';
   }
 
@@ -12577,7 +12608,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           <select class="filter-sel" id="cc-rec-rubro" onchange="filtrarReclamosCallcenter()">
             <option value="">Todos los rubros</option>${rubros}
           </select>
-          <input class="filter-sel" id="cc-rec-mes" type="month" onchange="filtrarReclamosCallcenter()" title="Filtrar por mes">
+          <input class="filter-sel" id="cc-rec-desde" type="date" onchange="filtrarReclamosCallcenter()" title="Fecha desde">
+          <input class="filter-sel" id="cc-rec-hasta" type="date" onchange="filtrarReclamosCallcenter()" title="Fecha hasta">
           <button class="primary-btn" type="button" onclick="descargarPDFReclamosCallcenter()">Descargar PDF filtrado</button>
         </div>
         <div class="os-table-wrap">
