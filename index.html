@@ -12446,6 +12446,44 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return String(txt || '').replace(/\s*\[CC_EDITADO:[^\]]+\]\s*/g, '').trim();
   }
 
+  function fotoSlimCallcenter(f){
+    if(typeof f === 'string') return {provider:'', nombre:'Foto del reclamo', url:f};
+    return {
+      provider:f?.provider||'',
+      nombre:f?.nombre||f?.name||'Foto del reclamo',
+      url:f?.url||f?.secure_url||f?.path||f?.dataUrl||'',
+      publicId:f?.publicId||f?.public_id||null,
+      resourceType:f?.resourceType||f?.resource_type||null
+    };
+  }
+
+  function fotosActualesCallcenterHTML(r){
+    const fotos = Array.isArray(r?.fotos) ? r.fotos : [];
+    if(!fotos.length) return '<div style="font-size:12px;color:var(--muted)">Sin fotos cargadas.</div>';
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap">${fotos.map((f, i) => {
+      const src = typeof fotoUrlDGIE === 'function' ? fotoUrlDGIE(f) : (f?.url || f?.dataUrl || '');
+      const name = typeof fotoNombreDGIE === 'function' ? fotoNombreDGIE(f, `Foto ${i + 1}`) : `Foto ${i + 1}`;
+      return src ? `<img src="${escapeHtml(src)}" title="${escapeHtml(name)}" style="width:74px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer" onclick="window.open(this.src,'_blank')">` : '';
+    }).join('')}</div>`;
+  }
+
+  window.previsualizarFotosEdicionReclamoCallcenter = function(input){
+    const preview = document.getElementById('cc-edit-fotos-preview');
+    if(!preview) return;
+    preview.innerHTML = '';
+    Array.from(input.files || []).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.title = file.name;
+        img.style.cssText = 'width:74px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--border)';
+        preview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   function reclamosCallcenterFiltrados(){
     const q = String(document.getElementById('cc-rec-q')?.value || '').toLowerCase();
     const zona = String(document.getElementById('cc-rec-zona')?.value || '');
@@ -12624,6 +12662,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           </select></div>
           <div class="form-field"><label class="form-label">Rubro</label><select class="form-select" id="cc-edit-rubro">${rubros}</select></div>
           <div class="form-field full"><label class="form-label">Descripción</label><textarea class="form-textarea" id="cc-edit-desc">${escapeHtml(limpiarMarcaEdicionCallcenter(r.descripcion || r.titulo || ''))}</textarea></div>
+          <div class="form-field full">
+            <label class="form-label">Fotos actuales</label>
+            ${fotosActualesCallcenterHTML(r)}
+          </div>
+          <div class="form-field full">
+            <label class="form-label">Agregar fotos <span style="font-weight:400;color:var(--muted)">(se conservan las existentes)</span></label>
+            <input type="file" id="cc-edit-fotos" multiple accept="image/*"
+              style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px"
+              onchange="previsualizarFotosEdicionReclamoCallcenter(this)">
+            <div id="cc-edit-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+          </div>
         </div>
         <div class="form-error" id="cc-edit-error">Completá número, fecha, rubro y descripción.</div>
         <div class="modal-actions">
@@ -12650,6 +12699,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     const now = new Date().toISOString();
     const descripcionLimpia = limpiarMarcaEdicionCallcenter(descripcion);
+    const nuevasFotos = await leerFotosInputReclamo(document.getElementById('cc-edit-fotos'));
+    const fotosExistentes = Array.isArray(r.fotos) ? r.fotos.slice() : [];
+    const fotosFinales = nuevasFotos.length
+      ? fotosExistentes.concat(nuevasFotos).map(fotoSlimCallcenter).filter(f => f.url)
+      : fotosExistentes;
     const patch = {
       numero,
       titulo: descripcionLimpia,
@@ -12659,6 +12713,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       fecha: fechaLocalAISO(fechaISO),
       updated_at: now
     };
+    if(nuevasFotos.length) patch.fotos = fotosFinales;
     if(r.remoteId && window.DGIE_DB?.isConfigured && typeof window.DGIE_DB.actualizarReclamo === 'function'){
       const {data, error} = await window.DGIE_DB.actualizarReclamo(r.remoteId, patch);
       if(error){
@@ -12668,9 +12723,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       }
       r.updatedAt = data?.updated_at || now;
       r.editadoEn = data?.updated_at || now;
+      if(nuevasFotos.length) r.fotos = Array.isArray(data?.fotos) ? data.fotos : fotosFinales;
+      if(nuevasFotos.length && typeof persistirFotosSupabase === 'function'){
+        await persistirFotosSupabase('reclamo', r.remoteId, nuevasFotos, r.estId, r.zona);
+      }
     }else{
       r.updatedAt = now;
       r.editadoEn = now;
+      if(nuevasFotos.length) r.fotos = fotosFinales;
     }
     r.numero = numero;
     r.titulo = descripcionLimpia;
