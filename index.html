@@ -1942,7 +1942,7 @@ function actualizarZonaNuevoReclamo(){
       nuevoReclamo.titulo='[REITERADO] '+mensaje;
     }
   }
-  RECLAMOS_ZONA.unshift(nuevoReclamo);closeNuevoReclamo();if(currentUser?.role==='callcenter'){renderTab(0);alert('Reclamo cargado y derivado a Zona '+zonaEstablecimiento(estId));return}const zonaContent=$('zona-content');if(zonaContent)renderReclamos(zonaContent)}
+  RECLAMOS_ZONA.unshift(nuevoReclamo);closeNuevoReclamo();if(currentUser?.role==='callcenter'){renderTab(0);return}const zonaContent=$('zona-content');if(zonaContent)renderReclamos(zonaContent)}
 function renderEstablecimientosDireccion(container){
   container.innerHTML=`<div class="section-label">Dirección · Establecimientos</div>
   <div class="card">
@@ -2343,7 +2343,7 @@ function perfilToUser(p){
   const nombre=p.nombre||'Usuario';
   const parts=nombre.trim().split(' ');
   const initials=(parts.length>=2?(parts[0][0]+parts[1][0]):(nombre.slice(0,2))).toUpperCase();
-  const user={name:nombre,initials,role:rolMap[p.rol]||p.rol};
+  const user={id:p.id,name:nombre,initials,role:rolMap[p.rol]||p.rol};
   if(p.zona)user.zona=Number(p.zona);
   return user;
 }
@@ -2819,11 +2819,12 @@ function presupuestoOSParaDB(o){
   return [];
 }
 async function persistirReclamoSupabase(r){
-  if(!r||r._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearReclamo!=='function')return;
+  if(!r||r._remoteSaved)return{ok:true,skipped:true};
+  if(!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearReclamo!=='function')return{ok:true,local:true};
   const descripcionBase=limpiarMetaReiterado(r.descripcion||r.titulo||'');
   const descripcionConMeta=r.reiteradoDe?`${descripcionBase}\n[REITERADO_DE:${r.reiteradoDe}]`:descripcionBase;
   const numeroParaDB=r.reiteradoDe?`${r.reiteradoDe}-REP-${Date.now()}`:r.numero;
-  const {data,error}=await window.DGIE_DB.crearReclamo({
+  const payload={
     numero:numeroParaDB,
     establecimiento_id:Number(r.estId)||null,
     zona:Number(r.zona||zonaEstablecimiento(r.estId)||1),
@@ -2831,10 +2832,12 @@ async function persistirReclamoSupabase(r){
     descripcion:descripcionConMeta||null,
     prioridad:r.prio||'medio',
     rubro:r.rubro||null,
-    fecha:fechaLocalAISO(r.fecha),
-    creado_por:r.creadoPor||currentUser?.name||null
-  });
-  if(error){console.warn('No se pudo guardar reclamo en Supabase',error);return;}
+    fecha:fechaLocalAISO(r.fecha)
+  };
+  const userId=String(currentUser?.id||'');
+  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId))payload.creado_por=userId;
+  const {data,error}=await window.DGIE_DB.crearReclamo(payload);
+  if(error){console.warn('No se pudo guardar reclamo en Supabase',error);return{ok:false,error};}
   r.remoteId=data?.id||r.remoteId;
   r._remoteSaved=true;
   r.createdAt=data?.created_at||r.createdAt||r.creadoEn||null;
@@ -2854,6 +2857,7 @@ async function persistirReclamoSupabase(r){
     }
   }
   await persistirFotosSupabase('reclamo',r.remoteId,r.fotos,r.estId,r.zona);
+  return{ok:true,data};
 }
 async function persistirFotosSupabase(entidadTipo,entidadId,fotos,estId,zona){
   if(!entidadId||!Array.isArray(fotos)||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearFoto!=='function')return;
@@ -2939,9 +2943,40 @@ renderChartInsp=function(view='principal'){const z=Number(currentUser?.zona||sel
 
 // Envolver acciones para que todo quede guardado y refresque gráficos.
 const _guardarNuevoReclamoOriginal=guardarNuevoReclamo;
-guardarNuevoReclamo=async function(){const before=RECLAMOS_ZONA.length;await _guardarNuevoReclamoOriginal();if(RECLAMOS_ZONA.length!==before){await persistirReclamoSupabase(RECLAMOS_ZONA[0]);saveAppState();refreshVisiblePanels();}}
+guardarNuevoReclamo=async function(){
+  const before=RECLAMOS_ZONA.length;
+  await _guardarNuevoReclamoOriginal();
+  if(RECLAMOS_ZONA.length!==before){
+    const nuevo=RECLAMOS_ZONA[0];
+    const res=await persistirReclamoSupabase(nuevo);
+    if(res?.ok===false){
+      RECLAMOS_ZONA.shift();
+      refreshVisiblePanels();
+      alert('No se pudo guardar el reclamo en la base. No se cargó. Detalle: '+(res.error?.message||'error desconocido'));
+      return;
+    }
+    saveAppState();
+    refreshVisiblePanels();
+    if(currentUser?.role==='callcenter')alert('Reclamo cargado y derivado a Zona '+zonaEstablecimiento(nuevo.estId));
+  }
+}
 const _guardarNuevoReclamoModalOriginal=guardarNuevoReclamoModal;
-guardarNuevoReclamoModal=async function(){const before=RECLAMOS_ZONA.length;await _guardarNuevoReclamoModalOriginal();if(RECLAMOS_ZONA.length!==before){await persistirReclamoSupabase(RECLAMOS_ZONA[0]);saveAppState();refreshVisiblePanels();}}
+guardarNuevoReclamoModal=async function(){
+  const before=RECLAMOS_ZONA.length;
+  await _guardarNuevoReclamoModalOriginal();
+  if(RECLAMOS_ZONA.length!==before){
+    const nuevo=RECLAMOS_ZONA[0];
+    const res=await persistirReclamoSupabase(nuevo);
+    if(res?.ok===false){
+      RECLAMOS_ZONA.shift();
+      refreshVisiblePanels();
+      alert('No se pudo guardar el reclamo en la base. No se cargó. Detalle: '+(res.error?.message||'error desconocido'));
+      return;
+    }
+    saveAppState();
+    refreshVisiblePanels();
+  }
+}
 const _guardarNuevaOSOriginal=guardarNuevaOS;
 guardarNuevaOS=async function(){const before=OS_ZONA.length;_guardarNuevaOSOriginal();if(OS_ZONA.length!==before){await persistirOrdenSupabase(OS_ZONA[0]);saveAppState();}}
 const _guardarEdicionOSOriginal=guardarEdicionOS;
