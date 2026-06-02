@@ -13218,6 +13218,155 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
+<script id="dgie-inspector-comunicaciones-hora-reclamos-2026-06-02">
+(function(){
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function horaCortaDGIE(raw){
+    if(!raw)return '';
+    const d=new Date(raw);
+    if(Number.isNaN(d.getTime()))return '';
+    return d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  }
+  function fechaHoraReclamoDGIE(r){
+    const fecha=String(r?.fecha||'').trim();
+    const hora=horaCortaDGIE(r?.createdAt||r?.creadoEn||r?.created_at||r?.fechaHora||r?.fecha_hora);
+    return fecha&&hora?`${fecha} · ${hora}`:(fecha||hora||'');
+  }
+  const rowReclamoAnterior=window.rowReclamo;
+  if(typeof rowReclamoAnterior==='function'){
+    window.rowReclamo=function(r,showEst){
+      let html=rowReclamoAnterior.apply(this,arguments);
+      if(!['inspector','coordinador'].includes(currentUser?.role))return html;
+      const fecha=String(r?.fecha||'').trim();
+      const fechaHora=fechaHoraReclamoDGIE(r);
+      if(!fecha||!fechaHora||fechaHora===fecha)return html;
+      return html.replace(esc(fecha),esc(fechaHora));
+    };
+    try{rowReclamo=window.rowReclamo}catch(_){}
+  }
+  const filterCoordAnterior=window.filterReclamosCoord;
+  if(typeof filterCoordAnterior==='function'){
+    window.filterReclamosCoord=function(){
+      const out=filterCoordAnterior.apply(this,arguments);
+      const th=document.querySelector('#coord-rec-body')?.closest('table')?.querySelector('thead th:nth-child(6)');
+      if(th)th.textContent='Fecha / hora';
+      const rows=[...document.querySelectorAll('#coord-rec-body tr')];
+      rows.forEach(tr=>{
+        if(tr.children.length<6)return;
+        const numero=tr.children[0]?.querySelector('.os-num')?.textContent?.trim()||tr.children[0]?.textContent?.trim()||'';
+        const r=(RECLAMOS_ZONA||[]).find(x=>String(reclamoNumeroVisible(x)||x.numero||'').trim()===numero);
+        if(r)tr.children[5].textContent=fechaHoraReclamoDGIE(r)||tr.children[5].textContent;
+      });
+      return out;
+    };
+  }
+  function nombreDestino(c){
+    const z=Number((c?.zonas||[])[0]||currentUser?.zona||0);
+    if(c?.alcance==='coordinador')return `Coordinación · Zona ${z||'—'}`;
+    if(c?.alcance==='empresa_zona')return `Empresa Zona ${z||'—'}`;
+    return 'Destino';
+  }
+  function archivosCommInspector(files,prefix){
+    const arr=Array.isArray(files)?files:[];
+    if(!arr.length)return '';
+    return `<div class="comm-targets">${arr.map((f,i)=>{
+      const nombre=f?.name||f?.nombre||f?.filename||`Archivo ${i+1}`;
+      const url=f?.url||f?.secure_url||f?.dataUrl||'';
+      return url?`<button type="button" class="badge b-neutral" style="border:0;cursor:pointer" onclick="descargarArchivoComunicacion&&descargarArchivoComunicacion(${esc(JSON.stringify(url))},${esc(JSON.stringify(nombre))})">${esc(prefix)} ${i+1}: ${esc(nombre)}</button>`:`<span class="badge b-neutral">${esc(prefix)} ${i+1}: ${esc(nombre)}</span>`;
+    }).join('')}</div>`;
+  }
+  function cardComunicadoSimple(c){
+    return `<div class="comm-card">
+      <div class="comm-head"><div><div class="comm-title">${esc(c.titulo)}</div><div class="comm-meta">${new Date(c.createdAt||c.created_at||Date.now()).toLocaleString('es-AR')} · ${esc(nombreDestino(c))} · Por ${esc(c.creadoPor||c.creado_por_nombre||'Inspector')}</div></div><span class="badge b-info">${esc(c.tipo||'comunicado')}</span></div>
+      <div class="comm-msg">${esc(c.mensaje)}</div>${archivosCommInspector(c.archivos,'Archivo')}
+    </div>`;
+  }
+  function inspectorEnviadas(){
+    const nombre=String(currentUser?.name||'').trim();
+    const zona=Number(currentUser?.zona||0);
+    return (COMUNICACIONES||[]).filter(c=>{
+      const creador=String(c.creadoPor||c.creado_por_nombre||'').trim();
+      return ['empresa_zona','coordinador'].includes(c.alcance)&&(!nombre||creador===nombre)&&(!zona||(c.zonas||[]).map(Number).includes(zona));
+    });
+  }
+  function inspectorPanelHTML(){
+    const zona=Number(currentUser?.zona||0);
+    const enviadas=inspectorEnviadas();
+    return `<div class="section-label">Comunicaciones · Inspector</div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><div><div class="card-title">Nuevo comunicado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Enviar un comunicado a la empresa de la zona o a coordinación.</div></div></div>
+      <div class="form-grid">
+        <div class="form-field"><label class="form-label">Destino</label><select class="form-select" id="insp-comm-destino"><option value="coordinador">Coordinación</option><option value="empresa">Empresa Zona ${zona||'—'}</option></select></div>
+        <div class="form-field"><label class="form-label">Tipo</label><select class="form-select" id="insp-comm-tipo"><option value="comunicado">Comunicado</option><option value="notificacion">Notificación</option></select></div>
+        <div class="form-field full"><label class="form-label">Título</label><input class="form-input" id="insp-comm-titulo" placeholder="Título del comunicado"></div>
+        <div class="form-field full"><label class="form-label">Mensaje</label><textarea class="form-textarea" id="insp-comm-mensaje" placeholder="Detalle del comunicado"></textarea></div>
+        <div class="form-field full"><label class="form-label">Archivos adjuntos <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input type="file" id="insp-comm-archivos" multiple accept="image/*,.pdf,application/pdf" style="width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:12px;background:#f8fafc;cursor:pointer;font-size:13px"></div>
+      </div>
+      <div class="form-error" id="insp-comm-error" style="display:none"></div>
+      <div class="modal-actions"><button class="primary-btn" onclick="guardarComunicacionInspector()">Enviar comunicado</button></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><div><div class="card-title">Comunicados enviados</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Registro de envíos realizados desde esta sesión de inspector.</div></div><span class="badge b-info">${enviadas.length} enviados</span></div>
+      <div class="comms-list">${enviadas.length?enviadas.map(cardComunicadoSimple).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">Todavía no enviaste comunicados.</div>'}</div>
+    </div>`;
+  }
+  async function leerArchivosInspector(input){
+    const files=[...(input?.files||[])];
+    const out=[];
+    for(const file of files){
+      if(typeof leerArchivoDGIE==='function')out.push(await leerArchivoDGIE(file,'comunicaciones'));
+      else out.push({nombre:file.name,name:file.name,url:''});
+    }
+    return out.filter(Boolean);
+  }
+  window.guardarComunicacionInspector=async function(){
+    const destino=document.getElementById('insp-comm-destino')?.value||'coordinador';
+    const tipo=document.getElementById('insp-comm-tipo')?.value||'comunicado';
+    const titulo=document.getElementById('insp-comm-titulo')?.value.trim()||'';
+    const mensaje=document.getElementById('insp-comm-mensaje')?.value.trim()||'';
+    const err=document.getElementById('insp-comm-error');
+    if(!titulo||!mensaje){if(err){err.textContent='Completá título y mensaje.';err.style.display='block'}return}
+    const zona=Number(currentUser?.zona||0);
+    const archivos=await leerArchivosInspector(document.getElementById('insp-comm-archivos'));
+    const c={id:Date.now(),tipo,titulo,mensaje,alcance:destino==='empresa'?'empresa_zona':'coordinador',zonas:zona?[zona]:[],creadoPor:currentUser?.name||'Inspector',createdAt:new Date().toISOString(),estados:{},validaciones:{},encuesta:[],archivos};
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearComunicacion==='function'){
+      const row={tipo:c.tipo,titulo:c.titulo,mensaje:c.mensaje,alcance:c.alcance,zonas:c.zonas,creado_por_nombre:c.creadoPor,estados:{},validaciones:{},encuesta:[],archivos:c.archivos||[]};
+      const {data,error}=await window.DGIE_DB.crearComunicacion(row);
+      if(error){if(err){err.textContent='No se pudo guardar en Supabase: '+error.message;err.style.display='block'}else alert('No se pudo guardar en Supabase: '+error.message);return}
+      c.remoteId=data?.id;c._remoteSaved=true;
+    }
+    COMUNICACIONES.unshift(c);
+    if(typeof saveAppState==='function')saveAppState();
+    renderComunicaciones(document.getElementById('main-content'));
+  };
+  function coordinadorRecibidasHTML(){
+    const data=(COMUNICACIONES||[]).filter(c=>c.alcance==='coordinador');
+    return `<div class="card" style="margin-top:14px">
+      <div class="card-header"><div><div class="card-title">Comunicados recibidos de inspectores</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Mensajes enviados por inspectores a coordinación.</div></div><span class="badge b-info">${data.length} recibidos</span></div>
+      <div class="comms-list">${data.length?data.map(cardComunicadoSimple).join(''):'<div class="comm-card" style="text-align:center;color:#64748b">Sin comunicados recibidos de inspectores.</div>'}</div>
+    </div>`;
+  }
+  const renderComunicacionesAnterior=window.renderComunicaciones;
+  window.renderComunicaciones=function(container){
+    if(!container)return;
+    if(typeof renderComunicacionesAnterior==='function')renderComunicacionesAnterior.apply(this,arguments);
+    if(currentUser?.role==='inspector'){
+      container.insertAdjacentHTML('afterbegin',inspectorPanelHTML());
+      return;
+    }
+    if(currentUser?.role==='coordinador'){
+      container.insertAdjacentHTML('beforeend',coordinadorRecibidasHTML());
+    }
+  };
+  const mapCommAnterior=window.mapRemoteComunicacion;
+  if(typeof mapCommAnterior==='function'){
+    window.mapRemoteComunicacion=function(row,idx){
+      const c=mapCommAnterior.apply(this,arguments);
+      return {...c,alcance:row.alcance||c.alcance||'general',zonas:Array.isArray(row.zonas)?row.zonas.map(Number):(c.zonas||[])};
+    };
+  }
+})();
+</script>
 </body>
 </html>
 
