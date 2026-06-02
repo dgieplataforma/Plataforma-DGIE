@@ -13408,13 +13408,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const key=esc(JSON.stringify(reclamoKeyDGIE(r)));
       const anulado=reclamoAnuladoDGIE(r);
       const comentario=comentarioAnulacionDGIE(r);
-      const panel=`<div class="reclamo-anulacion-panel" style="margin:-6px 0 10px 10px;padding:10px 12px;border-left:4px solid ${anulado?'#dc2626':'#cbd5e1'};background:${anulado?'#fef2f2':'#f8fafc'};border-radius:0 10px 10px 0">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-          <div>${anulado?`<span class="badge b-danger">Reclamo anulado</span> <span style="font-size:12px;color:#64748b;font-weight:700">${esc(metaAnulacionDGIE(r))}</span>`:`<span style="font-size:12px;color:#64748b;font-weight:800">El inspector puede anular este reclamo dejando el motivo.</span>`}</div>
-          <button class="${anulado?'secondary-btn':'edit-btn'}" type="button" onclick="abrirAnulacionReclamoInspector(${key})">${anulado?'Editar motivo':'Anular reclamo'}</button>
-        </div>
-        ${comentario?`<div style="font-size:12px;color:#7f1d1d;margin-top:7px"><strong>Motivo:</strong> ${esc(comentario)}</div>`:''}
-      </div>`;
+      const panel=anulado
+        ? `<div class="reclamo-anulacion-panel" style="margin:-6px 0 10px 10px;padding:10px 12px;border-left:4px solid #dc2626;background:#fef2f2;border-radius:0 10px 10px 0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <div><span class="badge b-danger">Reclamo anulado</span> <span style="font-size:12px;color:#64748b;font-weight:700">${esc(metaAnulacionDGIE(r))}</span></div>
+              <button class="secondary-btn" type="button" onclick="abrirAnulacionReclamoInspector(${key})">Editar motivo</button>
+            </div>
+            ${comentario?`<div style="font-size:12px;color:#7f1d1d;margin-top:7px"><strong>Motivo:</strong> ${esc(comentario)}</div>`:''}
+          </div>`
+        : `<div style="display:flex;justify-content:flex-end;margin:-4px 0 10px"><button class="edit-btn" type="button" onclick="abrirAnulacionReclamoInspector(${key})">Anular reclamo</button></div>`;
       return html+panel;
     };
     try{rowReclamo=window.rowReclamo}catch(_){}
