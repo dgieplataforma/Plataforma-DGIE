@@ -4936,6 +4936,7 @@ function renderChartInsp(){
       if(relRes&&!relRes.error&&Array.isArray(relRes.data)){
         Object.keys(RELEVAMIENTOS).forEach(k=>delete RELEVAMIENTOS[k]);
         relRes.data.forEach(row=>{
+          if(row?.datos?.eliminado)return;
           const estId=Number(row.establecimiento_id);
           if(!RELEVAMIENTOS[estId])RELEVAMIENTOS[estId]=[];
           RELEVAMIENTOS[estId].push(mapRemoteRelevamiento(row));
@@ -13533,6 +13534,54 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return out;
     };
   }
+})();
+</script>
+<script id="dgie-fix-eliminar-relevamientos-soft-delete-2026-06-03">
+(function(){
+  function relKeyFix(r,estId){
+    const base=r?.remoteId||r?.id||r?.ts||`${r?.fecha||''}-${r?.inspector||''}-${r?.zona||''}`;
+    return `rel_${Number(estId)}_${String(base).replace(/[^a-zA-Z0-9_-]/g,'_')}`;
+  }
+  function buscarRelFix(key){
+    for(const [estId,arr] of Object.entries(RELEVAMIENTOS||{})){
+      const rel=(arr||[]).find(r=>relKeyFix(r,estId)===String(key));
+      if(rel)return {rel,estId:Number(estId),arr};
+    }
+    return null;
+  }
+  function puedeEliminarRelFix(rel){
+    if(currentUser?.role==='coordinador'||currentUser?.role==='director'||currentUser?.role==='direccion')return true;
+    return String(rel?.inspector||'').trim()===String(currentUser?.name||'').trim();
+  }
+  async function sincronizarEliminacionRel(rel){
+    if(!rel?.remoteId||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.actualizarRelevamiento!=='function')return {ok:true};
+    const datos={...rel,eliminado:true,deleted_at:new Date().toISOString(),deleted_by:currentUser?.name||currentUser?.email||currentUser?.role||''};
+    const {error}=await window.DGIE_DB.actualizarRelevamiento(rel.remoteId,{datos});
+    return error?{ok:false,error}:{ok:true,datos};
+  }
+  function refrescarRelFix(estId){
+    if(document.getElementById('relevamientos-insp-list')&&typeof filterRelevamientosInspector==='function')filterRelevamientosInspector();
+    else if(document.getElementById('relevamientos-dir-list')&&typeof filterRelevamientosDireccion==='function')filterRelevamientosDireccion();
+    else if(document.getElementById('ficha-body')&&typeof switchFichaTab==='function')switchFichaTab(typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:5);
+    else if(document.getElementById('map-ficha-body')&&typeof renderMapFichaBody==='function')renderMapFichaBody(estId||currentFichaId,typeof TAB_RELEVAMIENTO!=='undefined'?TAB_RELEVAMIENTO:5);
+  }
+  window.eliminarRelevamiento=async function(key){
+    const found=buscarRelFix(key);
+    if(!found||!puedeEliminarRelFix(found.rel))return;
+    if(!confirm('¿Eliminar este relevamiento?'))return;
+    const remoto=await sincronizarEliminacionRel(found.rel);
+    if(!remoto.ok){
+      alert('No se pudo eliminar el relevamiento en Supabase. Detalle: '+(remoto.error?.message||remoto.error));
+      return;
+    }
+    found.rel.eliminado=true;
+    found.rel.deleted_at=remoto.datos?.deleted_at||new Date().toISOString();
+    found.rel.deleted_by=remoto.datos?.deleted_by||currentUser?.name||'';
+    const idx=found.arr.indexOf(found.rel);
+    if(idx>=0)found.arr.splice(idx,1);
+    try{if(typeof saveAppState==='function')saveAppState()}catch(_){}
+    refrescarRelFix(found.estId);
+  };
 })();
 </script>
 </body>
