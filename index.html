@@ -13605,15 +13605,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
     const out=Object.fromEntries(rubros.map(r=>[r.key,0]));
     const estabs=(ESTABS||[]).filter(e=>Number(e.zona)===Number(zona));
-    let count=0;
+    let realCount=0;
     estabs.forEach(e=>{
       const rel=estadoRealEstab(e.id);
       if(!rel)return;
-      count++;
+      realCount++;
       rubros.forEach(r=>{out[r.key]+=Number(rel.rubros?.[r.key]||0)});
     });
-    if(count)rubros.forEach(r=>{out[r.key]=Math.round(out[r.key]/count)});
-    return {pcts:out,count};
+    const divisor=Math.max(estabs.length,1);
+    rubros.forEach(r=>{out[r.key]=Math.round(out[r.key]/divisor)});
+    return {pcts:out,count:realCount,total:estabs.length};
   }
   function renderRankingReal(zona){
     const rankEl=document.getElementById('lm-ranking-list');
@@ -13677,9 +13678,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const avg=rz.count&&vals.length?Math.round(vals.reduce((a,b)=>a+Number(b||0),0)/vals.length):0;
       window._lcZonaData[z]={...(window._lcZonaData[z]||{}),pcts:rz.pcts,avg,tieneReales:rz.count>0};
     }
-    const reales=(ESTABS||[]).map(e=>promedioEstadoReal(e.id)).filter(v=>v!==null);
+    const totalEstabs=(ESTABS||[]).length;
+    const sumaTodos=(ESTABS||[]).reduce((sum,e)=>sum+Number(promedioEstadoReal(e.id)||0),0);
     const promEl=document.getElementById('lm-promedio');
-    if(promEl)promEl.textContent=reales.length?Math.round(reales.reduce((a,b)=>a+b,0)/reales.length)+'%':'—';
+    if(promEl)promEl.textContent=totalEstabs?Math.round(sumaTodos/totalEstabs)+'%':'—';
   }
   const renderLcDetallePrev=window.renderLcDetalle;
   window.renderRankingRealDGIE=renderRankingReal;
