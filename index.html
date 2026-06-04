@@ -13700,6 +13700,80 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{recomponerZonaDataReal();renderRankingReal(window._lcZonaSituacionActiva||null)},700));
 })();
 </script>
+<script id="dgie-fix-badge-comunicaciones-destino-real-2026-06-04">
+(function(){
+  function keyInspector(z){return String(Number(z))}
+  function keyEmpresa(z){return `empresa-${Number(z)}`}
+  function destinosRealesComunicacion(c){
+    const zonas=Array.from({length:17},(_,i)=>i+1);
+    const cz=(c?.zonas||[]).map(Number).filter(Boolean);
+    if(c?.alcance==='general')return zonas.map(z=>({tipo:'inspector',zona:z,key:keyInspector(z)}));
+    if(c?.alcance==='zona')return cz.map(z=>({tipo:'inspector',zona:z,key:keyInspector(z)}));
+    if(c?.alcance==='empresas')return zonas.map(z=>({tipo:'empresa',zona:z,key:keyEmpresa(z)}));
+    if(c?.alcance==='empresa_zona')return cz.map(z=>({tipo:'empresa',zona:z,key:keyEmpresa(z)}));
+    return [];
+  }
+  function estadoCommDestino(c,key){
+    const estados=c?.estados||{};
+    return estados[String(key)]||estados[key]||{estado:'pendiente'};
+  }
+  function commCerrada(c,key){
+    const estado=String(estadoCommDestino(c,key).estado||'pendiente');
+    const tipo=String(c?.tipo||'');
+    return (tipo==='notificacion'||tipo==='comunicado') ? estado==='visto' : estado==='completado';
+  }
+  function pendientesComunicacionesUsuario(){
+    const role=currentUser?.role;
+    if(role!=='inspector'&&role!=='empresa')return 0;
+    const zona=Number(currentUser?.zona||0);
+    const tipo=role==='empresa'?'empresa':'inspector';
+    return (COMUNICACIONES||[]).filter(c=>{
+      const destino=destinosRealesComunicacion(c).find(d=>d.tipo===tipo&&Number(d.zona)===zona);
+      return destino&&!commCerrada(c,destino.key);
+    }).length;
+  }
+  function actualizarBadgeReal(){
+    if(!currentUser)return;
+    const pendientes=pendientesComunicacionesUsuario();
+    document.querySelectorAll('#nav-tabs .tab').forEach(tab=>{
+      const texto=String(tab.textContent||'').replace(/\d+/g,'').trim();
+      if(!texto.startsWith('Comunicaciones'))return;
+      tab.querySelector('.tab-badge')?.remove();
+      if(pendientes>0){
+        const span=document.createElement('span');
+        span.className='tab-badge';
+        span.textContent=String(pendientes);
+        tab.appendChild(span);
+      }
+    });
+  }
+  function refrescarBadgeReal(){
+    setTimeout(actualizarBadgeReal,0);
+    setTimeout(actualizarBadgeReal,120);
+  }
+  window.dgieActualizarNotificacionesComunicaciones=refrescarBadgeReal;
+  ['renderTab','loadUser','cambiarEstadoComunicacion','guardarRespuestaComunicacion','guardarComunicacion','guardarComunicacionInspector'].forEach(name=>{
+    const prev=window[name];
+    if(typeof prev!=='function'||prev.__badgeDestinoReal)return;
+    window[name]=async function(){
+      const res=await prev.apply(this,arguments);
+      refrescarBadgeReal();
+      return res;
+    };
+    window[name].__badgeDestinoReal=true;
+  });
+  const prevCargar=window.cargarDatosPublicosDGIE;
+  if(typeof prevCargar==='function'&&!prevCargar.__badgeDestinoReal){
+    window.cargarDatosPublicosDGIE=async function(){
+      const res=await prevCargar.apply(this,arguments);
+      refrescarBadgeReal();
+      return res;
+    };
+    window.cargarDatosPublicosDGIE.__badgeDestinoReal=true;
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(refrescarBadgeReal,700));
+})();
+</script>
 </body>
 </html>
 

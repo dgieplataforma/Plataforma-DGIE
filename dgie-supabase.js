@@ -140,7 +140,10 @@
       return client.from('comunicaciones').insert(row).select('*').single();
     },
     async actualizarComunicacion(id, row){
-      return client.from('comunicaciones').update(row).eq('id', id).select('*').single();
+      const { error } = await client.from('comunicaciones').update(row).eq('id', id);
+      if(error) return { data:null, error };
+      const { data, error:selectError } = await client.from('comunicaciones').select('*').eq('id', id).limit(1);
+      return { data:Array.isArray(data) ? data[0] || null : data, error:selectError };
     },
     async listarFotos(){
       return client.from('fotos').select('*').order('created_at', { ascending:false });
