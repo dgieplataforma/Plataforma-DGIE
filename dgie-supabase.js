@@ -74,7 +74,10 @@
       return client.from('establecimientos').insert(row).select('*').single();
     },
     async actualizarEstablecimiento(id, row){
-      return client.from('establecimientos').update(row).eq('id', id).select('*').single();
+      const { error } = await client.from('establecimientos').update(row).eq('id', id);
+      if(error) return { data:null, error };
+      const { data, error:selectError } = await client.from('establecimientos').select('*').eq('id', id).limit(1);
+      return { data:Array.isArray(data) ? data[0] || null : data, error:selectError };
     },
     async eliminarEstablecimiento(id){
       return client.from('establecimientos').delete().eq('id', id);
