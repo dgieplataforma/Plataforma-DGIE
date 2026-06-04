@@ -13648,7 +13648,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     const nivelBtns=['General',...niveles].map(n=>{
       const active=(window._lcRankingNivelActivo||'General')===n;
-      return `<button type="button" onclick="window._lcRankingNivelActivo='${esc(n)}';renderRankingReal(window._lcZonaSituacionActiva||null)" style="border:1px solid ${active?'#005aa9':'#d9e2ef'};background:${active?'#005aa9':'#fff'};color:${active?'#fff':'#005aa9'};border-radius:999px;padding:4px 9px;font-size:10px;font-weight:900;cursor:pointer">${esc(n)}</button>`;
+      return `<button type="button" onclick="window._lcRankingNivelActivo=${esc(JSON.stringify(n))};window.renderRankingRealDGIE&&window.renderRankingRealDGIE(window._lcZonaSituacionActiva||null)" style="border:1px solid ${active?'#005aa9':'#d9e2ef'};background:${active?'#005aa9':'#fff'};color:${active?'#fff':'#005aa9'};border-radius:999px;padding:4px 9px;font-size:10px;font-weight:900;cursor:pointer">${esc(n)}</button>`;
     }).join('');
     const selectorHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px">${nivelBtns}</div>`;
     const generalConDato=ranked.filter(e=>e.promReal!==null).length;
@@ -13682,6 +13682,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(promEl)promEl.textContent=reales.length?Math.round(reales.reduce((a,b)=>a+b,0)/reales.length)+'%':'—';
   }
   const renderLcDetallePrev=window.renderLcDetalle;
+  window.renderRankingRealDGIE=renderRankingReal;
   window.renderLcDetalle=function(zona){
     if(typeof renderLcDetallePrev==='function')renderLcDetallePrev.apply(this,arguments);
     renderRankingReal(zona||window._lcZonaSituacionActiva||null);
