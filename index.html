@@ -13584,6 +13584,87 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
+<script id="dgie-fix-ranking-estado-edilicio-real-2026-06-04">
+(function(){
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function estadoRealEstab(estId){
+    const arr=(RELEVAMIENTOS?.[estId]||[])
+      .filter(r=>r&&r.tipo==='estado_edilicio'&&!r.eliminado&&r.rubros&&typeof r.rubros==='object')
+      .sort((a,b)=>Number(b.ts||new Date(b.fecha||0).getTime()||0)-Number(a.ts||new Date(a.fecha||0).getTime()||0));
+    return arr[0]||null;
+  }
+  function promedioEstadoReal(estId){
+    const rel=estadoRealEstab(estId);
+    if(!rel)return null;
+    const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
+    const vals=rubros.map(r=>Number(rel.rubros?.[r.key])).filter(v=>Number.isFinite(v));
+    if(!vals.length)return null;
+    return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+  }
+  function rubrosZonaReal(zona){
+    const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
+    const out=Object.fromEntries(rubros.map(r=>[r.key,0]));
+    const estabs=(ESTABS||[]).filter(e=>Number(e.zona)===Number(zona));
+    let count=0;
+    estabs.forEach(e=>{
+      const rel=estadoRealEstab(e.id);
+      if(!rel)return;
+      count++;
+      rubros.forEach(r=>{out[r.key]+=Number(rel.rubros?.[r.key]||0)});
+    });
+    if(count)rubros.forEach(r=>{out[r.key]=Math.round(out[r.key]/count)});
+    return {pcts:out,count};
+  }
+  function renderRankingReal(zona){
+    const rankEl=document.getElementById('lm-ranking-list');
+    if(!rankEl)return;
+    const base=(ESTABS||[]).filter(e=>!zona||Number(e.zona)===Number(zona));
+    const ranked=base.map(e=>({...e,promReal:promedioEstadoReal(e.id)}))
+      .sort((a,b)=>{
+        const ar=a.promReal!==null, br=b.promReal!==null;
+        if(ar!==br)return ar?-1:1;
+        if(ar&&br&&b.promReal!==a.promReal)return b.promReal-a.promReal;
+        return String(a.n||'').localeCompare(String(b.n||''),'es');
+      });
+    rankEl.innerHTML=ranked.length?ranked.map((e,i)=>{
+      const has=e.promReal!==null;
+      const pct=has?Math.max(0,Math.min(100,Number(e.promReal))):0;
+      return `<div class="ranking-row">
+        <span class="ranking-num">${i+1}</span>
+        <span class="ranking-name" title="${esc(e.n)}">${esc(e.n)}</span>
+        <div class="ranking-bar-mini"><div class="ranking-bar-fill" style="width:${pct}%;${has?'':'background:#e5e7eb'}"></div></div>
+        <span style="font-size:10px;color:${has?'#005aa9':'#9ca3af'};width:38px;text-align:right;font-weight:${has?'800':'600'}">${has?pct+'%':'—'}</span>
+      </div>`;
+    }).join(''):'<div style="font-size:12px;color:#9ca3af;padding:12px 0">Sin datos</div>';
+  }
+  function recomponerZonaDataReal(){
+    window._lcZonaData=window._lcZonaData||{};
+    for(let z=1;z<=17;z++){
+      const rz=rubrosZonaReal(z);
+      const vals=Object.values(rz.pcts||{});
+      const avg=rz.count&&vals.length?Math.round(vals.reduce((a,b)=>a+Number(b||0),0)/vals.length):0;
+      window._lcZonaData[z]={...(window._lcZonaData[z]||{}),pcts:rz.pcts,avg,tieneReales:rz.count>0};
+    }
+    const reales=(ESTABS||[]).map(e=>promedioEstadoReal(e.id)).filter(v=>v!==null);
+    const promEl=document.getElementById('lm-promedio');
+    if(promEl)promEl.textContent=reales.length?Math.round(reales.reduce((a,b)=>a+b,0)/reales.length)+'%':'—';
+  }
+  const renderLcDetallePrev=window.renderLcDetalle;
+  window.renderLcDetalle=function(zona){
+    if(typeof renderLcDetallePrev==='function')renderLcDetallePrev.apply(this,arguments);
+    renderRankingReal(zona||window._lcZonaSituacionActiva||null);
+  };
+  const renderLcChartsPrev=window.renderLcCharts;
+  window.renderLcCharts=function(){
+    const out=typeof renderLcChartsPrev==='function'?renderLcChartsPrev.apply(this,arguments):undefined;
+    recomponerZonaDataReal();
+    if(typeof renderZonasBars==='function')renderZonasBars(window._lcZonaSituacionActiva||null);
+    renderRankingReal(window._lcZonaSituacionActiva||null);
+    return out;
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{recomponerZonaDataReal();renderRankingReal(window._lcZonaSituacionActiva||null)},700));
+})();
+</script>
 </body>
 </html>
 
