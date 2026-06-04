@@ -13619,23 +13619,41 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rankEl=document.getElementById('lm-ranking-list');
     if(!rankEl)return;
     const base=(ESTABS||[]).filter(e=>!zona||Number(e.zona)===Number(zona));
-    const ranked=base.map(e=>({...e,promReal:promedioEstadoReal(e.id)}))
+    const ranked=base.map(e=>({...e,nivel:e.nivel||'Sin nivel',promReal:promedioEstadoReal(e.id)}))
       .sort((a,b)=>{
         const ar=a.promReal!==null, br=b.promReal!==null;
         if(ar!==br)return ar?-1:1;
         if(ar&&br&&b.promReal!==a.promReal)return b.promReal-a.promReal;
         return String(a.n||'').localeCompare(String(b.n||''),'es');
       });
-    rankEl.innerHTML=ranked.length?ranked.map((e,i)=>{
-      const has=e.promReal!==null;
-      const pct=has?Math.max(0,Math.min(100,Number(e.promReal))):0;
-      return `<div class="ranking-row">
-        <span class="ranking-num">${i+1}</span>
-        <span class="ranking-name" title="${esc(e.n)}">${esc(e.n)}</span>
-        <div class="ranking-bar-mini"><div class="ranking-bar-fill" style="width:${pct}%;${has?'':'background:#e5e7eb'}"></div></div>
-        <span style="font-size:10px;color:${has?'#005aa9':'#9ca3af'};width:38px;text-align:right;font-weight:${has?'800':'600'}">${has?pct+'%':'—'}</span>
-      </div>`;
-    }).join(''):'<div style="font-size:12px;color:#9ca3af;padding:12px 0">Sin datos</div>';
+    const ordenNivel=['Inicial','Primario','Secundario','Especial','Adultos','Superior','Sin nivel'];
+    const niveles=[...new Set(ranked.map(e=>e.nivel||'Sin nivel'))].sort((a,b)=>{
+      const ia=ordenNivel.indexOf(a), ib=ordenNivel.indexOf(b);
+      if(ia>=0||ib>=0)return (ia>=0?ia:99)-(ib>=0?ib:99);
+      return String(a).localeCompare(String(b),'es');
+    });
+    function rowsHTML(items){
+      return items.map((e,i)=>{
+        const has=e.promReal!==null;
+        const pct=has?Math.max(0,Math.min(100,Number(e.promReal))):0;
+        return `<div class="ranking-row">
+          <span class="ranking-num">${i+1}</span>
+          <span class="ranking-name" title="${esc(e.n)}">${esc(e.n)}</span>
+          <div class="ranking-bar-mini"><div class="ranking-bar-fill" style="width:${pct}%;${has?'':'background:#e5e7eb'}"></div></div>
+          <span style="font-size:10px;color:${has?'#005aa9':'#9ca3af'};width:38px;text-align:right;font-weight:${has?'800':'600'}">${has?pct+'%':'—'}</span>
+        </div>`;
+      }).join('');
+    }
+    const generalConDato=ranked.filter(e=>e.promReal!==null).length;
+    const volverHTML=zona?`<div style="display:flex;justify-content:flex-end;margin:0 0 6px"><button type="button" class="secondary-btn" style="padding:5px 10px;font-size:11px" onclick="selectLcZona(${Number(zona)})">Ver todas las zonas</button></div>`:'';
+    const generalHTML=`${volverHTML}<div style="padding:7px 0 3px;font-size:10px;font-weight:900;color:#005aa9;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e5edf6">General · ${generalConDato}/${ranked.length}</div>${rowsHTML(ranked)}`;
+    const nivelesHTML=niveles.map(nivel=>{
+      const items=ranked.filter(e=>(e.nivel||'Sin nivel')===nivel);
+      const conDato=items.filter(e=>e.promReal!==null).length;
+      return `<div style="padding:7px 0 3px;font-size:10px;font-weight:900;color:#005aa9;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e5edf6">${esc(nivel)} · ${conDato}/${items.length}</div>`+
+      rowsHTML(items);
+    }).join('');
+    rankEl.innerHTML=ranked.length?generalHTML+nivelesHTML:'<div style="font-size:12px;color:#9ca3af;padding:12px 0">Sin datos</div>';
   }
   function recomponerZonaDataReal(){
     window._lcZonaData=window._lcZonaData||{};
