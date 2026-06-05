@@ -13774,8 +13774,181 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.addEventListener('DOMContentLoaded',()=>setTimeout(refrescarBadgeReal,700));
 })();
 </script>
+<script id="dgie-certificado-final-medicion-copia-2026-06-05">
+(function(){
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function certs(){return Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[]}
+  function certById(id){return certs().find(c=>String(c.id)===String(id)||String(c.localId)===String(id))}
+  function n(v){return Number(String(v??'').replace(',','.'))||0}
+  function mods(v){return n(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
+  function certOrdenesSafe(c){return typeof window.certOrdenes==='function'?(window.certOrdenes(c)||[]):[]}
+  function archivoFinalNombre(c){return c?.archivo_final||c?.certificado_final_archivo||''}
+  function archivoFinalUrl(c){return c?.url_final||c?.certificado_final_url||''}
+  function fechaMedicion(c){return c?.fecha_medicion||c?.fecha_envio_administracion||''}
+  function modFinal(c){return n(c?.modulos_final ?? c?.monto_final ?? c?.modulos_inspector ?? c?.modulos_original)}
+  function fechaMedicionLabel(v){
+    if(!v)return 'Sin fecha';
+    const s=String(v).slice(0,10);
+    const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(m)return `${m[3]}/${m[2]}/${m[1]}`;
+    try{return new Date(v).toLocaleDateString('es-AR')}catch(_){return s}
+  }
+  function nombreFinalCertificado(file,c){
+    const ext=(file?.name?.match(/\.[^.]+$/)?.[0]||'.xlsx').toLowerCase();
+    const zona=`Z${Number(c?.zona||currentUser?.zona||0)||''}`;
+    const ordenes=certOrdenesSafe(c).length?certOrdenesSafe(c).join('-'):'SINOS';
+    const base=String(c?.establecimiento_nombre||'ESTABLECIMIENTO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90);
+    return `${zona}-${ordenes}-${base}-CERTIFICADO-FINAL${ext}`;
+  }
+  function dataMedicion(numero){
+    return certs().filter(c=>String(c.estado||'')==='medido'&&String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
+  }
+  function medicionFechaGrupo(data){
+    const fechas=data.map(fechaMedicion).filter(Boolean).sort();
+    return fechas[0]||'';
+  }
+  function insertarAvisoMedicion(c){
+    return;
+  }
+  const revisarPrev=window.revisarCertificadoInspector;
+  window.revisarCertificadoInspector=function(id){
+    const res=typeof revisarPrev==='function'?revisarPrev.apply(this,arguments):undefined;
+    setTimeout(()=>{const c=certById(id);if(c)insertarAvisoMedicion(c)},0);
+    return res;
+  };
+  const guardarPrev=window.guardarRevisionCertificado;
+  window.guardarRevisionCertificado=async function(id,medir){
+    const c=certById(id);
+    await (typeof guardarPrev==='function'?guardarPrev.apply(this,arguments):undefined);
+    const patch={};
+    if(Object.keys(patch).length&&window.actualizarCertificado){
+      patch.actualizado_por=currentUser?.name||'Inspector';
+      try{
+        await window.actualizarCertificado(id,patch);
+        if(typeof renderMedicionesInspector==='function')renderMedicionesInspector(document.getElementById('main-content'),currentUser.zona);
+      }catch(error){
+        alert('La revisión se guardó, pero no se pudo guardar la fecha de envío a administración: '+(error.message||error));
+      }
+    }
+  };
+  async function leerG720Final(file){
+    if(!file||!window.XLSX||!/\.(xls|xlsx)$/i.test(file.name))return '';
+    const buffer=await file.arrayBuffer();
+    const wb=XLSX.read(buffer,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    if(ws?.G720?.v!=null&&ws.G720.v!=='')return ws.G720.v;
+    const ref=ws?.['!ref'];
+    if(!ref)return '';
+    const range=XLSX.utils.decode_range(ref);
+    const norm=s=>String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    for(let r=range.s.r;r<=range.e.r;r++){
+      for(let c=range.s.c;c<=range.e.c;c++){
+        const cell=ws[XLSX.utils.encode_cell({r,c})];
+        const txt=norm(cell?.v??cell?.w??'');
+        if(txt.includes('TOTAL')&&txt.includes('MODULOS')&&txt.includes('MEDIDOS')){
+          for(let dc=1;dc<=5;dc++){
+            const adj=ws[XLSX.utils.encode_cell({r,c:c+dc})];
+            if(adj?.v!=null&&adj.v!=='')return adj.v;
+          }
+        }
+      }
+    }
+    return '';
+  }
+  window.cargarCertificadoFinalMedicion=async function(id){
+    const c=certById(id);
+    const input=document.getElementById('cert-final-file-'+String(id).replace(/[^a-zA-Z0-9_-]/g,'_'));
+    const file=input?.files?.[0]||null;
+    if(!c||!file){alert('Seleccioná el certificado final.');return}
+    if(window.validarTamanoCertificado&&!window.validarTamanoCertificado(file))return;
+    const nombre=nombreFinalCertificado(file,c);
+    const fileRenombrado=new File([file],nombre,{type:file.type,lastModified:file.lastModified});
+    try{
+      const subida=await window.subirCertFile(fileRenombrado);
+      const modulos=await leerG720Final(file);
+      await window.actualizarCertificado(id,{
+        archivo_final:nombre,
+        url_final:subida?.url||'',
+        public_id_final:subida?.publicId||null,
+        modulos_final:n(modulos)||n(c.modulos_inspector||c.modulos_original),
+        monto_final:n(modulos)||n(c.modulos_inspector||c.modulos_original),
+        actualizado_por:currentUser?.name||'Inspector'
+      });
+      if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(c.medicion_numero);
+    }catch(error){
+      alert('No se pudo guardar el certificado final: '+(error.message||error));
+    }
+  };
+  function parcheTablaMedicion(numero){
+    const data=dataMedicion(numero);
+    const detalle=document.getElementById('med-detalle');
+    if(!detalle||!data.length)return;
+    const meta=detalle.querySelector('.card-header .card-title')?.parentElement?.querySelector('div[style*="font-size:13px"]');
+    const fecha=medicionFechaGrupo(data);
+    if(meta&&!meta.dataset.fechaMedicionFinal){
+      meta.dataset.fechaMedicionFinal='1';
+      meta.innerHTML+=` · Fecha: ${esc(fechaMedicionLabel(fecha))}`;
+    }
+    const rows=[...detalle.querySelectorAll('.med-version-row')];
+    rows.forEach((row,i)=>{
+      const c=data[i];
+      if(!c||row.querySelector('.cert-final-link'))return;
+      const metaRow=row.querySelector('.med-card-meta');
+      if(metaRow){
+        const safeId=String(c.id||c.localId).replace(/[^a-zA-Z0-9_-]/g,'_');
+        metaRow.insertAdjacentHTML('beforeend',`<br><span class="cert-final-link">Final: ${archivoFinalUrl(c)?`<a href="${esc(archivoFinalUrl(c))}" target="_blank" rel="noopener">${esc(archivoFinalNombre(c)||'Certificado final')}</a>`:'sin cargar'}</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
+            <input class="form-input" id="cert-final-file-${safeId}" type="file" accept=".xls,.xlsx" style="max-width:340px;padding:7px 9px;font-size:12px">
+            <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="cargarCertificadoFinalMedicion('${esc(c.id||c.localId)}')">${archivoFinalUrl(c)?'Reemplazar final':'Cargar certificado final'}</button>
+          </div>`);
+      }
+    });
+    const table=detalle.querySelector('table.med-table');
+    if(!table||table.dataset.certFinalCol)return;
+    table.dataset.certFinalCol='1';
+    const headRow=table.querySelector('thead tr');
+    const ths=headRow?[...headRow.children]:[];
+    const obsIdx=ths.findIndex(th=>String(th.textContent||'').toLowerCase().includes('observaciones'));
+    const insertIdx=obsIdx>=0?obsIdx:ths.length;
+    const th=document.createElement('th');
+    th.textContent='Monto final';
+    th.setAttribute('style',ths[0]?.getAttribute('style')||'');
+    headRow.insertBefore(th,headRow.children[insertIdx]||null);
+    [...table.querySelectorAll('tbody tr')].forEach((tr,i)=>{
+      const c=data[i];
+      const td=document.createElement('td');
+      td.setAttribute('style',tr.children[0]?.getAttribute('style')||'');
+      td.innerHTML=`${mods(modFinal(c))}${archivoFinalUrl(c)?`<div style="font-size:10px;margin-top:2px"><a href="${esc(archivoFinalUrl(c))}" target="_blank" rel="noopener">Ver final</a></div>`:''}`;
+      tr.insertBefore(td,tr.children[insertIdx]||null);
+    });
+    const foot=table.querySelector('tfoot tr');
+    if(foot){
+      const td=document.createElement('td');
+      td.setAttribute('style',foot.children[0]?.getAttribute('style')||'');
+      td.textContent=mods(data.reduce((a,c)=>a+modFinal(c),0));
+      foot.insertBefore(td,foot.children[insertIdx]||null);
+    }
+  }
+  const abrirPrev=window.abrirMedicionInspector;
+  window.abrirMedicionInspector=function(numero){
+    const res=typeof abrirPrev==='function'?abrirPrev.apply(this,arguments):undefined;
+    setTimeout(()=>parcheTablaMedicion(numero),0);
+    return res;
+  };
+  const finalizarPrev=window.finalizarCertificacion;
+  window.finalizarCertificacion=async function(numero){
+    const res=typeof finalizarPrev==='function'?await finalizarPrev.apply(this,arguments):undefined;
+    const data=dataMedicion(numero);
+    const fecha=new Date().toISOString().slice(0,10);
+    for(const c of data){
+      if(!fechaMedicion(c)&&window.actualizarCertificado){
+        try{await window.actualizarCertificado(c.id||c.localId,{fecha_medicion:fecha,actualizado_por:currentUser?.name||'Inspector'})}catch(e){console.warn('No se pudo guardar fecha de medición',e)}
+      }
+    }
+    setTimeout(()=>parcheTablaMedicion(numero),0);
+    return res;
+  };
+})();
+</script>
 </body>
 </html>
-
-
-
