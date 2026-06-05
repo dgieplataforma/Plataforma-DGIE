@@ -13785,7 +13785,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function archivoFinalNombre(c){return c?.archivo_final||c?.certificado_final_archivo||''}
   function archivoFinalUrl(c){return c?.url_final||c?.certificado_final_url||''}
   function fechaMedicion(c){return c?.fecha_medicion||c?.fecha_envio_administracion||''}
-  function modFinal(c){return n(c?.modulos_final ?? c?.monto_final ?? c?.modulos_inspector ?? c?.modulos_original)}
+  function modFinal(c){
+    if(archivoFinalUrl(c)||archivoFinalNombre(c)){
+      return n(c?.modulos_final ?? c?.monto_final ?? c?.modulos_inspector ?? c?.modulos_original);
+    }
+    return n(c?.modulos_inspector ?? c?.modulos_original);
+  }
   function fechaMedicionLabel(v){
     if(!v)return 'Sin fecha';
     const s=String(v).slice(0,10);
