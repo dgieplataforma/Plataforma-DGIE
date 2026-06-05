@@ -13892,12 +13892,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rows=[...detalle.querySelectorAll('.med-version-row')];
     rows.forEach((row,i)=>{
       const c=data[i];
-      if(!c||row.querySelector('.cert-final-link'))return;
+      if(!c||row.querySelector('.cert-final-upload-row'))return;
       const metaRow=row.querySelector('.med-card-meta');
       if(metaRow){
         const safeId=String(c.id||c.localId).replace(/[^a-zA-Z0-9_-]/g,'_');
-        metaRow.insertAdjacentHTML('beforeend',`<br><span class="cert-final-link">Final: ${archivoFinalUrl(c)?`<a href="${esc(archivoFinalUrl(c))}" target="_blank" rel="noopener">${esc(archivoFinalNombre(c)||'Certificado final')}</a>`:'sin cargar'}</span>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
+        metaRow.insertAdjacentHTML('beforeend',`
+          <div class="cert-final-upload-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
             <input class="form-input" id="cert-final-file-${safeId}" type="file" accept=".xls,.xlsx" style="max-width:340px;padding:7px 9px;font-size:12px">
             <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="cargarCertificadoFinalMedicion('${esc(c.id||c.localId)}')">${archivoFinalUrl(c)?'Reemplazar final':'Cargar certificado final'}</button>
           </div>`);
@@ -13918,7 +13918,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const c=data[i];
       const td=document.createElement('td');
       td.setAttribute('style',tr.children[0]?.getAttribute('style')||'');
-      td.innerHTML=`${mods(modFinal(c))}${archivoFinalUrl(c)?`<div style="font-size:10px;margin-top:2px"><a href="${esc(archivoFinalUrl(c))}" target="_blank" rel="noopener">Ver final</a></div>`:''}`;
+      td.textContent=mods(modFinal(c));
       tr.insertBefore(td,tr.children[insertIdx]||null);
     });
     const foot=table.querySelector('tfoot tr');
