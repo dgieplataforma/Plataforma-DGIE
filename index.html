@@ -13879,6 +13879,24 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       alert('No se pudo guardar el certificado final: '+(error.message||error));
     }
   };
+  window.eliminarCertificadoFinalMedicion=async function(id){
+    const c=certById(id);
+    if(!c)return;
+    if(!confirm('¿Eliminar el certificado final cargado?'))return;
+    try{
+      await window.actualizarCertificado(id,{
+        archivo_final:null,
+        url_final:null,
+        public_id_final:null,
+        modulos_final:null,
+        monto_final:null,
+        actualizado_por:currentUser?.name||'Inspector'
+      });
+      if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(c.medicion_numero);
+    }catch(error){
+      alert('No se pudo eliminar el certificado final: '+(error.message||error));
+    }
+  };
   function parcheTablaMedicion(numero){
     const data=dataMedicion(numero);
     const detalle=document.getElementById('med-detalle');
@@ -13897,6 +13915,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(metaRow){
         const safeId=String(c.id||c.localId).replace(/[^a-zA-Z0-9_-]/g,'_');
         metaRow.insertAdjacentHTML('beforeend',`
+          ${archivoFinalUrl(c)?`<div class="cert-final-current" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
+            <a href="${esc(archivoFinalUrl(c))}" target="_blank" rel="noopener">${esc(archivoFinalNombre(c)||'Certificado final')}</a>
+            <button class="danger-btn" style="padding:6px 9px;font-size:12px" onclick="eliminarCertificadoFinalMedicion('${esc(c.id||c.localId)}')">Eliminar</button>
+          </div>`:''}
           <div class="cert-final-upload-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
             <input class="form-input" id="cert-final-file-${safeId}" type="file" accept=".xls,.xlsx" style="max-width:340px;padding:7px 9px;font-size:12px">
             <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="cargarCertificadoFinalMedicion('${esc(c.id||c.localId)}')">${archivoFinalUrl(c)?'Reemplazar final':'Cargar certificado final'}</button>
@@ -13926,7 +13948,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const td=document.createElement('td');
       td.setAttribute('style',foot.children[0]?.getAttribute('style')||'');
       td.textContent=mods(data.reduce((a,c)=>a+modFinal(c),0));
-      foot.insertBefore(td,foot.children[insertIdx]||null);
+      const ref=obsIdx>=0?foot.children[foot.children.length-1]:null;
+      foot.insertBefore(td,ref);
     }
   }
   const abrirPrev=window.abrirMedicionInspector;
