@@ -13815,6 +13815,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function insertarAvisoMedicion(c){
     return;
   }
+  if(!Number.isInteger(zona)||zona<1||zona>17){
+    if(err){err.textContent='Seleccioná una zona válida para el establecimiento.';err.style.display='block';}
+    return;
+  }
   const revisarPrev=window.revisarCertificadoInspector;
   window.revisarCertificadoInspector=function(id){
     const res=typeof revisarPrev==='function'?revisarPrev.apply(this,arguments):undefined;
@@ -13976,6 +13980,80 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     setTimeout(()=>parcheTablaMedicion(numero),0);
     return res;
   };
+})();
+</script>
+<script id="dgie-fix-establecimientos-selectores-2026-06-08">
+(function(){
+  function estabs(){return Array.isArray(window.ESTABS)?window.ESTABS:(typeof ESTABS!=='undefined'?ESTABS:[])}
+  function normText(v){return String(v??'').trim()}
+  function zonaValida(v){
+    let z=Number(v);
+    if(!Number.isFinite(z)){
+      const m=String(v??'').match(/\d+/);
+      z=m?Number(m[0]):0;
+    }
+    return Number.isInteger(z)&&z>=1&&z<=17?z:0;
+  }
+  function normalizarEstabs(){
+    estabs().forEach(e=>{
+      const z=zonaValida(e.zona??e.z??e.zona_id??e.zona_numero);
+      if(z)e.zona=z;
+      if(!e.n)e.n=e.nombre||e.establecimiento||`Establecimiento ${e.id||''}`.trim();
+      if(!e.dir)e.dir=e.direccion||'';
+      if(!e.est)e.est=e.estado||'Sin relevar';
+      if(!e.nivel)e.nivel='Sin nivel';
+      if(!e.tipo)e.tipo='Escuela';
+    });
+  }
+  window.normalizarEstablecimientosDGIE=normalizarEstabs;
+  window.establecimientosSeleccionablesDGIE=function(zona){
+    normalizarEstabs();
+    const z=zonaValida(zona);
+    return estabs()
+      .filter(e=>!z||Number(e.zona)===z)
+      .sort((a,b)=>String(a.n||'').localeCompare(String(b.n||''),'es'));
+  };
+  const guardarNuevoPrev=window.guardarNuevoEstab;
+  if(typeof guardarNuevoPrev==='function'){
+    window.guardarNuevoEstab=async function(){
+      const res=await guardarNuevoPrev.apply(this,arguments);
+      normalizarEstabs();
+      setTimeout(()=>window.cargarDatosPublicosDGIE?.(),250);
+      return res;
+    };
+  }
+  const guardarEstabPrev=window.guardarEstab;
+  if(typeof guardarEstabPrev==='function'){
+    window.guardarEstab=async function(){
+      const res=await guardarEstabPrev.apply(this,arguments);
+      normalizarEstabs();
+      setTimeout(()=>window.cargarDatosPublicosDGIE?.(),250);
+      return res;
+    };
+  }
+  const cargarPrev=window.cargarDatosPublicosDGIE;
+  if(typeof cargarPrev==='function'){
+    window.cargarDatosPublicosDGIE=async function(){
+      const res=await cargarPrev.apply(this,arguments);
+      normalizarEstabs();
+      return res;
+    };
+  }
+  const abrirIntPrev=window.openNuevaIntervencionMadre;
+  if(typeof abrirIntPrev==='function'){
+    window.openNuevaIntervencionMadre=function(){
+      normalizarEstabs();
+      return abrirIntPrev.apply(this,arguments);
+    };
+  }
+  const abrirRelPrev=window.openNuevoRelevamientoDesdeSeccion;
+  if(typeof abrirRelPrev==='function'){
+    window.openNuevoRelevamientoDesdeSeccion=function(){
+      normalizarEstabs();
+      return abrirRelPrev.apply(this,arguments);
+    };
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(normalizarEstabs,600));
 })();
 </script>
 </body>
