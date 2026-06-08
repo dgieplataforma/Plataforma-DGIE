@@ -1210,6 +1210,10 @@ async function guardarNuevoEstab(){
     if(err){err.textContent='Ingresá el nombre del establecimiento.';err.style.display='block';}
     return;
   }
+  if(!Number.isInteger(zona)||zona<1||zona>17){
+    if(err){err.textContent='Seleccioná una zona válida para el establecimiento.';err.style.display='block';}
+    return;
+  }
   if(!validarCoordenadasEstab(lat,lng)){
     if(err){err.textContent='Ingresá coordenadas válidas de Córdoba. Ejemplo: latitud -31.416700 y longitud -64.183300.';err.style.display='block';}
     return;
@@ -13813,10 +13817,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return fechas[0]||'';
   }
   function insertarAvisoMedicion(c){
-    return;
-  }
-  if(!Number.isInteger(zona)||zona<1||zona>17){
-    if(err){err.textContent='Seleccioná una zona válida para el establecimiento.';err.style.display='block';}
     return;
   }
   const revisarPrev=window.revisarCertificadoInspector;
