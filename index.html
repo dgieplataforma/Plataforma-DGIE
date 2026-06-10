@@ -14288,7 +14288,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     injectStyles();
     const zona=zonaActual(z);
     container.insertAdjacentHTML('afterbegin',`<div class="ap-hero">
-      <div><div class="card-title">Análisis de precios</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Generá análisis con respaldo de capturas de mercado y cálculo de módulos.</div></div>
+      <div><div class="card-title">Análisis de precios</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Generá análisis con ítems, respaldo opcional de capturas de mercado y cálculo de módulos.</div></div>
       <button class="primary-btn" onclick="abrirAnalisisPrecios(${zona},'${esc(tipo)}')">Abrir análisis</button>
     </div>`);
   }
@@ -14424,11 +14424,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function materialRow(m={},idx=0){
     const capturas=(m.capturas||[]).filter(c=>c?.url);
     return `<div class="ap-row-grid ap-material-row" data-capturas="${esc(encCaps(capturas))}">
-      <div><label class="form-label">Material</label><input class="form-input ap-mat-nombre" value="${esc(m.nombre||'')}" placeholder="Ej: membrana geotextil"></div>
+      <div><label class="form-label">Ítem</label><input class="form-input ap-mat-nombre" value="${esc(m.nombre||'')}" placeholder="Ej: cerradura, picaporte, membrana"></div>
       <div><label class="form-label">Unidad</label><input class="form-input ap-mat-unidad" value="${esc(m.unidad||'ud')}" placeholder="ud/m2/lts"></div>
       <div><label class="form-label">Cantidad</label><input class="form-input ap-mat-cantidad" type="number" step="0.01" value="${esc(m.cantidad||'1')}" oninput="actualizarResumenAP()"></div>
       <div><label class="form-label">Precio</label><input class="form-input ap-mat-precio" type="number" step="0.01" value="${esc(m.precio||'')}" oninput="actualizarResumenAP()"></div>
-      <div><label class="form-label">Capturas precio</label><input class="ap-mat-captura" type="file" accept="image/*" style="display:none" onchange="cargarCapturaAP(this)"><button class="secondary-btn" type="button" onclick="this.previousElementSibling.click()">+ Cargar captura</button><div class="ap-capturas-count" style="font-size:11px;margin-top:4px;color:${capturas.length>=3?'#166534':'#64748b'};font-weight:800">${capturas.length}/3 capturas ${capturas.length>=3?'listas':'cargadas'}</div><div class="ap-capturas-list">${capturasHtml(capturas)}</div></div>
+      <div><label class="form-label">Capturas precio <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input class="ap-mat-captura" type="file" accept="image/*" style="display:none" onchange="cargarCapturaAP(this)"><button class="secondary-btn" type="button" onclick="this.previousElementSibling.click()">+ Cargar captura</button><div class="ap-capturas-count" style="font-size:11px;margin-top:4px;color:${capturas.length?'#166534':'#64748b'};font-weight:800">${capturas.length} captura${capturas.length===1?'':'s'} cargada${capturas.length===1?'':'s'}</div><div class="ap-capturas-list">${capturasHtml(capturas)}</div></div>
       <button class="secondary-btn" type="button" onclick="this.closest('.ap-material-row').remove();actualizarResumenAP()">Quitar</button>
     </div>`;
   }
@@ -14449,16 +14449,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="section-label">Zona ${zona} · ${ap.id?'Editar':'Nuevo'} análisis de precios</div>
       <div class="ap-grid">
         <div class="card">
-          <div class="card-header"><div><div class="card-title">Datos del análisis</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Cargá materiales con captura de precio de mercado.</div></div></div>
+          <div class="card-header"><div><div class="card-title">Datos del análisis</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Cargá ítems con capturas de precio opcionales.</div></div></div>
           <div class="form-grid">
             ${tipo==='cert-list'?`<div class="form-field full"><label class="form-label">Establecimiento</label><select class="form-select" id="ap-est">${estOpciones||'<option value="">Sin establecimientos</option>'}</select></div><input type="hidden" id="ap-os" value="">`:`<div class="form-field"><label class="form-label">Orden de servicio</label><select class="form-select" id="ap-os">${opciones||'<option value="">Sin O.S. disponible</option>'}</select></div>`}
             <div class="form-field"><label class="form-label">Valor módulo</label><input class="form-input" id="ap-modulo" type="number" step="0.01" value="${esc(ap.valorModulo||MODULO_DEFAULT)}" oninput="actualizarResumenAP()"></div>
             <div class="form-field full"><label class="form-label">Concepto / tarea</label><input class="form-input" id="ap-concepto" value="${esc(ap.concepto||'')}" placeholder="Ej: provisión y colocación de picaporte"></div>
             <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ap-observaciones" style="min-height:80px">${esc(ap.observaciones||'')}</textarea></div>
           </div>
-          <div style="margin-top:16px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Materiales</div><div id="ap-materiales">${(ap.materiales?.length?ap.materiales:[{}]).map(materialRow).join('')}</div><button class="secondary-btn" type="button" onclick="agregarMaterialAP()">+ Agregar material</button></div>
+          <div style="margin-top:16px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Ítems</div><div id="ap-materiales">${(ap.materiales?.length?ap.materiales:[{}]).map(materialRow).join('')}</div><button class="secondary-btn" type="button" onclick="agregarMaterialAP()">+ Agregar ítem</button></div>
           <div style="margin-top:18px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Mano de obra</div>
-            <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="igual" ${mo.modo!=='horas'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Igual al total de materiales</label>
+            <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="igual" ${mo.modo!=='horas'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Igual al total de ítems</label>
             <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="horas" ${mo.modo==='horas'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Calcular por horas de oficial y ayudante</label>
             <div class="form-grid" id="ap-mo-horas" style="display:${mo.modo==='horas'?'grid':'none'}">
               <div class="form-field"><label class="form-label">Horas oficial</label><input class="form-input" id="ap-of-horas" type="number" step="0.01" value="${esc(mo.oficialHoras||'')}" oninput="actualizarResumenAP()"></div>
@@ -14483,8 +14483,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const count=row?.querySelector?.('.ap-capturas-count');
     const list=row?.querySelector?.('.ap-capturas-list');
     if(count){
-      count.textContent=`${caps.length}/3 capturas ${caps.length>=3?'listas':'cargadas'}`;
-      count.style.color=caps.length>=3?'#166534':'#64748b';
+      count.textContent=`${caps.length} captura${caps.length===1?'':'s'} cargada${caps.length===1?'':'s'}`;
+      count.style.color=caps.length?'#166534':'#64748b';
     }
     if(list)list.innerHTML=capturasHtml(caps);
   }
@@ -14550,7 +14550,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const c=calc(draftFromForm()), box=$('ap-resumen');
     if(!box)return;
     box.innerHTML=`${[
-      ['Materiales',c.totalMateriales],['Mano de obra',c.manoObra],['Equipos / otros',c.equipos],['MAT + MO + EQUIPOS',c.matMoEquip],['Gastos financieros 1,8%',c.gastosFinancieros],['SUBTOTAL 1',c.subtotal1],['Gastos generales e indirectos 14%',c.gastosGenerales],['Beneficio 15%',c.beneficio],['SUBTOTAL 2',c.subtotal2],['IVA 21% + IB 4,75%',c.ivaIb],['Costo empresa / carga fija',c.cargaFija],['Costo final',c.costoFinal]
+      ['Ítems',c.totalMateriales],['Mano de obra',c.manoObra],['Equipos / otros',c.equipos],['Ítems + MO + equipos',c.matMoEquip],['Gastos financieros 1,8%',c.gastosFinancieros],['SUBTOTAL 1',c.subtotal1],['Gastos generales e indirectos 14%',c.gastosGenerales],['Beneficio 15%',c.beneficio],['SUBTOTAL 2',c.subtotal2],['IVA 21% + IB 4,75%',c.ivaIb],['Costo empresa / carga fija',c.cargaFija],['Costo final',c.costoFinal]
     ].map(([l,v])=>`<div class="ap-kpi" style="margin-bottom:8px"><div class="ap-kpi-lbl">${esc(l)}</div><div style="font-weight:900;color:#123c69">${money(v)}</div></div>`).join('')}
     <div class="ap-kpi"><div class="ap-kpi-lbl">Módulos</div><div class="ap-kpi-val">${mods(c.modulos)}</div><div style="font-size:11px;color:var(--muted)">Valor módulo: ${money(c.modulo)}</div></div>`;
   };
@@ -14558,9 +14558,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const err=$('ap-error'), draft=draftFromForm();
     if(tipo!=='cert-list'&&!certId&&!draft.osNumero){if(err){err.textContent='Seleccioná una orden de servicio.';err.style.display='block'}return}
     if(tipo==='cert-list'&&!draft.establecimientoId){if(err){err.textContent='Seleccioná un establecimiento.';err.style.display='block'}return}
-    if(!draft.materiales.length){if(err){err.textContent='Cargá al menos un material.';err.style.display='block'}return}
+    if(!draft.materiales.length){if(err){err.textContent='Cargá al menos un ítem.';err.style.display='block'}return}
     for(let i=0;i<draft.materiales.length;i++){
-      if((draft.materiales[i].capturas||[]).length<3){if(err){err.textContent='Cada material debe tener como mínimo 3 capturas de precio de mercado.';err.style.display='block'}return}
       draft.materiales[i].captura=draft.materiales[i].capturas[0]||null;
     }
     await loadStore();
@@ -14600,10 +14599,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button><button onclick="descargarAnalisisJPG()">Descargar JPG</button></div><div id="ap-print-page">
       <h1>Análisis de precios</h1><div class="meta">O.S. ${esc(osAnalisis(ap)||'pendiente')} · ${esc(ap.establecimiento)} · Generado ${new Date().toLocaleString('es-AR')}</div>
       <div class="box"><b>Concepto:</b> ${esc(ap.concepto)}<br><b>Observaciones:</b> ${esc(ap.observaciones||'Sin observaciones')}</div>
-      <h2>Materiales</h2><table><thead><tr><th>#</th><th>Material</th><th>Unidad</th><th>Cantidad</th><th>Precio</th><th>Total</th></tr></thead><tbody>${materiales}</tbody></table>
+      <h2>Ítems</h2><table><thead><tr><th>#</th><th>Ítem</th><th>Unidad</th><th>Cantidad</th><th>Precio</th><th>Total</th></tr></thead><tbody>${materiales}</tbody></table>
       ${equipos?`<h2>Equipos / otros costos directos</h2><table><thead><tr><th>Descripción</th><th>Monto</th></tr></thead><tbody>${equipos}</tbody></table>`:''}
       <h2>Cálculo</h2><table><tbody>
-        <tr><td>Total materiales</td><td>${money(c.totalMateriales)}</td></tr><tr><td>Mano de obra</td><td>${money(c.manoObra)}</td></tr><tr><td>Equipos / otros</td><td>${money(c.equipos)}</td></tr><tr><td>MAT + MO + EQUIPOS</td><td>${money(c.matMoEquip)}</td></tr><tr><td>Gastos financieros 1,8%</td><td>${money(c.gastosFinancieros)}</td></tr><tr><td>SUBTOTAL 1</td><td>${money(c.subtotal1)}</td></tr><tr><td>Gastos generales e indirectos 14%</td><td>${money(c.gastosGenerales)}</td></tr><tr><td>Beneficio 15%</td><td>${money(c.beneficio)}</td></tr><tr><td>SUBTOTAL 2</td><td>${money(c.subtotal2)}</td></tr><tr><td>IVA 21% + IB 4,75%</td><td>${money(c.ivaIb)}</td></tr><tr class="tot"><td>Costo empresa / carga fija</td><td>${money(c.cargaFija)}</td></tr><tr class="tot"><td>Costo final / gl</td><td>${money(c.costoFinal)}</td></tr><tr class="tot"><td>Módulos</td><td>${mods(c.modulos)}</td></tr>
+        <tr><td>Total ítems</td><td>${money(c.totalMateriales)}</td></tr><tr><td>Mano de obra</td><td>${money(c.manoObra)}</td></tr><tr><td>Equipos / otros</td><td>${money(c.equipos)}</td></tr><tr><td>Ítems + MO + equipos</td><td>${money(c.matMoEquip)}</td></tr><tr><td>Gastos financieros 1,8%</td><td>${money(c.gastosFinancieros)}</td></tr><tr><td>SUBTOTAL 1</td><td>${money(c.subtotal1)}</td></tr><tr><td>Gastos generales e indirectos 14%</td><td>${money(c.gastosGenerales)}</td></tr><tr><td>Beneficio 15%</td><td>${money(c.beneficio)}</td></tr><tr><td>SUBTOTAL 2</td><td>${money(c.subtotal2)}</td></tr><tr><td>IVA 21% + IB 4,75%</td><td>${money(c.ivaIb)}</td></tr><tr class="tot"><td>Costo empresa / carga fija</td><td>${money(c.cargaFija)}</td></tr><tr class="tot"><td>Costo final / gl</td><td>${money(c.costoFinal)}</td></tr><tr class="tot"><td>Módulos</td><td>${mods(c.modulos)}</td></tr>
       </tbody></table>
       <h2>Capturas de precios de mercado</h2>${capturas||'<p>Sin capturas.</p>'}
       </div><script>
