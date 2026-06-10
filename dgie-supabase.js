@@ -222,6 +222,19 @@
     async actualizarCertificadoMedicion(id, row){
       return client.from('certificados_medicion').update(row).eq('id', id).select('*').single();
     },
+    async listarAnalisisPrecios(zona){
+      let query = client.from('analisis_precios').select('*');
+      if(zona !== undefined && zona !== null && zona !== ''){
+        query = query.eq('zona', Number(zona));
+      }
+      return query.order('updated_at', { ascending:false }).limit(1000);
+    },
+    async guardarAnalisisPrecio(row){
+      return client.from('analisis_precios').upsert(row, { onConflict:'id' }).select('*').single();
+    },
+    async eliminarAnalisisPrecio(id){
+      return client.from('analisis_precios').delete().eq('id', id);
+    },
     async eliminarCertificadoMedicion(id){
       return client.from('certificados_medicion').delete().eq('id', id);
     }

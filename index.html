@@ -4928,6 +4928,9 @@ function renderChartInsp(){
         window.DGIE_DB.listarInspectores?.(),
         window.DGIE_DB.listarEmpresas?.()
       ]);
+      if(typeof window.cargarAnalisisPreciosSupabase==='function'){
+        await window.cargarAnalisisPreciosSupabase(true);
+      }
       if(recRes&&!recRes.error&&Array.isArray(recRes.data)){
         RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...recRes.data.map(mapRemoteReclamo));
       }
@@ -6499,6 +6502,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="card-header"><div><div class="card-title">Subir certificado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa solo carga archivo y observaciones.</div></div></div>
         <div class="form-grid">
           <div class="form-field full" style="position:relative"><label class="form-label">Establecimiento</label><input class="form-input" id="cert-est-search" placeholder="Buscar por nombre, CUE o dirección..." oninput="filtrarEstablecimientosCertEmpresa()" onfocus="filtrarEstablecimientosCertEmpresa()" onblur="setTimeout(()=>{const s=$('cert-est-sugs');if(s)s.style.display='none'},150)" autocomplete="off"><input type="hidden" id="cert-est-id"><div id="cert-est-sugs" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:200"></div></div>
+          <div class="form-field full"><label class="form-label">Orden de servicio</label><select class="form-select" id="cert-os" onchange="mostrarDetalleOSCert()"><option value="">Primero seleccioná establecimiento</option></select><div id="cert-os-detalle" style="margin-top:8px;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;display:none"></div></div>
           <div class="form-field full"><label class="form-label">Archivo certificado Excel</label><input class="form-input" id="cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarCertificado('cert-file','cert-modulos')">${certLimitHelpHTML()}</div>
           <div class="form-field"><label class="form-label">Módulos leídos de G720</label><input class="form-input" id="cert-modulos" type="number" step="0.001" placeholder="Se completa automáticamente" readonly></div>
           <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="cert-obs" placeholder="Observaciones de la empresa..."></textarea></div>
@@ -6508,6 +6512,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       </section>
       <section class="card">
         <div class="card-header"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa ve revisiones y mediciones. No puede editar.</div></div><span class="badge b-info">${data.length} certificados</span></div>
+        <div style="margin-bottom:12px;display:flex;justify-content:flex-end"><button class="secondary-btn" onclick="abrirAnalisisPreciosCertificacion(${Number(z)},'empresa')">Análisis de precios</button></div>
         ${renderSeguimientoCertificados(data,false)}
       </section>
     </div>`;
@@ -6528,12 +6533,32 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(input)input.value=el?.textContent||'';
     if(hidden)hidden.value=id;
     if(sugs)sugs.style.display='none';
+    cargarOrdenesCertEmpresa(id);
+  };
+  function detalleOSCert(o){
+    if(!o)return '';
+    return `<b>O.S. ${escapeHtml(o.numero||'')}</b> · ${escapeHtml(o.rubro||'Sin rubro')} · ${escapeHtml(o.estado||'Sin estado')}<br>${escapeHtml(o.tarea||'Sin detalle de tarea')}${o.reclamoNumero?`<br>Reclamo: ${escapeHtml(o.reclamoNumero)}`:''}`;
+  }
+  window.cargarOrdenesCertEmpresa=function(estId){
+    const sel=$('cert-os'), box=$('cert-os-detalle');
+    if(!sel)return;
+    const oss=(OS_ZONA||[]).filter(o=>Number(o.estId)===Number(estId)).sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')));
+    sel.innerHTML=oss.length?`<option value="">Seleccionar O.S.</option>${oss.map(o=>`<option value="${escapeHtml(o.numero||'')}">${escapeHtml(o.numero||'')} · ${escapeHtml(o.rubro||'Sin rubro')} · ${escapeHtml(String(o.tarea||'').slice(0,80))}</option>`).join('')}`:'<option value="">Sin O.S. para este establecimiento</option>';
+    if(box){box.style.display='none';box.innerHTML='';}
+  };
+  window.mostrarDetalleOSCert=function(){
+    const numero=$('cert-os')?.value, box=$('cert-os-detalle');
+    const os=(OS_ZONA||[]).find(o=>String(o.numero||'')===String(numero||''));
+    if(!box)return;
+    if(!os){box.style.display='none';box.innerHTML='';return;}
+    box.innerHTML=detalleOSCert(os);
+    box.style.display='block';
   };
 
   window.guardarCertificadoEmpresa=async function(){
-    const estId=Number($('cert-est-id')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value);
+    const estId=Number($('cert-est-id')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value), osNumero=($('cert-os')?.value||'').trim();
     if(file&&!validarTamanoCertificado(file))return;
-    if(!est||!file||!mod){$('cert-error')&&( $('cert-error').style.display='block');return;}
+    if(!est||!file||!mod||!osNumero){$('cert-error')&&( $('cert-error').textContent='Seleccioná establecimiento, orden de servicio, archivo y módulos.', $('cert-error').style.display='block');return;}
     $('cert-error')&&( $('cert-error').style.display='none');
     const subida=await subirCertFile(file);
     try{
@@ -6547,6 +6572,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         modulos_original:mod,
         monto_empresa:mod,
         observaciones_empresa:($('cert-obs')?.value||'').trim(),
+        ordenes_servicio_certificado:osNumero,
         estado:'pendiente',
         creado_por:currentUser?.name||'Empresa',
         actualizado_por:currentUser?.name||'Empresa'
@@ -6586,7 +6612,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
       <div class="med-card-meta">
         Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
-        ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}${certOrdenes(c).length?` · O.S. ${escapeHtml(certOrdenes(c).join(', '))}`:''}<br>`:''}
+        ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
+        ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
         ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
         ${c.observaciones_empresa?`<span style="color:#64748b">Empresa (inicial): ${escapeHtml(c.observaciones_empresa)}</span><br>`:''}
         ${limpiarObsCert(c.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</span>`:''}
@@ -6595,6 +6622,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       ${(c.created_at||c.updated_at)?`<div style="font-size:10px;color:#b0bccc;margin-top:5px">${[c.created_at?'Cargado '+fmtCertFecha(c.created_at):'',c.updated_at&&c.updated_at!==c.created_at?(c.estado==='medido'?'Medición '+fmtCertFecha(c.updated_at):'Modificado '+fmtCertFecha(c.updated_at)):''].filter(Boolean).join(' · ')}</div>`:''}
       <div class="med-actions" style="margin-top:10px">
         <span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span>
+        <button class="secondary-btn" onclick="seleccionarAnalisisPrecioCertificado('${c.id||c.localId}')">Análisis de precios</button>
+        ${window.analisisPrecioCertificadoExiste?.(c.id||c.localId)?`<button class="secondary-btn" onclick="imprimirAnalisisPrecioCertificado('${c.id||c.localId}')">PDF/JPG análisis</button><button class="secondary-btn" style="color:var(--danger)" onclick="desanexarAnalisisPrecioCertificado('${c.id||c.localId}')">Quitar análisis</button>`:''}
         ${inspector?`<button class="secondary-btn" onclick="revisarCertificadoInspector('${c.id||c.localId}')">Gestionar</button><button class="secondary-btn" style="color:var(--danger)" onclick="eliminarCertificadoInspector('${c.id||c.localId}')">Eliminar</button>`:''}
       </div>
     </div>`).join('');
@@ -6642,6 +6671,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="card">
         <div class="card-header"><div><div class="card-title">Certificados de empresa</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El inspector carga versión corregida, asigna medición, edita o elimina certificados.</div></div><span class="badge b-info">${data.length} certificados</span></div>
         <div class="os-filters"><input class="estab-search" id="med-q" placeholder="Buscar establecimiento o archivo..." oninput="filtrarMedicionesInspector()"><select class="filter-sel" id="med-estado" onchange="filtrarMedicionesInspector()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="revision">En revisión</option><option value="medido">En medición</option></select></div>
+        <div style="margin-bottom:12px;display:flex;justify-content:flex-end"><button class="secondary-btn" onclick="abrirAnalisisPreciosCertificacion(${Number(z)},'inspector')">Análisis de precios</button></div>
         <div id="med-list">${renderSeguimientoCertificados(data,true)}</div>
       </div>`;
   };
@@ -6681,11 +6711,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
         <div class="med-card-meta">
           Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
-          ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}${certOrdenes(c).length?` · O.S. ${escapeHtml(certOrdenes(c).join(', '))}`:''}<br>`:''}
+          ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
+          ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
           ${escapeHtml(limpiarObsCert(c.observaciones_inspector)||c.observaciones_empresa||'Sin observaciones')}
         </div>
       </div>
-      ${currentUser?.role==='inspector'?`<button class="secondary-btn" style="color:var(--danger);white-space:nowrap" onclick="volverCertificadoPendiente('${c.id||c.localId}')">Volver a pendiente</button>`:''}
+      ${currentUser?.role==='inspector'?`<div class="med-actions"><button class="secondary-btn" onclick="seleccionarAnalisisPrecioCertificado('${c.id||c.localId}')">Análisis de precios</button>${window.analisisPrecioCertificadoExiste?.(c.id||c.localId)?`<button class="secondary-btn" onclick="imprimirAnalisisPrecioCertificado('${c.id||c.localId}')">PDF/JPG análisis</button><button class="secondary-btn" style="color:var(--danger)" onclick="desanexarAnalisisPrecioCertificado('${c.id||c.localId}')">Quitar análisis</button>`:''}<button class="secondary-btn" style="color:var(--danger);white-space:nowrap" onclick="volverCertificadoPendiente('${c.id||c.localId}')">Volver a pendiente</button></div>`:''}
     </div>`).join('');
   }
   function tablaMedicion(data){
@@ -14054,6 +14085,550 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
   }
   document.addEventListener('DOMContentLoaded',()=>setTimeout(normalizarEstabs,600));
+})();
+</script>
+<script id="dgie-analisis-precios-operativo-2026-06-10">
+(function(){
+  const STORE_KEY='dgie_analisis_precios_v1';
+  const MODULO_DEFAULT=136603.56;
+  let AP_CACHE=null;
+  let AP_LOAD_PROMISE=null;
+  let AP_REMOTE_OK=false;
+  let AP_REMOTE_ERROR='';
+  function $(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function n(v){
+    if(typeof v==='number')return Number.isFinite(v)?v:0;
+    const s=String(v??'').trim();
+    if(!s)return 0;
+    return Number(s.includes(',')?s.replace(/\./g,'').replace(',','.'):s)||0;
+  }
+  function money(v){return n(v).toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2,maximumFractionDigits:2})}
+  function mods(v){return n(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
+  function norm(v){return String(v??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+  function localStore(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(_){return []}}
+  function saveLocalStore(arr){try{localStorage.setItem(STORE_KEY,JSON.stringify(arr||[]))}catch(_){}}
+  function store(){return AP_CACHE||localStore()}
+  function saveStore(arr){AP_CACHE=arr||[];saveLocalStore(AP_CACHE)}
+  function rowToAp(row){
+    if(!row)return null;
+    return {
+      id:String(row.id||''),
+      zona:Number(row.zona)||1,
+      osNumero:row.os_numero||'',
+      certId:row.certificado_id||'',
+      establecimientoId:row.establecimiento_id||'',
+      establecimiento:row.establecimiento_nombre||'',
+      concepto:row.concepto||'Análisis de precios',
+      observaciones:row.observaciones||'',
+      valorModulo:n(row.valor_modulo)||MODULO_DEFAULT,
+      materiales:Array.isArray(row.materiales)?row.materiales:[],
+      manoObra:row.mano_obra&&typeof row.mano_obra==='object'?row.mano_obra:{modo:'igual'},
+      equipos:Array.isArray(row.equipos)?row.equipos:[],
+      creadoPor:row.creado_por||'',
+      createdAt:row.created_at||'',
+      updatedAt:row.updated_at||''
+    };
+  }
+  function apToRow(ap){
+    const c=calc(ap), now=new Date().toISOString();
+    return {
+      id:String(ap.id),
+      zona:Number(ap.zona)||zonaActual(),
+      establecimiento_id:Number(ap.establecimientoId)||null,
+      establecimiento_nombre:ap.establecimiento||null,
+      certificado_id:ap.certId||null,
+      os_numero:ap.osNumero||null,
+      concepto:ap.concepto||'Análisis de precios',
+      observaciones:ap.observaciones||null,
+      valor_modulo:n(ap.valorModulo)||MODULO_DEFAULT,
+      materiales:ap.materiales||[],
+      mano_obra:ap.manoObra||{modo:'igual'},
+      equipos:Array.isArray(ap.equipos)?ap.equipos:[],
+      calculo:{costoFinal:c.costoFinal,modulos:c.modulos,totalMateriales:c.totalMateriales,manoObra:c.manoObra,equipos:c.equipos},
+      creado_por:ap.creadoPor||currentUser?.name||currentUser?.role||null,
+      updated_at:now
+    };
+  }
+  function dbMsg(error){
+    const msg=String(error?.message||error||'');
+    if(String(error?.code)==='42P01'||msg.toLowerCase().includes('analisis_precios'))return 'Falta ejecutar supabase-analisis-precios.sql en Supabase.';
+    return msg||'No se pudo conectar con Supabase.';
+  }
+  async function loadStore(force=false){
+    if(AP_LOAD_PROMISE&&!force)return AP_LOAD_PROMISE;
+    AP_LOAD_PROMISE=(async()=>{
+      const localBackup=localStore();
+      if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarAnalisisPrecios==='function'){
+        const zonaConsulta=currentUser?.role==='director'||currentUser?.role==='coordinador'?null:currentUser?.zona;
+        const {data,error}=await window.DGIE_DB.listarAnalisisPrecios(zonaConsulta);
+        if(!error){
+          AP_REMOTE_OK=true;AP_REMOTE_ERROR='';
+          const remote=(data||[]).map(rowToAp).filter(Boolean);
+          const remoteIds=new Set(remote.map(x=>String(x.id)));
+          const localOnly=localBackup.filter(x=>x?.id&&!remoteIds.has(String(x.id)));
+          let syncErrors=0;
+          for(const item of localOnly){
+            try{
+              const saved=await window.DGIE_DB.guardarAnalisisPrecio(apToRow(item));
+              if(saved?.error){syncErrors++;remote.push({...item,_syncError:dbMsg(saved.error)});}
+              else remote.push(rowToAp(saved?.data)||item);
+            }catch(error){
+              syncErrors++;
+              remote.push({...item,_syncError:dbMsg(error)});
+            }
+          }
+          AP_CACHE=remote;
+          if(syncErrors){AP_REMOTE_OK=false;AP_REMOTE_ERROR=`${syncErrors} análisis quedaron solo como respaldo local.`}
+          saveLocalStore(AP_CACHE);
+          return AP_CACHE;
+        }
+        AP_REMOTE_OK=false;AP_REMOTE_ERROR=dbMsg(error);
+        console.warn('Análisis de precios en modo local:', error);
+      }
+      AP_CACHE=localStore();
+      return AP_CACHE;
+    })();
+    try{return await AP_LOAD_PROMISE}finally{AP_LOAD_PROMISE=null}
+  }
+  window.cargarAnalisisPreciosSupabase=loadStore;
+  async function persistAnalisisItem(item){
+    const arr=store(), idx=arr.findIndex(x=>String(x.id)===String(item.id));
+    if(idx>=0)arr[idx]=item;else arr.unshift(item);
+    saveStore(arr);
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.guardarAnalisisPrecio==='function'){
+      const {data,error}=await window.DGIE_DB.guardarAnalisisPrecio(apToRow(item));
+      if(error){AP_REMOTE_OK=false;AP_REMOTE_ERROR=dbMsg(error);throw error}
+      AP_REMOTE_OK=true;AP_REMOTE_ERROR='';
+      const remote=rowToAp(data);
+      if(remote){
+        const j=AP_CACHE.findIndex(x=>String(x.id)===String(remote.id));
+        if(j>=0)AP_CACHE[j]=remote;else AP_CACHE.unshift(remote);
+        saveLocalStore(AP_CACHE);
+      }
+    }
+    return item;
+  }
+  async function deleteAnalisisItem(id){
+    const arr=store().filter(x=>String(x.id)!==String(id));
+    saveStore(arr);
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarAnalisisPrecio==='function'){
+      const {error}=await window.DGIE_DB.eliminarAnalisisPrecio(id);
+      if(error){AP_REMOTE_OK=false;AP_REMOTE_ERROR=dbMsg(error);throw error}
+      AP_REMOTE_OK=true;AP_REMOTE_ERROR='';
+    }
+  }
+  function storageBadge(){
+    if(AP_REMOTE_OK)return 'Guardado en Supabase.';
+    return AP_REMOTE_ERROR?`Modo local de respaldo. ${esc(AP_REMOTE_ERROR)}`:'Cargando datos compartidos...';
+  }
+  function zonaActual(z){return Number(z||currentUser?.zona||selectedZona||selectedEmpresa||1)||1}
+  function osZona(z){
+    const zona=zonaActual(z);
+    if(typeof osPorZona==='function')return osPorZona(zona);
+    return (window.OS_ZONA||OS_ZONA||[]).filter(o=>Number(o.zona||zonaEstablecimiento?.(o.estId))===zona);
+  }
+  function estNombre(id){return (window.ESTABS||ESTABS||[]).find(e=>Number(e.id)===Number(id))?.n||'Establecimiento'}
+  function osByNumero(numero){return (window.OS_ZONA||OS_ZONA||[]).find(o=>String(o.numero||'')===String(numero||''))}
+  function readFile(file){
+    return new Promise(resolve=>{
+      if(!file){resolve(null);return}
+      const r=new FileReader();
+      r.onload=e=>resolve({name:file.name,type:file.type,url:e.target.result});
+      r.onerror=()=>resolve(null);
+      r.readAsDataURL(file);
+    });
+  }
+  function encCaps(caps){try{return encodeURIComponent(JSON.stringify(caps||[]))}catch(_){return '%5B%5D'}}
+  function decCaps(v){try{return JSON.parse(decodeURIComponent(v||'%5B%5D'))||[]}catch(_){return []}}
+  function capturasHtml(caps){
+    return caps.length?`<div style="display:grid;gap:5px;margin-top:6px">${caps.map((c,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;background:#f8fafc;border:1px solid #e5edf6;border-radius:8px;padding:5px 7px"><a href="${esc(c.url)}" target="_blank">Captura ${i+1}</a><button type="button" class="edit-btn" style="padding:2px 6px;color:var(--danger)" onclick="quitarCapturaAP(this,${i})">Eliminar</button></div>`).join('')}</div>`:'';
+  }
+  function calc(ap){
+    const materiales=(ap.materiales||[]).map(m=>({...m,cantidad:n(m.cantidad),precio:n(m.precio),total:n(m.cantidad)*n(m.precio)}));
+    const totalMateriales=materiales.reduce((a,m)=>a+m.total,0);
+    const mo=ap.manoObra||{};
+    const manoObra=mo.modo==='horas'
+      ? n(mo.oficialHoras)*n(mo.oficialValor)+n(mo.ayudanteHoras)*n(mo.ayudanteValor)
+      : totalMateriales;
+    const equipos=Array.isArray(ap.equipos)?ap.equipos.reduce((a,e)=>a+n(e.monto),0):n(ap.equipos);
+    const matMoEquip=totalMateriales+manoObra+equipos;
+    const gastosFinancieros=matMoEquip*0.018;
+    const subtotal1=matMoEquip+gastosFinancieros;
+    const gastosGenerales=subtotal1*0.14;
+    const beneficio=subtotal1*0.15;
+    const subtotal2=subtotal1+gastosGenerales+beneficio;
+    const ivaIb=subtotal2*0.2575;
+    const cargaFija=gastosFinancieros+gastosGenerales+beneficio+ivaIb;
+    const costoFinal=matMoEquip+cargaFija;
+    const modulo=n(ap.valorModulo)||MODULO_DEFAULT;
+    return {materiales,totalMateriales,manoObra,equipos,matMoEquip,gastosFinancieros,subtotal1,gastosGenerales,beneficio,subtotal2,ivaIb,cargaFija,costoFinal,modulo,modulos:modulo?costoFinal/modulo:0};
+  }
+  function injectStyles(){
+    if($('ap-precios-style'))return;
+    const st=document.createElement('style');
+    st.id='ap-precios-style';
+    st.textContent=`
+      .ap-hero{display:flex;justify-content:space-between;gap:14px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
+      .ap-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:14px}
+      .ap-table{width:100%;border-collapse:collapse;background:#fff}
+      .ap-table th{background:#eef2f7;color:#334155;text-align:left;font-size:12px;padding:8px;border-bottom:1px solid var(--border)}
+      .ap-table td{font-size:13px;padding:8px;border-bottom:1px solid #e5edf6;vertical-align:top}
+      .ap-row-grid{display:grid;grid-template-columns:1.6fr .7fr .7fr .9fr 1.45fr auto;gap:8px;align-items:end;margin-bottom:8px}
+      .ap-kpi{background:#f8fafc;border:1px solid #e5edf6;border-radius:12px;padding:12px}
+      .ap-kpi-lbl{font-size:11px;color:#64748b;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+      .ap-kpi-val{font-size:22px;color:#123c69;font-weight:900;margin-top:4px}
+      @media(max-width:900px){.ap-grid{grid-template-columns:1fr}.ap-row-grid{grid-template-columns:1fr 1fr}.ap-row-grid .secondary-btn{width:100%}}
+      @media print{.ap-print-actions{display:none!important}}
+    `;
+    document.head.appendChild(st);
+  }
+  function addEntryButton(container,z,tipo){
+    if(!container||container.querySelector('.ap-hero'))return;
+    injectStyles();
+    const zona=zonaActual(z);
+    container.insertAdjacentHTML('afterbegin',`<div class="ap-hero">
+      <div><div class="card-title">Análisis de precios</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Generá análisis con respaldo de capturas de mercado y cálculo de módulos.</div></div>
+      <button class="primary-btn" onclick="abrirAnalisisPrecios(${zona},'${esc(tipo)}')">Abrir análisis</button>
+    </div>`);
+  }
+  // El análisis queda anexado a Certificación; no se inserta como módulo independiente en O.S.
+  window.abrirAnalisisPrecios=async function(z,tipo='inspector'){
+    injectStyles();
+    const zona=zonaActual(z), main=$('main-content');
+    if(!main)return;
+    await loadStore();
+    const data=store().filter(x=>Number(x.zona)===zona).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+    main.innerHTML=`<button class="back-btn" onclick="${tipo==='empresa'?`renderOSEmpresa($('main-content'),${zona})`:`renderOSZona($('main-content'))`}">‹ Volver a órdenes</button>
+      <div class="section-label">Zona ${zona} · Análisis de precios</div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Análisis generados</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${storageBadge()}</div></div>
+          <button class="primary-btn" onclick="nuevoAnalisisPrecio(${zona},'${esc(tipo)}')">+ Nuevo análisis</button>
+        </div>
+        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>O.S.</th><th>Establecimiento</th><th>Concepto</th><th>Costo final</th><th>Módulos</th><th>Acciones</th></tr></thead><tbody>
+          ${data.length?data.map(ap=>{const c=calc(ap), os=osByNumero(ap.osNumero)||{};return `<tr><td><div class="os-num">${esc(ap.osNumero||'Sin O.S.')}</div></td><td>${esc(ap.establecimiento||estNombre(os.estId))}</td><td>${esc(ap.concepto||'Análisis')}</td><td>${money(c.costoFinal)}</td><td>${mods(c.modulos)}</td><td><button class="edit-btn" onclick="editarAnalisisPrecio('${esc(ap.id)}','${esc(tipo)}')">Editar</button> <button class="edit-btn" onclick="imprimirAnalisisPrecio('${esc(ap.id)}')">PDF/JPG</button> <button class="edit-btn" style="color:var(--danger)" onclick="eliminarAnalisisPrecio('${esc(ap.id)}',${zona},'${esc(tipo)}')">Eliminar</button></td></tr>`}).join(''):`<tr><td colspan="6" class="os-empty">Todavía no hay análisis de precios cargados.</td></tr>`}
+        </tbody></table></div>
+      </div>`;
+  };
+  window.abrirAnalisisPreciosCertificacion=async function(z,tipo='inspector'){
+    injectStyles();
+    const zona=zonaActual(z), main=$('main-content');
+    if(!main)return;
+    await loadStore();
+    const data=store().filter(x=>Number(x.zona)===zona).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+    main.innerHTML=`<button class="back-btn" onclick="volverDesdeAnalisisCertificado()">‹ Volver a certificación</button>
+      <div class="section-label">Zona ${zona} · Análisis de precios</div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Análisis generados</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Primero se crea el análisis por establecimiento. Luego se anexa desde un certificado. ${storageBadge()}</div></div>
+          <button class="primary-btn" onclick="nuevoAnalisisPrecioCertificacion(${zona},'${esc(tipo)}')">+ Nuevo análisis</button>
+        </div>
+        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Establecimiento</th><th>Concepto</th><th>Certificado</th><th>O.S.</th><th>Costo final</th><th>Módulos</th><th>Acciones</th></tr></thead><tbody>
+        ${data.length?data.map(ap=>{const c=calc(ap);return `<tr><td>${esc(ap.establecimiento||'Establecimiento')}</td><td>${esc(ap.concepto||'Análisis')}</td><td>${ap.certId?'Anexado':'Sin anexar'}</td><td>${esc(osAnalisis(ap)||'—')}</td><td>${money(c.costoFinal)}</td><td>${mods(c.modulos)}</td><td><button class="edit-btn" onclick="editarAnalisisPrecio('${esc(ap.id)}','cert-list')">Editar</button> <button class="edit-btn" onclick="imprimirAnalisisPrecio('${esc(ap.id)}')">PDF/JPG</button> <button class="edit-btn" style="color:var(--danger)" onclick="eliminarAnalisisPrecio('${esc(ap.id)}',${zona},'cert-list')">Eliminar</button></td></tr>`}).join(''):`<tr><td colspan="7" class="os-empty">Todavía no hay análisis de precios cargados.</td></tr>`}
+        </tbody></table></div>
+      </div>`;
+  };
+  window.nuevoAnalisisPrecioCertificacion=function(z,tipo){renderForm({zona:zonaActual(z),tipo:'cert-list'})};
+  window.nuevoAnalisisPrecio=function(z,tipo){renderForm({zona:zonaActual(z),tipo})};
+  window.editarAnalisisPrecio=async function(id,tipo){await loadStore();const ap=store().find(x=>String(x.id)===String(id));if(ap)renderForm({...ap,tipo})};
+  function certById(id){return (window.CERTIFICADOS_MEDICION||[]).find(c=>String(c.id)===String(id)||String(c.localId)===String(id))}
+  function analisisByCertId(id){return store().find(x=>String(x.certId||'')===String(id))}
+  function osCertPrincipal(c){return (typeof certOrdenes==='function'?certOrdenes(c):[])[0]||''}
+  function osAnalisis(ap){const cert=ap?.certId?certById(ap.certId):null;return osCertPrincipal(cert)||ap?.osNumero||''}
+  function estIdCert(c){return Number(c?.establecimiento_id||c?.estId||0)}
+  function analisisCompatiblesCert(c){
+    const z=Number(c?.zona||currentUser?.zona||0), estId=estIdCert(c), est=String(c?.establecimiento_nombre||'').toLowerCase();
+    return store().filter(a=>Number(a.zona)===z&&(!estId||Number(a.establecimientoId)===estId||String(a.establecimiento||'').toLowerCase()===est));
+  }
+  window.analisisPrecioCertificadoExiste=function(id){if(AP_CACHE===null)loadStore();return !!analisisByCertId(id)};
+  window.seleccionarAnalisisPrecioCertificado=async function(id){
+    const cert=certById(id), main=$('main-content');
+    if(!cert||!main){alert('No se encontró el certificado.');return}
+    await loadStore();
+    const data=analisisCompatiblesCert(cert);
+    const os=osCertPrincipal(cert);
+    main.innerHTML=`<button class="back-btn" onclick="volverDesdeAnalisisCertificado()">‹ Volver a certificación</button>
+      <div class="section-label">Anexar análisis · ${esc(cert.establecimiento_nombre||'Establecimiento')}</div>
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Seleccionar análisis</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Al elegirlo queda ligado a este certificado. O.S. actual: ${esc(os||'pendiente de asignación')}</div></div></div>
+        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Concepto</th><th>Costo final</th><th>Módulos</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+        ${data.length?data.map(ap=>{const c=calc(ap), actual=String(ap.certId||'')===String(id);return `<tr><td>${esc(ap.concepto||'Análisis')}</td><td>${money(c.costoFinal)}</td><td>${mods(c.modulos)}</td><td>${actual?'Anexado a este certificado':(ap.certId?'Anexado a otro certificado':'Disponible')}</td><td><button class="edit-btn" onclick="anexarAnalisisPrecioACertificado('${esc(ap.id)}','${esc(id)}')">${actual?'Mantener':'Elegir'}</button> ${actual?`<button class="edit-btn" style="color:var(--danger)" onclick="desanexarAnalisisPrecioCertificado('${esc(id)}')">Quitar</button>`:''} <button class="edit-btn" onclick="imprimirAnalisisPrecio('${esc(ap.id)}')">PDF/JPG</button></td></tr>`}).join(''):`<tr><td colspan="5" class="os-empty">No hay análisis para este establecimiento.</td></tr>`}
+        </tbody></table></div>
+      </div>`;
+  };
+  window.anexarAnalisisPrecioACertificado=async function(apId,certId){
+    await loadStore();
+    const cert=certById(certId), arr=store(), ap=arr.find(x=>String(x.id)===String(apId));
+    if(!cert||!ap){alert('No se pudo anexar el análisis.');return}
+    ap.certId=certId;
+    ap.osNumero=osCertPrincipal(cert)||ap.osNumero||'';
+    ap.establecimientoId=estIdCert(cert)||ap.establecimientoId||'';
+    ap.establecimiento=cert.establecimiento_nombre||ap.establecimiento||'';
+    ap.updatedAt=new Date().toISOString();
+    try{await persistAnalisisItem(ap)}catch(error){alert('El análisis quedó como respaldo local, pero no se pudo guardar en Supabase: '+dbMsg(error));return}
+    volverDesdeAnalisisCertificado();
+  };
+  window.desanexarAnalisisPrecioCertificado=async function(certId){
+    await loadStore();
+    const arr=store(), ap=arr.find(x=>String(x.certId||'')===String(certId));
+    if(!ap){alert('No hay análisis anexado a este certificado.');return}
+    if(!confirm('¿Quitar el análisis de este certificado?'))return;
+    ap.certId='';
+    ap.osNumero='';
+    ap.updatedAt=new Date().toISOString();
+    try{await persistAnalisisItem(ap)}catch(error){alert('El análisis quedó como respaldo local, pero no se pudo guardar en Supabase: '+dbMsg(error));return}
+    volverDesdeAnalisisCertificado();
+  };
+  window.abrirAnalisisPrecioCertificado=async function(id){
+    const cert=certById(id);
+    if(!cert){alert('No se encontró el certificado.');return}
+    await loadStore();
+    const existente=analisisByCertId(id);
+    const os=osCertPrincipal(cert);
+    renderForm({
+      ...(existente||{}),
+      certId:id,
+      zona:Number(cert.zona||currentUser?.zona||1),
+      tipo:'certificado',
+      osNumero:os||existente?.osNumero||'',
+      establecimiento:cert.establecimiento_nombre||'',
+      concepto:existente?.concepto||`Análisis de precios · ${cert.establecimiento_nombre||''}`,
+      observaciones:existente?.observaciones||''
+    });
+  };
+  window.imprimirAnalisisPrecioCertificado=async function(id){
+    await loadStore();
+    const ap=analisisByCertId(id);
+    if(!ap){alert('Este certificado no tiene análisis anexado.');return}
+    imprimirAnalisisPrecio(ap.id);
+  };
+  window.volverDesdeAnalisisCertificado=function(){
+    if(currentUser?.role==='empresa')renderMedicionesEmpresa($('main-content'),currentUser.zona);
+    else renderMedicionesInspector($('main-content'),currentUser?.zona);
+  };
+  const _renderMedicionesEmpresaAP=window.renderMedicionesEmpresa;
+  if(typeof _renderMedicionesEmpresaAP==='function'){
+    window.renderMedicionesEmpresa=async function(){
+      await loadStore();
+      return _renderMedicionesEmpresaAP.apply(this,arguments);
+    };
+  }
+  const _renderMedicionesInspectorAP=window.renderMedicionesInspector;
+  if(typeof _renderMedicionesInspectorAP==='function'){
+    window.renderMedicionesInspector=async function(){
+      await loadStore();
+      return _renderMedicionesInspectorAP.apply(this,arguments);
+    };
+  }
+  function materialRow(m={},idx=0){
+    const capturas=(m.capturas||[]).filter(c=>c?.url);
+    return `<div class="ap-row-grid ap-material-row" data-capturas="${esc(encCaps(capturas))}">
+      <div><label class="form-label">Material</label><input class="form-input ap-mat-nombre" value="${esc(m.nombre||'')}" placeholder="Ej: membrana geotextil"></div>
+      <div><label class="form-label">Unidad</label><input class="form-input ap-mat-unidad" value="${esc(m.unidad||'ud')}" placeholder="ud/m2/lts"></div>
+      <div><label class="form-label">Cantidad</label><input class="form-input ap-mat-cantidad" type="number" step="0.01" value="${esc(m.cantidad||'1')}" oninput="actualizarResumenAP()"></div>
+      <div><label class="form-label">Precio</label><input class="form-input ap-mat-precio" type="number" step="0.01" value="${esc(m.precio||'')}" oninput="actualizarResumenAP()"></div>
+      <div><label class="form-label">Capturas precio</label><input class="ap-mat-captura" type="file" accept="image/*" style="display:none" onchange="cargarCapturaAP(this)"><button class="secondary-btn" type="button" onclick="this.previousElementSibling.click()">+ Cargar captura</button><div class="ap-capturas-count" style="font-size:11px;margin-top:4px;color:${capturas.length>=3?'#166534':'#64748b'};font-weight:800">${capturas.length}/3 capturas ${capturas.length>=3?'listas':'cargadas'}</div><div class="ap-capturas-list">${capturasHtml(capturas)}</div></div>
+      <button class="secondary-btn" type="button" onclick="this.closest('.ap-material-row').remove();actualizarResumenAP()">Quitar</button>
+    </div>`;
+  }
+  function equipoRow(e={}){
+    return `<div class="ap-row-grid ap-equipo-row" style="grid-template-columns:1.8fr .9fr auto">
+      <div><label class="form-label">Descripción</label><input class="form-input ap-eq-desc" value="${esc(e.descripcion||'')}" placeholder="Ej: flete, herramientas, alquiler"></div>
+      <div><label class="form-label">Monto</label><input class="form-input ap-eq-monto" type="number" step="0.01" value="${esc(e.monto||'')}" oninput="actualizarResumenAP()"></div>
+      <button class="secondary-btn" type="button" onclick="this.closest('.ap-equipo-row').remove();actualizarResumenAP()">Quitar</button>
+    </div>`;
+  }
+  function renderForm(ap){
+    injectStyles();
+    const main=$('main-content'), zona=zonaActual(ap.zona), tipo=ap.tipo||'inspector';
+    const opciones=osZona(zona).map(o=>`<option value="${esc(o.numero||'')}" ${String(o.numero||'')===String(ap.osNumero||'')?'selected':''}>${esc(o.numero||'')} · ${esc(o.establecimiento||estNombre(o.estId))}</option>`).join('');
+    const estOpciones=(window.ESTABS||ESTABS||[]).filter(e=>Number(e.zona)===Number(zona)).sort((a,b)=>String(a.n).localeCompare(String(b.n),'es')).map(e=>`<option value="${esc(e.id)}" ${Number(e.id)===Number(ap.establecimientoId)?'selected':''}>${esc(e.n)}</option>`).join('');
+    const mo=ap.manoObra||{modo:'igual'};
+    main.innerHTML=`<button class="back-btn" onclick="${tipo==='certificado'?'volverDesdeAnalisisCertificado()':`abrirAnalisisPrecios(${zona},'${esc(tipo)}')`}">‹ Volver</button>
+      <div class="section-label">Zona ${zona} · ${ap.id?'Editar':'Nuevo'} análisis de precios</div>
+      <div class="ap-grid">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Datos del análisis</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Cargá materiales con captura de precio de mercado.</div></div></div>
+          <div class="form-grid">
+            ${tipo==='cert-list'?`<div class="form-field full"><label class="form-label">Establecimiento</label><select class="form-select" id="ap-est">${estOpciones||'<option value="">Sin establecimientos</option>'}</select></div><input type="hidden" id="ap-os" value="">`:`<div class="form-field"><label class="form-label">Orden de servicio</label><select class="form-select" id="ap-os">${opciones||'<option value="">Sin O.S. disponible</option>'}</select></div>`}
+            <div class="form-field"><label class="form-label">Valor módulo</label><input class="form-input" id="ap-modulo" type="number" step="0.01" value="${esc(ap.valorModulo||MODULO_DEFAULT)}" oninput="actualizarResumenAP()"></div>
+            <div class="form-field full"><label class="form-label">Concepto / tarea</label><input class="form-input" id="ap-concepto" value="${esc(ap.concepto||'')}" placeholder="Ej: provisión y colocación de picaporte"></div>
+            <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ap-observaciones" style="min-height:80px">${esc(ap.observaciones||'')}</textarea></div>
+          </div>
+          <div style="margin-top:16px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Materiales</div><div id="ap-materiales">${(ap.materiales?.length?ap.materiales:[{}]).map(materialRow).join('')}</div><button class="secondary-btn" type="button" onclick="agregarMaterialAP()">+ Agregar material</button></div>
+          <div style="margin-top:18px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Mano de obra</div>
+            <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="igual" ${mo.modo!=='horas'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Igual al total de materiales</label>
+            <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="horas" ${mo.modo==='horas'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Calcular por horas de oficial y ayudante</label>
+            <div class="form-grid" id="ap-mo-horas" style="display:${mo.modo==='horas'?'grid':'none'}">
+              <div class="form-field"><label class="form-label">Horas oficial</label><input class="form-input" id="ap-of-horas" type="number" step="0.01" value="${esc(mo.oficialHoras||'')}" oninput="actualizarResumenAP()"></div>
+              <div class="form-field"><label class="form-label">Valor hora oficial</label><input class="form-input" id="ap-of-valor" type="number" step="0.01" value="${esc(mo.oficialValor||'')}" oninput="actualizarResumenAP()"></div>
+              <div class="form-field"><label class="form-label">Horas ayudante</label><input class="form-input" id="ap-ay-horas" type="number" step="0.01" value="${esc(mo.ayudanteHoras||'')}" oninput="actualizarResumenAP()"></div>
+              <div class="form-field"><label class="form-label">Valor hora ayudante</label><input class="form-input" id="ap-ay-valor" type="number" step="0.01" value="${esc(mo.ayudanteValor||'')}" oninput="actualizarResumenAP()"></div>
+            </div>
+          </div>
+          <div style="margin-top:18px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Equipos / otros costos directos</div><div id="ap-equipos-list">${(ap.equipos?.length?ap.equipos:[]).map(equipoRow).join('')}</div><button class="secondary-btn" type="button" onclick="agregarEquipoAP()">+ Agregar equipo / costo</button></div>
+          <div class="form-error" id="ap-error" style="display:none;margin-top:12px"></div>
+          <div class="modal-actions"><button class="secondary-btn" onclick="${tipo==='certificado'?'volverDesdeAnalisisCertificado()':`abrirAnalisisPrecios(${zona},'${esc(tipo)}')`}">Cancelar</button><button class="primary-btn" onclick="guardarAnalisisPrecio('${esc(ap.id||'')}',${zona},'${esc(tipo)}','${esc(ap.certId||'')}')">Guardar análisis</button></div>
+        </div>
+        <div class="card"><div class="card-title">Resumen</div><div id="ap-resumen" style="margin-top:12px"></div></div>
+      </div>`;
+    setTimeout(actualizarResumenAP,0);
+  }
+  window.agregarMaterialAP=function(){
+    $('ap-materiales')?.insertAdjacentHTML('beforeend',materialRow({}));
+  };
+  function refreshCapturasRow(row){
+    const caps=decCaps(row?.dataset?.capturas);
+    const count=row?.querySelector?.('.ap-capturas-count');
+    const list=row?.querySelector?.('.ap-capturas-list');
+    if(count){
+      count.textContent=`${caps.length}/3 capturas ${caps.length>=3?'listas':'cargadas'}`;
+      count.style.color=caps.length>=3?'#166534':'#64748b';
+    }
+    if(list)list.innerHTML=capturasHtml(caps);
+  }
+  window.cargarCapturaAP=async function(input){
+    const row=input?.closest?.('.ap-material-row'), file=input?.files?.[0];
+    if(!row||!file)return;
+    const btn=input.nextElementSibling, originalText=btn?.textContent;
+    if(btn){btn.disabled=true;btn.textContent='Subiendo...'}
+    try{
+      const cap=typeof leerArchivoDGIE==='function'?await leerArchivoDGIE(file,'analisis-precios'):await readFile(file);
+      if(cap){
+        const caps=decCaps(row.dataset.capturas);
+        caps.push(cap);
+        row.dataset.capturas=encCaps(caps);
+        refreshCapturasRow(row);
+      }
+    }catch(error){
+      alert('No se pudo subir la captura: '+(error?.message||error));
+    }finally{
+      if(btn){btn.disabled=false;btn.textContent=originalText||'+ Cargar captura'}
+      input.value='';
+    }
+  };
+  window.quitarCapturaAP=function(btn,idx){
+    const row=btn?.closest?.('.ap-material-row');
+    if(!row)return;
+    const caps=decCaps(row.dataset.capturas);
+    caps.splice(idx,1);
+    row.dataset.capturas=encCaps(caps);
+    refreshCapturasRow(row);
+  };
+  window.agregarEquipoAP=function(){
+    $('ap-equipos-list')?.insertAdjacentHTML('beforeend',equipoRow({}));
+  };
+  window.toggleManoObraAP=function(){
+    const modo=document.querySelector('input[name="ap-mo-modo"]:checked')?.value||'igual';
+    if($('ap-mo-horas'))$('ap-mo-horas').style.display=modo==='horas'?'grid':'none';
+  };
+  function draftFromForm(){
+    const os=osByNumero($('ap-os')?.value), estSel=(window.ESTABS||ESTABS||[]).find(e=>Number(e.id)===Number($('ap-est')?.value)), modo=document.querySelector('input[name="ap-mo-modo"]:checked')?.value||'igual';
+    return {
+      osNumero:$('ap-os')?.value||'',
+      establecimientoId:estSel?.id||os?.estId||'',
+      establecimiento:estSel?.n||os?.establecimiento||estNombre(os?.estId),
+      concepto:$('ap-concepto')?.value?.trim()||os?.tarea||'Análisis de precios',
+      observaciones:$('ap-observaciones')?.value?.trim()||'',
+      valorModulo:n($('ap-modulo')?.value)||MODULO_DEFAULT,
+      equipos:[...document.querySelectorAll('.ap-equipo-row')].map(row=>({
+        descripcion:row.querySelector('.ap-eq-desc')?.value?.trim()||'',
+        monto:n(row.querySelector('.ap-eq-monto')?.value)
+      })).filter(e=>e.descripcion||e.monto),
+      manoObra:{modo,oficialHoras:n($('ap-of-horas')?.value),oficialValor:n($('ap-of-valor')?.value),ayudanteHoras:n($('ap-ay-horas')?.value),ayudanteValor:n($('ap-ay-valor')?.value)},
+      materiales:[...document.querySelectorAll('.ap-material-row')].map(row=>({
+        nombre:row.querySelector('.ap-mat-nombre')?.value?.trim()||'',
+        unidad:row.querySelector('.ap-mat-unidad')?.value?.trim()||'ud',
+        cantidad:n(row.querySelector('.ap-mat-cantidad')?.value),
+        precio:n(row.querySelector('.ap-mat-precio')?.value),
+        capturas:decCaps(row.dataset.capturas)
+      })).filter(m=>m.nombre||m.precio||m.cantidad)
+    };
+  }
+  window.actualizarResumenAP=function(){
+    const c=calc(draftFromForm()), box=$('ap-resumen');
+    if(!box)return;
+    box.innerHTML=`${[
+      ['Materiales',c.totalMateriales],['Mano de obra',c.manoObra],['Equipos / otros',c.equipos],['MAT + MO + EQUIPOS',c.matMoEquip],['Gastos financieros 1,8%',c.gastosFinancieros],['SUBTOTAL 1',c.subtotal1],['Gastos generales e indirectos 14%',c.gastosGenerales],['Beneficio 15%',c.beneficio],['SUBTOTAL 2',c.subtotal2],['IVA 21% + IB 4,75%',c.ivaIb],['Costo empresa / carga fija',c.cargaFija],['Costo final',c.costoFinal]
+    ].map(([l,v])=>`<div class="ap-kpi" style="margin-bottom:8px"><div class="ap-kpi-lbl">${esc(l)}</div><div style="font-weight:900;color:#123c69">${money(v)}</div></div>`).join('')}
+    <div class="ap-kpi"><div class="ap-kpi-lbl">Módulos</div><div class="ap-kpi-val">${mods(c.modulos)}</div><div style="font-size:11px;color:var(--muted)">Valor módulo: ${money(c.modulo)}</div></div>`;
+  };
+  window.guardarAnalisisPrecio=async function(id,z,tipo,certId=''){
+    const err=$('ap-error'), draft=draftFromForm();
+    if(tipo!=='cert-list'&&!certId&&!draft.osNumero){if(err){err.textContent='Seleccioná una orden de servicio.';err.style.display='block'}return}
+    if(tipo==='cert-list'&&!draft.establecimientoId){if(err){err.textContent='Seleccioná un establecimiento.';err.style.display='block'}return}
+    if(!draft.materiales.length){if(err){err.textContent='Cargá al menos un material.';err.style.display='block'}return}
+    for(let i=0;i<draft.materiales.length;i++){
+      if((draft.materiales[i].capturas||[]).length<3){if(err){err.textContent='Cada material debe tener como mínimo 3 capturas de precio de mercado.';err.style.display='block'}return}
+      draft.materiales[i].captura=draft.materiales[i].capturas[0]||null;
+    }
+    await loadStore();
+    const arr=store(), now=new Date().toISOString(), idx=arr.findIndex(x=>String(x.id)===String(id));
+    const item={...draft,id:id||('ap_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),certId:certId||draft.certId||'',zona:zonaActual(z),createdAt:idx>=0?arr[idx].createdAt:now,updatedAt:now,creadoPor:currentUser?.name||currentUser?.role||''};
+    const btn=document.querySelector('.modal-actions .primary-btn');
+    if(btn){btn.disabled=true;btn.textContent='Guardando...'}
+    try{
+      await persistAnalisisItem(item);
+    }catch(error){
+      if(err){err.textContent='Quedó guardado como respaldo local, pero falta sincronizar Supabase: '+dbMsg(error);err.style.display='block'}
+      if(btn){btn.disabled=false;btn.textContent='Guardar análisis'}
+      return;
+    }
+    if(tipo==='certificado')volverDesdeAnalisisCertificado();else if(tipo==='cert-list')abrirAnalisisPreciosCertificacion(z,currentUser?.role||'inspector');else abrirAnalisisPrecios(z,tipo);
+  };
+  window.eliminarAnalisisPrecio=async function(id,z,tipo){
+    if(!confirm('¿Eliminar este análisis de precios?'))return;
+    await loadStore();
+    try{await deleteAnalisisItem(id)}
+    catch(error){alert('No se pudo eliminar en Supabase: '+dbMsg(error));return}
+    if(tipo==='cert-list')abrirAnalisisPreciosCertificacion(z,currentUser?.role||'inspector');
+    else abrirAnalisisPrecios(z,tipo);
+  };
+  function printHTML(ap){
+    const c=calc(ap);
+    const materiales=c.materiales.map((m,i)=>`<tr><td>${i+1}</td><td>${esc(m.nombre)}</td><td>${esc(m.unidad)}</td><td>${mods(m.cantidad)}</td><td>${money(m.precio)}</td><td>${money(m.total)}</td></tr>`).join('');
+    const equiposData=Array.isArray(ap.equipos)?ap.equipos:(n(ap.equipos)?[{descripcion:'Equipos / otros',monto:ap.equipos}]:[]);
+    const equipos=equiposData.map(e=>`<tr><td>${esc(e.descripcion||'Equipo / otro')}</td><td>${money(e.monto)}</td></tr>`).join('');
+    const capturas=(ap.materiales||[]).map((m,i)=>{
+      const caps=(m.capturas||[m.captura]).filter(c=>c?.url).slice(0,3);
+      if(!caps.length)return '';
+      return `<div class="shot-row"><div class="shot-title">${i+1}.1 ${esc(m.nombre)}</div><div class="shot-grid">${caps.map((c,j)=>`<div class="shot"><img src="${esc(c.url)}" alt="Captura ${i+1}.${j+1}"></div>`).join('')}</div></div>`;
+    }).join('');
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Análisis de precios</title><style>
+      body{font-family:Arial,Helvetica,sans-serif;color:#071f3a;margin:24px;background:#fff}#ap-print-page{background:#fff}h1{font-size:22px;margin:0 0 6px}.meta{font-size:12px;color:#475569;margin-bottom:18px}table{width:100%;border-collapse:collapse;margin:10px 0 16px}th{background:#000;color:#fff;text-align:left;padding:7px;font-size:12px}td{border:1px solid #aaa;padding:7px;font-size:12px}.tot td:first-child{font-weight:bold}.tot td:last-child{font-weight:bold}.box{border:1px solid #cbd5e1;border-radius:8px;padding:10px;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.shot-row{break-inside:avoid;page-break-inside:avoid;border:1px solid #cbd5e1;border-radius:8px;padding:8px;margin:8px 0 12px}.shot-title{font-size:14px;font-weight:bold;margin-bottom:8px}.shot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}.shot{height:230px;border:1px solid #dbe4ef;border-radius:6px;padding:6px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}.shot img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}.actions{position:sticky;top:0;background:#fff;padding:0 0 12px;margin-bottom:14px;display:flex;gap:8px}.actions button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#073b70;font-weight:bold;padding:8px 12px;cursor:pointer}@media print{body{margin:16px}.actions{display:none}.shot-row{page-break-inside:avoid}}</style><script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"><\/script></head><body>
+      <div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button><button onclick="descargarAnalisisJPG()">Descargar JPG</button></div><div id="ap-print-page">
+      <h1>Análisis de precios</h1><div class="meta">O.S. ${esc(osAnalisis(ap)||'pendiente')} · ${esc(ap.establecimiento)} · Generado ${new Date().toLocaleString('es-AR')}</div>
+      <div class="box"><b>Concepto:</b> ${esc(ap.concepto)}<br><b>Observaciones:</b> ${esc(ap.observaciones||'Sin observaciones')}</div>
+      <h2>Materiales</h2><table><thead><tr><th>#</th><th>Material</th><th>Unidad</th><th>Cantidad</th><th>Precio</th><th>Total</th></tr></thead><tbody>${materiales}</tbody></table>
+      ${equipos?`<h2>Equipos / otros costos directos</h2><table><thead><tr><th>Descripción</th><th>Monto</th></tr></thead><tbody>${equipos}</tbody></table>`:''}
+      <h2>Cálculo</h2><table><tbody>
+        <tr><td>Total materiales</td><td>${money(c.totalMateriales)}</td></tr><tr><td>Mano de obra</td><td>${money(c.manoObra)}</td></tr><tr><td>Equipos / otros</td><td>${money(c.equipos)}</td></tr><tr><td>MAT + MO + EQUIPOS</td><td>${money(c.matMoEquip)}</td></tr><tr><td>Gastos financieros 1,8%</td><td>${money(c.gastosFinancieros)}</td></tr><tr><td>SUBTOTAL 1</td><td>${money(c.subtotal1)}</td></tr><tr><td>Gastos generales e indirectos 14%</td><td>${money(c.gastosGenerales)}</td></tr><tr><td>Beneficio 15%</td><td>${money(c.beneficio)}</td></tr><tr><td>SUBTOTAL 2</td><td>${money(c.subtotal2)}</td></tr><tr><td>IVA 21% + IB 4,75%</td><td>${money(c.ivaIb)}</td></tr><tr class="tot"><td>Costo empresa / carga fija</td><td>${money(c.cargaFija)}</td></tr><tr class="tot"><td>Costo final / gl</td><td>${money(c.costoFinal)}</td></tr><tr class="tot"><td>Módulos</td><td>${mods(c.modulos)}</td></tr>
+      </tbody></table>
+      <h2>Capturas de precios de mercado</h2>${capturas||'<p>Sin capturas.</p>'}
+      </div><script>
+      async function descargarAnalisisJPG(){
+        if(!window.html2canvas){alert('No se pudo cargar el generador JPG. Probá de nuevo o usá PDF.');return}
+        const target=document.getElementById('ap-print-page');
+        const canvas=await html2canvas(target,{scale:2,backgroundColor:'#ffffff',useCORS:true,allowTaint:true});
+        const link=document.createElement('a');
+        link.download='analisis-precios-${esc(String(ap.id||'')).replace(/[^a-zA-Z0-9_-]/g,'')||'documento'}.jpg';
+        link.href=canvas.toDataURL('image/jpeg',0.95);
+        link.click();
+      }
+      <\/script>
+    </body></html>`;
+  }
+  window.imprimirAnalisisPrecio=async function(id){
+    await loadStore();
+    const ap=store().find(x=>String(x.id)===String(id));
+    if(!ap){alert('No se encontró el análisis.');return}
+    const w=window.open('','_blank');
+    if(!w){alert('El navegador bloqueó la ventana emergente.');return}
+    w.document.open();w.document.write(printHTML(ap));w.document.close();
+    setTimeout(()=>w.focus(),200);
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>loadStore(true),900));
 })();
 </script>
 </body>
