@@ -88,6 +88,9 @@
     async listarReclamos(){
       return client.from('reclamos').select('*').order('created_at', { ascending:false });
     },
+    async buscarReclamoPorNumero(numero){
+      return client.from('reclamos').select('id,numero').eq('numero', numero).limit(1);
+    },
     async crearReclamo(row){
       return client.from('reclamos').insert(row).select('*').single();
     },
