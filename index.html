@@ -6344,7 +6344,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function normalizarCertTxt(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
   function sanitizarNombreCert(s){return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90)}
   function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
-  function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (c?.ordenes_servicio_certificado||c?.ordenes_certificado||m?.[1]||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
+  function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (m?.[1]||c?.ordenes_servicio_certificado||c?.ordenes_certificado||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
   window.certVisible=certVisible;
   window.certOrdenes=certOrdenes;
@@ -6794,7 +6794,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const totalEmpresa=data.reduce((a,c)=>a+n(c.modulos_original),0);
     const totalInspeccion=data.reduce((a,c)=>a+modActual(c),0);
     const totalDiff=totalInspeccion-totalEmpresa;
-    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);return `<tr><td style="${td}">${escapeHtml(c.establecimiento_nombre||'')}</td><td style="${td}">${escapeHtml(certOrdenes(c).join(', ')||'')}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="2">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}"></td></tr></tfoot></table>`;
+    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);const ordenes=certOrdenes(c).map(o=>escapeHtml(o)).join('<br>');return `<tr><td style="${td}">${escapeHtml(c.establecimiento_nombre||'')}</td><td style="${td}">${ordenes}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="2">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}"></td></tr></tfoot></table>`;
   }
   window.exportarMedicionExcel=function(numero){
     const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
@@ -7905,6 +7905,35 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return window.certOrdenes(c).some(o=>set.has(Number(o)));
     })||null;
   }
+  function filaOrdenCertificadoHTML(valor=''){
+    return `<div class="insp-cert-os-row" style="display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:7px;align-items:center;margin-bottom:7px">
+      <input class="form-input insp-cert-os-item" inputmode="numeric" placeholder="Ej: 074" value="${escapeHtml(valor)}">
+      <button type="button" class="secondary-btn" style="width:34px;height:34px;padding:0;font-size:17px;line-height:1;color:var(--danger)" title="Quitar O.S." onclick="quitarOrdenServicioCertificado(this)">×</button>
+    </div>`;
+  }
+  window.agregarOrdenServicioCertificado=function(valor=''){
+    const lista=document.getElementById('insp-cert-os-list');
+    if(!lista)return;
+    lista.insertAdjacentHTML('beforeend',filaOrdenCertificadoHTML(valor));
+    lista.lastElementChild?.querySelector('input')?.focus();
+  };
+  window.quitarOrdenServicioCertificado=function(btn){
+    const lista=document.getElementById('insp-cert-os-list');
+    const filas=lista?.querySelectorAll('.insp-cert-os-row')||[];
+    if(filas.length<=1){
+      const input=filas[0]?.querySelector('input');
+      if(input){input.value='';input.focus();}
+      return;
+    }
+    btn?.closest('.insp-cert-os-row')?.remove();
+  };
+  window.obtenerOrdenesCertificadoFormulario=function(c=null){
+    const inputs=[...document.querySelectorAll('.insp-cert-os-item')];
+    if(inputs.length){
+      return [...new Set(inputs.flatMap(input=>parseOrdenesManual(input.value)))];
+    }
+    return parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||(c?window.certOrdenes(c).join(', '):''));
+  };
   const revisarCertPrev=window.revisarCertificadoInspector;
   window.revisarCertificadoInspector=function(id){
     revisarCertPrev(id);
@@ -7913,11 +7942,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     reemplazarTextosModulos();
     const info=document.getElementById('insp-cert-info-archivo');
     if(info)info.textContent='Subí el archivo corregido. La/s O.S. se cargan manualmente.';
-    if(!document.getElementById('insp-cert-os-manual')){
+    if(!document.getElementById('insp-cert-os-list')){
       const mod=document.getElementById('insp-cert-modulos')?.closest('.form-field');
       const div=document.createElement('div');
-      div.className='form-field';
-      div.innerHTML=`<label class="form-label">Nº de orden de servicio</label><input class="form-input" id="insp-cert-os-manual" placeholder="Ej: 074 o 074, 075" value="${escapeHtml((window.certOrdenes?.(c)||[]).join(', '))}"><div style="font-size:12px;color:var(--muted);margin-top:4px">Se guarda con tres digitos y no permite repetir una O.S. ya certificada.</div>`;
+      const ordenesActuales=window.certOrdenes?.(c)||[];
+      div.className='form-field full';
+      div.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <label class="form-label" style="margin:0">Nº de orden de servicio</label>
+        <button type="button" class="secondary-btn" style="width:30px;height:30px;padding:0;font-size:18px;line-height:1" title="Agregar otra O.S." onclick="agregarOrdenServicioCertificado()">+</button>
+      </div>
+      <div id="insp-cert-os-list">${(ordenesActuales.length?ordenesActuales:['']).map(filaOrdenCertificadoHTML).join('')}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">Agregá una fila por cada O.S. Se guarda con tres dígitos y no permite repetir una orden ya certificada.</div>`;
       mod?.parentNode?.insertBefore(div,mod);
     }
   };
@@ -7927,7 +7962,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const file=document.getElementById('insp-cert-file')?.files?.[0];
     if(file&&window.validarTamanoCertificado&&!window.validarTamanoCertificado(file))return;
     const modInspector=Number(String(document.getElementById('insp-cert-modulos')?.value||'').replace(',','.'))||0;
-    const ordenes=parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||'');
+    const ordenes=window.obtenerOrdenesCertificadoFormulario(c);
     const rubros=window.certRubrosCodigos?.(c)||[];
     const obsLimpia=(document.getElementById('insp-cert-obs')?.value||'').trim();
     if(medir&&!document.getElementById('insp-cert-medicion')?.value){alert('Para pasar a medición cargá el número de medición.');return;}
@@ -7947,6 +7982,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       modulos_inspector:modInspector,
       monto_empresa:Number(String(c.modulos_original||0).replace(',','.'))||0,
       monto_inspeccion:modInspector,
+      ordenes_servicio_certificado:ordenes.join(','),
       observaciones_inspector:obsConMeta,
       medicion_numero:document.getElementById('insp-cert-medicion')?.value?Number(document.getElementById('insp-cert-medicion').value):null,
       periodo:(document.getElementById('insp-cert-periodo')?.value||'').trim(),
@@ -12001,7 +12037,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const file=document.getElementById('insp-cert-file')?.files?.[0];
     if(file&&window.validarTamanoCertificado&&!window.validarTamanoCertificado(file))return;
     const modInspector=num(document.getElementById('insp-cert-modulos')?.value);
-    const ordenes=parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||certOrdenesSeguro(c).join(', '));
+    const ordenes=typeof window.obtenerOrdenesCertificadoFormulario==='function'
+      ? window.obtenerOrdenesCertificadoFormulario(c)
+      : parseOrdenesManual(document.getElementById('insp-cert-os-manual')?.value||certOrdenesSeguro(c).join(', '));
     const rubros=certRubrosSeguro(c);
     const obsLimpia=(document.getElementById('insp-cert-obs')?.value||limpiarObs(c.observaciones_inspector)||'').trim();
     if(medir&&!document.getElementById('insp-cert-medicion')?.value){alert('Para pasar a medición cargá el número de medición.');return;}
@@ -12026,6 +12064,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       modulos_inspector:modInspector,
       monto_empresa:num(c.modulos_original),
       monto_inspeccion:modInspector,
+      ordenes_servicio_certificado:ordenes.join(','),
       observaciones_inspector:obsConMeta,
       medicion_numero:document.getElementById('insp-cert-medicion')?.value?Number(document.getElementById('insp-cert-medicion').value):null,
       periodo:(document.getElementById('insp-cert-periodo')?.value||'').trim(),
@@ -13212,7 +13251,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <thead><tr><th>Establecimiento</th><th>O.S.</th><th>Archivo</th><th>Módulos empresa</th><th>Módulos inspección</th><th>Diferencia (inspección - empresa)</th><th>Período</th><th>Observaciones</th></tr></thead>
       <tbody>${data.map(c => `<tr>
         <td>${esc(c.establecimiento_nombre || '')}</td>
-        <td>${esc(certOrdenesCoord(c).join(', ') || '—')}</td>
+        <td>${certOrdenesCoord(c).length?certOrdenesCoord(c).map(o=>esc(o)).join('<br>'):'—'}</td>
         <td>${certLinkCoord(c)}</td>
         <td>${fmtMods(c.modulos_original)}</td>
         <td>${fmtMods(certActualMods(c))}</td>
