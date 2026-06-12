@@ -4976,6 +4976,8 @@ function renderChartInsp(){
       comentariosCoordinacion:Array.isArray(datos.comentariosCoordinacion)?datos.comentariosCoordinacion:[],
       fotosArchivos:datos.fotosArchivos||[],
       osVinculadas:Array.isArray(datos.osVinculadas)?datos.osVinculadas.map(String).filter(Boolean):[],
+      reclamoVinculado:datos.reclamoVinculado||datos.reclamo_vinculado||'',
+      reclamoVinculadoId:datos.reclamoVinculadoId||datos.reclamo_vinculado_id||'',
       eliminado:!!datos.eliminado,
       deleted_at:datos.deleted_at||null,
       deleted_by:datos.deleted_by||null,
@@ -6572,7 +6574,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="card-header"><div><div class="card-title">Subir certificado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa solo carga archivo y observaciones.</div></div></div>
         <div class="form-grid">
           <div class="form-field full" style="position:relative"><label class="form-label">Establecimiento</label><input class="form-input" id="cert-est-search" placeholder="Buscar por nombre, CUE o dirección..." oninput="filtrarEstablecimientosCertEmpresa()" onfocus="filtrarEstablecimientosCertEmpresa()" onblur="setTimeout(()=>{const s=$('cert-est-sugs');if(s)s.style.display='none'},150)" autocomplete="off"><input type="hidden" id="cert-est-id"><div id="cert-est-sugs" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:200"></div></div>
-          <div class="form-field full"><label class="form-label">Orden de servicio</label><select class="form-select" id="cert-os" onchange="mostrarDetalleOSCert()"><option value="">Primero seleccioná establecimiento</option></select><div id="cert-os-detalle" style="margin-top:8px;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;display:none"></div></div>
           <div class="form-field full"><label class="form-label">Archivo certificado Excel</label><input class="form-input" id="cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarCertificado('cert-file','cert-modulos')">${certLimitHelpHTML()}</div>
           <div class="form-field"><label class="form-label">Módulos leídos de G720</label><input class="form-input" id="cert-modulos" type="number" step="0.001" placeholder="Se completa automáticamente" readonly></div>
           <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="cert-obs" placeholder="Observaciones de la empresa..."></textarea></div>
@@ -6603,7 +6604,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(input)input.value=el?.textContent||'';
     if(hidden)hidden.value=id;
     if(sugs)sugs.style.display='none';
-    cargarOrdenesCertEmpresa(id);
   };
   function detalleOSCert(o){
     if(!o)return '';
@@ -6626,9 +6626,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 
   window.guardarCertificadoEmpresa=async function(){
-    const estId=Number($('cert-est-id')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value), osNumero=($('cert-os')?.value||'').trim();
+    const estId=Number($('cert-est-id')?.value||0), est=estById(estId), file=$('cert-file')?.files?.[0], mod=n($('cert-modulos')?.value);
     if(file&&!validarTamanoCertificado(file))return;
-    if(!est||!file||!mod||!osNumero){$('cert-error')&&( $('cert-error').textContent='Seleccioná establecimiento, orden de servicio, archivo y módulos.', $('cert-error').style.display='block');return;}
+    if(!est||!file||!mod){$('cert-error')&&( $('cert-error').textContent='Seleccioná establecimiento, archivo y módulos.', $('cert-error').style.display='block');return;}
     $('cert-error')&&( $('cert-error').style.display='none');
     const subida=await subirCertFile(file);
     try{
@@ -6642,7 +6642,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         modulos_original:mod,
         monto_empresa:mod,
         observaciones_empresa:($('cert-obs')?.value||'').trim(),
-        ordenes_servicio_certificado:osNumero,
         estado:'pendiente',
         creado_por:currentUser?.name||'Empresa',
         actualizado_por:currentUser?.name||'Empresa'
@@ -11072,6 +11071,30 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(Array.isArray(r?.osVinculadas))return r.osVinculadas.map(String).filter(Boolean);
     return String(r?.osVinculada||r?.ordenServicio||r?.orden_servicio||r?.os||'').split(',').map(x=>x.trim()).filter(Boolean);
   }
+  function reclamoNumero(r){
+    if(typeof reclamoNumeroVisible==='function')return String(reclamoNumeroVisible(r)||'').trim();
+    return String(r?.numero||'').trim();
+  }
+  function reclamoKey(r){
+    return String(r?.remoteId||r?.id||reclamoNumero(r)||'');
+  }
+  function reclamosDeEstablecimiento(estId){
+    return (RECLAMOS_ZONA||[])
+      .filter(r=>Number(r?.estId||r?.establecimiento_id)===Number(estId))
+      .sort((a,b)=>Number(b?.ts||0)-Number(a?.ts||0));
+  }
+  function relReclamoSeleccionado(r){
+    const numero=String(r?.reclamoVinculado||r?.reclamo_vinculado||'').trim();
+    const key=String(r?.reclamoVinculadoId||r?.reclamo_vinculado_id||'').trim();
+    return numero||key?{numero,key}:null;
+  }
+  function buscarReclamoVinculado(selected,estId){
+    if(!selected)return null;
+    return reclamosDeEstablecimiento(estId).find(r=>
+      (selected.key&&reclamoKey(r)===String(selected.key))||
+      (selected.numero&&reclamoNumero(r)===String(selected.numero))
+    )||null;
+  }
   function osBadges(r){
     const arr=relOSList(r);
     if(!arr.length)return '';
@@ -11081,6 +11104,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const label=os?`${n} · ${(os.tarea||os.rubro||'').slice(0,70)}`:n;
       return `<span class="badge b-info">O.S. ${esc(label)}</span>`;
     }).join('')}</div>`;
+  }
+  function reclamoBadge(r,estId){
+    const selected=relReclamoSeleccionado(r);
+    if(!selected)return '';
+    const reclamo=buscarReclamoVinculado(selected,estId);
+    const numero=reclamo?reclamoNumero(reclamo):selected.numero;
+    const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,90):'';
+    return `<div class="comm-targets" style="margin-top:8px"><span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''}</span></div>`;
   }
   function selectOSHTML(estId,selected=[]){
     window.REL_OS_SELECTED=(selected||[]).map(String).filter(Boolean);
@@ -11093,6 +11124,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div id="rel-os-selected" style="margin-top:8px"></div>
     </div>`;
   }
+  function selectReclamoHTML(estId,rel=null){
+    window.REL_RECLAMO_SELECTED=relReclamoSeleccionado(rel);
+    return `<div class="form-field full">
+      <label class="form-label">Reclamo vinculado <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+      <div class="dgie-combo">
+        <input class="form-input" id="rel-reclamo-combo" placeholder="Buscar por número, rubro o descripción..." onfocus="renderRelReclamoCombo()" oninput="renderRelReclamoCombo()">
+        <div class="dgie-combo-dropdown" id="rel-reclamo-dropdown"></div>
+      </div>
+      <div id="rel-reclamo-selected" style="margin-top:8px"></div>
+    </div>`;
+  }
   function relFormHTML(estId){
     const e=ESTABS.find(x=>Number(x.id)===Number(estId));
     if(!e)return '';
@@ -11102,6 +11144,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="form-grid">
           <div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="rel-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
           ${selectOSHTML(estId)}
+          ${selectReclamoHTML(estId)}
           <div class="form-field full"><label class="form-label">Observaciones / informe</label><textarea class="form-textarea" id="rel-comentarios" placeholder="Describir lo relevado, necesidades, urgencias y observaciones..."></textarea></div>
           <div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="rel-fotos" type="file" multiple accept="image/*"></div>
         </div>
@@ -11117,6 +11160,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="form-grid">
           <div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="rel-fecha" type="date" value="${fechaInput(rel)}"></div>
           ${selectOSHTML(estId,relOSList(rel))}
+          ${selectReclamoHTML(estId,rel)}
           <div class="form-field full"><label class="form-label">Observaciones / informe</label><textarea class="form-textarea" id="rel-comentarios" placeholder="Describir lo relevado, necesidades, urgencias y observaciones...">${esc(rel.comentarios||rel.descripcion||'')}</textarea></div>
           <div class="form-field full"><label class="form-label">Agregar fotos</label><input class="form-input" id="rel-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">Las fotos actuales se conservan. Las nuevas se agregan al relevamiento.</div></div>
         </div>
@@ -11158,6 +11202,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <span class="badge b-ok">Relevamiento</span>
       </div>
       ${osBadges(r)}
+      ${reclamoBadge(r,estId)}
       <div style="font-size:14px;margin-top:10px;color:#334155">${esc(r.comentarios||r.descripcion||'Sin observaciones')}</div>
       <div class="intervencion-photo-row">${fotosRel(r)}</div>
       ${puedeBorrarRel(r)?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" onclick="editarRelevamiento('${key}')">Editar</button><button class="secondary-btn" style="color:var(--danger)" onclick="eliminarRelevamiento('${key}')">Eliminar</button></div>`:''}
@@ -11211,12 +11256,67 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!arr.length){box.innerHTML='<div style="font-size:12px;color:var(--muted);font-weight:800">Sin O.S. vinculadas.</div>';return;}
     box.innerHTML=`<div class="comm-targets">${arr.map(n=>`<span class="badge b-info">O.S. ${esc(n)} <button type="button" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer" onclick="toggleRelOS('${esc(n)}')">×</button></span>`).join('')}</div>`;
   };
+  window.renderRelReclamoCombo=function(){
+    const dd=$('rel-reclamo-dropdown');
+    if(!dd)return;
+    dd.style.display='block';
+    const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
+    const q=String($('rel-reclamo-combo')?.value||'').toLowerCase().trim();
+    const selected=window.REL_RECLAMO_SELECTED;
+    const items=reclamosDeEstablecimiento(estId).filter(r=>{
+      const hay=`${reclamoNumero(r)} ${r?.titulo||''} ${r?.descripcion||''} ${r?.rubro||''} ${r?.fecha||''}`.toLowerCase();
+      return !q||hay.includes(q);
+    });
+    if(!items.length){
+      dd.innerHTML='<div class="dgie-combo-empty">No hay reclamos para mostrar</div>';
+      return;
+    }
+    dd.innerHTML=items.map(r=>{
+      const key=reclamoKey(r);
+      const numero=reclamoNumero(r);
+      const detalle=(r?.titulo||r?.descripcion||r?.rubro||'Reclamo').slice(0,140);
+      const activo=(selected?.key&&String(selected.key)===key)||(selected?.numero&&String(selected.numero)===numero);
+      return `<button type="button" class="dgie-combo-option ${activo?'is-selected':''}" onclick="seleccionarRelReclamo('${encodeURIComponent(key)}')">${esc(numero||'Sin número')} · ${esc(detalle)}</button>`;
+    }).join('');
+  };
+  window.seleccionarRelReclamo=function(encodedKey){
+    const key=decodeURIComponent(String(encodedKey||''));
+    const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
+    const reclamo=reclamosDeEstablecimiento(estId).find(r=>reclamoKey(r)===key);
+    if(!reclamo)return;
+    window.REL_RECLAMO_SELECTED={key,numero:reclamoNumero(reclamo)};
+    const input=$('rel-reclamo-combo');
+    if(input)input.value='';
+    const dd=$('rel-reclamo-dropdown');
+    if(dd)dd.style.display='none';
+    window.renderRelReclamoSeleccionado();
+  };
+  window.quitarRelReclamo=function(){
+    window.REL_RECLAMO_SELECTED=null;
+    const input=$('rel-reclamo-combo');
+    if(input)input.value='';
+    window.renderRelReclamoSeleccionado();
+  };
+  window.renderRelReclamoSeleccionado=function(){
+    const box=$('rel-reclamo-selected');
+    if(!box)return;
+    const selected=window.REL_RECLAMO_SELECTED;
+    if(!selected){
+      box.innerHTML='<div style="font-size:12px;color:var(--muted);font-weight:800">Sin reclamo vinculado.</div>';
+      return;
+    }
+    const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
+    const reclamo=buscarReclamoVinculado(selected,estId);
+    const numero=reclamo?reclamoNumero(reclamo):selected.numero;
+    const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,100):'';
+    box.innerHTML=`<div class="comm-targets"><span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''} <button type="button" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer" onclick="quitarRelReclamo()">×</button></span></div>`;
+  };
   window.openNuevoRelevamiento=function(estId){
     const fb=$('ficha-body')||$('map-ficha-body')||$('main-content');
     if(!fb)return;
     currentFichaId=Number(estId);
     fb.innerHTML=relFormHTML(estId);
-    setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+    setTimeout(()=>{window.renderRelOSSeleccionadas();window.renderRelReclamoSeleccionado();},0);
   };
   function contenedorRelevamientoActivo(){
     const main=$('main-content');
@@ -11243,7 +11343,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     window.REL_EDIT_CONTEXT=target.ctx;
     currentFichaId=Number(found.estId);
     target.el.innerHTML=relEditFormHTML(found.estId,key,found.rel);
-    setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+    setTimeout(()=>{window.renderRelOSSeleccionadas();window.renderRelReclamoSeleccionado();},0);
   };
   window.openNuevoRelevamientoDesdeSeccion=function(){
     const c=$('main-content');
@@ -11261,20 +11361,21 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       currentFichaId=Number(first);
       const box=$('rel-global-form');
       if(box)box.innerHTML=relFormHTMLGlobal(first);
-      setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+      setTimeout(()=>{window.renderRelOSSeleccionadas();window.renderRelReclamoSeleccionado();},0);
     }
   };
   window.actualizarFormularioRelevamientoGlobal=function(estId){
     currentFichaId=Number(estId);
     const box=$('rel-global-form');
     if(box)box.innerHTML=relFormHTMLGlobal(estId);
-    setTimeout(()=>window.renderRelOSSeleccionadas(),0);
+    setTimeout(()=>{window.renderRelOSSeleccionadas();window.renderRelReclamoSeleccionado();},0);
   };
   window.guardarRelevamiento=async function(estId){
     const fechaISO=$('rel-fecha')?.value||new Date().toISOString().slice(0,10);
     const files=[...($('rel-fotos')?.files||[])];
     const fotosArchivos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
     const osVinculadas=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED.map(String).filter(Boolean):[];
+    const reclamoSeleccionado=window.REL_RECLAMO_SELECTED||null;
     const rel={
       tipo:'relevamiento',
       fecha:fechaCorta(fechaISO),
@@ -11283,6 +11384,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       comentarios:$('rel-comentarios')?.value||'',
       fotosArchivos,
       osVinculadas,
+      reclamoVinculado:reclamoSeleccionado?.numero||'',
+      reclamoVinculadoId:reclamoSeleccionado?.key||'',
       ts:Date.now()
     };
     let remoteId=null;
@@ -11307,6 +11410,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const files=[...($('rel-fotos')?.files||[])];
     const nuevasFotos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
     const osVinculadas=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED.map(String).filter(Boolean):[];
+    const reclamoSeleccionado=window.REL_RECLAMO_SELECTED||null;
     const actualizado={
       ...found.rel,
       tipo:'relevamiento',
@@ -11314,6 +11418,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       comentarios:$('rel-comentarios')?.value||'',
       fotosArchivos:[...(found.rel.fotosArchivos||[]),...nuevasFotos],
       osVinculadas,
+      reclamoVinculado:reclamoSeleccionado?.numero||'',
+      reclamoVinculadoId:reclamoSeleccionado?.key||'',
       editedAt:new Date().toISOString()
     };
     if(actualizado.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarRelevamiento==='function'){
@@ -11328,7 +11434,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.renderRelevamientoFicha=function(estId){
     const data=(RELEVAMIENTOS[estId]||[]).filter(r=>(!r.tipo||r.tipo==='relevamiento')&&!r.eliminado).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
     const can=currentUser?.role==='inspector';
-    return `<div class="card-header"><div><div class="card-title">Relevamientos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Informes de visita, observaciones, fotos y O.S. vinculadas.</div></div>${can?`<button class="primary-btn" onclick="openNuevoRelevamiento(${Number(estId)})">+ Nuevo relevamiento</button>`:''}</div>${data.length?data.map(r=>cardRel(r,estId)).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin relevamientos registrados</div>'}`;
+    return `<div class="card-header"><div><div class="card-title">Relevamientos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Informes de visita, observaciones, fotos, reclamos y O.S. vinculadas.</div></div>${can?`<button class="primary-btn" onclick="openNuevoRelevamiento(${Number(estId)})">+ Nuevo relevamiento</button>`:''}</div>${data.length?data.map(r=>cardRel(r,estId)).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin relevamientos registrados</div>'}`;
   };
   window.renderRelevamientosInspector=function(container){
     const data=relsInspector();
@@ -11342,7 +11448,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           <div style="display:flex;align-items:center;gap:10px"><span class="badge b-ok" id="rel-insp-count-badge">${data.length} relevamientos</span><button class="primary-btn" onclick="openNuevoRelevamientoDesdeSeccion()">+ Nuevo relevamiento</button></div>
         </div>
         <div class="os-filters">
-          <input class="estab-search" id="rel-insp-search" placeholder="Buscar por establecimiento, fecha, inspector, O.S. u observaciones..." oninput="filterRelevamientosInspector()">
+          <input class="estab-search" id="rel-insp-search" placeholder="Buscar por establecimiento, fecha, inspector, reclamo, O.S. u observaciones..." oninput="filterRelevamientosInspector()">
         </div>
         <div id="relevamientos-insp-list"></div>
       </div>`;
@@ -11352,7 +11458,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const q=String($('rel-insp-search')?.value||'').toLowerCase();
     const filtered=relsInspector().filter(r=>{
       const est=ESTABS.find(e=>Number(e.id)===Number(r.estId));
-      return (`${est?.n||''} ${r.fecha||''} ${r.inspector||''} ${relOSList(r).join(' ')} ${r.comentarios||''} ${r.descripcion||''}`).toLowerCase().includes(q);
+      return (`${est?.n||''} ${r.fecha||''} ${r.inspector||''} ${relReclamoSeleccionado(r)?.numero||''} ${relOSList(r).join(' ')} ${r.comentarios||''} ${r.descripcion||''}`).toLowerCase().includes(q);
     });
     const badge=$('rel-insp-count-badge');
     if(badge)badge.textContent=filtered.length+' relevamientos';
@@ -11375,6 +11481,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!ev.target.closest('.dgie-combo')){
       const dd=$('rel-os-dropdown');
       if(dd)dd.style.display='none';
+      const reclamoDd=$('rel-reclamo-dropdown');
+      if(reclamoDd)reclamoDd.style.display='none';
     }
   });
   if(!$('dgie-rel-os-combo-style')){
