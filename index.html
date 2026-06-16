@@ -14804,6 +14804,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function printHTML(ap){
     const c=calc(ap);
     const materiales=c.materiales.map((m,i)=>`<tr><td>${i+1}</td><td>${esc(m.nombre)}</td><td>${esc(m.unidad)}</td><td>${mods(m.cantidad)}</td><td>${money(m.precio)}</td><td>${money(m.total)}</td></tr>`).join('');
+    const mo=ap.manoObra||{};
+    const manoObra=mo.modo==='horas'
+      ? [
+          {rol:'Oficial',horas:n(mo.oficialHoras),valor:n(mo.oficialValor)},
+          {rol:'Ayudante',horas:n(mo.ayudanteHoras),valor:n(mo.ayudanteValor)}
+        ].map(r=>`<tr><td>${r.rol}</td><td>${mods(r.horas)}</td><td>${money(r.valor)}</td><td>${money(r.horas*r.valor)}</td></tr>`).join('')
+      : `<tr><td>Igual al total de ítems</td><td>${money(c.totalMateriales)}</td><td>${money(c.manoObra)}</td></tr>`;
     const equiposData=Array.isArray(ap.equipos)?ap.equipos:(n(ap.equipos)?[{descripcion:'Equipos / otros',monto:ap.equipos}]:[]);
     const equipos=equiposData.map(e=>`<tr><td>${esc(e.descripcion||'Equipo / otro')}</td><td>${money(e.monto)}</td></tr>`).join('');
     const capturas=(ap.materiales||[]).map((m,i)=>{
@@ -14817,6 +14824,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <h1>Análisis de precios</h1><div class="meta">O.S. ${esc(osAnalisis(ap)||'pendiente')} · ${esc(ap.establecimiento)} · Generado ${new Date().toLocaleString('es-AR')}</div>
       <div class="box"><b>Concepto:</b> ${esc(ap.concepto)}<br><b>Observaciones:</b> ${esc(ap.observaciones||'Sin observaciones')}</div>
       <h2>Ítems</h2><table><thead><tr><th>#</th><th>Ítem</th><th>Unidad</th><th>Cantidad</th><th>Precio</th><th>Total</th></tr></thead><tbody>${materiales}</tbody></table>
+      <h2>Mano de obra</h2>${mo.modo==='horas'?`<table><thead><tr><th>Rol</th><th>Horas</th><th>Valor hora</th><th>Total</th></tr></thead><tbody>${manoObra}</tbody></table>`:`<table><thead><tr><th>Modalidad</th><th>Base</th><th>Total</th></tr></thead><tbody>${manoObra}</tbody></table>`}
       ${equipos?`<h2>Equipos / otros costos directos</h2><table><thead><tr><th>Descripción</th><th>Monto</th></tr></thead><tbody>${equipos}</tbody></table>`:''}
       <h2>Cálculo</h2><table><tbody>
         <tr><td>Total ítems</td><td>${money(c.totalMateriales)}</td></tr><tr><td>Mano de obra</td><td>${money(c.manoObra)}</td></tr><tr><td>Equipos / otros</td><td>${money(c.equipos)}</td></tr><tr><td>Ítems + MO + equipos</td><td>${money(c.matMoEquip)}</td></tr><tr><td>Gastos financieros 1,8%</td><td>${money(c.gastosFinancieros)}</td></tr><tr><td>SUBTOTAL 1</td><td>${money(c.subtotal1)}</td></tr><tr><td>Gastos generales e indirectos 14%</td><td>${money(c.gastosGenerales)}</td></tr><tr><td>Beneficio 15%</td><td>${money(c.beneficio)}</td></tr><tr><td>SUBTOTAL 2</td><td>${money(c.subtotal2)}</td></tr><tr><td>IVA 21% + IB 4,75%</td><td>${money(c.ivaIb)}</td></tr><tr class="tot"><td>Costo empresa / carga fija</td><td>${money(c.cargaFija)}</td></tr><tr class="tot"><td>Costo final / gl</td><td>${money(c.costoFinal)}</td></tr><tr class="tot"><td>Módulos</td><td>${mods(c.modulos)}</td></tr>
