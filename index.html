@@ -3505,9 +3505,9 @@ function renderDashboardInsp(){
           <div class="inspector-chart-head"><div><div class="inspector-chart-title">Estado de órdenes de servicio</div><div class="inspector-chart-sub">Distribución de OS por estado en la zona.</div></div></div>
           <div class="inspector-chart-wrap"><canvas id="chart-insp-estado-os"></canvas></div>
         </div>
-        <div class="inspector-chart-card" style="opacity:.35;pointer-events:none">
-          <div class="inspector-chart-head"><div><div class="inspector-chart-title">Próximo gráfico</div><div class="inspector-chart-sub">Espacio reservado para un indicador adicional.</div></div></div>
-          <div class="inspector-chart-wrap" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px">— próximamente —</div>
+        <div class="inspector-chart-card">
+          <div class="inspector-chart-head"><div><div class="inspector-chart-title">Consumo de módulos</div><div class="inspector-chart-sub">Sólo mediciones marcadas como finalizadas.</div></div></div>
+          <div class="inspector-chart-wrap"><canvas id="chart-insp-modulos-presupuesto"></canvas></div>
         </div>
         <div class="inspector-chart-card wide">
           <div class="inspector-chart-head"><div><div class="inspector-chart-title">Reclamos realizados según rubro</div><div class="inspector-chart-sub">Rubros reclamados en establecimientos de la zona.</div></div></div>
@@ -3939,7 +3939,7 @@ function renderChartInsp(){
 </style>
 <script id="fix-inspector-charts-chatgpt-final-script">
 (function(){
-  const INSPECTOR_CHART_IDS = ['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos','chart-insp-estado-os'];
+  const INSPECTOR_CHART_IDS = ['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos','chart-insp-estado-os','chart-insp-modulos-presupuesto'];
   const RUBROS_FIX = ['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
   const chartStore = window.__inspChartsFix || (window.__inspChartsFix = {});
 
@@ -3993,6 +3993,18 @@ function renderChartInsp(){
     const m = Object.fromEntries(labels.map(l => [l,0]));
     arr.forEach(x => { const k = getter(x); if(m[k] == null) m[k] = 0; m[k]++; });
     return labels.map(l => m[l] || 0);
+  }
+  function certificadosZona(z){
+    const arr = (typeof CERTIFICADOS_MEDICION !== 'undefined') ? CERTIFICADOS_MEDICION : [];
+    return arr.filter(c => String(c && c.estado || '').toLowerCase() === 'medido' && Number(c && c.zona) === z);
+  }
+  function modulosCert(c){
+    const parse = v => Number(String(v ?? '').replace(',','.')) || 0;
+    const final = parse(c && (c.modulos_final ?? c.monto_final));
+    return final > 0 ? final : parse(c && (c.modulos_inspector || c.modulos_original));
+  }
+  function medicionFinalizada(c){
+    return c && c.medicion_numero && typeof esMedicionFinalizada === 'function' && esMedicionFinalizada(c.medicion_numero);
   }
   function safeData(data){
     const d = (data || []).map(n => Number(n) || 0);
@@ -4059,6 +4071,10 @@ function renderChartInsp(){
       oss.filter(o=>estadoOS(o)==='anulado').length
     ];
     donut('chart-insp-estado-os', osEstadoLabels, osEstadoData, osEstadoColors);
+    const totalModulos = 11300;
+    const consumidos = certificadosZona(z).filter(medicionFinalizada).reduce((a,c)=>a+modulosCert(c),0);
+    const restantes = Math.max(0,totalModulos-consumidos);
+    donut('chart-insp-modulos-presupuesto',['Consumidos','Restantes'],[consumidos,restantes],['#005aa9','#dbe6f2']);
     return true;
   }
 
@@ -6732,6 +6748,81 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     </div>`;
   }
 
+  const PRESUPUESTO_MODULOS_CERT={total:11300,y2026:9420,y2027:1880};
+  function modPresupuestoCert(c){
+    const final=n(c?.modulos_final ?? c?.monto_final);
+    return final>0?final:n(c?.modulos_inspector||c?.modulos_original);
+  }
+  function fechaPresupuestoCert(c){
+    return c?.fecha_medicion||c?.fecha_envio_administracion||'';
+  }
+  function fechaPresupuestoDate(c){
+    const raw=fechaPresupuestoCert(c);
+    if(!raw)return null;
+    const d=new Date(raw);
+    return Number.isNaN(d.getTime())?null:d;
+  }
+  function periodoPresupuestoCert(c){
+    const d=fechaPresupuestoDate(c);
+    if(!d)return {key:'sin-fecha',label:'Sin fecha',year:new Date().getFullYear()};
+    const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0');
+    return {key:`${y}-${m}`,label:d.toLocaleDateString('es-AR',{month:'long',year:'numeric'}),year:y};
+  }
+  function pctPresupuesto(v,total){return Math.max(0,Math.min(100,total?Math.round((n(v)/total)*100):0))}
+  function barraPresupuesto(v,total,color='var(--blue)'){
+    const p=pctPresupuesto(v,total);
+    return `<div style="height:8px;background:#eaf0f6;border-radius:999px;overflow:hidden;margin-top:8px"><div style="height:100%;width:${p}%;background:${color};border-radius:999px"></div></div>`;
+  }
+  function certPresupuestoFinalizado(c){
+    return c?.medicion_numero&&typeof esMedicionFinalizada==='function'&&esMedicionFinalizada(c.medicion_numero);
+  }
+  function renderResumenPresupuestoModulos(data){
+    const finalizados=certsMedidos(data).filter(certPresupuestoFinalizado);
+    const consumidoTotal=finalizados.reduce((a,c)=>a+modPresupuestoCert(c),0);
+    let consumido2026=0,consumido2027=0;
+    const meses={};
+    finalizados.forEach(c=>{
+      const p=periodoPresupuestoCert(c),mod=modPresupuestoCert(c);
+      if(p.year===2027)consumido2027+=mod;else consumido2026+=mod;
+      meses[p.key]=meses[p.key]||{label:p.label,year:p.year,certs:0,modulos:0};
+      meses[p.key].certs++;
+      meses[p.key].modulos+=mod;
+    });
+    const restanteTotal=PRESUPUESTO_MODULOS_CERT.total-consumidoTotal;
+    const restante2026=PRESUPUESTO_MODULOS_CERT.y2026-consumido2026;
+    const restante2027=PRESUPUESTO_MODULOS_CERT.y2027-consumido2027;
+    const rows=Object.entries(meses).sort(([a],[b])=>a==='sin-fecha'?1:b==='sin-fecha'?-1:a.localeCompare(b)).map(([,m])=>`
+      <tr>
+        <td>${escapeHtml(m.label)}</td>
+        <td>${m.certs}</td>
+        <td>${mods(m.modulos)}</td>
+        <td>${pctPresupuesto(m.modulos,PRESUPUESTO_MODULOS_CERT.total)}%</td>
+      </tr>`).join('');
+    return `<div class="med-card" style="margin-bottom:14px">
+      <div class="card-header" style="align-items:flex-start">
+        <div>
+          <div class="card-title">Presupuesto de módulos</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Los módulos se consumen cuando la medición se marca como finalizada.</div>
+        </div>
+        <span class="badge ${restanteTotal>=0?'b-ok':'b-danger'}">${mods(restanteTotal)} restantes</span>
+      </div>
+      <div class="metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px">
+        <div class="metric-card" style="padding:14px"><div class="metric-lbl">Módulos totales</div><div class="metric-val" style="font-size:26px">${mods(PRESUPUESTO_MODULOS_CERT.total)}</div></div>
+        <div class="metric-card" style="padding:14px"><div class="metric-lbl">Consumidos finalizados</div><div class="metric-val v-info" style="font-size:26px">${mods(consumidoTotal)}</div>${barraPresupuesto(consumidoTotal,PRESUPUESTO_MODULOS_CERT.total,'#005aa9')}</div>
+        <div class="metric-card" style="padding:14px"><div class="metric-lbl">Restantes</div><div class="metric-val ${restanteTotal>=0?'v-ok':'v-danger'}" style="font-size:26px">${mods(restanteTotal)}</div></div>
+        <div class="metric-card" style="padding:14px"><div class="metric-lbl">Restante 2026</div><div class="metric-val ${restante2026>=0?'v-ok':'v-danger'}" style="font-size:26px">${mods(restante2026)}</div><div style="font-size:12px;color:var(--muted)">Disponible: ${mods(PRESUPUESTO_MODULOS_CERT.y2026)}</div></div>
+        <div class="metric-card" style="padding:14px"><div class="metric-lbl">Restante 2027</div><div class="metric-val ${restante2027>=0?'v-ok':'v-danger'}" style="font-size:26px">${mods(restante2027)}</div><div style="font-size:12px;color:var(--muted)">Disponible: ${mods(PRESUPUESTO_MODULOS_CERT.y2027)}</div></div>
+      </div>
+      <div class="os-table-wrap">
+        <table class="os-table">
+          <thead><tr><th>Mes de finalización</th><th>Certificados</th><th>Módulos consumidos</th><th>% del presupuesto</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="4" class="os-empty">Todavía no hay mediciones finalizadas que consuman módulos.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+  window.renderResumenPresupuestoModulos=renderResumenPresupuestoModulos;
+
   window.renderMedicionesInspector=async function(container,z=currentUser?.zona){
     container.innerHTML=`<div class="section-label">Inspector · Certificación</div><div class="card"><div style="text-align:center;padding:30px;color:var(--muted)">Cargando certificados...</div></div>`;
     await cargarCertificadosMedicion();
@@ -6741,6 +6832,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="card-header"><div><div class="card-title">Certificados de empresa</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El inspector carga versión corregida, asigna medición, edita o elimina certificados.</div></div><span class="badge b-info">${data.length} certificados</span></div>
         <div class="os-filters"><input class="estab-search" id="med-q" placeholder="Buscar establecimiento o archivo..." oninput="filtrarMedicionesInspector()"><select class="filter-sel" id="med-estado" onchange="filtrarMedicionesInspector()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="revision">En revisión</option><option value="medido">En medición</option></select></div>
         <div style="margin-bottom:12px;display:flex;justify-content:flex-end"><button class="secondary-btn" onclick="abrirAnalisisPreciosCertificacion(${Number(z)},'inspector')">Análisis de precios</button></div>
+        ${renderResumenPresupuestoModulos(data)}
         <div id="med-list">${renderSeguimientoCertificados(data,true)}</div>
       </div>`;
   };
@@ -13458,7 +13550,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         </div>
       </div>
     </div>
-    ${renderResumenModulosCoord(grupos)}
+    ${typeof window.renderResumenPresupuestoModulos==='function'?window.renderResumenPresupuestoModulos(todosZona):renderResumenModulosCoord(grupos)}
     <div class="med-card" style="margin-top:14px">
       <div class="card-header" style="margin-bottom:8px">
         <div>
