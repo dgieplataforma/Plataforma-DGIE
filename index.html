@@ -14044,28 +14044,25 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function n(v){return Number(String(v??'').replace(',','.'))||0}
   function mods(v){return n(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
   function certOrdenesSafe(c){return typeof window.certOrdenes==='function'?(window.certOrdenes(c)||[]):[]}
-  function archivoFinalNombre(c){return c?.archivo_final||c?.certificado_final_archivo||''}
-  function archivoFinalUrl(c){return c?.url_final||c?.certificado_final_url||''}
+  function tieneModulosFinal(c){return n(c?.modulos_final ?? c?.monto_final)>0}
+  function valorModulosFinal(c){return n(c?.modulos_final ?? c?.monto_final)}
   function fechaMedicion(c){return c?.fecha_medicion||c?.fecha_envio_administracion||''}
   function modFinal(c){
-    if(archivoFinalUrl(c)||archivoFinalNombre(c)){
-      return n(c?.modulos_final ?? c?.monto_final ?? c?.modulos_inspector ?? c?.modulos_original);
-    }
+    if(tieneModulosFinal(c))return valorModulosFinal(c);
     return n(c?.modulos_inspector ?? c?.modulos_original);
   }
+  function msgSupabaseMedicion(error){
+    const msg=String(error?.message||error||'');
+    return msg+(msg.includes('medicion_firmada')||msg.includes('modulos_final')?' Ejecutá supabase-certificado-final-medicion.sql en Supabase.':'');
+  }
+  window.modulosCertificadoFinal=modFinal;
+  window.certTieneModulosFinal=tieneModulosFinal;
   function fechaMedicionLabel(v){
     if(!v)return 'Sin fecha';
     const s=String(v).slice(0,10);
     const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if(m)return `${m[3]}/${m[2]}/${m[1]}`;
     try{return new Date(v).toLocaleDateString('es-AR')}catch(_){return s}
-  }
-  function nombreFinalCertificado(file,c){
-    const ext=(file?.name?.match(/\.[^.]+$/)?.[0]||'.xlsx').toLowerCase();
-    const zona=`Z${Number(c?.zona||currentUser?.zona||0)||''}`;
-    const ordenes=certOrdenesSafe(c).length?certOrdenesSafe(c).join('-'):'SINOS';
-    const base=String(c?.establecimiento_nombre||'ESTABLECIMIENTO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90);
-    return `${zona}-${ordenes}-${base}-CERTIFICADO-FINAL${ext}`;
   }
   function dataMedicion(numero){
     return certs().filter(c=>String(c.estado||'')==='medido'&&String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
@@ -14098,76 +14095,111 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       }
     }
   };
-  async function leerG720Final(file){
-    if(!file||!window.XLSX||!/\.(xls|xlsx)$/i.test(file.name))return '';
-    const buffer=await file.arrayBuffer();
-    const wb=XLSX.read(buffer,{type:'array'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    if(ws?.G720?.v!=null&&ws.G720.v!=='')return ws.G720.v;
-    const ref=ws?.['!ref'];
-    if(!ref)return '';
-    const range=XLSX.utils.decode_range(ref);
-    const norm=s=>String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-    for(let r=range.s.r;r<=range.e.r;r++){
-      for(let c=range.s.c;c<=range.e.c;c++){
-        const cell=ws[XLSX.utils.encode_cell({r,c})];
-        const txt=norm(cell?.v??cell?.w??'');
-        if(txt.includes('TOTAL')&&txt.includes('MODULOS')&&txt.includes('MEDIDOS')){
-          for(let dc=1;dc<=5;dc++){
-            const adj=ws[XLSX.utils.encode_cell({r,c:c+dc})];
-            if(adj?.v!=null&&adj.v!=='')return adj.v;
-          }
-        }
-      }
-    }
-    return '';
-  }
-  window.cargarCertificadoFinalMedicion=async function(id){
+  window.guardarModulosFinalCertificado=async function(id){
     const c=certById(id);
-    const input=document.getElementById('cert-final-file-'+String(id).replace(/[^a-zA-Z0-9_-]/g,'_'));
-    const file=input?.files?.[0]||null;
-    if(!c||!file){alert('Seleccioná el certificado final.');return}
-    if(window.validarTamanoCertificado&&!window.validarTamanoCertificado(file))return;
-    const nombre=nombreFinalCertificado(file,c);
-    const fileRenombrado=new File([file],nombre,{type:file.type,lastModified:file.lastModified});
+    const input=document.getElementById('cert-final-mod-'+String(id).replace(/[^a-zA-Z0-9_-]/g,'_'));
+    const modulos=n(input?.value);
+    if(!c){alert('No se encontró el certificado.');return}
+    if(!modulos){alert('Cargá la cantidad de módulos certificados final.');return}
     try{
-      const subida=await window.subirCertFile(fileRenombrado);
-      const modulos=await leerG720Final(file);
       await window.actualizarCertificado(id,{
-        archivo_final:nombre,
-        url_final:subida?.url||'',
-        public_id_final:subida?.publicId||null,
-        modulos_final:n(modulos)||n(c.modulos_inspector||c.modulos_original),
-        monto_final:n(modulos)||n(c.modulos_inspector||c.modulos_original),
+        modulos_final:modulos,
+        monto_final:modulos,
         actualizado_por:currentUser?.name||'Inspector'
       });
       if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(c.medicion_numero);
     }catch(error){
-      alert('No se pudo guardar el certificado final: '+(error.message||error));
+      alert('No se pudo guardar los módulos certificados final: '+msgSupabaseMedicion(error));
     }
   };
-  window.eliminarCertificadoFinalMedicion=async function(id){
+  window.limpiarModulosFinalCertificado=async function(id){
     const c=certById(id);
     if(!c)return;
-    if(!confirm('¿Eliminar el certificado final cargado?'))return;
+    if(!confirm('¿Quitar los módulos certificados final de este certificado?'))return;
     try{
       await window.actualizarCertificado(id,{
-        archivo_final:null,
-        url_final:null,
-        public_id_final:null,
         modulos_final:null,
         monto_final:null,
         actualizado_por:currentUser?.name||'Inspector'
       });
       if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(c.medicion_numero);
     }catch(error){
-      alert('No se pudo eliminar el certificado final: '+(error.message||error));
+      alert('No se pudo quitar los módulos certificados final: '+msgSupabaseMedicion(error));
     }
   };
+  function medicionFirmada(data){
+    return (data||[]).find(c=>c?.medicion_firmada_url||c?.medicion_firmada_archivo)||null;
+  }
+  function nombrePdfMedicionFirmada(file,numero,data){
+    const zona=`Z${Number(data?.[0]?.zona||currentUser?.zona||0)||''}`;
+    return `${zona}-MEDICION-${String(numero||'')}-FIRMADA.pdf`;
+  }
+  window.subirPdfMedicionFirmada=async function(numero){
+    const data=dataMedicion(numero);
+    const safe=String(numero).replace(/[^a-zA-Z0-9_-]/g,'_');
+    const input=document.getElementById('medicion-firmada-file-'+safe);
+    const file=input?.files?.[0]||null;
+    if(!data.length){alert('No hay certificados en esta medición.');return}
+    if(!file){alert('Seleccioná el PDF de la medición firmada.');return}
+    if(!/\.pdf$/i.test(file.name)){alert('La medición firmada debe cargarse en PDF.');return}
+    if(file.size>15*1024*1024){alert('El PDF supera los 15 MB. Comprimilo antes de cargarlo.');return}
+    const nombre=nombrePdfMedicionFirmada(file,numero,data);
+    const renombrado=new File([file],nombre,{type:file.type||'application/pdf',lastModified:file.lastModified});
+    try{
+      const subida=await window.subirCertFile(renombrado);
+      for(const c of data){
+        await window.actualizarCertificado(c.id||c.localId,{
+          medicion_firmada_archivo:nombre,
+          medicion_firmada_url:subida?.url||'',
+          medicion_firmada_public_id:subida?.publicId||null,
+          medicion_firmada_fecha:new Date().toISOString(),
+          actualizado_por:currentUser?.name||'Inspector'
+        });
+      }
+      if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(numero);
+    }catch(error){
+      alert('No se pudo guardar el PDF de medición firmada: '+msgSupabaseMedicion(error));
+    }
+  };
+  window.eliminarPdfMedicionFirmada=async function(numero){
+    const data=dataMedicion(numero);
+    if(!data.length)return;
+    if(!confirm('¿Eliminar el PDF de medición firmada de esta medición?'))return;
+    try{
+      for(const c of data){
+        await window.actualizarCertificado(c.id||c.localId,{
+          medicion_firmada_archivo:null,
+          medicion_firmada_url:null,
+          medicion_firmada_public_id:null,
+          medicion_firmada_fecha:null,
+          actualizado_por:currentUser?.name||'Inspector'
+        });
+      }
+      if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(numero);
+    }catch(error){
+      alert('No se pudo eliminar el PDF de medición firmada: '+msgSupabaseMedicion(error));
+    }
+  };
+  function insertarPdfMedicionFirmada(numero,data,detalle){
+    if(!detalle||detalle.querySelector('.medicion-firmada-box'))return;
+    const firmada=medicionFirmada(data);
+    const safe=String(numero).replace(/[^a-zA-Z0-9_-]/g,'_');
+    const header=detalle.querySelector('.med-card > .card-header');
+    if(!header)return;
+    header.insertAdjacentHTML('afterend',`<div class="medicion-firmada-box" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;background:#f8fafc;padding:10px 12px;margin:0 0 12px">
+      <div style="font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b>${firmada?.medicion_firmada_url?` · <a href="${esc(firmada.medicion_firmada_url)}" target="_blank" rel="noopener">${esc(firmada.medicion_firmada_archivo||'Ver PDF')}</a>`:' · Sin PDF cargado'}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="form-input" id="medicion-firmada-file-${safe}" type="file" accept="application/pdf,.pdf" style="max-width:280px;padding:7px 9px;font-size:12px">
+        <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="subirPdfMedicionFirmada('${esc(numero)}')">${firmada?.medicion_firmada_url?'Reemplazar PDF':'Subir PDF firmado'}</button>
+        ${firmada?.medicion_firmada_url?`<button class="secondary-btn" style="color:var(--danger);padding:7px 10px;font-size:12px" onclick="eliminarPdfMedicionFirmada('${esc(numero)}')">Eliminar</button>`:''}
+      </div>
+    </div>`);
+  }
   function parcheTablaMedicion(numero){
     const data=dataMedicion(numero);
     const detalle=document.getElementById('med-detalle');
     if(!detalle||!data.length)return;
+    insertarPdfMedicionFirmada(numero,data,detalle);
     const meta=detalle.querySelector('.card-header .card-title')?.parentElement?.querySelector('div[style*="font-size:13px"]');
     const fecha=medicionFechaGrupo(data);
     if(meta&&!meta.dataset.fechaMedicionFinal){
@@ -14177,18 +14209,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rows=[...detalle.querySelectorAll('.med-version-row')];
     rows.forEach((row,i)=>{
       const c=data[i];
-      if(!c||row.querySelector('.cert-final-upload-row'))return;
+      if(!c||row.querySelector('.cert-final-modulos-row'))return;
       const metaRow=row.querySelector('.med-card-meta');
       if(metaRow){
         const safeId=String(c.id||c.localId).replace(/[^a-zA-Z0-9_-]/g,'_');
+        const valorFinal=tieneModulosFinal(c)?valorModulosFinal(c):'';
         metaRow.insertAdjacentHTML('beforeend',`
-          ${archivoFinalUrl(c)?`<div class="cert-final-current" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
-            <a href="${esc(archivoFinalUrl(c))}" target="_blank" rel="noopener">${esc(archivoFinalNombre(c)||'Certificado final')}</a>
-            <button class="danger-btn" style="padding:6px 9px;font-size:12px" onclick="eliminarCertificadoFinalMedicion('${esc(c.id||c.localId)}')">Eliminar</button>
-          </div>`:''}
-          <div class="cert-final-upload-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
-            <input class="form-input" id="cert-final-file-${safeId}" type="file" accept=".xls,.xlsx" style="max-width:340px;padding:7px 9px;font-size:12px">
-            <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="cargarCertificadoFinalMedicion('${esc(c.id||c.localId)}')">${archivoFinalUrl(c)?'Reemplazar final':'Cargar certificado final'}</button>
+          <div class="cert-final-modulos-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
+            <label style="font-size:12px;font-weight:800;color:#123c69">Módulos certificado final</label>
+            <input class="form-input" id="cert-final-mod-${safeId}" type="number" step="0.001" min="0" value="${esc(valorFinal)}" placeholder="Cantidad de módulos" style="max-width:190px;padding:7px 9px;font-size:12px">
+            <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="guardarModulosFinalCertificado('${esc(c.id||c.localId)}')">Guardar</button>
+            ${tieneModulosFinal(c)?`<button class="secondary-btn" style="color:var(--danger);padding:7px 10px;font-size:12px" onclick="limpiarModulosFinalCertificado('${esc(c.id||c.localId)}')">Quitar</button>`:''}
           </div>`);
       }
     });
@@ -14200,7 +14231,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const obsIdx=ths.findIndex(th=>String(th.textContent||'').toLowerCase().includes('observaciones'));
     const insertIdx=obsIdx>=0?obsIdx:ths.length;
     const th=document.createElement('th');
-    th.textContent='Monto final';
+    th.textContent='Módulos cert. final';
     th.setAttribute('style',ths[0]?.getAttribute('style')||'');
     headRow.insertBefore(th,headRow.children[insertIdx]||null);
     [...table.querySelectorAll('tbody tr')].forEach((tr,i)=>{
@@ -15028,7 +15059,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const totalEmpresa=data.reduce((a,c)=>a+num(c.modulos_original),0);
     const totalInspeccion=data.reduce((a,c)=>a+num(c.modulos_inspector||c.modulos_original),0);
     const totalDiff=totalInspeccion-totalEmpresa;
-    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Rubro</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`,ins=num(c.modulos_inspector||c.modulos_original),diff=ins-num(c.modulos_original);return `<tr><td style="${td}">${esc(c.establecimiento_nombre||'')}</td><td style="${td}">${certOrdenesSafe(c).map(esc).join('<br>')}</td><td style="${td}">${esc(rubroAbrev(c))}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(ins)}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${esc(limpiarObsSafe(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="3">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}"></td></tr></tfoot></table>`;
+    const totalFinal=data.reduce((a,c)=>a+(typeof window.modulosCertificadoFinal==='function'?window.modulosCertificadoFinal(c):num(c.modulos_inspector||c.modulos_original)),0);
+    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Rubro</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Módulos cert. final</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`,ins=num(c.modulos_inspector||c.modulos_original),diff=ins-num(c.modulos_original),fin=typeof window.modulosCertificadoFinal==='function'?window.modulosCertificadoFinal(c):ins;return `<tr><td style="${td}">${esc(c.establecimiento_nombre||'')}</td><td style="${td}">${certOrdenesSafe(c).map(esc).join('<br>')}</td><td style="${td}">${esc(rubroAbrev(c))}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(ins)}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${mods(fin)}</td><td style="${td}">${esc(limpiarObsSafe(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="3">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}">${mods(totalFinal)}</td><td style="${th}"></td></tr></tfoot></table>`;
   }
   function parcheTablaMedicion(numero){
     const data=certsMedidosNumero(numero);
