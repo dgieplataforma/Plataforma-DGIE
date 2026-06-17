@@ -1148,7 +1148,7 @@ function nextEstabId(){
 }
 
 function validarCoordenadasEstab(lat,lng){
-  return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-32.4&&lat<=-30.6&&lng>=-65.6&&lng<=-63.3;
+  return Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0&&lat>=-32.4&&lat<=-30.6&&lng>=-65.6&&lng<=-63.3;
 }
 
 function openNuevoEstab(){
@@ -1159,7 +1159,7 @@ function openNuevoEstab(){
     <div class="card">
       <div class="card-header">
         <div><div class="card-title">Agregar establecimiento</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">La latitud y longitud son obligatorias para que aparezca correctamente en el mapa.</div></div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">La latitud y longitud son opcionales. Si quedan vacías, no aparece en el mapa hasta cargar ubicación.</div></div>
       </div>
       <div class="form-grid">
         <div class="form-field full"><label class="form-label">Nombre del establecimiento</label>
@@ -1204,8 +1204,10 @@ async function guardarNuevoEstab(){
   const val=id=>document.getElementById(id)?.value.trim()||'';
   const nombre=val('new-est-nombre');
   const zona=Number(val('new-est-zona'));
-  const lat=Number(val('new-est-lat').replace(',','.'));
-  const lng=Number(val('new-est-lng').replace(',','.'));
+  const latRaw=val('new-est-lat').replace(',','.');
+  const lngRaw=val('new-est-lng').replace(',','.');
+  const lat=latRaw===''?null:Number(latRaw);
+  const lng=lngRaw===''?null:Number(lngRaw);
   if(!nombre){
     if(err){err.textContent='Ingresá el nombre del establecimiento.';err.style.display='block';}
     return;
@@ -1214,7 +1216,7 @@ async function guardarNuevoEstab(){
     if(err){err.textContent='Seleccioná una zona válida para el establecimiento.';err.style.display='block';}
     return;
   }
-  if(!validarCoordenadasEstab(lat,lng)){
+  if((lat!==null||lng!==null)&&!validarCoordenadasEstab(lat,lng)){
     if(err){err.textContent='Ingresá coordenadas válidas de Córdoba. Ejemplo: latitud -31.416700 y longitud -64.183300.';err.style.display='block';}
     return;
   }
@@ -1260,6 +1262,17 @@ function openEditEstab(id){
   const e=ESTABS.find(x=>x.id===id);
   const body=document.getElementById('adm-body');
   if(!e||!body) return;
+  const hasCoords=validarCoordenadasEstab(Number(e.lat),Number(e.lng));
+  const locationHtml=`
+        <div class="form-field full">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f8fafc;border:1px solid #e5edf6;border-radius:12px;padding:12px">
+            <div>
+              <div class="form-label" style="margin-bottom:4px">Ubicación en mapa</div>
+              <div style="font-size:13px;color:var(--muted);font-weight:800">${hasCoords?`Lat ${Number(e.lat).toFixed(6)} · Lng ${Number(e.lng).toFixed(6)}`:'Sin coordenadas cargadas'}</div>
+            </div>
+            <button class="secondary-btn" type="button" onclick="openUbicacionModal(${Number(e.id)})">${hasCoords?'Corregir ubicación':'Cargar ubicación'}</button>
+          </div>
+        </div>`;
   body.innerHTML=`
     <button class="back-btn" onclick="switchAdmTab('estabs')">‹ Volver a establecimientos</button>
     <div class="card">
@@ -1284,6 +1297,7 @@ function openEditEstab(id){
           </select></div>
         <div class="form-field"><label class="form-label">CUE</label>
           <input class="form-input" id="est-cue" value="${e.cue||''}"/></div>
+        ${locationHtml}
       </div>
       <div class="modal-actions">
         <button class="secondary-btn" style="color:var(--danger);border-color:var(--danger);margin-right:auto" onclick="eliminarEstab(${id})">Eliminar</button>
@@ -2812,8 +2826,8 @@ function renderLcMapa(skipFit){
   if(counter)counter.textContent=`${visibles.length} de ${ESTABS.length}`;
   const bounds=[];
   visibles.forEach(e=>{
-    if(!Number.isFinite(Number(e.lat))||!Number.isFinite(Number(e.lng)))return;
     const lat=Number(e.lat),lng=Number(e.lng);
+    if(!Number.isFinite(lat)||!Number.isFinite(lng)||lat===0||lng===0||lat<-32.8||lat>-30.8||lng<-65.5||lng>-63.0)return;
     bounds.push([lat,lng]);
     const color=e.nivel==='Secundario'?'#005aa9':(e.nivel==='Inicial'||e.nivel==='Primario')?'#2e7d32':'#d97706';
     const sel=Number(selectedLandingEstabId)===Number(e.id);
@@ -3386,7 +3400,8 @@ function renderEstablecimientoInfoBox(estId=null){
   const zona=e.zona||zonaEstablecimiento(e.id);
   const inspector=INSPECTORS[zona-1]||'—';
   const map={Crítico:'b-danger',Regular:'b-warn',Bueno:'b-ok'};
-  const hasCoords=Number.isFinite(Number(e.lat))&&Number.isFinite(Number(e.lng));
+  const lat=Number(e.lat),lng=Number(e.lng);
+  const hasCoords=Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0&&lat>=-32.8&&lat<=-30.8&&lng>=-65.5&&lng<=-63.0;
   const canEditLocation=currentUser&&currentUser.role==='coordinador';
   return `<div id="map-estab-info" style="margin-top:16px">
     <div class="ficha-header">
@@ -3407,7 +3422,7 @@ function renderEstablecimientoInfoBox(estId=null){
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
         <span class="badge ${hasCoords?'b-ok':'b-warn'}">${hasCoords?'Ubicación exacta cargada':'Pendiente de ubicar'}</span>
-        ${hasCoords?`<span style="font-size:13px;color:var(--muted)">Lat ${Number(e.lat).toFixed(6)} · Lng ${Number(e.lng).toFixed(6)}</span>`:''}
+        ${hasCoords?`<span style="font-size:13px;color:var(--muted)">Lat ${lat.toFixed(6)} · Lng ${lng.toFixed(6)}</span>`:'<span style="font-size:13px;color:var(--muted)">No figura en el mapa hasta cargar lat/lng.</span>'}
         ${canEditLocation?`<button class="secondary-btn" onclick="openUbicacionModal(${Number(e.id)})">Corregir ubicación</button>`:''}
       </div>
     </div>
@@ -4581,7 +4596,10 @@ function renderChartInsp(){
   const mapState={};
   const LOCAL_LOCATION_KEY='dgie_ubicaciones_corregidas_v1';
   function hashText(text){let h=2166136261;for(let i=0;i<String(text).length;i++){h^=String(text).charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
-  function hasRealCoords(e){return Number.isFinite(Number(e?.lat))&&Number.isFinite(Number(e?.lng));}
+  function hasRealCoords(e){
+    const lat=Number(e?.lat), lng=Number(e?.lng);
+    return Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0&&lat>=-32.8&&lat<=-30.8&&lng>=-65.5&&lng<=-63.0;
+  }
   function canEditLocation(e){
     if(!currentUser||!e)return false;
     const role=String(currentUser.role||'').toLowerCase();
@@ -4606,7 +4624,7 @@ function renderChartInsp(){
     try{return JSON.parse(localStorage.getItem(LOCAL_LOCATION_KEY)||'{}')||{};}catch(_err){return {};}
   }
   function saveStoredLocation(e){
-    if(!e||!Number.isFinite(Number(e.lat))||!Number.isFinite(Number(e.lng)))return;
+    if(!e||!hasRealCoords(e))return;
     const stored=getStoredLocations();
     stored[String(e.id)]={id:Number(e.id),direccion:e.dir||'',barrio:e.barrio||'',lat:Number(e.lat),lng:Number(e.lng),updatedAt:new Date().toISOString()};
     localStorage.setItem(LOCAL_LOCATION_KEY,JSON.stringify(stored));
@@ -4616,7 +4634,7 @@ function renderChartInsp(){
     Object.keys(stored).forEach(id=>{
       const row=stored[id];
       const e=ESTABS.find(x=>Number(x.id)===Number(id));
-      if(!e||!Number.isFinite(Number(row.lat))||!Number.isFinite(Number(row.lng)))return;
+      if(!e||!hasRealCoords(row))return;
       e.lat=Number(row.lat);
       e.lng=Number(row.lng);
       if(row.direccion!==undefined)e.dir=row.direccion||e.dir||'';
@@ -4692,7 +4710,7 @@ function renderChartInsp(){
     const lat=Number(String(document.getElementById('ub-lat')?.value||'').replace(',','.'));
     const lng=Number(String(document.getElementById('ub-lng')?.value||'').replace(',','.'));
     if(!id||!Number.isFinite(lat)||!Number.isFinite(lng)){modalMsg('Completá latitud y longitud con números válidos.', '#b91c1c');return;}
-    if(lat<-90||lat>90||lng<-180||lng>180){modalMsg('Las coordenadas están fuera de rango.', '#b91c1c');return;}
+    if(!hasRealCoords({lat,lng})){modalMsg('Ingresá coordenadas válidas de Córdoba. No se acepta 0,0.', '#b91c1c');return;}
     const local=ESTABS.find(x=>Number(x.id)===id);
     if(!local){modalMsg('No encontré el establecimiento.', '#b91c1c');return;}
     modalMsg('Guardando ubicación...');
@@ -4791,13 +4809,6 @@ function renderChartInsp(){
     const state=ensureMap(hostId,scope); if(!state)return;
     const {map,markers}=state; markers.clearLayers();
     const bounds=[]; let exactCount=0;
-    const pendingByZona=new Map();
-    estabs.forEach(e=>{
-      if(hasRealCoords(e))return;
-      const z=Number(e.zona||0);
-      if(!pendingByZona.has(z))pendingByZona.set(z,[]);
-      pendingByZona.get(z).push(e);
-    });
     estabs.filter(hasRealCoords).forEach((e,i)=>{
       const coord=coordForEstab(e,i); exactCount++;
       bounds.push([coord.lat,coord.lng]);
@@ -4805,13 +4816,6 @@ function renderChartInsp(){
       const marker=L.marker([coord.lat,coord.lng],{icon:L.divIcon({html:mapMarkerHtml(e,selected),className:'',iconSize:selected?[20,20]:[16,16],iconAnchor:selected?[10,10]:[8,8]})});
       marker.bindPopup(popupHtml(e,coord,scope));
       marker.on('click',()=>onSelect(Number(e.id)));
-      marker.addTo(markers);
-    });
-    pendingByZona.forEach((items,zona)=>{
-      const center=ZONE_CENTERS[Number(zona)]||CORDOBA_CENTER;
-      bounds.push(center);
-      const marker=L.marker(center,{icon:L.divIcon({html:`<div class="dgie-map-cluster">${items.length}</div>`,className:'',iconSize:[42,42],iconAnchor:[21,21]})});
-      marker.bindPopup(pendingPopupHtml(zona,items));
       marker.addTo(markers);
     });
     if(bounds.length)map.fitBounds(bounds,{padding:[28,28],maxZoom:scope==='coord'&&typeof coordDashboardScopeValue==='function'&&!coordDashboardScopeValue()?12:15});
@@ -5313,6 +5317,18 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     setTimeout(()=>{
       const tabs=$('ficha-body')?.previousElementSibling;
       if(tabs?.classList.contains('ficha-tabs'))tabs.innerHTML=FICHA_TABS.map((t,i)=>`<div class="ficha-tab${i===0?' active':''}" id="ftab-${i}" onclick="switchFichaTab(${i})">${t}</div>`).join('');
+      const e=ESTABS.find(x=>Number(x.id)===Number(id));
+      const header=$('ficha-body')?.previousElementSibling?.previousElementSibling;
+      if(e&&header?.classList.contains('ficha-header')&&!header.querySelector('.dgie-ficha-location-actions')){
+        const lat=Number(e.lat), lng=Number(e.lng);
+        const hasCoords=Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0&&lat>=-32.8&&lat<=-30.8&&lng>=-65.5&&lng<=-63.0;
+        const can=currentUser?.role==='coordinador';
+        header.insertAdjacentHTML('beforeend',`<div class="dgie-ficha-location-actions" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <span class="badge ${hasCoords?'b-ok':'b-warn'}">${hasCoords?'Ubicación exacta cargada':'Sin coordenadas'}</span>
+          ${hasCoords?`<span style="font-size:13px;color:var(--muted)">Lat ${lat.toFixed(6)} · Lng ${lng.toFixed(6)}</span>`:'<span style="font-size:13px;color:var(--muted)">No figura en el mapa hasta cargar lat/lng.</span>'}
+          ${can?`<button class="secondary-btn" onclick="openUbicacionModal(${Number(e.id)})">${hasCoords?'Corregir ubicación':'Cargar ubicación'}</button>`:''}
+        </div>`);
+      }
     },0);
   };
   window.renderMapFichaBody=function(estId,tab=0){
