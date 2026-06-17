@@ -6755,20 +6755,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const final=n(c?.modulos_final ?? c?.monto_final);
     return final>0?final:n(c?.modulos_inspector||c?.modulos_original);
   }
-  function fechaPresupuestoCert(c){
-    return c?.fecha_medicion||c?.fecha_envio_administracion||'';
-  }
-  function fechaPresupuestoDate(c){
-    const raw=fechaPresupuestoCert(c);
-    if(!raw)return null;
-    const d=new Date(raw);
-    return Number.isNaN(d.getTime())?null:d;
-  }
   function periodoPresupuestoCert(c){
-    const d=fechaPresupuestoDate(c);
-    if(!d)return {key:'sin-fecha',label:'Sin fecha',year:new Date().getFullYear()};
+    const numero=Number(c?.medicion_numero||0);
+    if(!numero)return {key:'sin-medicion',label:'Sin medición',year:2026};
+    const d=new Date(2026,2+(numero-1),1);
     const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0');
-    return {key:`${y}-${m}`,label:d.toLocaleDateString('es-AR',{month:'long',year:'numeric'}),year:y};
+    return {key:`${y}-${m}`,label:`Medición ${numero} · ${d.toLocaleDateString('es-AR',{month:'long',year:'numeric'})}`,year:y};
   }
   function pctPresupuesto(v,total){return Math.max(0,Math.min(100,total?Math.round((n(v)/total)*100):0))}
   function barraPresupuesto(v,total,color='var(--blue)'){
@@ -6795,7 +6787,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const restanteTotal=PRESUPUESTO_MODULOS_CERT.total-consumidoTotal;
     const restante2026=PRESUPUESTO_MODULOS_CERT.y2026-consumido2026;
     const restante2027=PRESUPUESTO_MODULOS_CERT.y2027-consumido2027;
-    const rows=Object.entries(meses).sort(([a],[b])=>a==='sin-fecha'?1:b==='sin-fecha'?-1:a.localeCompare(b)).map(([,m])=>`
+    const rows=Object.entries(meses).sort(([a],[b])=>a==='sin-medicion'?1:b==='sin-medicion'?-1:a.localeCompare(b)).map(([,m])=>`
       <tr>
         <td>${escapeHtml(m.label)}</td>
         <td>${m.certs}</td>
@@ -6806,7 +6798,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="card-header" style="align-items:flex-start">
         <div>
           <div class="card-title">Presupuesto de módulos</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">Los módulos se consumen cuando la medición se marca como finalizada.</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Sólo computa mediciones finalizadas. Medición 1 corresponde a marzo y las siguientes a los meses sucesivos.</div>
         </div>
         <span class="badge ${restanteTotal>=0?'b-ok':'b-danger'}">${mods(restanteTotal)} restantes</span>
       </div>
@@ -6819,7 +6811,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       </div>
       <div class="os-table-wrap">
         <table class="os-table">
-          <thead><tr><th>Mes de finalización</th><th>Certificados</th><th>Módulos consumidos</th><th>% del presupuesto</th></tr></thead>
+          <thead><tr><th>Medición / mes</th><th>Certificados</th><th>Módulos consumidos</th><th>% del presupuesto</th></tr></thead>
           <tbody>${rows||'<tr><td colspan="4" class="os-empty">Todavía no hay mediciones finalizadas que consuman módulos.</td></tr>'}</tbody>
         </table>
       </div>
