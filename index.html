@@ -4004,7 +4004,9 @@ function renderChartInsp(){
     return final > 0 ? final : parse(c && (c.modulos_inspector || c.modulos_original));
   }
   function medicionFinalizada(c){
-    return c && c.medicion_numero && typeof esMedicionFinalizada === 'function' && esMedicionFinalizada(c.medicion_numero);
+    if(!c || !c.medicion_numero) return false;
+    if(typeof _medicionTieneFinPersistida === 'function') return _medicionTieneFinPersistida(c.medicion_numero);
+    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c.observaciones_inspector||''));
   }
   function safeData(data){
     const d = (data || []).map(n => Number(n) || 0);
@@ -6774,7 +6776,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return `<div style="height:8px;background:#eaf0f6;border-radius:999px;overflow:hidden;margin-top:8px"><div style="height:100%;width:${p}%;background:${color};border-radius:999px"></div></div>`;
   }
   function certPresupuestoFinalizado(c){
-    return c?.medicion_numero&&typeof esMedicionFinalizada==='function'&&esMedicionFinalizada(c.medicion_numero);
+    if(!c?.medicion_numero)return false;
+    if(typeof _medicionTieneFinPersistida==='function')return _medicionTieneFinPersistida(c.medicion_numero);
+    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''));
   }
   function renderResumenPresupuestoModulos(data){
     const finalizados=certsMedidos(data).filter(certPresupuestoFinalizado);
