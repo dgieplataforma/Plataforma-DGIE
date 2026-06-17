@@ -14865,5 +14865,197 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>loadStore(true),900));
 })();
 </script>
+<script id="dgie-fix-visitas-rubro-certificados-2026-06-17">
+(function(){
+  function $(id){return document.getElementById(id)}
+  function esc(v){
+    if(typeof escapeHtml==='function')return escapeHtml(v);
+    return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function num(v){return Number(String(v??'').replace(',','.'))||0}
+  function mods(v){return num(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
+  function osNum(numero){const m=String(numero||'').match(/\d+/g);return m?Number(m[m.length-1])||0:0}
+  function cleanOS(arr){return [...new Set((arr||[]).map(String).map(x=>x.trim()).filter(Boolean))].sort((a,b)=>osNum(a)-osNum(b)||String(a).localeCompare(String(b)))}
+  function osList(it){
+    if(Array.isArray(it?.osVinculadas))return it.osVinculadas.map(String).filter(Boolean);
+    return String(it?.osVinculada||it?.ordenServicio||it?.orden_servicio||it?.os||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function paqueteKey(it){
+    if(it?.intervencionId||it?.paqueteId)return String(it.intervencionId||it.paqueteId);
+    const os=cleanOS(osList(it));
+    return `${Number(it?.estId||0)}|${os.length?os.join('+'):'sin-os'}`;
+  }
+
+  const verDetalleBase=window.verDetalleIntervencion;
+  window.verDetalleIntervencion=function(id){
+    const it=(window.INTERVENCIONES||INTERVENCIONES||[]).find(x=>String(x.id)===String(id));
+    const key=it?paqueteKey(it):'';
+    const estabaEnPaquete=!!$('main-content')&&!!$('intervenciones-dir-list')===false&&!!key;
+    const res=typeof verDetalleBase==='function'?verDetalleBase.apply(this,arguments):undefined;
+    const detalle=$('intervencion-detalle-activo');
+    const back=detalle?.querySelector('.back-btn');
+    if(back&&it){
+      back.onclick=function(){
+        window.__dgieIntervencionDetalleActivo=false;
+        const main=$('main-content');
+        if(key&&main&&main.contains(detalle)&&typeof window.abrirPaqueteIntervencion==='function'){
+          window.abrirPaqueteIntervencion(key);
+          return;
+        }
+        if($('map-ficha-body')&&typeof window.renderMapFichaBody==='function')window.renderMapFichaBody(currentFichaId,2);
+        else if($('ficha-body')&&typeof window.switchFichaTab==='function')window.switchFichaTab(2);
+        else if(typeof window.volverAIntervenciones==='function')window.volverAIntervenciones();
+        else if(typeof window.renderIntervencionesInspector==='function'&&main)window.renderIntervencionesInspector(main);
+      };
+    }
+    return res;
+  };
+
+  const RUBROS_CERT = [
+    ['Instalacion sanitaria','SAN'],
+    ['Instalacion electrica','ELEC'],
+    ['Gas','GAS'],
+    ['Cubierta de techos','CUB'],
+    ['Albañileria','ALB'],
+    ['Herreria','HER'],
+    ['Pintura','PIN']
+  ];
+  function normRubro(v){
+    const txt=String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(txt.includes('sanit'))return 'Instalacion sanitaria';
+    if(txt.includes('elect'))return 'Instalacion electrica';
+    if(txt.includes('gas'))return 'Gas';
+    if(txt.includes('cub')||txt.includes('tech'))return 'Cubierta de techos';
+    if(txt.includes('alban')||txt.includes('albañ'))return 'Albañileria';
+    if(txt.includes('herr'))return 'Herreria';
+    if(txt.includes('pint'))return 'Pintura';
+    return '';
+  }
+  function rubroOptions(selected){
+    const val=normRubro(selected)||'Instalacion sanitaria';
+    return RUBROS_CERT.map(([r])=>`<option value="${esc(r)}" ${r===val?'selected':''}>${esc(r)}</option>`).join('');
+  }
+  function rubroCert(c){
+    const src=[c?.rubro_certificado,c?.observaciones_empresa,c?.observaciones_inspector].map(x=>String(x||'')).join('\n');
+    const m=src.match(/\[RUBRO_CERT:([^\]]*)\]/);
+    return normRubro(c?.rubro_certificado||m?.[1]||'');
+  }
+  function rubroAbrev(c){
+    const r=rubroCert(c);
+    const found=RUBROS_CERT.find(([name])=>name===r);
+    return found?found[1]:'-';
+  }
+  function obsConRubro(obs,rubro){
+    const base=String(obs||'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').trim();
+    return [base,rubro?`[RUBRO_CERT:${rubro}]`:''].filter(Boolean).join('\n');
+  }
+  function certOrdenesSafe(c){
+    if(typeof window.certOrdenes==='function')return window.certOrdenes(c)||[];
+    const m=String(c?.observaciones_inspector||'').match(/\[OS_CERT:([^\]]*)\]/);
+    return String(c?.ordenes_servicio_certificado||c?.ordenes_certificado||m?.[1]||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function limpiarObsSafe(v){
+    const base=typeof window.limpiarObsCert==='function'?window.limpiarObsCert(v):String(v||'');
+    return String(base||'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').trim();
+  }
+  function certsMedidosNumero(numero){
+    return (window.CERTIFICADOS_MEDICION||[])
+      .filter(c=>String(c?.estado||'').toLowerCase()==='medido'&&String(c?.medicion_numero)===String(numero))
+      .filter(c=>currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona));
+  }
+
+  const renderEmpresaBase=window.renderMedicionesEmpresa;
+  window.renderMedicionesEmpresa=async function(container,z){
+    const res=renderEmpresaBase?await renderEmpresaBase.apply(this,arguments):undefined;
+    setTimeout(()=>{
+      if($('cert-rubro'))return;
+      const mod=$('cert-modulos');
+      const field=mod?.closest('.form-field');
+      if(field)field.insertAdjacentHTML('afterend',`<div class="form-field"><label class="form-label">Rubro del certificado</label><select class="form-select" id="cert-rubro">${rubroOptions()}</select></div>`);
+    },0);
+    return res;
+  };
+
+  window.guardarCertificadoEmpresa=async function(){
+    const estId=Number($('cert-est-id')?.value||0);
+    const est=(typeof estById==='function'?estById(estId):(window.ESTABS||ESTABS||[]).find(e=>Number(e.id)===estId));
+    const file=$('cert-file')?.files?.[0];
+    const mod=num($('cert-modulos')?.value);
+    const rubro=normRubro($('cert-rubro')?.value)||'Instalacion sanitaria';
+    if(file&&typeof validarTamanoCertificado==='function'&&!validarTamanoCertificado(file))return;
+    if(!est||!file||!mod){
+      if($('cert-error')){$('cert-error').textContent='Seleccioná establecimiento, archivo, módulos y rubro.';$('cert-error').style.display='block'}
+      return;
+    }
+    if($('cert-error'))$('cert-error').style.display='none';
+    const subida=await (typeof window.subirCertFile==='function'?window.subirCertFile(file):subirCertFile(file));
+    const row={
+      establecimiento_id:est.id,
+      establecimiento_nombre:est.n,
+      zona:Number(est.zona||(typeof zonaEstablecimiento==='function'?zonaEstablecimiento(est.id):currentUser?.zona)),
+      archivo_original:file.name,
+      url_original:subida?.url||'',
+      public_id_original:subida?.publicId||null,
+      modulos_original:mod,
+      monto_empresa:mod,
+      rubro_certificado:rubro,
+      observaciones_empresa:obsConRubro(($('cert-obs')?.value||'').trim(),rubro),
+      estado:'pendiente',
+      creado_por:currentUser?.name||'Empresa',
+      actualizado_por:currentUser?.name||'Empresa'
+    };
+    try{
+      if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearCertificadoMedicion==='function'){
+        const {error}=await window.DGIE_DB.crearCertificadoMedicion(row);
+        if(error){
+          const fallback={...row};
+          delete fallback.rubro_certificado;
+          const retry=await window.DGIE_DB.crearCertificadoMedicion(fallback);
+          if(retry.error)throw retry.error;
+        }
+      }else if(typeof insertarCertificado==='function'){
+        await insertarCertificado(row);
+      }
+      if(typeof window.cargarCertificadosMedicion==='function')await window.cargarCertificadosMedicion(true);
+      window.renderMedicionesEmpresa($('main-content'),currentUser.zona);
+    }catch(error){
+      alert('No se pudo guardar el certificado: '+(error.message||error));
+    }
+  };
+
+  function tablaMedicionRubro(data){
+    const th='background:#000;color:#fff;font-weight:bold;text-align:left;padding:6px 8px;border:1px solid #a3a3a3';
+    const totalEmpresa=data.reduce((a,c)=>a+num(c.modulos_original),0);
+    const totalInspeccion=data.reduce((a,c)=>a+num(c.modulos_inspector||c.modulos_original),0);
+    const totalDiff=totalInspeccion-totalEmpresa;
+    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Rubro</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`,ins=num(c.modulos_inspector||c.modulos_original),diff=ins-num(c.modulos_original);return `<tr><td style="${td}">${esc(c.establecimiento_nombre||'')}</td><td style="${td}">${certOrdenesSafe(c).map(esc).join('<br>')}</td><td style="${td}">${esc(rubroAbrev(c))}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(ins)}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${esc(limpiarObsSafe(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="3">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}"></td></tr></tfoot></table>`;
+  }
+  function parcheTablaMedicion(numero){
+    const data=certsMedidosNumero(numero);
+    const table=document.querySelector('#med-detalle .med-table');
+    if(table&&data.length){
+      const wrap=table.parentElement;
+      if(wrap)wrap.innerHTML=tablaMedicionRubro(data);
+    }
+  }
+  const abrirMedicionBase=window.abrirMedicionInspector;
+  window.abrirMedicionInspector=function(numero){
+    const res=abrirMedicionBase?abrirMedicionBase.apply(this,arguments):undefined;
+    setTimeout(()=>parcheTablaMedicion(numero),0);
+    return res;
+  };
+  window.exportarMedicionExcel=function(numero){
+    const data=certsMedidosNumero(numero);
+    if(!data.length){alert('No hay certificados en esta medición.');return;}
+    const blob=new Blob([`\ufeff${tablaMedicionRubro(data)}`],{type:'application/vnd.ms-excel;charset=utf-8;'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`medicion-${numero}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
+  };
+})();
+</script>
 </body>
 </html>
