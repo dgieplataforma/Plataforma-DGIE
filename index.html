@@ -4743,17 +4743,7 @@ function renderChartInsp(){
     const id=scope==='coord'?'coord-map-pending-list':'map-pending-list';
     const el=document.getElementById(id);
     if(!el)return;
-    const data=scope==='coord'?coordMapEstablecimientosFiltrados():mapEstablecimientosFiltrados(Number(currentUser?.zona||selectedZona||1));
-    const pending=data.filter(e=>!hasRealCoords(e)&&canEditLocation(e));
-    if(!pending.length){el.innerHTML='<div class="dgie-pending-location-list"><div class="dgie-pending-location-head">Ubicaciones exactas<span class="badge b-ok">Completo</span></div><div class="dgie-pending-location-row"><div class="dgie-pending-location-meta">Todos los establecimientos visibles tienen coordenadas cargadas.</div></div></div>';return;}
-    const rows=pending.slice(0,12).map(e=>`<div class="dgie-pending-location-row">
-      <div>
-        <div class="dgie-pending-location-title">${escapeHtml(e.n)}</div>
-        <div class="dgie-pending-location-meta">${escapeHtml(e.dir||'Sin dirección cargada')}${e.barrio?' · '+escapeHtml(e.barrio):''} · Zona ${escapeHtml(e.zona||'S/D')}</div>
-      </div>
-      <button class="secondary-btn" onclick="openUbicacionModal(${Number(e.id)})">Ubicar</button>
-    </div>`).join('');
-    el.innerHTML=`<div class="dgie-pending-location-list"><div class="dgie-pending-location-head">Pendientes de ubicar <span class="badge b-warn">${pending.length}</span></div>${rows}${pending.length>12?`<div class="dgie-pending-location-row"><div class="dgie-pending-location-meta">Hay ${pending.length-12} más. Usá el buscador para encontrarlos.</div></div>`:''}</div>`;
+    el.innerHTML='';
   }
   function coordForEstab(e,i=0){
     if(hasRealCoords(e))return {lat:Number(e.lat),lng:Number(e.lng),exact:true};
