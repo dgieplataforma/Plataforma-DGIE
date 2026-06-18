@@ -47,6 +47,28 @@
     if(!res.ok) throw new Error(`Cloudinary ${res.status}`);
     return res.json();
   }
+  async function selectAll(table, options = {}){
+    const {
+      columns = '*',
+      orderBy = 'created_at',
+      ascending = false,
+      filters = []
+    } = options;
+    const pageSize = 1000;
+    let from = 0;
+    const all = [];
+    while(true){
+      let query = client.from(table).select(columns);
+      filters.forEach(fn => { query = fn(query); });
+      if(orderBy) query = query.order(orderBy, { ascending });
+      const { data, error } = await query.range(from, from + pageSize - 1);
+      if(error) return { data:null, error };
+      const rows = Array.isArray(data) ? data : [];
+      all.push(...rows);
+      if(rows.length < pageSize) return { data:all, error:null };
+      from += pageSize;
+    }
+  }
 
   window.DGIE_DB = {
     isConfigured: true,
@@ -86,7 +108,7 @@
       return client.rpc('actualizar_ubicacion_establecimiento', payload);
     },
     async listarReclamos(){
-      return client.from('reclamos').select('*').order('created_at', { ascending:false });
+      return selectAll('reclamos', { orderBy:'created_at', ascending:false });
     },
     async buscarReclamoPorNumero(numero){
       return client.from('reclamos').select('id,numero').eq('numero', numero).limit(1);
@@ -98,7 +120,7 @@
       return client.from('reclamos').update(row).eq('id', id).select('*').single();
     },
     async listarOrdenes(){
-      return client.from('ordenes_servicio').select('*').order('created_at', { ascending:false });
+      return selectAll('ordenes_servicio', { orderBy:'created_at', ascending:false });
     },
     async crearOrden(row){
       return client.from('ordenes_servicio').insert(row).select('*').single();
@@ -113,7 +135,7 @@
       return client.from('ordenes_servicio').delete().eq('id', id);
     },
     async listarIntervenciones(){
-      return client.from('intervenciones').select('*').order('created_at', { ascending:false });
+      return selectAll('intervenciones', { orderBy:'created_at', ascending:false });
     },
     async crearIntervencion(row){
       return client.from('intervenciones').insert(row).select('*').single();
@@ -125,7 +147,7 @@
       return client.from('intervenciones').delete().eq('id', id);
     },
     async listarRelevamientos(){
-      return client.from('relevamientos').select('*').order('created_at', { ascending:false });
+      return selectAll('relevamientos', { orderBy:'created_at', ascending:false });
     },
     async crearRelevamiento(row){
       return client.from('relevamientos').insert(row).select('*').single();
@@ -137,7 +159,7 @@
       return client.from('relevamientos').delete().eq('id', id);
     },
     async listarComunicaciones(){
-      return client.from('comunicaciones').select('*').order('created_at', { ascending:false });
+      return selectAll('comunicaciones', { orderBy:'created_at', ascending:false });
     },
     async crearComunicacion(row){
       return client.from('comunicaciones').insert(row).select('*').single();
@@ -149,7 +171,7 @@
       return { data:Array.isArray(data) ? data[0] || null : data, error:selectError };
     },
     async listarFotos(){
-      return client.from('fotos').select('*').order('created_at', { ascending:false });
+      return selectAll('fotos', { orderBy:'created_at', ascending:false });
     },
     async crearFoto(row){
       return client.from('fotos').insert(row).select('*').single();
@@ -213,11 +235,11 @@
       return client.from('empresas_zona').upsert({ zona, ...row }, { onConflict:'zona' }).select('*').single();
     },
     async listarCertificadosMedicion(zona){
-      let query = client.from('certificados_medicion').select('*');
+      const filters = [];
       if(zona !== undefined && zona !== null && zona !== ''){
-        query = query.eq('zona', Number(zona));
+        filters.push(query => query.eq('zona', Number(zona)));
       }
-      return query.order('created_at', { ascending:false }).limit(1000);
+      return selectAll('certificados_medicion', { orderBy:'created_at', ascending:false, filters });
     },
     async crearCertificadoMedicion(row){
       return client.from('certificados_medicion').insert(row).select('*').single();
@@ -226,11 +248,11 @@
       return client.from('certificados_medicion').update(row).eq('id', id).select('*').single();
     },
     async listarAnalisisPrecios(zona){
-      let query = client.from('analisis_precios').select('*');
+      const filters = [];
       if(zona !== undefined && zona !== null && zona !== ''){
-        query = query.eq('zona', Number(zona));
+        filters.push(query => query.eq('zona', Number(zona)));
       }
-      return query.order('updated_at', { ascending:false }).limit(1000);
+      return selectAll('analisis_precios', { orderBy:'updated_at', ascending:false, filters });
     },
     async guardarAnalisisPrecio(row){
       return client.from('analisis_precios').upsert(row, { onConflict:'id' }).select('*').single();

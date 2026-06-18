@@ -523,7 +523,7 @@ function rubrosPresupuesto(){return [...new Set(BUDGET_ITEMS_ORDENADOS.map(i=>i[
 function tiposPresupuesto(rubro){return [...new Set(BUDGET_ITEMS_ORDENADOS.filter(i=>!rubro||i[4]===rubro).map(i=>normalizarTipoItem(i[5])))]}
 function itemsPresupuestoFiltrados(){const rubro=$('budget-rubro')?.value||'';const tipo=$('budget-tipo')?.value||'';return BUDGET_ITEMS_ORDENADOS.filter(i=>(!rubro||i[4]===rubro)&&(!tipo||normalizarTipoItem(i[5])===tipo))}
 function establecimientosPorZona(z){return ESTABS.filter(e=>Number(e.zona)===Number(z))}
-function reclamosPorZona(z){return RECLAMOS_ZONA.filter(r=>zonaEstablecimiento(r.estId)===Number(z))}
+function reclamosPorZona(z){return RECLAMOS_ZONA.filter(r=>Number(r.zona)===Number(z)||zonaEstablecimiento(r.estId)===Number(z))}
 function osPorZona(z){return OS_ZONA.filter(o=>zonaEstablecimiento(o.estId)===Number(z))}
 function intervencionesPorZona(z){return INTERVENCIONES.filter(i=>Number(i.zona)===Number(z))}
 function zonaStats(z){return{estabs:establecimientosPorZona(z).length,crit:reclamosPorZona(z).filter(r=>r.prio==='critico'||r.prio==='alto').length,os:osPorZona(z).length,relev:reclamosPorZona(z).length,inspector:ZONE_DATA[z]?.inspector||'—'}}
@@ -3018,7 +3018,7 @@ function drawBarCustom(id,labels,data,colors){if(chartInstances[id])chartInstanc
 function drawDonutSafe(id,data,labels,colors){const clean=data.map(n=>Number(n)||0);drawDonut(id,clean.some(Boolean)?clean:[1],clean.some(Boolean)?labels:['Sin datos'],clean.some(Boolean)?colors:['#e2e8f0']);}
 
 // Reemplazo del dashboard general de gestión: elimina números fijos y usa datos reales.
-renderDashboardGestionBody=function(){const totalRec=RECLAMOS_ZONA.length,totalMant=OS_ZONA.length,fin=OS_ZONA.filter(o=>getEstadoOS(o)==='Finalizada').length;return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardGlobal('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardGlobal('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">${totalRec}</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">${totalMant}</div><div class="big-kpi-label">mantenimientos en total<br><span style="font-size:13px;color:#64748b">${fin} finalizados</span></div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según estado de ejecución</div><div class="chart-wrap"><canvas id="chart-reclamos-ejecucion"></canvas></div></div><div class="card"><div class="card-title">Reclamos según prioridad</div><div class="chart-wrap"><canvas id="chart-reclamos-prioridad"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según estado de ejecución</div><div class="chart-wrap"><canvas id="chart-mant-ejecucion"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según prioridad</div><div class="chart-wrap"><canvas id="chart-mant-prioridad"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-dir-rubro-reclamos"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos realizados por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-dir-rubro-mant"></canvas></div></div></div>`}
+renderDashboardGestionBody=function(){const totalRec=RECLAMOS_ZONA.length,totalMant=OS_ZONA.length,fin=OS_ZONA.filter(o=>getEstadoOS(o)==='finalizado').length;return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardGlobal('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardGlobal('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">${totalRec}</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">${totalMant}</div><div class="big-kpi-label">mantenimientos en total<br><span style="font-size:13px;color:#64748b">${fin} finalizados</span></div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según estado de ejecución</div><div class="chart-wrap"><canvas id="chart-reclamos-ejecucion"></canvas></div></div><div class="card"><div class="card-title">Reclamos según prioridad</div><div class="chart-wrap"><canvas id="chart-reclamos-prioridad"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según estado de ejecución</div><div class="chart-wrap"><canvas id="chart-mant-ejecucion"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según prioridad</div><div class="chart-wrap"><canvas id="chart-mant-prioridad"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-dir-rubro-reclamos"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos realizados por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-dir-rubro-mant"></canvas></div></div></div>`}
 renderChartDir=function(view='principal'){if(view==='principal'){const total=RECLAMOS_ZONA.length,conOS=RECLAMOS_ZONA.filter(r=>r.os&&r.os!=='Sin OS').length,osFin=OS_ZONA.filter(o=>getEstadoOS(o)==='Finalizada').length,osAct=OS_ZONA.length-osFin;drawDonutSafe('chart-dir-reclamos',[total-conOS,conOS],['Sin OS','Con OS'],['#0ea5e9','#2e7d32']);drawDonutSafe('chart-dir-mantenimiento',[osFin,osAct],['Finalizadas','Pendientes / activas'],['#7c3aed','#f59e0b']);return}drawDonutSafe('chart-reclamos-ejecucion',reclamoEstadoCounts(RECLAMOS_ZONA),['Sin OS','Con OS'],['#0ea5e9','#2e7d32']);drawDonutSafe('chart-reclamos-prioridad',prioCounts(RECLAMOS_ZONA),['Crítico','Alto','Medio','Bajo'],['#dc2626','#f59e0b','#2563eb','#16a34a']);drawDonutSafe('chart-mant-ejecucion',osEstadoCounts(OS_ZONA),['Finalizado','En ejecución','Pendiente / presupuestado','Anulado'],['#16a34a','#2563eb','#f59e0b','#dc2626']);drawDonutSafe('chart-mant-prioridad',prioCounts(OS_ZONA),['Crítico','Alto','Medio','Bajo'],['#dc2626','#f59e0b','#2563eb','#16a34a']);const rr=rubroLabelsAndData(RECLAMOS_ZONA,r=>r.rubro||'Otro');drawBarCustom('chart-dir-rubro-reclamos',rr.labels,rr.data);const finalizadas=OS_ZONA.filter(o=>getEstadoOS(o)==='Finalizada');const rm=rubroLabelsAndData(finalizadas,o=>getRubroOS(o));drawBarCustom('chart-dir-rubro-mant',rm.labels,rm.data)}
 renderChartInsp=function(view='principal'){const z=Number(currentUser?.zona||selectedZona||1);const recs=RECLAMOS_ZONA.filter(r=>Number(r.zona)===z||zonaEstablecimiento(r.estId)===z);const oss=OS_ZONA.filter(o=>zonaEstablecimiento(o.estId)===z||Number(o.zona)===z);if(view==='principal'){const conOS=recs.filter(r=>r.os&&r.os!=='Sin OS').length;const fin=oss.filter(o=>getEstadoOS(o)==='Finalizada').length;drawDonutSafe('chart-zona-reclamos',[recs.length-conOS,conOS],['Sin OS','Con OS'],['#0ea5e9','#2e7d32']);drawDonutSafe('chart-zona-mantenimiento',[fin,oss.length-fin],['Finalizado','Pendiente / activo'],['#7c3aed','#f59e0b']);return}drawDonutSafe('chart-zona-rec-ejec',reclamoEstadoCounts(recs),['Sin OS','Con OS'],['#0ea5e9','#2e7d32']);drawDonutSafe('chart-zona-rec-prio',prioCounts(recs),['Crítico','Alto','Medio','Bajo'],['#dc2626','#f59e0b','#2563eb','#16a34a']);drawDonutSafe('chart-zona-man-ejec',osEstadoCounts(oss),['Finalizado','En ejecución','Pendiente / presupuestado','Anulado'],['#16a34a','#2563eb','#f59e0b','#dc2626']);drawDonutSafe('chart-zona-man-prio',prioCounts(oss),['Crítico','Alto','Medio','Bajo'],['#dc2626','#f59e0b','#2563eb','#16a34a']);const rr=rubroLabelsAndData(recs,r=>r.rubro||'Otro');drawBarCustom('chart-zona-rubro-rec',rr.labels,rr.data);const rm=rubroLabelsAndData(oss.filter(o=>getEstadoOS(o)==='Finalizada'),o=>getRubroOS(o));drawBarCustom('chart-zona-rubro-man',rm.labels,rm.data)}
 
@@ -6304,6 +6304,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function certsZona(z){return CERTIFICADOS_MEDICION.filter(c=>certVisible(c)&&zonaCertificado(c)===Number(z))}
   function certsMedidos(data=CERTIFICADOS_MEDICION){return data.filter(c=>certVisible(c)&&c.estado==='medido'&&c.medicion_numero)}
   function modActual(c){return n(c.modulos_inspector||c.modulos_original)}
+  function modFinalCert(c){
+    if(typeof window.modulosCertificadoFinal==='function')return window.modulosCertificadoFinal(c);
+    const final=n(c?.modulos_final??c?.monto_final);
+    return final>0?final:modActual(c);
+  }
   function readLocalCerts(){try{return JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')||[]}catch(e){return []}}
   function writeLocalCerts(){localStorage.setItem(LOCAL_KEY,JSON.stringify(CERTIFICADOS_MEDICION))}
   const CERT_MAX_BYTES=5*1024*1024;
@@ -6369,7 +6374,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
   function normalizarCertTxt(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
   function sanitizarNombreCert(s){return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90)}
-  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
+  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[MEDICION_FINALIZADA:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
   function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (m?.[1]||c?.ordenes_servicio_certificado||c?.ordenes_certificado||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
   window.certVisible=certVisible;
@@ -6850,7 +6855,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const nums=Object.keys(grupos).sort((a,b)=>Number(a)-Number(b));
     if(!nums.length)return '<div style="text-align:center;padding:28px;color:var(--muted)">Todavía no hay mediciones cerradas.</div>';
     return `<div class="med-btn-grid">${nums.map(num=>{
-      const total=grupos[num].reduce((a,c)=>a+modActual(c),0);
+      const total=grupos[num].reduce((a,c)=>a+modFinalCert(c),0);
       const fin=esMedicionFinalizada(num);
       const badge=fin?`<span class="badge b-ok" style="font-size:11px;margin-left:4px">✓</span>`:'';
       return `<button class="secondary-btn med-btn" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
@@ -6858,7 +6863,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   window.abrirMedicionInspector=function(numero){
     const data=certsMedidos(certsZona(currentUser.zona)).filter(c=>String(c.medicion_numero)===String(numero));
-    const total=data.reduce((a,c)=>a+modActual(c),0);
+    const total=data.reduce((a,c)=>a+modFinalCert(c),0);
     const el=$('med-detalle');
     if(!el)return;
     const fin=esMedicionFinalizada(numero);
@@ -12674,7 +12679,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   function renderDashboardRubrosCoordinador(){
     normalizarColeccionesRubros();
-    const real = typeof dashboardScopeData === 'function' ? dashboardScopeData() : null;
+    const real = typeof coordDashboardData === 'function' ? coordDashboardData() : null;
     const reclamos = real?.recs || (typeof RECLAMOS_ZONA !== 'undefined' ? RECLAMOS_ZONA : []);
     const ordenes = real?.oss || (typeof OS_ZONA !== 'undefined' ? OS_ZONA : []);
     drawBarRubros('chart-coord-rubro-reclamos', reclamos, r => r.rubro);
@@ -13362,6 +13367,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return num(c?.modulos_inspector || c?.modulos_original);
   }
 
+  function certFinalModsCoord(c){
+    if(typeof window.modulosCertificadoFinal === 'function') return window.modulosCertificadoFinal(c);
+    const final = num(c?.modulos_final ?? c?.monto_final);
+    return final > 0 ? final : certActualMods(c);
+  }
+
   function certLinkCoord(c){
     const url = c?.url_inspector || c?.url_original || '';
     const name = c?.archivo_inspector || c?.archivo_original || 'Archivo';
@@ -13414,7 +13425,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     let acumulado = 0;
     const rows = nums.map(num => {
       const data = grupos[num];
-      const mod = data.reduce((acc, c) => acc + certActualMods(c), 0);
+      const mod = data.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
       acumulado += mod;
       return `<tr>
         <td>Medición Nº ${esc(num)}</td>
@@ -13458,9 +13469,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!data.length) return '';
     const totalEmpresa = data.reduce((acc, c) => acc + num(c?.modulos_original), 0);
     const totalInspeccion = data.reduce((acc, c) => acc + certActualMods(c), 0);
+    const totalFinal = data.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
     const totalDiff = totalInspeccion - totalEmpresa;
     return `<div class="os-table-wrap" style="margin-top:12px"><table class="os-table">
-      <thead><tr><th>Establecimiento</th><th>O.S.</th><th>Archivo</th><th>Módulos empresa</th><th>Módulos inspección</th><th>Diferencia (inspección - empresa)</th><th>Período</th><th>Observaciones</th></tr></thead>
+      <thead><tr><th>Establecimiento</th><th>O.S.</th><th>Archivo</th><th>Módulos empresa</th><th>Módulos inspección</th><th>Diferencia (inspección - empresa)</th><th>Módulos cert. final</th><th>Período</th><th>Observaciones</th></tr></thead>
       <tbody>${data.map(c => `<tr>
         <td>${esc(c.establecimiento_nombre || '')}</td>
         <td>${certOrdenesCoord(c).length?certOrdenesCoord(c).map(o=>esc(o)).join('<br>'):'—'}</td>
@@ -13468,6 +13480,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <td>${fmtMods(c.modulos_original)}</td>
         <td>${fmtMods(certActualMods(c))}</td>
         <td>${fmtMods(certActualMods(c) - num(c?.modulos_original))}</td>
+        <td>${fmtMods(certFinalModsCoord(c))}</td>
         <td>${esc(c.periodo || '—')}</td>
         <td>${esc(obsInspectorCoord(c) || '—')}</td>
       </tr>`).join('')}</tbody>
@@ -13476,6 +13489,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <th>${fmtMods(totalEmpresa)}</th>
         <th>${fmtMods(totalInspeccion)}</th>
         <th>${fmtMods(totalDiff)}</th>
+        <th>${fmtMods(totalFinal)}</th>
         <th></th>
         <th></th>
       </tr></tfoot>
@@ -13486,7 +13500,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const body = document.getElementById('coord-cert-medicion-detalle');
     if(!body) return;
     const data = certificadosMedicionFinalizadaCoord(z).filter(c => String(c.medicion_numero) === String(numero));
-    const total = data.reduce((acc, c) => acc + certActualMods(c), 0);
+    const total = data.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
     body.innerHTML = `<div class="med-card">
       <div class="card-header">
         <div>
@@ -13563,7 +13577,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       </div>
       ${nums.length ? `<div class="med-btn-grid">${nums.map(num => {
         const data = grupos[num];
-        const total = data.reduce((acc, c) => acc + certActualMods(c), 0);
+        const total = data.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
         return `<button class="secondary-btn med-btn" onclick="abrirMedicionCoordinador(${z}, '${esc(num)}')"><strong>Medición Nº ${esc(num)} <span class="badge b-ok" style="font-size:10px">✓</span></strong><span>${data.length} certificados · ${fmtMods(total)} módulos</span></button>`;
       }).join('')}</div><div id="coord-cert-medicion-detalle" style="margin-top:14px"></div>`
       : `<div style="text-align:center;padding:26px;color:var(--muted);border:1px dashed var(--border);border-radius:12px;background:#f8fafc">Todavía no hay mediciones finalizadas para Zona ${z}.</div>`}
