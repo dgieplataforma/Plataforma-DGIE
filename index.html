@@ -1262,43 +1262,50 @@ function openEditEstab(id){
   const e=ESTABS.find(x=>x.id===id);
   const body=document.getElementById('adm-body');
   if(!e||!body) return;
-  const hasCoords=validarCoordenadasEstab(Number(e.lat),Number(e.lng));
-  const locationHtml=`
-        <div class="form-field full">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f8fafc;border:1px solid #e5edf6;border-radius:12px;padding:12px">
-            <div>
-              <div class="form-label" style="margin-bottom:4px">Ubicación en mapa</div>
-              <div style="font-size:13px;color:var(--muted);font-weight:800">${hasCoords?`Lat ${Number(e.lat).toFixed(6)} · Lng ${Number(e.lng).toFixed(6)}`:'Sin coordenadas cargadas'}</div>
-            </div>
-            <button class="secondary-btn" type="button" onclick="openUbicacionModal(${Number(e.id)})">${hasCoords?'Corregir ubicación':'Cargar ubicación'}</button>
-          </div>
-        </div>`;
+  const latValue=validarCoordenadasEstab(Number(e.lat),Number(e.lng))?String(Number(e.lat)):'';
+  const lngValue=validarCoordenadasEstab(Number(e.lat),Number(e.lng))?String(Number(e.lng)):'';
+  const opts=(base,current)=>[...new Set([current,...base].map(x=>String(x||'').trim()).filter(Boolean))];
+  const niveles=opts(['Inicial','Primario','Secundario','Especial','Adultos','Superior'],e.nivel);
+  const estados=opts(['Bueno','Regular','Crítico'],e.est);
+  const tipos=opts(['Escuela','Jardín','Anexo','Instituto','Otro'],e.tipo);
   body.innerHTML=`
     <button class="back-btn" onclick="switchAdmTab('estabs')">‹ Volver a establecimientos</button>
     <div class="card">
       <div class="card-header">
         <div><div class="card-title">Editar establecimiento</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">Zona ${e.zona} · CUE ${e.cue||'—'}</div></div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">Zona ${escapeHtml(e.zona||'S/D')} · CUE ${escapeHtml(e.cue||'—')}</div></div>
       </div>
       <div class="form-grid">
         <div class="form-field full"><label class="form-label">Nombre del establecimiento</label>
-          <input class="form-input" id="est-nombre" value="${e.n}"/></div>
+          <input class="form-input" id="est-nombre" value="${escapeHtml(e.n||'')}"/></div>
+        <div class="form-field"><label class="form-label">Zona</label>
+          <select class="form-select" id="est-zona">
+            ${Array.from({length:17},(_,i)=>`<option value="${i+1}" ${Number(e.zona)===i+1?'selected':''}>Zona ${i+1} · ${escapeHtml(INSPECTORS[i]||'')}</option>`).join('')}
+          </select></div>
+        <div class="form-field"><label class="form-label">CUE</label>
+          <input class="form-input" id="est-cue" value="${escapeHtml(e.cue||'')}"/></div>
         <div class="form-field full"><label class="form-label">Dirección</label>
-          <input class="form-input" id="est-dir" value="${e.dir}"/></div>
+          <input class="form-input" id="est-dir" value="${escapeHtml(e.dir||'')}"/></div>
         <div class="form-field"><label class="form-label">Barrio</label>
-          <input class="form-input" id="est-barrio" value="${e.barrio||''}"/></div>
+          <input class="form-input" id="est-barrio" value="${escapeHtml(e.barrio||'')}"/></div>
         <div class="form-field"><label class="form-label">Nivel educativo</label>
           <select class="form-select" id="est-nivel">
-            ${['Inicial','Primario','Secundario','Especial','Adultos','Superior'].map(n=>`<option ${e.nivel===n?'selected':''}>${n}</option>`).join('')}
+            ${niveles.map(n=>`<option ${e.nivel===n?'selected':''}>${escapeHtml(n)}</option>`).join('')}
           </select></div>
         <div class="form-field"><label class="form-label">Estado edilicio</label>
           <select class="form-select" id="est-estado">
-            ${['Bueno','Regular','Crítico'].map(s=>`<option ${e.est===s?'selected':''}>${s}</option>`).join('')}
+            ${estados.map(s=>`<option ${e.est===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}
           </select></div>
-        <div class="form-field"><label class="form-label">CUE</label>
-          <input class="form-input" id="est-cue" value="${e.cue||''}"/></div>
-        ${locationHtml}
+        <div class="form-field"><label class="form-label">Tipo</label>
+          <select class="form-select" id="est-tipo">
+            ${tipos.map(t=>`<option ${e.tipo===t?'selected':''}>${escapeHtml(t)}</option>`).join('')}
+          </select></div>
+        <div class="form-field"><label class="form-label">Latitud</label>
+          <input class="form-input" id="est-lat" value="${latValue}" placeholder="-31.416700"/></div>
+        <div class="form-field"><label class="form-label">Longitud</label>
+          <input class="form-input" id="est-lng" value="${lngValue}" placeholder="-64.183300"/></div>
       </div>
+      <div class="form-error" id="est-error" style="display:none"></div>
       <div class="modal-actions">
         <button class="secondary-btn" style="color:var(--danger);border-color:var(--danger);margin-right:auto" onclick="eliminarEstab(${id})">Eliminar</button>
         <button class="secondary-btn" onclick="switchAdmTab('estabs')">Cancelar</button>
@@ -1310,23 +1317,58 @@ function openEditEstab(id){
 async function guardarEstab(id){
   const e=ESTABS.find(x=>x.id===id);
   if(!e) return;
-  e.n=document.getElementById('est-nombre')?.value.trim()||e.n;
-  e.dir=document.getElementById('est-dir')?.value.trim()||e.dir;
-  e.barrio=document.getElementById('est-barrio')?.value.trim()||e.barrio;
-  e.nivel=document.getElementById('est-nivel')?.value||e.nivel;
-  e.est=document.getElementById('est-estado')?.value||e.est;
-  e.cue=document.getElementById('est-cue')?.value.trim()||e.cue;
+  const err=document.getElementById('est-error');
+  const val=id=>document.getElementById(id)?.value.trim()||'';
+  const zona=Number(val('est-zona'));
+  const latRaw=val('est-lat').replace(',','.');
+  const lngRaw=val('est-lng').replace(',','.');
+  const lat=latRaw===''?null:Number(latRaw);
+  const lng=lngRaw===''?null:Number(lngRaw);
+  if(!Number.isInteger(zona)||zona<1||zona>17){
+    if(err){err.textContent='Seleccioná una zona válida.';err.style.display='block';}
+    return;
+  }
+  if((lat!==null||lng!==null)&&!validarCoordenadasEstab(lat,lng)){
+    if(err){err.textContent='Ingresá coordenadas válidas de Córdoba o dejalas vacías.';err.style.display='block';}
+    return;
+  }
+  const draft={
+    zona,
+    n:val('est-nombre')||e.n,
+    dir:val('est-dir')||e.dir,
+    barrio:val('est-barrio'),
+    nivel:val('est-nivel')||e.nivel,
+    est:val('est-estado')||e.est,
+    tipo:val('est-tipo')||e.tipo,
+    cue:val('est-cue'),
+    lat,
+    lng
+  };
   if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarEstablecimiento==='function'){
     const {error}=await window.DGIE_DB.actualizarEstablecimiento(id,{
-      nombre:e.n,
-      direccion:e.dir||null,
-      barrio:e.barrio||null,
-      nivel:e.nivel,
-      estado:e.est,
-      cue:e.cue||null
+      zona:draft.zona,
+      nombre:draft.n,
+      direccion:draft.dir||null,
+      barrio:draft.barrio||null,
+      nivel:draft.nivel,
+      tipo:draft.tipo,
+      estado:draft.est,
+      cue:draft.cue||null,
+      lat:draft.lat,
+      lng:draft.lng
     });
     if(error){alert('No se pudo guardar en Supabase: '+error.message);return;}
   }
+  e.zona=draft.zona;
+  e.n=draft.n;
+  e.dir=draft.dir;
+  e.barrio=draft.barrio;
+  e.nivel=draft.nivel;
+  e.tipo=draft.tipo;
+  e.est=draft.est;
+  e.cue=draft.cue;
+  e.lat=draft.lat;
+  e.lng=draft.lng;
   switchAdmTab('estabs');
 }
 async function eliminarEstab(id){
@@ -3392,7 +3434,7 @@ function renderEstablecimientoInfoBox(estId=null){
   const map={Crítico:'b-danger',Regular:'b-warn',Bueno:'b-ok'};
   const lat=Number(e.lat),lng=Number(e.lng);
   const hasCoords=Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0&&lat>=-32.8&&lat<=-30.8&&lng>=-65.5&&lng<=-63.0;
-  const canEditLocation=currentUser&&currentUser.role==='coordinador';
+  const canEditLocation=currentUser&&(currentUser.role==='coordinador'||currentUser.role==='direccion'||currentUser.role==='director'||(currentUser.role==='inspector'&&Number(currentUser.zona)===Number(zona)));
   return `<div id="map-estab-info" style="margin-top:16px">
     <div class="ficha-header">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -3413,7 +3455,7 @@ function renderEstablecimientoInfoBox(estId=null){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
         <span class="badge ${hasCoords?'b-ok':'b-warn'}">${hasCoords?'Ubicación exacta cargada':'Pendiente de ubicar'}</span>
         ${hasCoords?`<span style="font-size:13px;color:var(--muted)">Lat ${lat.toFixed(6)} · Lng ${lng.toFixed(6)}</span>`:'<span style="font-size:13px;color:var(--muted)">No figura en el mapa hasta cargar lat/lng.</span>'}
-        ${canEditLocation?`<button class="secondary-btn" onclick="openUbicacionModal(${Number(e.id)})">Corregir ubicación</button>`:''}
+        ${canEditLocation?`<button class="secondary-btn" onclick="openUbicacionModal(${Number(e.id)})">Modificar datos</button>`:''}
       </div>
     </div>
     <div class="ficha-tabs" style="margin-top:12px">
@@ -4572,7 +4614,7 @@ function renderChartInsp(){
 .dgie-pending-location-title{font-size:12px;font-weight:900;color:#132f4c;line-height:1.25}
 .dgie-pending-location-meta{font-size:11px;color:#64748b;line-height:1.35;margin-top:3px}
 .dgie-location-modal-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:18px}
-.dgie-location-modal{width:min(560px,100%);background:#fff;border-radius:14px;border:1px solid #d9e2ef;box-shadow:0 22px 70px rgba(15,23,42,.28);padding:18px}
+.dgie-location-modal{width:min(760px,100%);background:#fff;border-radius:14px;border:1px solid #d9e2ef;box-shadow:0 22px 70px rgba(15,23,42,.28);padding:18px}
 .dgie-location-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
 .dgie-location-modal-title{font-size:18px;font-weight:900;color:#123c69;line-height:1.2}
 .dgie-location-modal-sub{font-size:13px;color:#64748b;margin-top:4px;line-height:1.35}
@@ -4596,7 +4638,8 @@ function renderChartInsp(){
   function canEditLocation(e){
     if(!currentUser||!e)return false;
     const role=String(currentUser.role||'').toLowerCase();
-    return role==='coordinador';
+    if(role==='coordinador'||role==='direccion'||role==='director')return true;
+    return role==='inspector'&&Number(currentUser.zona)===Number(e.zona);
   }
   function updateLocalEstabLocation(row){
     const data=Array.isArray(row)?row[0]:row;
@@ -4604,8 +4647,10 @@ function renderChartInsp(){
     const e=ESTABS.find(x=>Number(x.id)===Number(data.id));
     if(!e)return null;
     if(data.nombre!==undefined)e.n=data.nombre||e.n;
+    if(data.zona!==undefined)e.zona=Number(data.zona)||e.zona;
     if(data.direccion!==undefined)e.dir=data.direccion||'';
     if(data.barrio!==undefined)e.barrio=data.barrio||'';
+    if(data.cue!==undefined)e.cue=data.cue||'';
     if(data.lat!==undefined)e.lat=data.lat===null||data.lat===''?null:Number(data.lat);
     if(data.lng!==undefined)e.lng=data.lng===null||data.lng===''?null:Number(data.lng);
     if(data.estado!==undefined)e.est=data.estado||e.est;
@@ -4619,7 +4664,7 @@ function renderChartInsp(){
   function saveStoredLocation(e){
     if(!e||!hasRealCoords(e))return;
     const stored=getStoredLocations();
-    stored[String(e.id)]={id:Number(e.id),direccion:e.dir||'',barrio:e.barrio||'',lat:Number(e.lat),lng:Number(e.lng),updatedAt:new Date().toISOString()};
+    stored[String(e.id)]={id:Number(e.id),nombre:e.n||'',zona:Number(e.zona)||null,cue:e.cue||'',direccion:e.dir||'',barrio:e.barrio||'',nivel:e.nivel||'',tipo:e.tipo||'',estado:e.est||'',lat:Number(e.lat),lng:Number(e.lng),updatedAt:new Date().toISOString()};
     localStorage.setItem(LOCAL_LOCATION_KEY,JSON.stringify(stored));
   }
   function applyStoredLocations(){
@@ -4630,13 +4675,20 @@ function renderChartInsp(){
       if(!e||!hasRealCoords(row))return;
       e.lat=Number(row.lat);
       e.lng=Number(row.lng);
+      if(row.nombre!==undefined)e.n=row.nombre||e.n;
+      if(row.zona!==undefined)e.zona=Number(row.zona)||e.zona;
+      if(row.cue!==undefined)e.cue=row.cue||e.cue||'';
       if(row.direccion!==undefined)e.dir=row.direccion||e.dir||'';
       if(row.barrio!==undefined)e.barrio=row.barrio||e.barrio||'';
+      if(row.nivel!==undefined)e.nivel=row.nivel||e.nivel||'';
+      if(row.tipo!==undefined)e.tipo=row.tipo||e.tipo||'';
+      if(row.estado!==undefined)e.est=row.estado||e.est||'';
     });
   }
   function refreshLocationViews(estId){
     if(document.getElementById('inspector-map-layer'))window.renderInspectorMapDots();
     if(document.getElementById('coord-map-layer'))window.renderCoordMapDots();
+    if(Number(currentFichaId)===Number(estId)&&document.getElementById('ficha-body')&&typeof window.openFicha==='function')setTimeout(()=>window.openFicha(estId),0);
     const box=document.getElementById('map-estab-info');
     if(box){
       box.outerHTML=renderEstablecimientoInfoBox(estId);
@@ -4660,28 +4712,42 @@ function renderChartInsp(){
     const e=ESTABS.find(x=>Number(x.id)===Number(estId));
     if(!e||!canEditLocation(e))return;
     window.closeUbicacionModal();
+    const role=String(currentUser?.role||'').toLowerCase();
+    const canChangeZone=role==='coordinador'||role==='direccion'||role==='director';
+    const opts=(base,current)=>[...new Set([current,...base].map(x=>String(x||'').trim()).filter(Boolean))];
+    const niveles=opts(['Inicial','Primario','Secundario','Especial','Adultos','Superior'],e.nivel);
+    const estados=opts(['Bueno','Regular','Crítico'],e.est);
+    const tipos=opts(['Escuela','Jardín','Anexo','Instituto','Otro'],e.tipo);
     const backdrop=document.createElement('div');
     backdrop.className='dgie-location-modal-backdrop';
     backdrop.id='ubicacion-modal-backdrop';
     backdrop.innerHTML=`<div class="dgie-location-modal" role="dialog" aria-modal="true">
       <div class="dgie-location-modal-head">
         <div>
-          <div class="dgie-location-modal-title">Corregir ubicación</div>
+          <div class="dgie-location-modal-title">Modificar datos</div>
           <div class="dgie-location-modal-sub">${escapeHtml(e.n)} · Zona ${escapeHtml(e.zona||'S/D')}</div>
         </div>
         <button class="secondary-btn" onclick="closeUbicacionModal()">Cerrar</button>
       </div>
       <input type="hidden" id="ub-est-id" value="${Number(e.id)}">
       <div class="dgie-location-grid">
+        <label class="wide"><div class="form-label">Nombre del establecimiento</div><input class="form-input" id="ub-nombre" value="${escapeHtml(e.n||'')}" placeholder="Nombre completo"></label>
+        <label><div class="form-label">Zona</div><select class="form-select" id="ub-zona" ${canChangeZone?'':'disabled'}>
+          ${Array.from({length:17},(_,i)=>`<option value="${i+1}" ${Number(e.zona)===i+1?'selected':''}>Zona ${i+1} · ${escapeHtml(INSPECTORS[i]||'')}</option>`).join('')}
+        </select></label>
+        <label><div class="form-label">CUE</div><input class="form-input" id="ub-cue" value="${escapeHtml(e.cue||'')}" placeholder="CUE"></label>
         <label class="wide"><div class="form-label">Dirección correcta</div><input class="form-input" id="ub-direccion" value="${escapeHtml(e.dir||'')}" placeholder="Calle y número"></label>
         <label><div class="form-label">Barrio</div><input class="form-input" id="ub-barrio" value="${escapeHtml(e.barrio||'')}" placeholder="Barrio"></label>
+        <label><div class="form-label">Nivel educativo</div><select class="form-select" id="ub-nivel">${niveles.map(n=>`<option ${e.nivel===n?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></label>
+        <label><div class="form-label">Tipo</div><select class="form-select" id="ub-tipo">${tipos.map(t=>`<option ${e.tipo===t?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></label>
+        <label><div class="form-label">Estado edilicio</div><select class="form-select" id="ub-estado">${estados.map(s=>`<option ${e.est===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select></label>
         <label><div class="form-label">Latitud</div><input class="form-input" id="ub-lat" value="${hasRealCoords(e)?Number(e.lat):''}" placeholder="-31.416700"></label>
         <label><div class="form-label">Longitud</div><input class="form-input" id="ub-lng" value="${hasRealCoords(e)?Number(e.lng):''}" placeholder="-64.183300"></label>
       </div>
       <div class="dgie-location-msg" id="ubicacion-msg"></div>
       <div class="dgie-location-actions">
         <button class="secondary-btn" onclick="usarUbicacionActual()">Usar mi ubicación actual</button>
-        <button class="primary-btn" onclick="guardarUbicacionEstablecimiento()">Guardar ubicación</button>
+        <button class="primary-btn" onclick="guardarUbicacionEstablecimiento()">Guardar datos</button>
       </div>
     </div>`;
     backdrop.addEventListener('click',ev=>{if(ev.target===backdrop)window.closeUbicacionModal();});
@@ -4698,34 +4764,70 @@ function renderChartInsp(){
   };
   window.guardarUbicacionEstablecimiento=async function(){
     const id=Number(document.getElementById('ub-est-id')?.value);
-    const direccion=(document.getElementById('ub-direccion')?.value||'').trim();
-    const barrio=(document.getElementById('ub-barrio')?.value||'').trim();
-    const lat=Number(String(document.getElementById('ub-lat')?.value||'').replace(',','.'));
-    const lng=Number(String(document.getElementById('ub-lng')?.value||'').replace(',','.'));
-    if(!id||!Number.isFinite(lat)||!Number.isFinite(lng)){modalMsg('Completá latitud y longitud con números válidos.', '#b91c1c');return;}
-    if(!hasRealCoords({lat,lng})){modalMsg('Ingresá coordenadas válidas de Córdoba. No se acepta 0,0.', '#b91c1c');return;}
     const local=ESTABS.find(x=>Number(x.id)===id);
     if(!local){modalMsg('No encontré el establecimiento.', '#b91c1c');return;}
-    modalMsg('Guardando ubicación...');
-    local.dir=direccion||local.dir||'';
-    local.barrio=barrio||local.barrio||'';
-    local.lat=lat;
-    local.lng=lng;
+    if(!canEditLocation(local)){modalMsg('No tenés permiso para modificar este establecimiento.', '#b91c1c');return;}
+    const role=String(currentUser?.role||'').toLowerCase();
+    const canChangeZone=role==='coordinador'||role==='direccion'||role==='director';
+    const nombre=(document.getElementById('ub-nombre')?.value||'').trim();
+    const zona=canChangeZone?Number(document.getElementById('ub-zona')?.value||local.zona):Number(local.zona);
+    const cue=(document.getElementById('ub-cue')?.value||'').trim();
+    const direccion=(document.getElementById('ub-direccion')?.value||'').trim();
+    const barrio=(document.getElementById('ub-barrio')?.value||'').trim();
+    const nivel=(document.getElementById('ub-nivel')?.value||'').trim();
+    const tipo=(document.getElementById('ub-tipo')?.value||'').trim();
+    const estado=(document.getElementById('ub-estado')?.value||'').trim();
+    const latTxt=String(document.getElementById('ub-lat')?.value||'').trim().replace(',','.');
+    const lngTxt=String(document.getElementById('ub-lng')?.value||'').trim().replace(',','.');
+    const lat=latTxt===''?null:Number(latTxt);
+    const lng=lngTxt===''?null:Number(lngTxt);
+    if(!id||!nombre){modalMsg('Completá el nombre del establecimiento.', '#b91c1c');return;}
+    if(!Number.isInteger(zona)||zona<1||zona>17){modalMsg('Seleccioná una zona válida.', '#b91c1c');return;}
+    if((lat!==null||lng!==null)&&!hasRealCoords({lat,lng})){modalMsg('Ingresá coordenadas válidas de Córdoba o dejalas vacías. No se acepta 0,0.', '#b91c1c');return;}
+    const patch={
+      id,
+      nombre,
+      zona,
+      cue:cue||null,
+      direccion:direccion||null,
+      barrio:barrio||null,
+      nivel:nivel||null,
+      tipo:tipo||null,
+      estado:estado||null,
+      lat,
+      lng
+    };
+    modalMsg('Guardando datos...');
+    updateLocalEstabLocation(patch);
     saveStoredLocation(local);
     let savedRemote=false;
     try{
-      if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarUbicacionEstablecimiento==='function'){
-        const session=await window.DGIE_DB.client?.auth?.getSession?.();
-        if(session?.data?.session){
-          const {data,error}=await window.DGIE_DB.actualizarUbicacionEstablecimiento({p_id:id,p_direccion:direccion,p_barrio:barrio,p_lat:lat,p_lng:lng});
-          if(error)throw error;
-          const saved=updateLocalEstabLocation(data);
-          saveStoredLocation(saved||local);
-          savedRemote=true;
-        }
+      if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarEstablecimiento==='function'){
+        const {data,error}=await window.DGIE_DB.actualizarEstablecimiento(id,{
+          nombre:patch.nombre,
+          zona:patch.zona,
+          cue:patch.cue,
+          direccion:patch.direccion,
+          barrio:patch.barrio,
+          nivel:patch.nivel,
+          tipo:patch.tipo,
+          estado:patch.estado,
+          lat:patch.lat,
+          lng:patch.lng
+        });
+        if(error)throw error;
+        const saved=updateLocalEstabLocation(data||patch);
+        saveStoredLocation(saved||local);
+        savedRemote=true;
+      }else if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarUbicacionEstablecimiento==='function'&&lat!==null&&lng!==null){
+        const {data,error}=await window.DGIE_DB.actualizarUbicacionEstablecimiento({p_id:id,p_direccion:direccion,p_barrio:barrio,p_lat:lat,p_lng:lng});
+        if(error)throw error;
+        const saved=updateLocalEstabLocation(data||patch);
+        saveStoredLocation(saved||local);
+        savedRemote=true;
       }
       refreshLocationViews(id);
-      modalMsg(savedRemote?'Ubicación guardada en Supabase.':'Ubicación guardada localmente en este navegador. Para que la vean todos, entrá con Acceso real.', '#15803d');
+      modalMsg(savedRemote?'Datos guardados en Supabase.':'Datos guardados localmente en este navegador. Para que los vean todos, entrá con Acceso real.', '#15803d');
       setTimeout(window.closeUbicacionModal,900);
     }catch(err){
       refreshLocationViews(id);
@@ -5305,11 +5407,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(e&&header?.classList.contains('ficha-header')&&!header.querySelector('.dgie-ficha-location-actions')){
         const lat=Number(e.lat), lng=Number(e.lng);
         const hasCoords=Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0&&lat>=-32.8&&lat<=-30.8&&lng>=-65.5&&lng<=-63.0;
-        const can=currentUser?.role==='coordinador';
+        const can=currentUser&&(currentUser.role==='coordinador'||currentUser.role==='direccion'||currentUser.role==='director'||(currentUser.role==='inspector'&&Number(currentUser.zona)===Number(e.zona)));
         header.insertAdjacentHTML('beforeend',`<div class="dgie-ficha-location-actions" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px">
           <span class="badge ${hasCoords?'b-ok':'b-warn'}">${hasCoords?'Ubicación exacta cargada':'Sin coordenadas'}</span>
           ${hasCoords?`<span style="font-size:13px;color:var(--muted)">Lat ${lat.toFixed(6)} · Lng ${lng.toFixed(6)}</span>`:'<span style="font-size:13px;color:var(--muted)">No figura en el mapa hasta cargar lat/lng.</span>'}
-          ${can?`<button class="secondary-btn" onclick="openUbicacionModal(${Number(e.id)})">${hasCoords?'Corregir ubicación':'Cargar ubicación'}</button>`:''}
+          ${can?`<button class="secondary-btn" onclick="openUbicacionModal(${Number(e.id)})">Modificar datos</button>`:''}
         </div>`);
       }
     },0);
