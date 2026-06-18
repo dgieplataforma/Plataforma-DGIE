@@ -13465,6 +13465,123 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     </div>`;
   }
 
+  function anioMedicionCoord(c){
+    const numero = Number(c?.medicion_numero || 0);
+    if(!numero) return 2026;
+    return new Date(2026, 2 + (numero - 1), 1).getFullYear();
+  }
+
+  function resumenConsumoZonaCoord(z){
+    const finalizados = certificadosMedicionFinalizadaCoord(z);
+    const mediciones = new Set(finalizados.map(c => String(c.medicion_numero)).filter(Boolean)).size;
+    const certs = finalizados.length;
+    const consumido = finalizados.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
+    const consumido2026 = finalizados
+      .filter(c => anioMedicionCoord(c) === 2026)
+      .reduce((acc, c) => acc + certFinalModsCoord(c), 0);
+    const consumido2027 = finalizados
+      .filter(c => anioMedicionCoord(c) === 2027)
+      .reduce((acc, c) => acc + certFinalModsCoord(c), 0);
+    return {
+      zona:z,
+      inspector:(typeof INSPECTORS !== 'undefined' && INSPECTORS[z - 1]) ? INSPECTORS[z - 1] : '',
+      mediciones,
+      certs,
+      consumido,
+      consumido2026,
+      consumido2027,
+      restante:MODULOS_CERT_COORD.total - consumido,
+      restante2026:MODULOS_CERT_COORD.y2026 - consumido2026,
+      restante2027:MODULOS_CERT_COORD.y2027 - consumido2027
+    };
+  }
+
+  function renderTablaConsumoGeneralCoord(loading=false){
+    const tableStyle='width:100%;border-collapse:collapse;min-width:980px;font-size:13px';
+    const th='text-align:left;background:#eef3f8;color:#0f2f57;font-weight:900;padding:10px 12px;border-bottom:1px solid #dbe6f2;white-space:nowrap';
+    const td='padding:9px 12px;border-bottom:1px solid #e5edf6;color:#123c69;vertical-align:middle';
+    const tdNum=td+';text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap';
+    const rows = Array.from({length:17}, (_, i) => resumenConsumoZonaCoord(i + 1));
+    const total = rows.reduce((acc, r) => {
+      acc.mediciones += r.mediciones;
+      acc.certs += r.certs;
+      acc.consumido += r.consumido;
+      acc.consumido2026 += r.consumido2026;
+      acc.consumido2027 += r.consumido2027;
+      return acc;
+    }, {mediciones:0, certs:0, consumido:0, consumido2026:0, consumido2027:0});
+    const presupuestoTotal = MODULOS_CERT_COORD.total * 17;
+    const presupuesto2026 = MODULOS_CERT_COORD.y2026 * 17;
+    const presupuesto2027 = MODULOS_CERT_COORD.y2027 * 17;
+    const body = loading
+      ? `<tr><td colspan="12" style="${td};text-align:center;color:var(--muted)">Cargando consumo general...</td></tr>`
+      : rows.map(r => {
+        const pct = MODULOS_CERT_COORD.total ? Math.round((r.consumido / MODULOS_CERT_COORD.total) * 100) : 0;
+        return `<tr>
+          <td style="${td}"><b>Zona ${r.zona}</b></td>
+          <td style="${td}">${esc(r.inspector || '—')}</td>
+          <td style="${tdNum}">${r.mediciones}</td>
+          <td style="${tdNum}">${r.certs}</td>
+          <td style="${tdNum}">${fmtMods(MODULOS_CERT_COORD.total)}</td>
+          <td style="${tdNum}">${fmtMods(r.consumido)}</td>
+          <td style="${tdNum}">${fmtMods(r.restante)}</td>
+          <td style="${tdNum}">${fmtMods(r.consumido2026)}</td>
+          <td style="${tdNum}">${fmtMods(r.restante2026)}</td>
+          <td style="${tdNum}">${fmtMods(r.consumido2027)}</td>
+          <td style="${tdNum}">${fmtMods(r.restante2027)}</td>
+          <td style="${tdNum}">${pct}%</td>
+        </tr>`;
+      }).join('');
+    const foot = loading ? '' : `<tfoot><tr>
+      <th colspan="2" style="${th}">Totales</th>
+      <th style="${th};text-align:right">${total.mediciones}</th>
+      <th style="${th};text-align:right">${total.certs}</th>
+      <th style="${th};text-align:right">${fmtMods(presupuestoTotal)}</th>
+      <th style="${th};text-align:right">${fmtMods(total.consumido)}</th>
+      <th style="${th};text-align:right">${fmtMods(presupuestoTotal - total.consumido)}</th>
+      <th style="${th};text-align:right">${fmtMods(total.consumido2026)}</th>
+      <th style="${th};text-align:right">${fmtMods(presupuesto2026 - total.consumido2026)}</th>
+      <th style="${th};text-align:right">${fmtMods(total.consumido2027)}</th>
+      <th style="${th};text-align:right">${fmtMods(presupuesto2027 - total.consumido2027)}</th>
+      <th style="${th};text-align:right">${presupuestoTotal ? Math.round((total.consumido / presupuestoTotal) * 100) : 0}%</th>
+    </tr></tfoot>`;
+    return `<div class="med-card" style="margin-bottom:14px">
+      <div class="card-header" style="margin-bottom:8px">
+        <div>
+          <div class="card-title">Consumo general de módulos</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Presupuesto por zona: ${fmtMods(MODULOS_CERT_COORD.total)} módulos.</div>
+        </div>
+      </div>
+      <div class="os-table-wrap">
+        <table style="${tableStyle}">
+          <thead><tr>
+            <th style="${th}">Zona</th>
+            <th style="${th}">Inspector/a</th>
+            <th style="${th};text-align:right">Med.</th>
+            <th style="${th};text-align:right">Cert.</th>
+            <th style="${th};text-align:right">Presupuesto</th>
+            <th style="${th};text-align:right">Consumidos</th>
+            <th style="${th};text-align:right">Restantes</th>
+            <th style="${th};text-align:right">Cons. 2026</th>
+            <th style="${th};text-align:right">Rest. 2026</th>
+            <th style="${th};text-align:right">Cons. 2027</th>
+            <th style="${th};text-align:right">Rest. 2027</th>
+            <th style="${th};text-align:right">% total</th>
+          </tr></thead>
+          <tbody>${body}</tbody>
+          ${foot}
+        </table>
+      </div>
+    </div>`;
+  }
+
+  async function actualizarTablaConsumoGeneralCoord(){
+    const el = document.getElementById('coord-cert-consumo-general');
+    if(!el) return;
+    if(typeof window.cargarCertificadosMedicion === 'function') await window.cargarCertificadosMedicion();
+    el.innerHTML = renderTablaConsumoGeneralCoord(false);
+  }
+
   function renderTablaMedicionCoord(data){
     if(!data.length) return '';
     const totalEmpresa = data.reduce((acc, c) => acc + num(c?.modulos_original), 0);
@@ -13515,6 +13632,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.renderCertificacionCoordinador = function(container){
     if(!container) return;
     container.innerHTML = `<div class="section-label">Coordinación · Certificación</div>
+      <div id="coord-cert-consumo-general">
+        ${renderTablaConsumoGeneralCoord(true)}
+      </div>
       <div class="card">
         <div class="card-header">
           <div>
@@ -13535,6 +13655,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           <div style="text-align:center;padding:32px;color:var(--muted);border:1px dashed var(--border);border-radius:14px;background:#f8fafc">Seleccioná una zona para continuar.</div>
         </div>
       </div>`;
+    setTimeout(actualizarTablaConsumoGeneralCoord, 0);
   };
 
   window.renderCertificacionCoordinadorZona = async function(){
