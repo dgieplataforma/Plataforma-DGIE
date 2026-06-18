@@ -14824,9 +14824,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const materiales=(ap.materiales||[]).map(m=>({...m,cantidad:n(m.cantidad),precio:n(m.precio),total:n(m.cantidad)*n(m.precio)}));
     const totalMateriales=materiales.reduce((a,m)=>a+m.total,0);
     const mo=ap.manoObra||{};
-    const manoObra=mo.modo==='horas'
-      ? n(mo.oficialHoras)*n(mo.oficialValor)+n(mo.ayudanteHoras)*n(mo.ayudanteValor)
-      : totalMateriales;
+    const manoObra=mo.modo==='sin'
+      ? 0
+      : (mo.modo==='horas'
+        ? n(mo.oficialHoras)*n(mo.oficialValor)+n(mo.ayudanteHoras)*n(mo.ayudanteValor)
+        : totalMateriales);
     const equipos=Array.isArray(ap.equipos)?ap.equipos.reduce((a,e)=>a+n(e.monto),0):n(ap.equipos);
     const matMoEquip=totalMateriales+manoObra+equipos;
     const gastosFinancieros=matMoEquip*0.018;
@@ -15034,8 +15036,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           </div>
           <div style="margin-top:16px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Ítems</div><div id="ap-materiales">${(ap.materiales?.length?ap.materiales:[{}]).map(materialRow).join('')}</div><button class="secondary-btn" type="button" onclick="agregarMaterialAP()">+ Agregar ítem</button></div>
           <div style="margin-top:18px"><div class="card-title" style="font-size:15px;margin-bottom:10px">Mano de obra</div>
-            <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="igual" ${mo.modo!=='horas'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Igual al total de ítems</label>
+            <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="igual" ${mo.modo!=='horas'&&mo.modo!=='sin'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Igual al total de ítems</label>
             <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="horas" ${mo.modo==='horas'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Calcular por horas de oficial y ayudante</label>
+            <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px"><input type="radio" name="ap-mo-modo" value="sin" ${mo.modo==='sin'?'checked':''} onchange="toggleManoObraAP();actualizarResumenAP()"> Sin mano de obra</label>
             <div class="form-grid" id="ap-mo-horas" style="display:${mo.modo==='horas'?'grid':'none'}">
               <div class="form-field"><label class="form-label">Horas oficial</label><input class="form-input" id="ap-of-horas" type="number" step="0.01" value="${esc(mo.oficialHoras||'')}" oninput="actualizarResumenAP()"></div>
               <div class="form-field"><label class="form-label">Valor hora oficial</label><input class="form-input" id="ap-of-valor" type="number" step="0.01" value="${esc(mo.oficialValor||'')}" oninput="actualizarResumenAP()"></div>
@@ -15123,10 +15126,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
   }
   window.actualizarResumenAP=function(){
-    const c=calc(draftFromForm()), box=$('ap-resumen');
+    const draft=draftFromForm(), c=calc(draft), box=$('ap-resumen');
     if(!box)return;
     box.innerHTML=`${[
-      ['Ítems',c.totalMateriales],['Mano de obra',c.manoObra],['Equipos / otros',c.equipos],['Ítems + MO + equipos',c.matMoEquip],['Gastos financieros 1,8%',c.gastosFinancieros],['SUBTOTAL 1',c.subtotal1],['Gastos generales e indirectos 14%',c.gastosGenerales],['Beneficio 15%',c.beneficio],['SUBTOTAL 2',c.subtotal2],['IVA 21% + IB 4,75%',c.ivaIb],['Costo empresa / carga fija',c.cargaFija],['Costo final',c.costoFinal]
+      ['Ítems',c.totalMateriales],[draft.manoObra?.modo==='sin'?'Mano de obra (no se considera)':'Mano de obra',c.manoObra],['Equipos / otros',c.equipos],['Ítems + MO + equipos',c.matMoEquip],['Gastos financieros 1,8%',c.gastosFinancieros],['SUBTOTAL 1',c.subtotal1],['Gastos generales e indirectos 14%',c.gastosGenerales],['Beneficio 15%',c.beneficio],['SUBTOTAL 2',c.subtotal2],['IVA 21% + IB 4,75%',c.ivaIb],['Costo empresa / carga fija',c.cargaFija],['Costo final',c.costoFinal]
     ].map(([l,v])=>`<div class="ap-kpi" style="margin-bottom:8px"><div class="ap-kpi-lbl">${esc(l)}</div><div style="font-weight:900;color:#123c69">${money(v)}</div></div>`).join('')}
     <div class="ap-kpi"><div class="ap-kpi-lbl">Módulos</div><div class="ap-kpi-val">${mods(c.modulos)}</div><div style="font-size:11px;color:var(--muted)">Valor módulo: ${money(c.modulo)}</div></div>`;
   };
@@ -15169,6 +15172,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           {rol:'Oficial',horas:n(mo.oficialHoras),valor:n(mo.oficialValor)},
           {rol:'Ayudante',horas:n(mo.ayudanteHoras),valor:n(mo.ayudanteValor)}
         ].map(r=>`<tr><td>${r.rol}</td><td>${mods(r.horas)}</td><td>${money(r.valor)}</td><td>${money(r.horas*r.valor)}</td></tr>`).join('')
+      : mo.modo==='sin'
+        ? `<tr><td>Sin mano de obra</td><td>No se considera para este análisis</td><td>${money(0)}</td></tr>`
       : `<tr><td>Igual al total de ítems</td><td>${money(c.totalMateriales)}</td><td>${money(c.manoObra)}</td></tr>`;
     const equiposData=Array.isArray(ap.equipos)?ap.equipos:(n(ap.equipos)?[{descripcion:'Equipos / otros',monto:ap.equipos}]:[]);
     const equipos=equiposData.map(e=>`<tr><td>${esc(e.descripcion||'Equipo / otro')}</td><td>${money(e.monto)}</td></tr>`).join('');
@@ -15178,7 +15183,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return `<div class="shot-row"><div class="shot-title">${i+1}.1 ${esc(m.nombre)}</div><div class="shot-grid">${caps.map((c,j)=>`<div class="shot"><img src="${esc(c.url)}" alt="Captura ${i+1}.${j+1}"></div>`).join('')}</div></div>`;
     }).join('');
     return `<!doctype html><html><head><meta charset="utf-8"><title>Análisis de precios</title><style>
-      body{font-family:Arial,Helvetica,sans-serif;color:#071f3a;margin:24px;background:#fff}#ap-print-page{background:#fff}h1{font-size:22px;margin:0 0 6px}.meta{font-size:12px;color:#475569;margin-bottom:18px}table{width:100%;border-collapse:collapse;margin:10px 0 16px}th{background:#000;color:#fff;text-align:left;padding:7px;font-size:12px}td{border:1px solid #aaa;padding:7px;font-size:12px}.tot td:first-child{font-weight:bold}.tot td:last-child{font-weight:bold}.box{border:1px solid #cbd5e1;border-radius:8px;padding:10px;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.shot-row{break-inside:avoid;page-break-inside:avoid;border:1px solid #cbd5e1;border-radius:8px;padding:8px;margin:8px 0 12px}.shot-title{font-size:14px;font-weight:bold;margin-bottom:8px}.shot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}.shot{height:230px;border:1px solid #dbe4ef;border-radius:6px;padding:6px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}.shot img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}.actions{position:sticky;top:0;background:#fff;padding:0 0 12px;margin-bottom:14px;display:flex;gap:8px}.actions button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#073b70;font-weight:bold;padding:8px 12px;cursor:pointer}@media print{body{margin:16px}.actions{display:none}.shot-row{page-break-inside:avoid}}</style><script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"><\/script></head><body>
+      *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#071f3a;margin:18px;background:#fff;font-size:11pt;line-height:1.25}#ap-print-page{background:#fff;width:980px;max-width:980px}h1{font-size:16pt;margin:0 0 6px}h2{font-size:12pt;margin:14px 0 6px}.meta{font-size:10pt;color:#475569;margin-bottom:12px}table{width:100%;border-collapse:collapse;margin:8px 0 14px;table-layout:auto}th{background:#000;color:#fff;text-align:left;padding:5px 6px;font-size:11pt;line-height:1.2;white-space:normal}td{border:1px solid #777;padding:5px 6px;font-size:11pt;line-height:1.2;vertical-align:top;white-space:normal;overflow-wrap:anywhere}.tot td:first-child{font-weight:bold}.tot td:last-child{font-weight:bold}.box{border:1px solid #777;padding:8px;margin-bottom:10px;white-space:pre-wrap;overflow-wrap:anywhere}.shot-row{break-inside:avoid;page-break-inside:avoid;border:1px solid #cbd5e1;padding:8px;margin:8px 0 12px}.shot-title{font-size:11pt;font-weight:bold;margin-bottom:8px}.shot-grid{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}.shot{border:1px solid #dbe4ef;padding:6px;background:#fff}.shot img{max-width:100%;width:auto;height:auto;display:block;margin:0 auto}.actions{position:sticky;top:0;background:#fff;padding:0 0 12px;margin-bottom:14px;display:flex;gap:8px}.actions button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#073b70;font-weight:bold;padding:8px 12px;cursor:pointer}@media print{body{margin:10mm}.actions{display:none}#ap-print-page{width:100%;max-width:none}.shot-row{page-break-inside:avoid}}</style><script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"><\/script></head><body>
       <div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button><button onclick="descargarAnalisisJPG()">Descargar JPG</button></div><div id="ap-print-page">
       <h1>Análisis de precios</h1><div class="meta">O.S. ${esc(osAnalisis(ap)||'pendiente')} · ${esc(ap.establecimiento)} · Generado ${new Date().toLocaleString('es-AR')}</div>
       <div class="box"><b>Concepto:</b> ${esc(ap.concepto)}<br><b>Observaciones:</b> ${esc(ap.observaciones||'Sin observaciones')}</div>
@@ -15186,17 +15191,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <h2>Mano de obra</h2>${mo.modo==='horas'?`<table><thead><tr><th>Rol</th><th>Horas</th><th>Valor hora</th><th>Total</th></tr></thead><tbody>${manoObra}</tbody></table>`:`<table><thead><tr><th>Modalidad</th><th>Base</th><th>Total</th></tr></thead><tbody>${manoObra}</tbody></table>`}
       ${equipos?`<h2>Equipos / otros costos directos</h2><table><thead><tr><th>Descripción</th><th>Monto</th></tr></thead><tbody>${equipos}</tbody></table>`:''}
       <h2>Cálculo</h2><table><tbody>
-        <tr><td>Total ítems</td><td>${money(c.totalMateriales)}</td></tr><tr><td>Mano de obra</td><td>${money(c.manoObra)}</td></tr><tr><td>Equipos / otros</td><td>${money(c.equipos)}</td></tr><tr><td>Ítems + MO + equipos</td><td>${money(c.matMoEquip)}</td></tr><tr><td>Gastos financieros 1,8%</td><td>${money(c.gastosFinancieros)}</td></tr><tr><td>SUBTOTAL 1</td><td>${money(c.subtotal1)}</td></tr><tr><td>Gastos generales e indirectos 14%</td><td>${money(c.gastosGenerales)}</td></tr><tr><td>Beneficio 15%</td><td>${money(c.beneficio)}</td></tr><tr><td>SUBTOTAL 2</td><td>${money(c.subtotal2)}</td></tr><tr><td>IVA 21% + IB 4,75%</td><td>${money(c.ivaIb)}</td></tr><tr class="tot"><td>Costo empresa / carga fija</td><td>${money(c.cargaFija)}</td></tr><tr class="tot"><td>Costo final / gl</td><td>${money(c.costoFinal)}</td></tr><tr class="tot"><td>Módulos</td><td>${mods(c.modulos)}</td></tr>
+        <tr><td>Total ítems</td><td>${money(c.totalMateriales)}</td></tr><tr><td>${mo.modo==='sin'?'Mano de obra (no se considera)':'Mano de obra'}</td><td>${money(c.manoObra)}</td></tr><tr><td>Equipos / otros</td><td>${money(c.equipos)}</td></tr><tr><td>Ítems + MO + equipos</td><td>${money(c.matMoEquip)}</td></tr><tr><td>Gastos financieros 1,8%</td><td>${money(c.gastosFinancieros)}</td></tr><tr><td>SUBTOTAL 1</td><td>${money(c.subtotal1)}</td></tr><tr><td>Gastos generales e indirectos 14%</td><td>${money(c.gastosGenerales)}</td></tr><tr><td>Beneficio 15%</td><td>${money(c.beneficio)}</td></tr><tr><td>SUBTOTAL 2</td><td>${money(c.subtotal2)}</td></tr><tr><td>IVA 21% + IB 4,75%</td><td>${money(c.ivaIb)}</td></tr><tr class="tot"><td>Costo empresa / carga fija</td><td>${money(c.cargaFija)}</td></tr><tr class="tot"><td>Costo final / gl</td><td>${money(c.costoFinal)}</td></tr><tr class="tot"><td>Módulos</td><td>${mods(c.modulos)}</td></tr>
       </tbody></table>
       <h2>Capturas de precios de mercado</h2>${capturas||'<p>Sin capturas.</p>'}
       </div><script>
       async function descargarAnalisisJPG(){
         if(!window.html2canvas){alert('No se pudo cargar el generador JPG. Probá de nuevo o usá PDF.');return}
         const target=document.getElementById('ap-print-page');
-        const canvas=await html2canvas(target,{scale:2,backgroundColor:'#ffffff',useCORS:true,allowTaint:true});
+        const canvas=await html2canvas(target,{scale:3,backgroundColor:'#ffffff',useCORS:true,allowTaint:true,width:target.scrollWidth,height:target.scrollHeight,windowWidth:target.scrollWidth,windowHeight:target.scrollHeight,scrollX:0,scrollY:0});
         const link=document.createElement('a');
         link.download='analisis-precios-${esc(String(ap.id||'')).replace(/[^a-zA-Z0-9_-]/g,'')||'documento'}.jpg';
-        link.href=canvas.toDataURL('image/jpeg',0.95);
+        link.href=canvas.toDataURL('image/jpeg',0.98);
         link.click();
       }
       <\/script>
