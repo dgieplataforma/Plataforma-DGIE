@@ -4010,8 +4010,11 @@ function renderChartInsp(){
   }
   function medicionFinalizada(c){
     if(!c || !c.medicion_numero) return false;
-    if(typeof _medicionTieneFinPersistida === 'function') return _medicionTieneFinPersistida(c.medicion_numero);
-    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c.observaciones_inspector||''));
+    const obs = String(c.observaciones_inspector||'');
+    if(!/\[MEDICION_FINALIZADA:[^\]]+\]/.test(obs)) return false;
+    const m = obs.match(/\[MEDICION_FINALIZADA:([^\]]+)\]/);
+    const zonaMeta = m?.[1]?.match(/(?:ZONA[:=]?|Z)(\d{1,2})/i)?.[1];
+    return !zonaMeta || Number(zonaMeta) === Number(c.zona || 0);
   }
   function safeData(data){
     const d = (data || []).map(n => Number(n) || 0);
@@ -6770,7 +6773,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function certPresupuestoFinalizado(c){
     if(!c?.medicion_numero)return false;
-    if(typeof _medicionTieneFinPersistida==='function')return _medicionTieneFinPersistida(c.medicion_numero);
+    if(typeof esMedicionFinalizada==='function')return esMedicionFinalizada(c.medicion_numero,zonaCertificado(c));
     return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''));
   }
   function renderResumenPresupuestoModulos(data){
@@ -7038,40 +7041,49 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   // ── Finalización de certificación ─────────────────────────────────────────
   // Estado de finalización en localStorage (no requiere columna en Supabase)
-  const _CERT_FIN_KEY='dgie_cert_finalizada_medicion_v1';
+  const _CERT_FIN_KEY='dgie_cert_finalizada_medicion_zona_v1';
   function _readFinMap(){try{return JSON.parse(localStorage.getItem(_CERT_FIN_KEY)||'{}')}catch(e){return {}}}
   function _writeFinMap(m){localStorage.setItem(_CERT_FIN_KEY,JSON.stringify(m))}
   const _CERT_FIN_RE=/\n?\[MEDICION_FINALIZADA:[^\]]+\]/g;
-  function _certTieneFin(c){return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''))}
-  function _obsConFin(obs,valor){
+  function _zonaFinActual(){return Number(currentUser?.zona||selectedZona||0)}
+  function _finKey(numero,zona){return `${Number(zona)||0}:${String(numero)}`}
+  function _certTieneFin(c,zona=null){
+    if(zona!==null&&zona!==undefined&&Number(zonaCertificado(c))!==Number(zona))return false;
+    const obs=String(c?.observaciones_inspector||'');
+    if(!/\[MEDICION_FINALIZADA:[^\]]+\]/.test(obs))return false;
+    const m=obs.match(/\[MEDICION_FINALIZADA:([^\]]+)\]/);
+    const zonaMeta=m?.[1]?.match(/(?:ZONA[:=]?|Z)(\d{1,2})/i)?.[1];
+    return !zonaMeta||Number(zonaMeta)===Number(zonaCertificado(c));
+  }
+  function _obsConFin(obs,valor,zona){
     const limpia=String(obs||'').replace(_CERT_FIN_RE,'').trim();
-    return valor?[limpia,`[MEDICION_FINALIZADA:${new Date().toISOString()}]`].filter(Boolean).join('\n'):limpia;
+    return valor?[limpia,`[MEDICION_FINALIZADA:Z${Number(zona)||0}:${new Date().toISOString()}]`].filter(Boolean).join('\n'):limpia;
   }
-  function _medicionTieneFinPersistida(numero){
-    return CERTIFICADOS_MEDICION.some(c=>String(c.medicion_numero)===String(numero)&&_certTieneFin(c));
+  function _medicionTieneFinPersistida(numero,zona=_zonaFinActual()){
+    return CERTIFICADOS_MEDICION.some(c=>String(c.medicion_numero)===String(numero)&&_certTieneFin(c,zona));
   }
-  function esMedicionFinalizada(numero){return !!_readFinMap()[String(numero)]||_medicionTieneFinPersistida(numero)}
+  function esMedicionFinalizada(numero,zona=_zonaFinActual()){return !!_readFinMap()[_finKey(numero,zona)]||_medicionTieneFinPersistida(numero,zona)}
   window.numeroCertificacionOS=function(osNumero){
     if(!osNumero)return null;
-    const map=_readFinMap();
     const m=String(osNumero).match(/(\d+)$/);
     if(!m)return null;
     const n=Number(m[1]);
     if(!n)return null;
-    const cert=CERTIFICADOS_MEDICION.find(c=>(!!map[String(c.medicion_numero)]||_certTieneFin(c))&&certOrdenes(c).some(o=>Number(o)===n));
+    const cert=CERTIFICADOS_MEDICION.find(c=>esMedicionFinalizada(c.medicion_numero,zonaCertificado(c))&&certOrdenes(c).some(o=>Number(o)===n));
     return cert?String(cert.medicion_numero):null;
   };
   window.osEstaCertificada=function(osNumero){return !!window.numeroCertificacionOS(osNumero)};
-  async function _toggleCertFinalizada(numero,valor){
+  async function _toggleCertFinalizada(numero,valor,zona=_zonaFinActual()){
     const map=_readFinMap();
-    if(valor)map[String(numero)]=true;
-    else delete map[String(numero)];
+    const key=_finKey(numero,zona);
+    if(valor)map[key]=true;
+    else delete map[key];
     _writeFinMap(map);
-    const certs=CERTIFICADOS_MEDICION.filter(c=>String(c.medicion_numero)===String(numero)&&c.estado==='medido');
+    const certs=CERTIFICADOS_MEDICION.filter(c=>String(c.medicion_numero)===String(numero)&&c.estado==='medido'&&Number(zonaCertificado(c))===Number(zona));
     for(const c of certs){
       try{
         await actualizarCertificado(c.id||c.localId,{
-          observaciones_inspector:_obsConFin(c.observaciones_inspector,valor),
+          observaciones_inspector:_obsConFin(c.observaciones_inspector,valor,zona),
           actualizado_por:currentUser?.name||'Inspector'
         });
       }catch(error){
@@ -7084,11 +7096,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   window.finalizarCertificacion=async function(numero){
     if(!confirm(`¿Marcar la Medición Nº ${numero} como certificación finalizada?\nLas O.S. asociadas aparecerán como "Certificado" en el listado.`))return;
-    await _toggleCertFinalizada(numero,true);
+    await _toggleCertFinalizada(numero,true,_zonaFinActual());
   };
   window.revertirCertificacionFinalizada=async function(numero){
     if(!confirm(`¿Revertir la certificación finalizada de la Medición Nº ${numero}?`))return;
-    await _toggleCertFinalizada(numero,false);
+    await _toggleCertFinalizada(numero,false,_zonaFinActual());
   };
   // Actualiza celda "Certificado" en tabla OS tras carga asíncrona de certs
   const _baseOSTableCert=window.renderOSTable;
@@ -8707,10 +8719,26 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     </div>`;
   };
 
-  const CERT_FIN_KEY='dgie_cert_finalizada_medicion_v1';
+  const CERT_FIN_KEY='dgie_cert_finalizada_medicion_zona_v1';
   function finMap(){try{return JSON.parse(localStorage.getItem(CERT_FIN_KEY)||'{}')||{}}catch(_){return {}}}
-  function medFinalizada(numero){return !!finMap()[String(numero)]}
-  function certTieneFinPersistida(c){return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''))}
+  function zonaCertFinal(c){
+    const directa=Number(c?.zona);
+    if(Number.isFinite(directa)&&directa>0)return directa;
+    const txt=String(c?.zona||'');
+    const m=txt.match(/\d+/);
+    if(m)return Number(m[0]);
+    const estId=Number(c?.establecimiento_id||c?.estId||0);
+    return estId&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(estId)||0):0;
+  }
+  function finKey(numero,zona){return `${Number(zona)||0}:${String(numero)}`}
+  function medFinalizada(numero,zona){return !!finMap()[finKey(numero,zona)]}
+  function certTieneFinPersistida(c){
+    const obs=String(c?.observaciones_inspector||'');
+    if(!/\[MEDICION_FINALIZADA:[^\]]+\]/.test(obs))return false;
+    const m=obs.match(/\[MEDICION_FINALIZADA:([^\]]+)\]/);
+    const zonaMeta=m?.[1]?.match(/(?:ZONA[:=]?|Z)(\d{1,2})/i)?.[1];
+    return !zonaMeta||Number(zonaMeta)===zonaCertFinal(c);
+  }
   function osValor(numero){
     const m=String(numero||'').match(/\d+/g);
     return m?Number(m[m.length-1])||0:0;
@@ -8718,7 +8746,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function certVisibleFinal(c){
     if(!c||String(c.estado||'').toLowerCase()==='eliminado')return false;
     if(typeof window.certVisible==='function'&&!window.certVisible(c))return false;
-    return String(c.estado||'').toLowerCase()==='medido'&&!!c.medicion_numero&&(medFinalizada(c.medicion_numero)||certTieneFinPersistida(c));
+    return String(c.estado||'').toLowerCase()==='medido'&&!!c.medicion_numero&&(medFinalizada(c.medicion_numero,zonaCertFinal(c))||certTieneFinPersistida(c));
   }
   function certOrdenesFinal(c){
     if(typeof window.certOrdenes==='function')return window.certOrdenes(c);
@@ -13370,16 +13398,24 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 
   function readCertFinMapCoord(){
-    try{return JSON.parse(localStorage.getItem('dgie_cert_finalizada_medicion_v1') || '{}') || {}}
+    try{return JSON.parse(localStorage.getItem('dgie_cert_finalizada_medicion_zona_v1') || '{}') || {}}
     catch(_){return {}}
   }
 
   function certTieneFinCoord(c){
-    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector || ''));
+    const obs = String(c?.observaciones_inspector || '');
+    if(!/\[MEDICION_FINALIZADA:[^\]]+\]/.test(obs)) return false;
+    const m = obs.match(/\[MEDICION_FINALIZADA:([^\]]+)\]/);
+    const zonaMeta = m?.[1]?.match(/(?:ZONA[:=]?|Z)(\d{1,2})/i)?.[1];
+    return !zonaMeta || Number(zonaMeta) === zonaCertCoord(c);
   }
 
-  function medicionFinalizadaCoord(numero){
-    return !!readCertFinMapCoord()[String(numero)];
+  function certFinKeyCoord(numero,zona){
+    return `${Number(zona) || 0}:${String(numero)}`;
+  }
+
+  function medicionFinalizadaCoord(numero,zona){
+    return !!readCertFinMapCoord()[certFinKeyCoord(numero,zona)];
   }
 
   function certificadosZonaCoord(z){
@@ -13391,7 +13427,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return certificadosZonaCoord(z).filter(c =>
       String(c?.estado || '').toLowerCase() === 'medido' &&
       c?.medicion_numero &&
-      (medicionFinalizadaCoord(c.medicion_numero) || certTieneFinCoord(c))
+      (medicionFinalizadaCoord(c.medicion_numero,zonaCertCoord(c)) || certTieneFinCoord(c))
     );
   }
 
@@ -13455,115 +13491,178 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     </div>`;
   }
 
-  function anioMedicionCoord(c){
-    const numero = Number(c?.medicion_numero || 0);
-    if(!numero) return 2026;
-    return new Date(2026, 2 + (numero - 1), 1).getFullYear();
-  }
-
-  function resumenConsumoZonaCoord(z){
-    const finalizados = certificadosMedicionFinalizadaCoord(z);
-    const mediciones = new Set(finalizados.map(c => String(c.medicion_numero)).filter(Boolean)).size;
-    const certs = finalizados.length;
-    const consumido = finalizados.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
-    const consumido2026 = finalizados
-      .filter(c => anioMedicionCoord(c) === 2026)
-      .reduce((acc, c) => acc + certFinalModsCoord(c), 0);
-    const consumido2027 = finalizados
-      .filter(c => anioMedicionCoord(c) === 2027)
-      .reduce((acc, c) => acc + certFinalModsCoord(c), 0);
-    return {
-      zona:z,
-      inspector:(typeof INSPECTORS !== 'undefined' && INSPECTORS[z - 1]) ? INSPECTORS[z - 1] : '',
-      mediciones,
-      certs,
-      consumido,
-      consumido2026,
-      consumido2027,
-      restante:MODULOS_CERT_COORD.total - consumido,
-      restante2026:MODULOS_CERT_COORD.y2026 - consumido2026,
-      restante2027:MODULOS_CERT_COORD.y2027 - consumido2027
-    };
-  }
-
   function renderTablaConsumoGeneralCoord(loading=false){
-    const tableStyle='width:100%;border-collapse:collapse;min-width:980px;font-size:13px';
-    const th='text-align:left;background:#eef3f8;color:#0f2f57;font-weight:900;padding:10px 12px;border-bottom:1px solid #dbe6f2;white-space:nowrap';
-    const td='padding:9px 12px;border-bottom:1px solid #e5edf6;color:#123c69;vertical-align:middle';
-    const tdNum=td+';text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap';
-    const rows = Array.from({length:17}, (_, i) => resumenConsumoZonaCoord(i + 1));
-    const total = rows.reduce((acc, r) => {
-      acc.mediciones += r.mediciones;
-      acc.certs += r.certs;
-      acc.consumido += r.consumido;
-      acc.consumido2026 += r.consumido2026;
-      acc.consumido2027 += r.consumido2027;
-      return acc;
-    }, {mediciones:0, certs:0, consumido:0, consumido2026:0, consumido2027:0});
-    const presupuestoTotal = MODULOS_CERT_COORD.total * 17;
-    const presupuesto2026 = MODULOS_CERT_COORD.y2026 * 17;
-    const presupuesto2027 = MODULOS_CERT_COORD.y2027 * 17;
-    const body = loading
-      ? `<tr><td colspan="12" style="${td};text-align:center;color:var(--muted)">Cargando consumo general...</td></tr>`
-      : rows.map(r => {
-        const pct = MODULOS_CERT_COORD.total ? Math.round((r.consumido / MODULOS_CERT_COORD.total) * 100) : 0;
-        return `<tr>
-          <td style="${td}"><b>Zona ${r.zona}</b></td>
-          <td style="${td}">${esc(r.inspector || '—')}</td>
-          <td style="${tdNum}">${r.mediciones}</td>
-          <td style="${tdNum}">${r.certs}</td>
-          <td style="${tdNum}">${fmtMods(MODULOS_CERT_COORD.total)}</td>
-          <td style="${tdNum}">${fmtMods(r.consumido)}</td>
-          <td style="${tdNum}">${fmtMods(r.restante)}</td>
-          <td style="${tdNum}">${fmtMods(r.consumido2026)}</td>
-          <td style="${tdNum}">${fmtMods(r.restante2026)}</td>
-          <td style="${tdNum}">${fmtMods(r.consumido2027)}</td>
-          <td style="${tdNum}">${fmtMods(r.restante2027)}</td>
-          <td style="${tdNum}">${pct}%</td>
-        </tr>`;
-      }).join('');
-    const foot = loading ? '' : `<tfoot><tr>
-      <th colspan="2" style="${th}">Totales</th>
-      <th style="${th};text-align:right">${total.mediciones}</th>
-      <th style="${th};text-align:right">${total.certs}</th>
-      <th style="${th};text-align:right">${fmtMods(presupuestoTotal)}</th>
-      <th style="${th};text-align:right">${fmtMods(total.consumido)}</th>
-      <th style="${th};text-align:right">${fmtMods(presupuestoTotal - total.consumido)}</th>
-      <th style="${th};text-align:right">${fmtMods(total.consumido2026)}</th>
-      <th style="${th};text-align:right">${fmtMods(presupuesto2026 - total.consumido2026)}</th>
-      <th style="${th};text-align:right">${fmtMods(total.consumido2027)}</th>
-      <th style="${th};text-align:right">${fmtMods(presupuesto2027 - total.consumido2027)}</th>
-      <th style="${th};text-align:right">${presupuestoTotal ? Math.round((total.consumido / presupuestoTotal) * 100) : 0}%</th>
-    </tr></tfoot>`;
+    const matriz = consumoModulosCoordData();
+    const tableHTML = loading ? consumoModulosCoordTableHTML({loading:true}) : consumoModulosCoordTableHTML();
+    const resumen = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 14px">
+      <div style="background:#f8fafc;border:1px solid #dbe6f2;border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase">Módulos por zona</div><div style="font-size:20px;font-weight:900;color:#123c69">${fmtMods(MODULOS_CERT_COORD.total)}</div></div>
+      <div style="background:#f8fafc;border:1px solid #dbe6f2;border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase">Disponible 2026</div><div style="font-size:20px;font-weight:900;color:#123c69">${fmtMods(MODULOS_CERT_COORD.y2026)}</div></div>
+      <div style="background:#f8fafc;border:1px solid #dbe6f2;border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase">Disponible 2027</div><div style="font-size:20px;font-weight:900;color:#123c69">${fmtMods(MODULOS_CERT_COORD.y2027)}</div></div>
+      <div style="background:#f8fafc;border:1px solid #dbe6f2;border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase">Total 17 zonas</div><div style="font-size:20px;font-weight:900;color:#123c69">${fmtMods(matriz.presupuestoTotal)}</div></div>
+    </div>`;
     return `<div class="med-card" style="margin-bottom:14px">
       <div class="card-header" style="margin-bottom:8px">
         <div>
-          <div class="card-title">Consumo general de módulos</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">Presupuesto por zona: ${fmtMods(MODULOS_CERT_COORD.total)} módulos.</div>
+          <div class="card-title">Consumo de módulos por zona y medición</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">La tabla se completa a medida que las mediciones se marcan como finalizadas.</div>
+        </div>
+        <div class="med-actions">
+          <button class="secondary-btn" onclick="exportarConsumoModulosCoordPDF()">Descargar PDF</button>
+          <button class="primary-btn" onclick="exportarConsumoModulosCoordExcel()">Descargar Excel</button>
         </div>
       </div>
-      <div class="os-table-wrap">
-        <table style="${tableStyle}">
-          <thead><tr>
-            <th style="${th}">Zona</th>
-            <th style="${th}">Inspector/a</th>
-            <th style="${th};text-align:right">Med.</th>
-            <th style="${th};text-align:right">Cert.</th>
-            <th style="${th};text-align:right">Presupuesto</th>
-            <th style="${th};text-align:right">Consumidos</th>
-            <th style="${th};text-align:right">Restantes</th>
-            <th style="${th};text-align:right">Cons. 2026</th>
-            <th style="${th};text-align:right">Rest. 2026</th>
-            <th style="${th};text-align:right">Cons. 2027</th>
-            <th style="${th};text-align:right">Rest. 2027</th>
-            <th style="${th};text-align:right">% total</th>
-          </tr></thead>
-          <tbody>${body}</tbody>
-          ${foot}
-        </table>
+      ${resumen}
+      <div class="os-table-wrap" style="max-height:calc(100vh - 310px);overflow:auto;border:1px solid #dbe6f2">
+        ${tableHTML}
       </div>
     </div>`;
   }
+
+  function medicionPeriodoCoord(numero){
+    const n = Number(numero || 0);
+    if(!n) return null;
+    const fecha = new Date(2026, 2 + (n - 1), 1);
+    return {
+      numero:n,
+      year:fecha.getFullYear(),
+      month:fecha.getMonth() + 1,
+      key:`${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2,'0')}`,
+      label:fecha.toLocaleDateString('es-AR', { month:'short', year:'2-digit' }).replace('.', '')
+    };
+  }
+
+  function consumoModulosCoordData(){
+    const columnasMap = new Map();
+    const zonas = Array.from({length:17}, (_, i) => {
+      const z = i + 1;
+      const row = {
+        zona:z,
+        inspector:(typeof INSPECTORS !== 'undefined' && INSPECTORS[i]) ? INSPECTORS[i] : '',
+        valores:{},
+        total2026:0,
+        total2027:0,
+        total:0
+      };
+      certificadosMedicionFinalizadaCoord(z).forEach(c => {
+        const periodo = medicionPeriodoCoord(c?.medicion_numero);
+        if(!periodo) return;
+        columnasMap.set(periodo.numero, periodo);
+        const mod = certFinalModsCoord(c);
+        row.valores[periodo.numero] = (row.valores[periodo.numero] || 0) + mod;
+        if(periodo.year >= 2027) row.total2027 += mod;
+        else row.total2026 += mod;
+        row.total += mod;
+      });
+      row.restante2026 = MODULOS_CERT_COORD.y2026 - row.total2026;
+      row.restante2027 = MODULOS_CERT_COORD.y2027 - row.total2027;
+      row.restante = MODULOS_CERT_COORD.total - row.total;
+      return row;
+    });
+    const columnas = Array.from(columnasMap.values()).sort((a,b) => a.numero - b.numero);
+    const totales = {
+      valores:{},
+      total2026:zonas.reduce((a,z)=>a+z.total2026,0),
+      total2027:zonas.reduce((a,z)=>a+z.total2027,0),
+      total:zonas.reduce((a,z)=>a+z.total,0)
+    };
+    columnas.forEach(col => {
+      totales.valores[col.numero] = zonas.reduce((a,z)=>a+(z.valores[col.numero]||0),0);
+    });
+    return {
+      columnas,
+      zonas,
+      totales,
+      presupuestoTotal:MODULOS_CERT_COORD.total * 17,
+      presupuesto2026:MODULOS_CERT_COORD.y2026 * 17,
+      presupuesto2027:MODULOS_CERT_COORD.y2027 * 17
+    };
+  }
+
+  function consumoModulosCoordTableHTML(opts={}){
+    const loading = !!opts.loading;
+    const exportMode = !!opts.exportMode;
+    const matriz = consumoModulosCoordData();
+    const sticky = exportMode ? '' : 'position:sticky;top:0;z-index:3;';
+    const tableStyle = `width:100%;border-collapse:collapse;min-width:${Math.max(980, 520 + matriz.columnas.length * 112)}px;font-size:${exportMode?'11':'12'}px`;
+    const th = `${sticky}text-align:left;background:#0f2f57;color:#fff;font-weight:900;padding:9px 10px;border:1px solid #b9c8d8;white-space:nowrap`;
+    const thNum = th + ';text-align:right';
+    const td = 'padding:8px 10px;border:1px solid #dbe6f2;color:#123c69;vertical-align:middle;background:#fff;white-space:nowrap';
+    const tdNum = td + ';text-align:right;font-variant-numeric:tabular-nums';
+    const cut = 'border-left:3px solid #0f2f57';
+    const monthColCount = Math.max(1, matriz.columnas.length);
+    const monthHeaders = matriz.columnas.map(col => `<th style="${thNum};${col.year>=2027?cut:''}">Med. ${esc(col.numero)}<br><span style="font-size:10px;font-weight:700">${esc(col.label)}</span></th>`).join('');
+    const emptyCols = 2 + monthColCount + 6;
+    const rows = loading
+      ? `<tr><td colspan="${emptyCols}" style="${td};text-align:center;color:#64748b">Cargando consumo de módulos...</td></tr>`
+      : matriz.zonas.map(row => `<tr>
+          <td style="${td}"><b>Zona ${row.zona}</b></td>
+          <td style="${td}">${esc(row.inspector || '—')}</td>
+          ${matriz.columnas.length ? matriz.columnas.map(col => `<td style="${tdNum};${col.year>=2027?cut:''}">${row.valores[col.numero] ? fmtMods(row.valores[col.numero]) : '—'}</td>`).join('') : `<td style="${tdNum}">—</td>`}
+          <td style="${tdNum};font-weight:900;background:#f8fafc">${fmtMods(row.total2026)}</td>
+          <td style="${tdNum};background:#f8fafc">${fmtMods(row.restante2026)}</td>
+          <td style="${tdNum};font-weight:900;background:#f8fafc;${cut}">${fmtMods(row.total2027)}</td>
+          <td style="${tdNum};background:#f8fafc">${fmtMods(row.restante2027)}</td>
+          <td style="${tdNum};font-weight:900;background:#eef6ff">${fmtMods(row.total)}</td>
+          <td style="${tdNum};font-weight:900;background:#eef6ff">${fmtMods(row.restante)}</td>
+        </tr>`).join('');
+    const foot = loading ? '' : `<tfoot><tr>
+      <th style="${th}">Totales</th>
+      <th style="${th}">17 zonas</th>
+      ${matriz.columnas.length ? matriz.columnas.map(col => `<th style="${thNum};${col.year>=2027?cut:''}">${fmtMods(matriz.totales.valores[col.numero] || 0)}</th>`).join('') : `<th style="${thNum}">—</th>`}
+      <th style="${thNum}">${fmtMods(matriz.totales.total2026)}</th>
+      <th style="${thNum}">${fmtMods(matriz.presupuesto2026 - matriz.totales.total2026)}</th>
+      <th style="${thNum};${cut}">${fmtMods(matriz.totales.total2027)}</th>
+      <th style="${thNum}">${fmtMods(matriz.presupuesto2027 - matriz.totales.total2027)}</th>
+      <th style="${thNum}">${fmtMods(matriz.totales.total)}</th>
+      <th style="${thNum}">${fmtMods(matriz.presupuestoTotal - matriz.totales.total)}</th>
+    </tr></tfoot>`;
+    return `<table id="coord-consumo-modulos-table" style="${tableStyle}">
+      <thead><tr>
+        <th style="${th}">Zona</th>
+        <th style="${th}">Inspector/a</th>
+        ${monthHeaders || `<th style="${thNum}">Sin mediciones</th>`}
+        <th style="${thNum}">Total 2026</th>
+        <th style="${thNum}">Rest. 2026</th>
+        <th style="${thNum};${cut}">Total 2027</th>
+        <th style="${thNum}">Rest. 2027</th>
+        <th style="${thNum}">Total consumido</th>
+        <th style="${thNum}">Restante total</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      ${foot}
+    </table>`;
+  }
+
+  function consumoModulosCoordExportDoc(){
+    const matriz = consumoModulosCoordData();
+    const resumen = `<table><tbody>
+      <tr><th>Módulos por zona</th><td>${fmtMods(MODULOS_CERT_COORD.total)}</td><th>Disponible 2026</th><td>${fmtMods(MODULOS_CERT_COORD.y2026)}</td></tr>
+      <tr><th>Disponible 2027</th><td>${fmtMods(MODULOS_CERT_COORD.y2027)}</td><th>Total 17 zonas</th><td>${fmtMods(matriz.presupuestoTotal)}</td></tr>
+    </tbody></table>`;
+    return `<h1>Consumo de módulos por zona y medición</h1>${resumen}${consumoModulosCoordTableHTML({exportMode:true})}`;
+  }
+
+  window.exportarConsumoModulosCoordExcel=function(){
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${consumoModulosCoordExportDoc()}</body></html>`;
+    const blob = new Blob([`\ufeff${html}`], {type:'application/vnd.ms-excel;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `consumo-modulos-zonas-${new Date().toISOString().slice(0,10)}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
+  };
+
+  window.exportarConsumoModulosCoordPDF=function(){
+    const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Consumo de módulos</title>
+      <style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial,Helvetica,sans-serif;color:#071f3a;margin:18px}h1{font-size:18px;margin:0 0 12px}table{border-collapse:collapse;width:100%;margin-bottom:12px}th,td{border:1px solid #9aa9b8;padding:5px 6px;font-size:10px;text-align:left}th{background:#0f2f57;color:#fff}td{text-align:right}td:first-child,td:nth-child(2){text-align:left}.actions{display:flex;gap:8px;margin-bottom:12px}.actions button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#073b70;font-weight:bold;padding:8px 12px;cursor:pointer}@media print{.actions{display:none}}</style>
+      </head><body><div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>${consumoModulosCoordExportDoc()}</body></html>`;
+    const win = window.open('', '_blank');
+    if(!win){alert('El navegador bloqueó la ventana de PDF. Permití ventanas emergentes e intentá de nuevo.');return;}
+    win.document.write(doc);
+    win.document.close();
+    setTimeout(()=>win.print(),350);
+  };
 
   async function actualizarTablaConsumoGeneralCoord(){
     const el = document.getElementById('coord-cert-consumo-general');
