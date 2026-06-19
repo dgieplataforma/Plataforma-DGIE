@@ -15690,18 +15690,30 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 })();
 </script>
 <style id="dgie-graficos-zona-int-rel-2026-06-19">
-  .dgie-zone-chart{margin:14px 0 16px;padding:14px;border:1px solid #dbe7f5;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fbff)}
+  .dgie-zone-chart{margin:14px 0 16px;padding:14px;border:1px solid #dbe7f5;border-radius:14px;background:#fff}
   .dgie-zone-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
-  .dgie-zone-chart-title{font-size:14px;font-weight:900;color:#123c69}
+  .dgie-zone-chart-title{font-size:15px;font-weight:900;color:#123c69}
   .dgie-zone-chart-sub{font-size:12px;color:#64748b;margin-top:3px;font-weight:700}
-  .dgie-zone-chart-total{flex:0 0 auto;border-radius:999px;background:#e6f1fb;color:#005aa9;padding:6px 10px;font-size:12px;font-weight:900}
-  .dgie-zone-bars{height:190px;display:grid;grid-template-columns:repeat(17,minmax(22px,1fr));gap:8px;align-items:end;padding:12px 4px 4px;border-top:1px solid #edf3fa}
-  .dgie-zone-bar-wrap{min-width:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
-  .dgie-zone-bar-value{min-height:17px;font-size:11px;font-weight:900;color:#123c69;line-height:1}
-  .dgie-zone-bar{width:100%;max-width:34px;min-height:4px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#1d83d4,#005aa9);box-shadow:0 8px 18px rgba(0,90,169,.16);transition:height .2s ease}
-  .dgie-zone-bar.is-zero{background:#e8eef5;box-shadow:none}
-  .dgie-zone-bar-label{font-size:10px;font-weight:900;color:#64748b;line-height:1;white-space:nowrap}`r`n  .dgie-zone-chart-foot{margin-top:10px;padding-top:10px;border-top:1px solid #edf3fa;font-size:12px;color:#52677e;font-weight:800;line-height:1.45}
-  @media(max-width:760px){.dgie-zone-bars{gap:5px;overflow-x:auto;grid-template-columns:repeat(17,28px);padding-bottom:8px}.dgie-zone-chart-head{flex-direction:column}.dgie-zone-chart-total{align-self:flex-start}}
+  .dgie-zone-chart-total{flex:0 0 auto;border-radius:999px;background:#e6f1fb;color:#005aa9;padding:6px 10px;font-size:12px;font-weight:900;white-space:nowrap}
+  .dgie-activity-summary{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px;margin:10px 0 12px}
+  .dgie-activity-metric{border:1px solid #edf3fa;border-radius:12px;background:#f8fbff;padding:10px 12px}
+  .dgie-activity-label{font-size:11px;color:#64748b;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+  .dgie-activity-value{font-size:22px;color:#123c69;font-weight:900;margin-top:3px;line-height:1.05}
+  .dgie-zone-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;border-top:1px solid #edf3fa;padding-top:12px}
+  .dgie-zone-tile{border:1px solid #dbe7f5;border-radius:12px;background:#f8fafc;padding:9px 10px;min-height:78px;display:flex;flex-direction:column;gap:6px}
+  .dgie-zone-tile.is-active{background:#f0f8ff;border-color:#b8d9f5;box-shadow:inset 4px 0 0 #1d83d4}
+  .dgie-zone-tile.is-stale{background:#fffaf0;border-color:#f2d19b;box-shadow:inset 4px 0 0 #d9961c}
+  .dgie-zone-tile.is-empty{background:#f8fafc;border-color:#e5edf6;box-shadow:inset 4px 0 0 #cbd5e1}
+  .dgie-zone-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .dgie-zone-name{font-size:13px;font-weight:900;color:#123c69}
+  .dgie-zone-status{font-size:10px;font-weight:900;border-radius:999px;padding:3px 6px;white-space:nowrap}
+  .dgie-zone-tile.is-active .dgie-zone-status{background:#dff3e7;color:#16813a}
+  .dgie-zone-tile.is-stale .dgie-zone-status{background:#fff0d1;color:#a15c00}
+  .dgie-zone-tile.is-empty .dgie-zone-status{background:#eef2f7;color:#64748b}
+  .dgie-zone-count{font-size:20px;font-weight:900;color:#005aa9;line-height:1}
+  .dgie-zone-last{font-size:11px;font-weight:800;color:#64748b;line-height:1.25}
+  .dgie-zone-chart-foot{margin-top:10px;padding:10px 12px;border-radius:12px;background:#f8fbff;font-size:12px;color:#52677e;font-weight:800;line-height:1.45}
+  @media(max-width:760px){.dgie-zone-chart-head{flex-direction:column}.dgie-zone-chart-total{align-self:flex-start}.dgie-activity-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.dgie-zone-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <script id="dgie-graficos-zona-int-rel-2026-06-19">
 (function(){
@@ -15756,45 +15768,44 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function actividadPorZona(data,zonaFn){
     const desde=Date.now()-DIAS_ACTIVIDAD*24*60*60*1000;
-    const counts=Array.from({length:17},()=>0), historico=Array.from({length:17},()=>0), last=Array.from({length:17},()=>0);
+    const zones=Array.from({length:17},(_,i)=>({zona:i+1,reciente:0,historico:0,last:0}));
     (data||[]).forEach(item=>{
       const z=zonaFn(item); if(z<1||z>17)return;
-      const idx=z-1, ms=fechaMs(item);
-      historico[idx]+=1;
-      if(ms>last[idx])last[idx]=ms;
-      if(ms&&ms>=desde)counts[idx]+=1;
+      const row=zones[z-1], ms=fechaMs(item);
+      row.historico+=1;
+      if(ms>row.last)row.last=ms;
+      if(ms&&ms>=desde)row.reciente+=1;
     });
-    return {counts,historico,last};
+    return zones;
   }
   function diasDesde(ms){if(!ms)return null;return Math.max(0,Math.floor((Date.now()-ms)/(24*60*60*1000)))}
-  function resumenActividad(info,singular,plural){
-    const totalReciente=info.counts.reduce((a,b)=>a+b,0);
-    const zonasActivas=info.counts.map((v,i)=>v>0?i+1:null).filter(Boolean);
-    const sinMovimiento=info.historico.map((v,i)=>v>0&&info.counts[i]===0?i+1:null).filter(Boolean);
-    const ultimaMs=Math.max(0,...info.last);
-    const ultZona=info.last.findIndex(v=>v===ultimaMs)+1;
-    const ultTxt=ultimaMs?`Última carga: Z${ultZona} hace ${diasDesde(ultimaMs)} día${diasDesde(ultimaMs)===1?'':'s'}.`:'Sin fechas registradas.';
-    const movTxt=zonasActivas.length?`Zonas con movimiento en ${DIAS_ACTIVIDAD} días: ${zonasActivas.map(z=>'Z'+z).join(', ')}.`:`Sin movimiento registrado en los últimos ${DIAS_ACTIVIDAD} días.`;
-    const quietTxt=sinMovimiento.length?` Sin movimiento reciente: ${sinMovimiento.map(z=>'Z'+z).join(', ')}.`:'';
-    return `${totalReciente} ${totalReciente===1?singular:plural} en los últimos ${DIAS_ACTIVIDAD} días. ${movTxt}${quietTxt} ${ultTxt}`;
+  function resumen(zones,singular,plural){
+    const total=zones.reduce((a,z)=>a+z.reciente,0), activas=zones.filter(z=>z.reciente>0).length;
+    const conHistorial=zones.filter(z=>z.historico>0).length, quietas=zones.filter(z=>z.historico>0&&z.reciente===0).length;
+    const last=Math.max(0,...zones.map(z=>z.last)), lastZone=zones.find(z=>z.last===last)?.zona;
+    return {total,activas,quietas,conHistorial,last,lastZone,label:`${total} ${total===1?singular:plural} / ${DIAS_ACTIVIDAD} días`};
   }
   function chartHTML(id,title,sub,totalLabel){
-    return `<div class="dgie-zone-chart" id="${id}"><div class="dgie-zone-chart-head"><div><div class="dgie-zone-chart-title">${esc(title)}</div><div class="dgie-zone-chart-sub">${esc(sub)}</div></div><span class="dgie-zone-chart-total">${esc(totalLabel)}</span></div><div class="dgie-zone-bars" data-bars></div><div class="dgie-zone-chart-foot" data-summary></div></div>`;
+    return `<div class="dgie-zone-chart" id="${id}"><div class="dgie-zone-chart-head"><div><div class="dgie-zone-chart-title">${esc(title)}</div><div class="dgie-zone-chart-sub">${esc(sub)}</div></div><span class="dgie-zone-chart-total">${esc(totalLabel)}</span></div><div class="dgie-activity-summary" data-summary-cards></div><div class="dgie-zone-grid" data-zone-grid></div><div class="dgie-zone-chart-foot" data-summary-text></div></div>`;
   }
-  function renderBars(id,info,singular,plural){
-    const box=document.querySelector(`#${id} [data-bars]`), totalBadge=document.querySelector(`#${id} .dgie-zone-chart-total`), summary=document.querySelector(`#${id} [data-summary]`);
-    if(!box)return;
-    const counts=info.counts, total=counts.reduce((a,b)=>a+b,0), max=Math.max(1,...counts);
-    if(totalBadge)totalBadge.textContent=`${total} ${total===1?singular:plural} / ${DIAS_ACTIVIDAD} días`;
-    if(summary)summary.textContent=resumenActividad(info,singular,plural);
-    box.innerHTML=counts.map((v,i)=>{
-      const h=v?Math.max(12,Math.round((v/max)*138)):4;
-      const ult=diasDesde(info.last[i]);
-      const title=`Zona ${i+1}: ${v} en ${DIAS_ACTIVIDAD} días${ult===null?'':` · última hace ${ult} días`}`;
-      return `<div class="dgie-zone-bar-wrap" title="${esc(title)}"><div class="dgie-zone-bar-value">${v||''}</div><div class="dgie-zone-bar ${v?'':'is-zero'}" style="height:${h}px"></div><div class="dgie-zone-bar-label">Z${i+1}</div></div>`;
+  function tileStatus(z){
+    if(z.reciente>0)return {cls:'is-active',txt:'Activa'};
+    if(z.historico>0)return {cls:'is-stale',txt:'Sin reciente'};
+    return {cls:'is-empty',txt:'Sin datos'};
+  }
+  function renderActivity(id,zones,singular,plural){
+    const totalBadge=document.querySelector(`#${id} .dgie-zone-chart-total`), cards=document.querySelector(`#${id} [data-summary-cards]`), grid=document.querySelector(`#${id} [data-zone-grid]`), text=document.querySelector(`#${id} [data-summary-text]`);
+    if(!grid)return;
+    const s=resumen(zones,singular,plural), dia=diasDesde(s.last);
+    if(totalBadge)totalBadge.textContent=s.label;
+    if(cards)cards.innerHTML=`<div class="dgie-activity-metric"><div class="dgie-activity-label">Movimiento reciente</div><div class="dgie-activity-value">${s.total}</div></div><div class="dgie-activity-metric"><div class="dgie-activity-label">Zonas activas</div><div class="dgie-activity-value">${s.activas}/17</div></div><div class="dgie-activity-metric"><div class="dgie-activity-label">Sin movimiento reciente</div><div class="dgie-activity-value">${s.quietas}</div></div><div class="dgie-activity-metric"><div class="dgie-activity-label">Última carga</div><div class="dgie-activity-value">${s.lastZone?`Z${s.lastZone}`:'—'}</div></div>`;
+    grid.innerHTML=zones.map(z=>{
+      const st=tileStatus(z), d=diasDesde(z.last), last=d===null?'Sin cargas':d===0?'Última: hoy':`Última: hace ${d} d.`;
+      return `<div class="dgie-zone-tile ${st.cls}" title="Zona ${z.zona}: ${z.reciente} recientes, ${z.historico} históricas"><div class="dgie-zone-row"><span class="dgie-zone-name">Z${z.zona}</span><span class="dgie-zone-status">${st.txt}</span></div><div class="dgie-zone-count">${z.reciente}</div><div class="dgie-zone-last">${last}<br>${z.historico} carga${z.historico===1?'':'s'} total</div></div>`;
     }).join('');
+    if(text)text.textContent=s.last?`Lectura rápida: ${s.activas} zonas tienen movimiento en los últimos ${DIAS_ACTIVIDAD} días. ${s.quietas} zonas tuvieron cargas históricas pero no registran movimiento reciente. Última carga detectada en Z${s.lastZone}, hace ${dia} día${dia===1?'':'s'}.`:`Lectura rápida: no hay fechas válidas cargadas para medir actividad reciente.`;
   }
-  function ensureChartAfterHeader(listId,chartId,title,sub,plural){
+  function ensureChart(listId,chartId,title,sub,plural){
     const list=document.getElementById(listId);
     if(!list||document.getElementById(chartId))return;
     const card=list.closest('.card'), filters=card?.querySelector('.os-filters');
@@ -15803,13 +15814,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function actualizarGraficoIntervenciones(){
     if(currentUser?.role!=='coordinador')return;
-    ensureChartAfterHeader('intervenciones-dir-list','int-zona-chart','Actividad de obra por zona','Visitas/intervenciones cargadas en los últimos 30 días.','intervenciones');
-    renderBars('int-zona-chart',actividadPorZona(intervencionesFiltradas(),zonaIntervencion),'visita','visitas');
+    ensureChart('intervenciones-dir-list','int-zona-chart','Actividad de obra por zona','Semáforo de visitas/intervenciones cargadas en los últimos 30 días.','visitas');
+    renderActivity('int-zona-chart',actividadPorZona(intervencionesFiltradas(),zonaIntervencion),'visita','visitas');
   }
   function actualizarGraficoRelevamientos(){
     if(currentUser?.role!=='coordinador')return;
-    ensureChartAfterHeader('relevamientos-dir-list','rel-zona-chart','Relevamientos por zona','Relevamientos cargados en los últimos 30 días.','relevamientos');
-    renderBars('rel-zona-chart',actividadPorZona(relevamientosFiltrados(),zonaRelevamiento),'relevamiento','relevamientos');
+    ensureChart('relevamientos-dir-list','rel-zona-chart','Relevamientos por zona','Semáforo de relevamientos cargados en los últimos 30 días.','relevamientos');
+    renderActivity('rel-zona-chart',actividadPorZona(relevamientosFiltrados(),zonaRelevamiento),'relevamiento','relevamientos');
   }
   function wrap(name,after){
     const prev=window[name];
