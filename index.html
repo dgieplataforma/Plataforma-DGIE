@@ -5188,7 +5188,7 @@ function renderChartInsp(){
       normalizarOSExistentes();
       saveAppState();
       refreshVisiblePanels();
-      if(currentUser&&typeof window.renderTab==='function'){
+      if(currentUser&&typeof window.renderTab==='function'&&!document.getElementById('nos-numero')){
         const active=[...document.querySelectorAll('#nav-tabs .tab')].findIndex(t=>t.classList.contains('active'));
         window.renderTab(Math.max(0,active));
       }
