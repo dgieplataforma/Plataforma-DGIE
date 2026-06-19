@@ -13517,7 +13517,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 
   function medicionFinalizadaCoord(numero,zona){
-    return !!readCertFinMapCoord()[certFinKeyCoord(numero,zona)];
+    const certs = Array.isArray(window.CERTIFICADOS_MEDICION) ? window.CERTIFICADOS_MEDICION : [];
+    return certs.some(c =>
+      certVisibleCoord(c) &&
+      String(c?.estado || '').toLowerCase() === 'medido' &&
+      String(c?.medicion_numero) === String(numero) &&
+      zonaCertCoord(c) === Number(zona) &&
+      certTieneFinCoord(c)
+    );
   }
 
   function certificadosZonaCoord(z){
@@ -13769,7 +13776,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   async function actualizarTablaConsumoGeneralCoord(){
     const el = document.getElementById('coord-cert-consumo-general');
     if(!el) return;
-    if(typeof window.cargarCertificadosMedicion === 'function') await window.cargarCertificadosMedicion();
+    if(typeof window.cargarCertificadosMedicion === 'function') await window.cargarCertificadosMedicion(true);
     el.innerHTML = renderTablaConsumoGeneralCoord(false);
   }
 
@@ -13858,7 +13865,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return;
     }
     body.innerHTML = `<div style="text-align:center;padding:28px;color:var(--muted);border:1px dashed var(--border);border-radius:14px;background:#f8fafc">Cargando mediciones finalizadas...</div>`;
-    if(typeof window.cargarCertificadosMedicion === 'function') await window.cargarCertificadosMedicion();
+    if(typeof window.cargarCertificadosMedicion === 'function') await window.cargarCertificadosMedicion(true);
     const inspector = (typeof INSPECTORS !== 'undefined' && INSPECTORS[z - 1]) ? INSPECTORS[z - 1] : '';
     const todosZona = certificadosZonaCoord(z);
     const enMedicion = todosZona.filter(c => String(c?.estado || '').toLowerCase() === 'medido' && c?.medicion_numero);
