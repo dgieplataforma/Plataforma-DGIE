@@ -5668,9 +5668,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return [o?.remoteId&&`remote:${o.remoteId}`, o?.numero&&`numero:${o.numero}`, o?.id&&`local:${o.id}`].filter(Boolean);
   }
   function empresaFinalizoReal(o){
-    if(!o)return false;
-    const saved=readEmpresaOS();
-    return !!(o.empresaFinalizo||osKeys(o).some(k=>saved[k]));
+    return !!o?.empresaFinalizo;
   }
   function setEmpresaFinalizoReal(o,val){
     if(!o)return;
@@ -5751,10 +5749,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return t;
   }
   function empresaFinalizoVista(o){
-    try{
-      const saved=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}');
-      return !!(o?.empresaFinalizo||saved[`remote:${o?.remoteId}`]||saved[`numero:${o?.numero}`]||saved[`local:${o?.id}`]);
-    }catch(e){return !!o?.empresaFinalizo}
+    return !!o?.empresaFinalizo;
   }
   function empresaCell(o){
     return empresaFinalizoVista(o)
@@ -7647,8 +7642,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return [o?.remoteId&&`remote:${o.remoteId}`,o?.numero&&`numero:${o.numero}`,o?.id&&`local:${o.id}`].filter(Boolean);
   }
   function empresaFinalizoVista(o){
-    const st=empresaStore();
-    return !!(o?.empresaFinalizo||empresaKeysOS(o).some(k=>st[k]));
+    return !!o?.empresaFinalizo;
   }
   function certsOS(o){
     const n=osNumEmpresa(o?.numero);
@@ -7790,8 +7784,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return [o?.remoteId&&`remote:${o.remoteId}`,o?.numero&&`numero:${o.numero}`,o?.id&&`local:${o.id}`].filter(Boolean);
   }
   function empresaFinalizoOS(o){
-    const st=empresaStoreOS();
-    return !!(o?.empresaFinalizo||empresaKeysOSFinal(o).some(k=>st[k]));
+    return !!o?.empresaFinalizo;
   }
   function empresaBadgeOS(o){
     return empresaFinalizoOS(o)
@@ -8699,41 +8692,47 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     setTimeout(()=>{div.style.opacity='0';setTimeout(()=>div.remove(),420);},2800);
   }
 
-  // Sobreescribe marcarOSEmpresaFinalizada con mejor manejo de errores y RPC
+  // Sobreescribe marcarOSEmpresaFinalizada: sólo confirma si Supabase lo guardó.
   const _prevMarcar=window.marcarOSEmpresaFinalizada;
+  function limpiarEmpresaFinalizoLocal(o){
+    try{
+      const store=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}');
+      [o?.remoteId&&`remote:${o.remoteId}`,o?.numero&&`numero:${o.numero}`,o?.id&&`local:${o.id}`].filter(Boolean).forEach(k=>delete store[k]);
+      localStorage.setItem('dgie_empresa_finalizo_os',JSON.stringify(store));
+    }catch(e){}
+  }
   window.marcarOSEmpresaFinalizada=async function(id,val){
     const o=OS_ZONA.find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id)||String(x.numero)===String(id));
     if(!o){if(_prevMarcar)return _prevMarcar(id,val);return;}
+    const anterior=!!o.empresaFinalizo;
+    const fechaAnterior=o.empresaFinalizoFecha||null;
     const now=val?new Date().toISOString():null;
-    // Actualizar en memoria
-    o.empresaFinalizo=!!val;
-    o.empresaFinalizoFecha=now;
-    // Guardar en localStorage como respaldo
-    try{
-      const store=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}');
-      const keys=[o.remoteId&&`remote:${o.remoteId}`,o.numero&&`numero:${o.numero}`,o.id&&`local:${o.id}`].filter(Boolean);
-      keys.forEach(k=>{if(val)store[k]={valor:true,fecha:now};else delete store[k];});
-      localStorage.setItem('dgie_empresa_finalizo_os',JSON.stringify(store));
-    }catch(e){/*ignorar error localStorage*/}
-    saveAppState&&saveAppState();
-    // Intentar guardar en Supabase via RPC (evita restricción RLS para empresa)
-    if(o.remoteId&&window.DGIE_DB?.isConfigured){
-      let error=null;
-      if(typeof window.DGIE_DB.actualizarEmpresaFinalizo==='function'){
-        const res=await window.DGIE_DB.actualizarEmpresaFinalizo(o.remoteId,val);
-        error=res?.error||null;
-      } else {
-        const res=await window.DGIE_DB.actualizarOrden(o.remoteId,{empresa_finalizo:!!val,empresa_finalizo_fecha:now});
-        error=res?.error||null;
-      }
-      if(error){
-        console.warn('empresa_finalizo Supabase error:',error.message||error);
-        toastDGIE('⚠ Guardado solo localmente (error: '+((error.message||'sin permiso').slice(0,60))+')','warn');
-      } else {
-        toastDGIE(val?'✓ Empresa finalizó guardado en sistema':'✓ Desmarcado y guardado en sistema','ok');
-      }
+    let error=null;
+    if(!o.remoteId||!window.DGIE_DB?.isConfigured){
+      error=new Error('Orden sin vínculo remoto o Supabase no configurado');
+    }else if(typeof window.DGIE_DB.actualizarEmpresaFinalizo==='function'){
+      const res=await window.DGIE_DB.actualizarEmpresaFinalizo(o.remoteId,val);
+      error=res?.error||null;
+    }else if(typeof window.DGIE_DB.actualizarOrden==='function'){
+      const res=await window.DGIE_DB.actualizarOrden(o.remoteId,{empresa_finalizo:!!val,empresa_finalizo_fecha:now});
+      error=res?.error||null;
+    }else{
+      error=new Error('No hay función de guardado disponible');
     }
-    // Refrescar vista
+    if(error){
+      o.empresaFinalizo=anterior;
+      o.empresaFinalizoFecha=fechaAnterior;
+      limpiarEmpresaFinalizoLocal(o);
+      console.warn('empresa_finalizo Supabase error:',error.message||error);
+      toastDGIE('No se guardó en Supabase. No se cambió el estado.','error');
+    }else{
+      o.empresaFinalizo=!!val;
+      o.empresaFinalizoFecha=now;
+      limpiarEmpresaFinalizoLocal(o);
+      toastDGIE(val?'Empresa finalizó guardado en sistema':'Desmarcado y guardado en sistema','ok');
+      if(typeof window.cargarDatosPublicosDGIE==='function')setTimeout(()=>window.cargarDatosPublicosDGIE?.(),250);
+    }
+    saveAppState&&saveAppState();
     if(currentUser?.role==='empresa'&&typeof filterOSEmpresa==='function')filterOSEmpresa();
   };
 })();
@@ -15519,6 +15518,175 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
   };
+})();
+</script>
+<script id="dgie-os-empresa-finalizo-real-2026-06-19">
+(function(){
+  let ultimaRecargaOS=0;
+  async function recargarOSReal(){
+    if(!window.DGIE_DB?.isConfigured||typeof window.cargarDatosPublicosDGIE!=='function')return;
+    const ahora=Date.now();
+    if(ahora-ultimaRecargaOS<3500)return;
+    ultimaRecargaOS=ahora;
+    try{await window.cargarDatosPublicosDGIE();}
+    catch(e){console.warn('No se pudieron recargar órdenes reales',e);}
+  }
+  function envolverRender(nombre){
+    const previo=window[nombre];
+    if(typeof previo!=='function'||previo.__osEmpresaReal)return;
+    const fn=function(){
+      const res=previo.apply(this,arguments);
+      setTimeout(recargarOSReal,80);
+      return res;
+    };
+    fn.__osEmpresaReal=true;
+    window[nombre]=fn;
+  }
+  envolverRender('renderOSGeneral');
+  envolverRender('renderOSZona');
+  envolverRender('renderOSEmpresa');
+})();
+</script>
+<style id="dgie-argentina-worldcup-2026-06-19">
+  .arg-mini-badge{display:inline-flex;align-items:center;gap:5px;margin-left:2px;margin-right:1px;padding:2px 7px;border:1px solid #d7e7f7;border-radius:999px;background:linear-gradient(180deg,#fff,#f5fbff);box-shadow:0 3px 10px rgba(0,90,169,.08)}
+  .arg-stars{display:inline-flex;gap:2px;align-items:center}
+  .arg-star{width:8px;height:8px;background:#d7a928;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 56%,79% 91%,50% 70%,21% 91%,32% 56%,2% 35%,39% 35%);filter:drop-shadow(0 1px 1px rgba(88,65,0,.2))}
+  .arg-flag{width:21px;height:13px;border:1px solid #c8e0f6;border-radius:3px;overflow:hidden;background:linear-gradient(to bottom,#75bff2 0 33%,#fff 33% 66%,#75bff2 66%);position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+  .arg-flag:after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:#d7a928;transform:translate(-50%,-50%)}
+  .arg-save-toast{position:fixed;right:24px;bottom:24px;z-index:100000;display:flex;align-items:center;gap:14px;min-width:315px;max-width:min(430px,calc(100vw - 32px));padding:14px 16px 14px 14px;border:1px solid #cce4f8;border-radius:18px;background:linear-gradient(135deg,#ffffff 0%,#f3fbff 57%,#e4f4ff 100%);box-shadow:0 24px 60px rgba(15,23,42,.22);transform:translateY(18px) scale(.96);opacity:0;pointer-events:none;overflow:hidden}
+  .arg-save-toast.show{animation:argToastIn .48s cubic-bezier(.16,1,.3,1) forwards}
+  .arg-save-toast.hide{animation:argToastOut .38s ease forwards}
+  .arg-save-toast:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#75bff2,#fff,#75bff2)}
+  .arg-player-wrap{position:relative;width:82px;height:98px;flex:0 0 82px}
+  .arg-player{position:absolute;left:4px;bottom:0;width:48px;height:82px;animation:argPlayerPop .8s cubic-bezier(.17,1.2,.3,1) both}
+  .arg-head{position:absolute;left:14px;top:0;width:24px;height:25px;border-radius:50%;background:#f0c09a;border:1px solid #d9a078}
+  .arg-head:before{content:"";position:absolute;left:2px;top:-3px;width:20px;height:11px;border-radius:12px 12px 5px 5px;background:#402116}
+  .arg-head:after{content:"";position:absolute;left:6px;bottom:2px;width:12px;height:7px;border-radius:0 0 8px 8px;background:#5b3022;opacity:.9}
+  .arg-shirt{position:absolute;left:8px;top:24px;width:36px;height:38px;border-radius:10px 10px 8px 8px;background:repeating-linear-gradient(90deg,#fff 0 7px,#7cc5f4 7px 14px);border:1px solid #58aee4;box-shadow:inset 0 -8px 0 rgba(0,90,169,.08)}
+  .arg-shirt:after{content:"10";position:absolute;left:50%;top:9px;transform:translateX(-50%);font-size:12px;font-weight:900;color:#0d5f9d;letter-spacing:0}
+  .arg-arm{position:absolute;top:29px;width:9px;height:26px;border-radius:999px;background:#f0c09a;transform-origin:top center}
+  .arg-arm.left{left:1px;transform:rotate(22deg)}
+  .arg-arm.right{right:-1px;transform:rotate(-35deg)}
+  .arg-shorts{position:absolute;left:12px;top:61px;width:28px;height:14px;border-radius:5px;background:#0f2f57}
+  .arg-leg{position:absolute;top:73px;width:8px;height:20px;border-radius:999px;background:#f0c09a}
+  .arg-leg.left{left:14px}.arg-leg.right{right:12px}
+  .arg-cup{position:absolute;right:2px;top:12px;width:33px;height:48px;animation:argCupFloat 1.35s ease-in-out infinite alternate}
+  .arg-cup .bowl{position:absolute;left:6px;top:1px;width:22px;height:24px;border-radius:7px 7px 12px 12px;background:linear-gradient(135deg,#ffe58a,#d79c1b);border:1px solid #be8510;box-shadow:inset -4px -4px 0 rgba(128,80,0,.12)}
+  .arg-cup .bowl:before,.arg-cup .bowl:after{content:"";position:absolute;top:6px;width:10px;height:13px;border:2px solid #d7a928;border-radius:10px;background:transparent}.arg-cup .bowl:before{left:-9px}.arg-cup .bowl:after{right:-9px}
+  .arg-cup .stem{position:absolute;left:14px;top:24px;width:7px;height:13px;background:#d7a928}.arg-cup .base{position:absolute;left:8px;top:36px;width:20px;height:7px;border-radius:5px;background:#b47d10}
+  .arg-toast-text{position:relative;z-index:1;min-width:0}.arg-toast-kicker{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#0b69aa}.arg-toast-title{font-size:18px;line-height:1.12;font-weight:900;color:#0f2f57;margin-top:2px}.arg-toast-sub{font-size:12px;color:#64748b;margin-top:4px;font-weight:700}
+  .arg-confetti{position:absolute;width:5px;height:9px;border-radius:2px;background:#75bff2;opacity:.8;animation:argConfetti 1.05s ease-out both}.arg-confetti.c2{background:#d7a928}.arg-confetti.c3{background:#fff;border:1px solid #9bd0f3}
+  @keyframes argToastIn{to{opacity:1;transform:translateY(0) scale(1)}}@keyframes argToastOut{to{opacity:0;transform:translateY(20px) scale(.96)}}@keyframes argPlayerPop{0%{transform:translateY(18px) rotate(-5deg);opacity:0}55%{transform:translateY(-4px) rotate(3deg);opacity:1}100%{transform:translateY(0) rotate(0)}}@keyframes argCupFloat{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-7px) rotate(5deg)}}@keyframes argConfetti{0%{transform:translateY(0) rotate(0);opacity:0}18%{opacity:1}100%{transform:translateY(-52px) rotate(260deg);opacity:0}}
+  @media(max-width:680px){.arg-mini-badge{padding:2px 5px}.arg-save-toast{left:16px;right:16px;bottom:18px;min-width:0}.arg-toast-title{font-size:16px}.arg-player-wrap{width:72px}}
+</style>
+<script id="dgie-argentina-worldcup-2026-06-19">
+(function(){
+  function argentinaBadgeHTML(){
+    return '<span class="arg-mini-badge" title="Argentina"><span class="arg-stars"><i class="arg-star"></i><i class="arg-star"></i><i class="arg-star"></i></span><span class="arg-flag"></span></span>';
+  }
+  function aplicarArgDecoracion(){
+    const name=document.getElementById('topbar-name');
+    if(!name||document.querySelector('.arg-mini-badge'))return;
+    name.insertAdjacentHTML('beforebegin',argentinaBadgeHTML());
+  }
+  function confettiHTML(){
+    return Array.from({length:9},(_,i)=>`<i class="arg-confetti c${i%3+1}" style="left:${58+i*29%230}px;bottom:${18+i%4*8}px;animation-delay:${i*.055}s"></i>`).join('');
+  }
+  window.mostrarOrdenGuardadaArgentina=function(){
+    document.querySelectorAll('.arg-save-toast').forEach(x=>x.remove());
+    const box=document.createElement('div');
+    box.className='arg-save-toast';
+    box.innerHTML=`${confettiHTML()}<div class="arg-player-wrap" aria-hidden="true"><div class="arg-player"><div class="arg-head"></div><div class="arg-shirt"></div><div class="arg-arm left"></div><div class="arg-arm right"></div><div class="arg-shorts"></div><div class="arg-leg left"></div><div class="arg-leg right"></div></div><div class="arg-cup"><div class="bowl"></div><div class="stem"></div><div class="base"></div></div></div><div class="arg-toast-text"><div class="arg-toast-kicker">Argentina</div><div class="arg-toast-title">Orden de servicio guardada</div><div class="arg-toast-sub">Leo levanta la copa, la orden ya quedó registrada.</div></div>`;
+    document.body.appendChild(box);
+    requestAnimationFrame(()=>box.classList.add('show'));
+    setTimeout(()=>{box.classList.remove('show');box.classList.add('hide');setTimeout(()=>box.remove(),430);},3300);
+  };
+  function envolverGuardadoOS(nombre){
+    const previo=window[nombre];
+    if(typeof previo!=='function'||previo.__argentinaWorldcup)return;
+    const fn=async function(){
+      const res=await previo.apply(this,arguments);
+      setTimeout(()=>{
+        const sigueFormulario=!!document.getElementById('nos-numero');
+        const errorVisible=[...document.querySelectorAll('#nos-error,#nos-numero-error')].some(e=>e&&getComputedStyle(e).display!=='none');
+        if(!sigueFormulario&&!errorVisible&&typeof window.mostrarOrdenGuardadaArgentina==='function')window.mostrarOrdenGuardadaArgentina();
+      },80);
+      return res;
+    };
+    fn.__argentinaWorldcup=true;
+    window[nombre]=fn;
+  }
+  const prevLoadUser=window.loadUser;
+  if(typeof prevLoadUser==='function'&&!prevLoadUser.__argentinaWorldcup){
+    const wrapped=function(){
+      const res=prevLoadUser.apply(this,arguments);
+      setTimeout(aplicarArgDecoracion,0);
+      return res;
+    };
+    wrapped.__argentinaWorldcup=true;
+    window.loadUser=wrapped;
+  }
+  envolverGuardadoOS('guardarNuevaOS');
+  envolverGuardadoOS('guardarEdicionOS');
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aplicarArgDecoracion);else aplicarArgDecoracion();
+})();
+</script>
+<style id="dgie-argentina-worldcup-fullscreen-2026-06-19">
+  .topbar-right>.arg-mini-badge{margin-left:0;margin-right:0;padding:4px 9px;align-self:center}
+  .user-chip .arg-mini-badge{display:none}
+  .arg-save-toast{position:fixed;inset:0;right:auto;bottom:auto;z-index:100000;display:grid;place-items:center;min-width:0;max-width:none;width:100vw;height:100vh;padding:22px;border:0;border-radius:0;background:radial-gradient(circle at 50% 18%,rgba(255,255,255,.92),rgba(229,245,255,.80) 34%,rgba(11,105,170,.28) 67%,rgba(7,31,58,.70)),linear-gradient(180deg,rgba(255,255,255,.58),rgba(117,191,242,.30));box-shadow:none;transform:none;opacity:0;pointer-events:none;overflow:hidden;backdrop-filter:blur(2px)}
+  .arg-save-toast:before{height:6px;background:linear-gradient(90deg,#75bff2,#fff,#d7a928,#fff,#75bff2)}
+  .arg-save-toast.show{animation:argFullToastIn .46s cubic-bezier(.16,1,.3,1) forwards}
+  .arg-save-toast.hide{animation:argFullToastOut .36s ease forwards}
+  .arg-save-stage{position:relative;display:flex;min-height:min(720px,calc(100vh - 42px));width:min(760px,calc(100vw - 28px));align-items:center;justify-content:flex-end;flex-direction:column;text-align:center}
+  .arg-messi-photo{display:block;max-width:min(440px,86vw);max-height:min(69vh,590px);width:auto;height:auto;object-fit:contain;filter:drop-shadow(0 30px 44px rgba(7,31,58,.38));transform-origin:center bottom;animation:argMessiChampion .78s cubic-bezier(.17,1.16,.32,1) both}
+  .arg-toast-panel{position:relative;z-index:2;width:min(560px,calc(100vw - 36px));margin-top:-10px;padding:15px 18px 16px;border:1px solid rgba(255,255,255,.86);border-radius:20px;background:rgba(255,255,255,.88);box-shadow:0 24px 55px rgba(15,23,42,.20)}
+  .arg-toast-kicker{font-size:12px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:#0b69aa}
+  .arg-toast-title{font-size:clamp(22px,4vw,34px);line-height:1.05;font-weight:900;color:#0f2f57;margin-top:4px}
+  .arg-toast-sub{font-size:14px;color:#52677e;margin-top:6px;font-weight:800}
+  .arg-confetti{bottom:auto;animation:argFullConfetti 1.35s ease-out both}
+  @keyframes argFullToastIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
+  @keyframes argFullToastOut{to{opacity:0;transform:scale(1.012)}}
+  @keyframes argMessiChampion{0%{opacity:0;transform:translateY(55px) scale(.9)}58%{opacity:1;transform:translateY(-10px) scale(1.025)}100%{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes argFullConfetti{0%{transform:translateY(0) rotate(0);opacity:0}18%{opacity:1}100%{transform:translateY(155px) rotate(330deg);opacity:0}}
+  @media(max-width:680px){.topbar-right>.arg-mini-badge{padding:3px 7px}.arg-save-toast{left:0;right:0;bottom:0;padding:16px}.arg-save-stage{min-height:calc(100vh - 28px)}.arg-messi-photo{max-height:66vh;max-width:92vw}.arg-toast-panel{margin-top:-4px;padding:13px 14px}.arg-toast-title{font-size:24px}}
+</style>
+<script id="dgie-argentina-worldcup-fullscreen-2026-06-19">
+(function(){
+  function argentinaBadgeHTML(){
+    return '<span class="arg-mini-badge" title="Argentina"><span class="arg-stars"><i class="arg-star"></i><i class="arg-star"></i><i class="arg-star"></i></span><span class="arg-flag"></span></span>';
+  }
+  function aplicarArgDecoracionFuera(){
+    const topbar=document.querySelector('.topbar-right');
+    const chip=topbar?.querySelector('.user-chip');
+    if(!topbar||!chip)return;
+    document.querySelectorAll('.arg-mini-badge').forEach(x=>x.remove());
+    chip.insertAdjacentHTML('beforebegin',argentinaBadgeHTML());
+  }
+  function confettiHTML(){
+    return Array.from({length:22},(_,i)=>`<i class="arg-confetti c${i%3+1}" style="left:${6+(i*43)%88}vw;top:${-10-(i%5)*8}px;animation-delay:${i*.045}s"></i>`).join('');
+  }
+  window.mostrarOrdenGuardadaArgentina=function(){
+    document.querySelectorAll('.arg-save-toast').forEach(x=>x.remove());
+    const box=document.createElement('div');
+    box.className='arg-save-toast';
+    box.setAttribute('role','status');
+    box.innerHTML=`${confettiHTML()}<div class="arg-save-stage"><img class="arg-messi-photo" src="assets/messi-copa-bgless.png" alt="Leo Messi con la copa"><div class="arg-toast-panel"><div class="arg-toast-kicker">Argentina</div><div class="arg-toast-title">Orden de servicio guardada</div><div class="arg-toast-sub">La orden quedo registrada correctamente.</div></div></div>`;
+    document.body.appendChild(box);
+    requestAnimationFrame(()=>box.classList.add('show'));
+    setTimeout(()=>{box.classList.remove('show');box.classList.add('hide');setTimeout(()=>box.remove(),420);},3400);
+  };
+  const prevLoadUser=window.loadUser;
+  if(typeof prevLoadUser==='function'&&!prevLoadUser.__argentinaWorldcupOutsideBadge){
+    const wrapped=function(){
+      const res=prevLoadUser.apply(this,arguments);
+      setTimeout(aplicarArgDecoracionFuera,30);
+      return res;
+    };
+    wrapped.__argentinaWorldcupOutsideBadge=true;
+    window.loadUser=wrapped;
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(aplicarArgDecoracionFuera,30));else setTimeout(aplicarArgDecoracionFuera,30);
 })();
 </script>
 </body>
