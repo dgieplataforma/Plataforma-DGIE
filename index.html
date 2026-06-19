@@ -6710,7 +6710,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div style="margin-bottom:12px;display:flex;justify-content:flex-end"><button class="secondary-btn" onclick="abrirAnalisisPreciosCertificacion(${Number(z)},'empresa')">Análisis de precios</button></div>
         ${renderSeguimientoCertificados(data,false)}
       </section>
-    </div>`;
+    </div>${renderResumenPresupuestoModulos(data)}`;
   };
   window.filtrarEstablecimientosCertEmpresa=function(){
     const z=Number(currentUser?.zona||0), q=($('cert-est-search')?.value||'').toLowerCase().trim();
