@@ -15689,5 +15689,106 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(aplicarArgDecoracionFuera,30));else setTimeout(aplicarArgDecoracionFuera,30);
 })();
 </script>
+<style id="dgie-graficos-zona-int-rel-2026-06-19">
+  .dgie-zone-chart{margin:14px 0 16px;padding:14px;border:1px solid #dbe7f5;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fbff)}
+  .dgie-zone-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .dgie-zone-chart-title{font-size:14px;font-weight:900;color:#123c69}
+  .dgie-zone-chart-sub{font-size:12px;color:#64748b;margin-top:3px;font-weight:700}
+  .dgie-zone-chart-total{flex:0 0 auto;border-radius:999px;background:#e6f1fb;color:#005aa9;padding:6px 10px;font-size:12px;font-weight:900}
+  .dgie-zone-bars{height:190px;display:grid;grid-template-columns:repeat(17,minmax(22px,1fr));gap:8px;align-items:end;padding:12px 4px 4px;border-top:1px solid #edf3fa}
+  .dgie-zone-bar-wrap{min-width:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
+  .dgie-zone-bar-value{min-height:17px;font-size:11px;font-weight:900;color:#123c69;line-height:1}
+  .dgie-zone-bar{width:100%;max-width:34px;min-height:4px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#1d83d4,#005aa9);box-shadow:0 8px 18px rgba(0,90,169,.16);transition:height .2s ease}
+  .dgie-zone-bar.is-zero{background:#e8eef5;box-shadow:none}
+  .dgie-zone-bar-label{font-size:10px;font-weight:900;color:#64748b;line-height:1;white-space:nowrap}
+  @media(max-width:760px){.dgie-zone-bars{gap:5px;overflow-x:auto;grid-template-columns:repeat(17,28px);padding-bottom:8px}.dgie-zone-chart-head{flex-direction:column}.dgie-zone-chart-total{align-self:flex-start}}
+</style>
+<script id="dgie-graficos-zona-int-rel-2026-06-19">
+(function(){
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function n(v){return Number(v)||0}
+  function zonaDeEst(estId){return typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(estId)||0):0}
+  function zonaIntervencion(it){return n(it?.zona)||zonaDeEst(it?.estId)}
+  function zonaRelevamiento(r){return n(r?.zona)||zonaDeEst(r?.estId)}
+  function norm(v){return String(v??'').toLowerCase()}
+  function estById(id){return (Array.isArray(window.ESTABS)?window.ESTABS:[]).find(e=>Number(e.id)===Number(id))}
+  function relevamientosTodos(){
+    const out=[];
+    Object.entries(window.RELEVAMIENTOS||{}).forEach(([estId,rels])=>{
+      (rels||[]).filter(r=>(!r.tipo||r.tipo==='relevamiento')&&!r.eliminado).forEach(r=>out.push({...r,estId:Number(estId)}));
+    });
+    return out;
+  }
+  function intervencionesFiltradas(){
+    const z=document.getElementById('int-dir-zona')?.value||'';
+    const q=norm(document.getElementById('int-dir-search')?.value||'');
+    return (window.INTERVENCIONES||[]).filter(it=>{
+      if(it?.eliminado)return false;
+      const est=estById(it.estId);
+      const zona=zonaIntervencion(it)||n(est?.zona);
+      const os=Array.isArray(it.ordenesServicio)?it.ordenesServicio.join(' '):(it.ordenServicio||it.os||'');
+      return (!z||String(zona)===z)&&norm(`${est?.n||''} ${it.inspector||''} ${it.descripcion||''} ${os}`).includes(q);
+    });
+  }
+  function relevamientosFiltrados(){
+    const z=document.getElementById('rel-dir-zona')?.value||'';
+    const q=norm(document.getElementById('rel-dir-search')?.value||'');
+    return relevamientosTodos().filter(r=>{
+      const est=estById(r.estId);
+      const zona=zonaRelevamiento(r)||n(est?.zona);
+      const os=Array.isArray(r.ordenesServicio)?r.ordenesServicio.join(' '):(r.ordenServicio||r.os||'');
+      return (!z||String(zona)===z)&&norm(`${est?.n||''} ${r.fecha||''} ${r.inspector||''} ${r.comentarios||''} ${r.descripcion||''} ${os}`).includes(q);
+    });
+  }
+  function countsPorZona(data,zonaFn){
+    const counts=Array.from({length:17},()=>0);
+    (data||[]).forEach(item=>{const z=zonaFn(item);if(z>=1&&z<=17)counts[z-1]+=1;});
+    return counts;
+  }
+  function chartHTML(id,title,sub,totalLabel){
+    return `<div class="dgie-zone-chart" id="${id}"><div class="dgie-zone-chart-head"><div><div class="dgie-zone-chart-title">${esc(title)}</div><div class="dgie-zone-chart-sub">${esc(sub)}</div></div><span class="dgie-zone-chart-total">${esc(totalLabel)}</span></div><div class="dgie-zone-bars" data-bars></div></div>`;
+  }
+  function renderBars(id,counts,singular,plural){
+    const box=document.querySelector(`#${id} [data-bars]`), totalBadge=document.querySelector(`#${id} .dgie-zone-chart-total`);
+    if(!box)return;
+    const total=counts.reduce((a,b)=>a+b,0), max=Math.max(1,...counts);
+    if(totalBadge)totalBadge.textContent=`${total} ${total===1?singular:plural}`;
+    box.innerHTML=counts.map((v,i)=>{
+      const h=v?Math.max(12,Math.round((v/max)*138)):4;
+      return `<div class="dgie-zone-bar-wrap" title="Zona ${i+1}: ${v}"><div class="dgie-zone-bar-value">${v||''}</div><div class="dgie-zone-bar ${v?'':'is-zero'}" style="height:${h}px"></div><div class="dgie-zone-bar-label">Z${i+1}</div></div>`;
+    }).join('');
+  }
+  function ensureChartAfterHeader(listId,chartId,title,sub,singular,plural){
+    const list=document.getElementById(listId);
+    if(!list||document.getElementById(chartId))return;
+    const card=list.closest('.card');
+    const filters=card?.querySelector('.os-filters');
+    if(!card||!filters)return;
+    filters.insertAdjacentHTML('beforebegin',chartHTML(chartId,title,sub,`0 ${plural}`));
+  }
+  function actualizarGraficoIntervenciones(){
+    if(currentUser?.role!=='coordinador')return;
+    ensureChartAfterHeader('intervenciones-dir-list','int-zona-chart','Intervenciones por zona','Cantidad de intervenciones cargadas según los filtros actuales.','intervención','intervenciones');
+    renderBars('int-zona-chart',countsPorZona(intervencionesFiltradas(),zonaIntervencion),'intervención','intervenciones');
+  }
+  function actualizarGraficoRelevamientos(){
+    if(currentUser?.role!=='coordinador')return;
+    ensureChartAfterHeader('relevamientos-dir-list','rel-zona-chart','Relevamientos por zona','Cantidad de relevamientos cargados según los filtros actuales.','relevamiento','relevamientos');
+    renderBars('rel-zona-chart',countsPorZona(relevamientosFiltrados(),zonaRelevamiento),'relevamiento','relevamientos');
+  }
+  function wrap(name,after){
+    const prev=window[name];
+    if(typeof prev!=='function'||prev.__zonaChart)return;
+    const fn=function(){const res=prev.apply(this,arguments);setTimeout(after,0);return res;};
+    fn.__zonaChart=true;
+    window[name]=fn;
+  }
+  wrap('renderIntervencionesDireccion',actualizarGraficoIntervenciones);
+  wrap('renderIntervencionesInspector',actualizarGraficoIntervenciones);
+  wrap('filterIntervencionesDireccion',actualizarGraficoIntervenciones);
+  wrap('renderRelevamientosDireccion',actualizarGraficoRelevamientos);
+  wrap('filterRelevamientosDireccion',actualizarGraficoRelevamientos);
+})();
+</script>
 </body>
 </html>
