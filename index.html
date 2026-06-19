@@ -15700,21 +15700,38 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   .dgie-zone-bar-value{min-height:17px;font-size:11px;font-weight:900;color:#123c69;line-height:1}
   .dgie-zone-bar{width:100%;max-width:34px;min-height:4px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#1d83d4,#005aa9);box-shadow:0 8px 18px rgba(0,90,169,.16);transition:height .2s ease}
   .dgie-zone-bar.is-zero{background:#e8eef5;box-shadow:none}
-  .dgie-zone-bar-label{font-size:10px;font-weight:900;color:#64748b;line-height:1;white-space:nowrap}
+  .dgie-zone-bar-label{font-size:10px;font-weight:900;color:#64748b;line-height:1;white-space:nowrap}`r`n  .dgie-zone-chart-foot{margin-top:10px;padding-top:10px;border-top:1px solid #edf3fa;font-size:12px;color:#52677e;font-weight:800;line-height:1.45}
   @media(max-width:760px){.dgie-zone-bars{gap:5px;overflow-x:auto;grid-template-columns:repeat(17,28px);padding-bottom:8px}.dgie-zone-chart-head{flex-direction:column}.dgie-zone-chart-total{align-self:flex-start}}
 </style>
 <script id="dgie-graficos-zona-int-rel-2026-06-19">
 (function(){
+  const DIAS_ACTIVIDAD=30;
   function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
   function n(v){return Number(v)||0}
+  function getIntervenciones(){try{return typeof INTERVENCIONES!=='undefined'&&Array.isArray(INTERVENCIONES)?INTERVENCIONES:(Array.isArray(window.INTERVENCIONES)?window.INTERVENCIONES:[])}catch(_){return []}}
+  function getEstabs(){try{return typeof ESTABS!=='undefined'&&Array.isArray(ESTABS)?ESTABS:(Array.isArray(window.ESTABS)?window.ESTABS:[])}catch(_){return []}}
+  function getRelevamientos(){try{return typeof RELEVAMIENTOS!=='undefined'&&RELEVAMIENTOS?RELEVAMIENTOS:(window.RELEVAMIENTOS||{})}catch(_){return {}}}
   function zonaDeEst(estId){return typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(estId)||0):0}
-  function zonaIntervencion(it){return n(it?.zona)||zonaDeEst(it?.estId)}
-  function zonaRelevamiento(r){return n(r?.zona)||zonaDeEst(r?.estId)}
-  function norm(v){return String(v??'').toLowerCase()}
-  function estById(id){return (Array.isArray(window.ESTABS)?window.ESTABS:[]).find(e=>Number(e.id)===Number(id))}
+  function estById(id){return getEstabs().find(e=>Number(e.id)===Number(id))}
+  function zonaIntervencion(it){const est=estById(it?.estId);return n(it?.zona)||n(est?.zona)||zonaDeEst(it?.estId)}
+  function zonaRelevamiento(r){const est=estById(r?.estId);return n(r?.zona)||n(est?.zona)||zonaDeEst(r?.estId)}
+  function norm(v){return String(v??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+  function osList(it){
+    if(Array.isArray(it?.osVinculadas))return it.osVinculadas.map(String).filter(Boolean);
+    if(Array.isArray(it?.ordenesServicio))return it.ordenesServicio.map(String).filter(Boolean);
+    return String(it?.osVinculada||it?.ordenServicio||it?.orden_servicio||it?.os||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function fechaMs(it){
+    if(it?.fechaHora){const d=new Date(it.fechaHora);if(!Number.isNaN(d.getTime()))return d.getTime()}
+    if(it?.created_at){const d=new Date(it.created_at);if(!Number.isNaN(d.getTime()))return d.getTime()}
+    if(it?.ts&&Number(it.ts)>1000000000000)return Number(it.ts);
+    const p=String(it?.fecha||'').split('/');
+    if(p.length>=3){const y=p[2].length===2?2000+Number(p[2]):Number(p[2]);const d=new Date(y,Number(p[1])-1,Number(p[0]));if(!Number.isNaN(d.getTime()))return d.getTime()}
+    return Number(it?.id)>1000000000000?Number(it.id):0;
+  }
   function relevamientosTodos(){
     const out=[];
-    Object.entries(window.RELEVAMIENTOS||{}).forEach(([estId,rels])=>{
+    Object.entries(getRelevamientos()).forEach(([estId,rels])=>{
       (rels||[]).filter(r=>(!r.tipo||r.tipo==='relevamiento')&&!r.eliminado).forEach(r=>out.push({...r,estId:Number(estId)}));
     });
     return out;
@@ -15722,11 +15739,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function intervencionesFiltradas(){
     const z=document.getElementById('int-dir-zona')?.value||'';
     const q=norm(document.getElementById('int-dir-search')?.value||'');
-    return (window.INTERVENCIONES||[]).filter(it=>{
+    return getIntervenciones().filter(it=>{
       if(it?.eliminado)return false;
-      const est=estById(it.estId);
-      const zona=zonaIntervencion(it)||n(est?.zona);
-      const os=Array.isArray(it.ordenesServicio)?it.ordenesServicio.join(' '):(it.ordenServicio||it.os||'');
+      const est=estById(it.estId), zona=zonaIntervencion(it), os=osList(it).join(' ');
       return (!z||String(zona)===z)&&norm(`${est?.n||''} ${it.inspector||''} ${it.descripcion||''} ${os}`).includes(q);
     });
   }
@@ -15734,47 +15749,67 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const z=document.getElementById('rel-dir-zona')?.value||'';
     const q=norm(document.getElementById('rel-dir-search')?.value||'');
     return relevamientosTodos().filter(r=>{
-      const est=estById(r.estId);
-      const zona=zonaRelevamiento(r)||n(est?.zona);
+      const est=estById(r.estId), zona=zonaRelevamiento(r);
       const os=Array.isArray(r.ordenesServicio)?r.ordenesServicio.join(' '):(r.ordenServicio||r.os||'');
       return (!z||String(zona)===z)&&norm(`${est?.n||''} ${r.fecha||''} ${r.inspector||''} ${r.comentarios||''} ${r.descripcion||''} ${os}`).includes(q);
     });
   }
-  function countsPorZona(data,zonaFn){
-    const counts=Array.from({length:17},()=>0);
-    (data||[]).forEach(item=>{const z=zonaFn(item);if(z>=1&&z<=17)counts[z-1]+=1;});
-    return counts;
+  function actividadPorZona(data,zonaFn){
+    const desde=Date.now()-DIAS_ACTIVIDAD*24*60*60*1000;
+    const counts=Array.from({length:17},()=>0), historico=Array.from({length:17},()=>0), last=Array.from({length:17},()=>0);
+    (data||[]).forEach(item=>{
+      const z=zonaFn(item); if(z<1||z>17)return;
+      const idx=z-1, ms=fechaMs(item);
+      historico[idx]+=1;
+      if(ms>last[idx])last[idx]=ms;
+      if(ms&&ms>=desde)counts[idx]+=1;
+    });
+    return {counts,historico,last};
+  }
+  function diasDesde(ms){if(!ms)return null;return Math.max(0,Math.floor((Date.now()-ms)/(24*60*60*1000)))}
+  function resumenActividad(info,singular,plural){
+    const totalReciente=info.counts.reduce((a,b)=>a+b,0);
+    const zonasActivas=info.counts.map((v,i)=>v>0?i+1:null).filter(Boolean);
+    const sinMovimiento=info.historico.map((v,i)=>v>0&&info.counts[i]===0?i+1:null).filter(Boolean);
+    const ultimaMs=Math.max(0,...info.last);
+    const ultZona=info.last.findIndex(v=>v===ultimaMs)+1;
+    const ultTxt=ultimaMs?`Última carga: Z${ultZona} hace ${diasDesde(ultimaMs)} día${diasDesde(ultimaMs)===1?'':'s'}.`:'Sin fechas registradas.';
+    const movTxt=zonasActivas.length?`Zonas con movimiento en ${DIAS_ACTIVIDAD} días: ${zonasActivas.map(z=>'Z'+z).join(', ')}.`:`Sin movimiento registrado en los últimos ${DIAS_ACTIVIDAD} días.`;
+    const quietTxt=sinMovimiento.length?` Sin movimiento reciente: ${sinMovimiento.map(z=>'Z'+z).join(', ')}.`:'';
+    return `${totalReciente} ${totalReciente===1?singular:plural} en los últimos ${DIAS_ACTIVIDAD} días. ${movTxt}${quietTxt} ${ultTxt}`;
   }
   function chartHTML(id,title,sub,totalLabel){
-    return `<div class="dgie-zone-chart" id="${id}"><div class="dgie-zone-chart-head"><div><div class="dgie-zone-chart-title">${esc(title)}</div><div class="dgie-zone-chart-sub">${esc(sub)}</div></div><span class="dgie-zone-chart-total">${esc(totalLabel)}</span></div><div class="dgie-zone-bars" data-bars></div></div>`;
+    return `<div class="dgie-zone-chart" id="${id}"><div class="dgie-zone-chart-head"><div><div class="dgie-zone-chart-title">${esc(title)}</div><div class="dgie-zone-chart-sub">${esc(sub)}</div></div><span class="dgie-zone-chart-total">${esc(totalLabel)}</span></div><div class="dgie-zone-bars" data-bars></div><div class="dgie-zone-chart-foot" data-summary></div></div>`;
   }
-  function renderBars(id,counts,singular,plural){
-    const box=document.querySelector(`#${id} [data-bars]`), totalBadge=document.querySelector(`#${id} .dgie-zone-chart-total`);
+  function renderBars(id,info,singular,plural){
+    const box=document.querySelector(`#${id} [data-bars]`), totalBadge=document.querySelector(`#${id} .dgie-zone-chart-total`), summary=document.querySelector(`#${id} [data-summary]`);
     if(!box)return;
-    const total=counts.reduce((a,b)=>a+b,0), max=Math.max(1,...counts);
-    if(totalBadge)totalBadge.textContent=`${total} ${total===1?singular:plural}`;
+    const counts=info.counts, total=counts.reduce((a,b)=>a+b,0), max=Math.max(1,...counts);
+    if(totalBadge)totalBadge.textContent=`${total} ${total===1?singular:plural} / ${DIAS_ACTIVIDAD} días`;
+    if(summary)summary.textContent=resumenActividad(info,singular,plural);
     box.innerHTML=counts.map((v,i)=>{
       const h=v?Math.max(12,Math.round((v/max)*138)):4;
-      return `<div class="dgie-zone-bar-wrap" title="Zona ${i+1}: ${v}"><div class="dgie-zone-bar-value">${v||''}</div><div class="dgie-zone-bar ${v?'':'is-zero'}" style="height:${h}px"></div><div class="dgie-zone-bar-label">Z${i+1}</div></div>`;
+      const ult=diasDesde(info.last[i]);
+      const title=`Zona ${i+1}: ${v} en ${DIAS_ACTIVIDAD} días${ult===null?'':` · última hace ${ult} días`}`;
+      return `<div class="dgie-zone-bar-wrap" title="${esc(title)}"><div class="dgie-zone-bar-value">${v||''}</div><div class="dgie-zone-bar ${v?'':'is-zero'}" style="height:${h}px"></div><div class="dgie-zone-bar-label">Z${i+1}</div></div>`;
     }).join('');
   }
-  function ensureChartAfterHeader(listId,chartId,title,sub,singular,plural){
+  function ensureChartAfterHeader(listId,chartId,title,sub,plural){
     const list=document.getElementById(listId);
     if(!list||document.getElementById(chartId))return;
-    const card=list.closest('.card');
-    const filters=card?.querySelector('.os-filters');
+    const card=list.closest('.card'), filters=card?.querySelector('.os-filters');
     if(!card||!filters)return;
     filters.insertAdjacentHTML('beforebegin',chartHTML(chartId,title,sub,`0 ${plural}`));
   }
   function actualizarGraficoIntervenciones(){
     if(currentUser?.role!=='coordinador')return;
-    ensureChartAfterHeader('intervenciones-dir-list','int-zona-chart','Intervenciones por zona','Cantidad de intervenciones cargadas según los filtros actuales.','intervención','intervenciones');
-    renderBars('int-zona-chart',countsPorZona(intervencionesFiltradas(),zonaIntervencion),'intervención','intervenciones');
+    ensureChartAfterHeader('intervenciones-dir-list','int-zona-chart','Actividad de obra por zona','Visitas/intervenciones cargadas en los últimos 30 días.','intervenciones');
+    renderBars('int-zona-chart',actividadPorZona(intervencionesFiltradas(),zonaIntervencion),'visita','visitas');
   }
   function actualizarGraficoRelevamientos(){
     if(currentUser?.role!=='coordinador')return;
-    ensureChartAfterHeader('relevamientos-dir-list','rel-zona-chart','Relevamientos por zona','Cantidad de relevamientos cargados según los filtros actuales.','relevamiento','relevamientos');
-    renderBars('rel-zona-chart',countsPorZona(relevamientosFiltrados(),zonaRelevamiento),'relevamiento','relevamientos');
+    ensureChartAfterHeader('relevamientos-dir-list','rel-zona-chart','Relevamientos por zona','Relevamientos cargados en los últimos 30 días.','relevamientos');
+    renderBars('rel-zona-chart',actividadPorZona(relevamientosFiltrados(),zonaRelevamiento),'relevamiento','relevamientos');
   }
   function wrap(name,after){
     const prev=window[name];
