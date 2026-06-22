@@ -96,10 +96,11 @@
       return client.from('establecimientos').insert(row).select('*').single();
     },
     async actualizarEstablecimiento(id, row){
-      const { data, error } = await client.from('establecimientos').update(row).eq('id', id).select('*').single();
+      const { data, error } = await client.from('establecimientos').update(row).eq('id', id).select('*').limit(1);
       if(error) return { data:null, error };
-      if(!data) return { data:null, error:{ message:'Supabase no devolvió el establecimiento actualizado.' } };
-      return { data, error:null };
+      const actualizado = Array.isArray(data) ? data[0] || null : data;
+      if(!actualizado) return { data:null, error:{ message:'Supabase no permitió actualizar ese establecimiento. Revisá permisos de edición por zona en la tabla establecimientos.' } };
+      return { data:actualizado, error:null };
     },
     async eliminarEstablecimiento(id){
       return client.from('establecimientos').delete().eq('id', id);
