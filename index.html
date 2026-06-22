@@ -4811,8 +4811,6 @@ function renderChartInsp(){
       lng
     };
     modalMsg('Guardando datos...');
-    updateLocalEstabLocation(patch);
-    saveStoredLocation(local);
     let savedRemote=false;
     try{
       if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarEstablecimiento==='function'){
@@ -4829,22 +4827,23 @@ function renderChartInsp(){
           lng:patch.lng
         });
         if(error)throw error;
-        const saved=updateLocalEstabLocation(data||patch);
-        saveStoredLocation(saved||local);
+        if(!data)throw new Error('Supabase no devolvió el establecimiento actualizado.');
+        updateLocalEstabLocation(data);
         savedRemote=true;
       }else if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarUbicacionEstablecimiento==='function'&&lat!==null&&lng!==null){
         const {data,error}=await window.DGIE_DB.actualizarUbicacionEstablecimiento({p_id:id,p_direccion:direccion,p_barrio:barrio,p_lat:lat,p_lng:lng});
         if(error)throw error;
-        const saved=updateLocalEstabLocation(data||patch);
-        saveStoredLocation(saved||local);
+        if(data)updateLocalEstabLocation(data);
         savedRemote=true;
+      }else{
+        const saved=updateLocalEstabLocation(patch);
+        saveStoredLocation(saved||local);
       }
       refreshLocationViews(id);
       modalMsg(savedRemote?'Datos guardados en Supabase.':'Datos guardados localmente en este navegador. Para que los vean todos, entrá con Acceso real.', '#15803d');
       setTimeout(window.closeUbicacionModal,900);
     }catch(err){
-      refreshLocationViews(id);
-      modalMsg(`Se actualizó localmente, pero Supabase respondió: ${err?.message||err}`, '#b45309');
+      modalMsg(`No se pudo guardar en Supabase: ${err?.message||err}`, '#b91c1c');
     }
   };
   function renderPendingLocationList(scope){

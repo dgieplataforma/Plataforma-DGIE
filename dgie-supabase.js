@@ -96,10 +96,10 @@
       return client.from('establecimientos').insert(row).select('*').single();
     },
     async actualizarEstablecimiento(id, row){
-      const { error } = await client.from('establecimientos').update(row).eq('id', id);
+      const { data, error } = await client.from('establecimientos').update(row).eq('id', id).select('*').single();
       if(error) return { data:null, error };
-      const { data, error:selectError } = await client.from('establecimientos').select('*').eq('id', id).limit(1);
-      return { data:Array.isArray(data) ? data[0] || null : data, error:selectError };
+      if(!data) return { data:null, error:{ message:'Supabase no devolvió el establecimiento actualizado.' } };
+      return { data, error:null };
     },
     async eliminarEstablecimiento(id){
       return client.from('establecimientos').delete().eq('id', id);
