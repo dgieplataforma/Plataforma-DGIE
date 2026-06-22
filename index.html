@@ -1345,7 +1345,7 @@ async function guardarEstab(id){
     lng
   };
   if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarEstablecimiento==='function'){
-    const {error}=await window.DGIE_DB.actualizarEstablecimiento(id,{
+    const {data,error}=await window.DGIE_DB.actualizarEstablecimiento(id,{
       zona:draft.zona,
       nombre:draft.n,
       direccion:draft.dir||null,
@@ -1358,6 +1358,18 @@ async function guardarEstab(id){
       lng:draft.lng
     });
     if(error){alert('No se pudo guardar en Supabase: '+error.message);return;}
+    if(data){
+      draft.zona=Number(data.zona)||draft.zona;
+      draft.n=data.nombre||draft.n;
+      draft.dir=data.direccion||'';
+      draft.barrio=data.barrio||'';
+      draft.nivel=data.nivel||draft.nivel;
+      draft.tipo=data.tipo||draft.tipo;
+      draft.est=data.estado||draft.est;
+      draft.cue=data.cue||'';
+      draft.lat=data.lat!==null&&data.lat!==undefined?Number(data.lat):null;
+      draft.lng=data.lng!==null&&data.lng!==undefined?Number(data.lng):null;
+    }
   }
   e.zona=draft.zona;
   e.n=draft.n;
@@ -4673,6 +4685,7 @@ function renderChartInsp(){
       const row=stored[id];
       const e=ESTABS.find(x=>Number(x.id)===Number(id));
       if(!e||!hasRealCoords(row))return;
+      if(window.DGIE_DB?.isConfigured)return;
       e.lat=Number(row.lat);
       e.lng=Number(row.lng);
       if(row.nombre!==undefined)e.n=row.nombre||e.n;
