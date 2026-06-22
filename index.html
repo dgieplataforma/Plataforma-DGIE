@@ -15900,5 +15900,82 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(insertarCountdown,90));else setTimeout(insertarCountdown,90);
 })();
 </script>
+<style id="dgie-inspector-establecimientos-abm-2026-06-22">
+  .insp-estab-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .insp-estab-delete{padding:6px 9px;border:1px solid #f3c5c5;border-radius:9px;background:#fff;color:#b42318;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}
+  .insp-estab-delete:hover{background:#fdecec;border-color:#e19b9b}
+  .insp-estab-muted{font-size:12px;color:#64748b;font-weight:800}
+  @media(max-width:680px){.insp-estab-actions{justify-content:flex-start}.insp-estab-delete{width:100%}}
+</style>
+<script id="dgie-inspector-establecimientos-abm-2026-06-22">
+(function(){
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function zonaInspector(){return Number(currentUser?.zona||0)}
+  function estabsZonaInspector(){const z=zonaInspector();return (ESTABS||[]).filter(e=>Number(e.zona)===z)}
+  function nextId(){return typeof nextEstabId==='function'?nextEstabId():Math.max(0,...(ESTABS||[]).map(e=>Number(e.id)||0))+1}
+  function coordsValidas(lat,lng){return typeof validarCoordenadasEstab==='function'?validarCoordenadasEstab(lat,lng):(Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0)}
+  function volverListado(){renderEstablecimientos(document.getElementById('main-content'))}
+  function tieneRelaciones(estId){
+    const rels=[];
+    if((RECLAMOS_ZONA||[]).some(r=>Number(r.estId)===Number(estId)))rels.push('reclamos');
+    if((OS_ZONA||[]).some(o=>Number(o.estId)===Number(estId)))rels.push('órdenes de servicio');
+    if((typeof INTERVENCIONES!=='undefined'?INTERVENCIONES:[]).some(i=>Number(i.estId)===Number(estId)))rels.push('intervenciones');
+    if((RELEVAMIENTOS?.[estId]||[]).length)rels.push('relevamientos');
+    const certs=typeof CERTIFICADOS_MEDICION!=='undefined'&&Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[];
+    if(certs.some(c=>Number(c.establecimiento_id||c.estId)===Number(estId)))rels.push('certificados');
+    return rels;
+  }
+  window.renderEstablecimientos=function(container){
+    const z=zonaInspector(), data=estabsZonaInspector();
+    container.innerHTML=`<div class="card"><div class="card-header"><div><div class="card-title">Establecimientos · Zona ${z}</div><div class="insp-estab-muted">El inspector puede agregar establecimientos de su zona y eliminar solo los que no tengan movimientos vinculados.</div></div><div class="insp-estab-actions"><button class="primary-btn" onclick="openNuevoEstabInspector()">+ Agregar establecimiento</button><span class="insp-estab-muted">${data.length} en total</span></div></div><div class="estab-filters"><input class="estab-search" id="estab-search" placeholder="Buscar por nombre o dirección..." oninput="filterEstabsInspectorGestion()"><select class="filter-sel" id="estab-filter-nivel" onchange="filterEstabsInspectorGestion()"><option value="">Todos los niveles</option><option>Inicial</option><option>Primario</option><option>Secundario</option><option>Especial</option><option>Adultos</option><option>Superior</option></select><select class="filter-sel" id="estab-filter-est" onchange="filterEstabsInspectorGestion()"><option value="">Todos los estados</option><option>Crítico</option><option>Regular</option><option>Bueno</option></select></div><div id="estab-list"></div></div>`;
+    renderEstabListInspectorGestion(data);
+  };
+  window.filterEstabsInspectorGestion=function(){
+    const q=(document.getElementById('estab-search')?.value||'').toLowerCase();
+    const nivel=document.getElementById('estab-filter-nivel')?.value||'';
+    const est=document.getElementById('estab-filter-est')?.value||'';
+    renderEstabListInspectorGestion(estabsZonaInspector().filter(e=>(String(e.n||'').toLowerCase().includes(q)||String(e.dir||'').toLowerCase().includes(q)||String(e.cue||'').toLowerCase().includes(q))&&(!nivel||e.nivel===nivel)&&(!est||e.est===est)));
+  };
+  window.renderEstabListInspectorGestion=function(data){
+    const el=document.getElementById('estab-list');if(!el)return;
+    const map={Crítico:'b-danger',Regular:'b-warn',Bueno:'b-ok'};
+    el.innerHTML=data.length?data.map(e=>`<div class="estab-card" onclick="openFicha(${Number(e.id)})"><div style="min-width:0"><div class="estab-card-name">${esc(e.n)}</div><div class="estab-card-meta">${esc(e.dir||'Sin dirección')} · ${esc(e.tipo||'Escuela')}</div></div><div class="estab-card-right"><span class="badge b-neutral">${esc(e.nivel||'Sin nivel')}</span><span class="badge ${map[e.est]||'b-neutral'}">${esc(e.est||'Sin relevar')}</span><button class="insp-estab-delete" onclick="event.stopPropagation();eliminarEstabInspector(${Number(e.id)})">Eliminar</button><span style="font-size:24px;color:#888">›</span></div></div>`).join(''):`<div style="text-align:center;padding:26px;color:var(--muted)">No se encontraron establecimientos</div>`;
+  };
+  window.openNuevoEstabInspector=function(){
+    const z=zonaInspector(), main=document.getElementById('main-content');if(!main)return;
+    main.innerHTML=`<button class="back-btn" onclick="renderEstablecimientos(document.getElementById('main-content'))">‹ Volver a establecimientos</button><div class="card"><div class="card-header"><div><div class="card-title">Agregar establecimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Se cargará en Zona ${z}. Latitud y longitud son opcionales.</div></div></div><div class="form-grid"><div class="form-field full"><label class="form-label">Nombre del establecimiento</label><input class="form-input" id="new-est-nombre" placeholder="Nombre completo"></div><div class="form-field"><label class="form-label">Zona</label><input class="form-input" value="Zona ${z}" disabled><input type="hidden" id="new-est-zona" value="${z}"></div><div class="form-field"><label class="form-label">CUE</label><input class="form-input" id="new-est-cue" placeholder="Opcional"></div><div class="form-field full"><label class="form-label">Dirección</label><input class="form-input" id="new-est-dir" placeholder="Calle y número"></div><div class="form-field"><label class="form-label">Barrio</label><input class="form-input" id="new-est-barrio" placeholder="Barrio"></div><div class="form-field"><label class="form-label">Nivel educativo</label><select class="form-select" id="new-est-nivel">${['Inicial','Primario','Secundario','Especial','Adultos','Superior'].map(n=>`<option>${n}</option>`).join('')}</select></div><div class="form-field"><label class="form-label">Tipo</label><select class="form-select" id="new-est-tipo">${['Escuela','Jardín','Anexo','Instituto','Otro'].map(n=>`<option>${n}</option>`).join('')}</select></div><div class="form-field"><label class="form-label">Estado edilicio</label><select class="form-select" id="new-est-estado">${['Bueno','Regular','Crítico'].map(s=>`<option>${s}</option>`).join('')}</select></div><div class="form-field"><label class="form-label">Latitud</label><input class="form-input" id="new-est-lat" placeholder="-31.416700"></div><div class="form-field"><label class="form-label">Longitud</label><input class="form-input" id="new-est-lng" placeholder="-64.183300"></div></div><div class="form-error" id="new-est-error" style="display:none"></div><div class="modal-actions"><button class="secondary-btn" onclick="renderEstablecimientos(document.getElementById('main-content'))">Cancelar</button><button class="primary-btn" onclick="guardarNuevoEstabInspector()">Guardar establecimiento</button></div></div>`;
+  };
+  window.guardarNuevoEstabInspector=async function(){
+    const err=document.getElementById('new-est-error'), val=id=>document.getElementById(id)?.value.trim()||'';
+    const nombre=val('new-est-nombre'), zona=zonaInspector();
+    const latRaw=val('new-est-lat').replace(',','.'), lngRaw=val('new-est-lng').replace(',','.');
+    const lat=latRaw===''?null:Number(latRaw), lng=lngRaw===''?null:Number(lngRaw);
+    if(!nombre){if(err){err.textContent='Ingresá el nombre del establecimiento.';err.style.display='block';}return;}
+    if((lat!==null||lng!==null)&&!coordsValidas(lat,lng)){if(err){err.textContent='Ingresá coordenadas válidas o dejalas vacías.';err.style.display='block';}return;}
+    const nuevo={id:nextId(),zona,n:nombre,cue:val('new-est-cue'),dir:val('new-est-dir'),barrio:val('new-est-barrio'),nivel:val('new-est-nivel')||'Primario',tipo:val('new-est-tipo')||'Escuela',est:val('new-est-estado')||'Bueno',lat,lng};
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearEstablecimiento==='function'){
+      const {data,error}=await window.DGIE_DB.crearEstablecimiento({id:nuevo.id,zona:nuevo.zona,nombre:nuevo.n,cue:nuevo.cue||null,direccion:nuevo.dir||null,barrio:nuevo.barrio||null,nivel:nuevo.nivel,tipo:nuevo.tipo,estado:nuevo.est,lat:nuevo.lat,lng:nuevo.lng});
+      if(error){if(err){err.textContent='No se pudo guardar en Supabase: '+error.message;err.style.display='block';}return;}
+      if(data?.id)nuevo.id=Number(data.id);
+    }
+    ESTABS.push(nuevo);saveAppState&&saveAppState();renderEstablecimientos(document.getElementById('main-content'));
+  };
+  window.eliminarEstabInspector=async function(id){
+    const e=ESTABS.find(x=>Number(x.id)===Number(id));
+    if(!e)return;
+    if(Number(e.zona)!==zonaInspector()){alert('Solo podés eliminar establecimientos de tu zona.');return;}
+    const rels=tieneRelaciones(id);
+    if(rels.length){alert('No se puede eliminar porque tiene información vinculada: '+rels.join(', ')+'.');return;}
+    if(!confirm('¿Eliminar este establecimiento de la zona?'))return;
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarEstablecimiento==='function'){
+      const {error}=await window.DGIE_DB.eliminarEstablecimiento(id);
+      if(error){alert('No se pudo eliminar en Supabase: '+error.message);return;}
+    }
+    const idx=ESTABS.findIndex(x=>Number(x.id)===Number(id));
+    if(idx>=0)ESTABS.splice(idx,1);
+    saveAppState&&saveAppState();renderEstablecimientos(document.getElementById('main-content'));
+  };
+})();
+</script>
 </body>
 </html>
