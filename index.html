@@ -3056,7 +3056,7 @@ function getPrioLabel(p){return ({critico:'Crítico',alto:'Alto',medio:'Medio',b
 function usandoSupabaseProduccion(){return !!window.DGIE_DB?.isConfigured}
 function saveAppState(){if(usandoSupabaseProduccion())return;try{localStorage.setItem(APP_STORAGE_KEY,JSON.stringify({reclamos:RECLAMOS_ZONA,ordenes:OS_ZONA,intervenciones:INTERVENCIONES,comunicaciones:COMUNICACIONES,relevamientos:RELEVAMIENTOS,albumes:ALBUMES_ESTABLECIMIENTO,fotosAlbumes:FOTO_ALBUMES,counter:_reclamoCounter,ts:Date.now()}));}catch(e){console.warn('No se pudo guardar estado local',e)}}
 function loadAppState(){try{if(usandoSupabaseProduccion()){localStorage.removeItem(APP_STORAGE_KEY);return;}const raw=localStorage.getItem(APP_STORAGE_KEY);if(!raw)return;const st=JSON.parse(raw);if(Array.isArray(st.reclamos)){RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...st.reclamos)}if(Array.isArray(st.ordenes)){OS_ZONA.splice(0,OS_ZONA.length,...st.ordenes)}if(Array.isArray(st.intervenciones)){INTERVENCIONES.splice(0,INTERVENCIONES.length,...st.intervenciones)}if(Array.isArray(st.comunicaciones)){COMUNICACIONES.splice(0,COMUNICACIONES.length,...st.comunicaciones)}if(Array.isArray(st.albumes)){ALBUMES_ESTABLECIMIENTO.splice(0,ALBUMES_ESTABLECIMIENTO.length,...st.albumes)}if(Array.isArray(st.fotosAlbumes)){FOTO_ALBUMES.splice(0,FOTO_ALBUMES.length,...st.fotosAlbumes)}if(st.relevamientos&&typeof st.relevamientos==='object'){Object.keys(st.relevamientos).forEach(k=>RELEVAMIENTOS[k]=st.relevamientos[k])}_reclamoCounter=Number(st.counter||RECLAMOS_ZONA.length||0);}catch(e){console.warn('No se pudo cargar estado local',e)}}
-function refreshVisiblePanels(){try{actualizarZoneDataReal&&actualizarZoneDataReal();}catch(e){} if(currentUser){try{renderTab([...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'))||0)}catch(e){}}}
+function refreshVisiblePanels(){try{actualizarZoneDataReal&&actualizarZoneDataReal();}catch(e){} if(document.getElementById('nos-numero'))return; if(currentUser){try{renderTab([...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'))||0)}catch(e){}}}
 function countBy(arr,fn){return arr.reduce((acc,it)=>{const k=fn(it)||'Sin dato';acc[k]=(acc[k]||0)+1;return acc;},{});}
 function prioCounts(arr){const c=countBy(arr,x=>x.prio||'medio');return [c.critico||0,c.alto||0,c.medio||0,c.bajo||0];}
 function rubroLabelsAndData(arr,fn){const c=countBy(arr,fn);const entries=Object.entries(c).sort((a,b)=>b[1]-a[1]);return {labels:entries.map(e=>e[0]),data:entries.map(e=>e[1])};}
@@ -6476,7 +6476,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
   function normalizarCertTxt(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
   function sanitizarNombreCert(s){return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90)}
-  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[MEDICION_FINALIZADA:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
+  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[MEDICION_FINALIZADA:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
   function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (m?.[1]||c?.ordenes_servicio_certificado||c?.ordenes_certificado||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
   window.certVisible=certVisible;
@@ -6815,7 +6815,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
         ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
         ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
-        ${c.observaciones_empresa?`<span style="color:#64748b">Empresa (inicial): ${escapeHtml(c.observaciones_empresa)}</span><br>`:''}
+        ${limpiarObsCert(c.observaciones_empresa)?`<span style="color:#64748b">Empresa (inicial): ${escapeHtml(limpiarObsCert(c.observaciones_empresa))}</span><br>`:''}
         ${limpiarObsCert(c.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</span>`:''}
       </div>
       ${renderHiloConversacion(c,true)}
@@ -6983,7 +6983,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
           ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
           ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
-          ${escapeHtml(limpiarObsCert(c.observaciones_inspector)||c.observaciones_empresa||'Sin observaciones')}
+          ${escapeHtml(limpiarObsCert(c.observaciones_inspector)||limpiarObsCert(c.observaciones_empresa)||'Sin observaciones')}
         </div>
       </div>
       ${currentUser?.role==='inspector'?`<div class="med-actions"><button class="secondary-btn" onclick="seleccionarAnalisisPrecioCertificado('${c.id||c.localId}')">Análisis de precios</button>${window.analisisPrecioCertificadoExiste?.(c.id||c.localId)?`<button class="secondary-btn" onclick="imprimirAnalisisPrecioCertificado('${c.id||c.localId}')">PDF/JPG análisis</button><button class="secondary-btn" style="color:var(--danger)" onclick="desanexarAnalisisPrecioCertificado('${c.id||c.localId}')">Quitar análisis</button>`:''}<button class="secondary-btn" style="color:var(--danger);white-space:nowrap" onclick="volverCertificadoPendiente('${c.id||c.localId}')">Volver a pendiente</button></div>`:''}
@@ -7043,7 +7043,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <button class="back-btn" onclick="renderMedicionesInspector($('main-content'),currentUser.zona)">‹ Volver a certificación</button>
       <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
       <div style="margin-bottom:14px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:13px">
-        ${c.observaciones_empresa?`<div style="margin-bottom:6px"><span style="font-weight:700;color:#64748b">Empresa (inicial):</span> ${escapeHtml(c.observaciones_empresa)}</div>`:''}
+        ${limpiarObsCert(c.observaciones_empresa)?`<div style="margin-bottom:6px"><span style="font-weight:700;color:#64748b">Empresa (inicial):</span> ${escapeHtml(limpiarObsCert(c.observaciones_empresa))}</div>`:''}
         ${limpiarObsCert(c.observaciones_inspector)?`<div style="margin-bottom:6px"><span style="font-weight:700;color:var(--blue)">Inspector:</span> ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</div>`:''}
         ${renderHiloConversacion(c,true)}
       </div>
@@ -12241,7 +12241,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function limpiarObs(txt){
     return typeof window.limpiarObsCert==='function'
       ? window.limpiarObsCert(txt)
-      : String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim();
+      : String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim();
   }
   function conversaciones(c){
     return typeof window.conversacionCert==='function'
@@ -15537,6 +15537,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   let ultimaRecargaOS=0;
   async function recargarOSReal(){
     if(!window.DGIE_DB?.isConfigured||typeof window.cargarDatosPublicosDGIE!=='function')return;
+    if(document.getElementById('nos-numero'))return;
     const ahora=Date.now();
     if(ahora-ultimaRecargaOS<3500)return;
     ultimaRecargaOS=ahora;
