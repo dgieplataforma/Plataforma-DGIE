@@ -14099,6 +14099,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function comentarioAnulacionDGIE(r){
     return String(r?.anuladoComentario||r?.anulado_comentario||'').trim();
   }
+  function limpiarMarcaAnulacionDGIE(txt){
+    return String(txt||'').replace(/\s*\[RECLAMO_ANULADO:[A-Za-z0-9+/=]+\]\s*/g,'').trim();
+  }
   function metaAnulacionDGIE(r){
     const fecha=r?.anuladoEn||r?.anulado_en;
     const por=r?.anuladoPor||r?.anulado_por||'Inspector';
@@ -14122,7 +14125,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ? `<div class="reclamo-anulacion-panel" style="margin:-6px 0 10px 10px;padding:10px 12px;border-left:4px solid #dc2626;background:#fef2f2;border-radius:0 10px 10px 0">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
               <div><span class="badge b-danger">Reclamo anulado</span> <span style="font-size:12px;color:#64748b;font-weight:700">${esc(metaAnulacionDGIE(r))}</span></div>
-              <button class="secondary-btn" type="button" onclick="abrirAnulacionReclamoInspector(${key})">Editar motivo</button>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <button class="secondary-btn" type="button" onclick="abrirAnulacionReclamoInspector(${key})">Editar motivo</button>
+                <button class="secondary-btn" type="button" style="color:#15803d;border-color:#86efac" onclick="revertirAnulacionReclamoInspector(${key})">Revertir</button>
+              </div>
             </div>
             ${comentario?`<div style="font-size:12px;color:#7f1d1d;margin-top:7px"><strong>Motivo:</strong> ${esc(comentario)}</div>`:''}
           </div>`
@@ -14187,6 +14193,40 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     r.updatedAt=now;
     if(typeof saveAppState==='function')saveAppState();
     window.cerrarAnulacionReclamoInspector();
+    if(typeof filterReclamosInspector==='function')filterReclamosInspector();
+    if(typeof filterReclamosCoord==='function')filterReclamosCoord();
+    if(typeof filtrarReclamosCallcenter==='function')filtrarReclamosCallcenter();
+    if(typeof refreshVisiblePanels==='function')refreshVisiblePanels();
+  };
+  window.revertirAnulacionReclamoInspector=async function(key){
+    const r=buscarReclamoDGIE(key);
+    if(!r){alert('No se encontró el reclamo.');return}
+    if(!reclamoAnuladoDGIE(r))return;
+    if(!confirm('¿Revertir la anulación de este reclamo?'))return;
+    const now=new Date().toISOString();
+    const descripcionLimpia=limpiarMarcaAnulacionDGIE(r.descripcion||r.titulo||'');
+    if(r.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarReclamo==='function'){
+      const patch={estado:'pendiente',anulado_comentario:null,anulado_en:null,anulado_por:null,descripcion:descripcionLimpia,updated_at:now};
+      const {data,error}=await window.DGIE_DB.actualizarReclamo(r.remoteId,patch);
+      if(error){
+        const retry=await window.DGIE_DB.actualizarReclamo(r.remoteId,{descripcion:descripcionLimpia,updated_at:now});
+        if(retry.error){alert('No se pudo revertir la anulación en Supabase: '+retry.error.message);return}
+        r.updatedAt=retry.data?.updated_at||now;
+      }else{
+        r.updatedAt=data?.updated_at||now;
+      }
+    }
+    r.estado='pendiente';
+    r.estado_reclamo='pendiente';
+    r.anuladoComentario='';
+    r.anulado_comentario='';
+    r.anuladoEn=null;
+    r.anulado_en=null;
+    r.anuladoPor='';
+    r.anulado_por='';
+    r.descripcion=descripcionLimpia;
+    r.updatedAt=now;
+    if(typeof saveAppState==='function')saveAppState();
     if(typeof filterReclamosInspector==='function')filterReclamosInspector();
     if(typeof filterReclamosCoord==='function')filterReclamosCoord();
     if(typeof filtrarReclamosCallcenter==='function')filtrarReclamosCallcenter();
