@@ -6479,9 +6479,32 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[MEDICION_FINALIZADA:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').trim()}
   function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (m?.[1]||c?.ordenes_servicio_certificado||c?.ordenes_certificado||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
+  function normalizarRubroCertVisible(v){
+    const raw=String(v||'').trim();
+    const txt=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(!txt)return '';
+    if(txt.includes('sanit'))return 'Instalación sanitaria';
+    if(txt.includes('elect'))return 'Instalación eléctrica';
+    if(txt.includes('gas'))return 'Gas';
+    if(txt.includes('cub')||txt.includes('tech'))return 'Cubierta de techos';
+    if(txt.includes('alban')||txt.includes('albañ'))return 'Albañilería';
+    if(txt.includes('herr'))return 'Herrería';
+    if(txt.includes('pint'))return 'Pintura';
+    return raw;
+  }
+  function certRubroVisible(c){
+    const src=[c?.rubro_certificado,c?.observaciones_empresa,c?.observaciones_inspector].map(x=>String(x||'')).join('\n');
+    const m=src.match(/\[RUBRO_CERT:([^\]]*)\]/);
+    return normalizarRubroCertVisible(c?.rubro_certificado||m?.[1]||'');
+  }
+  function renderRubroCertMeta(c){
+    const rubro=certRubroVisible(c);
+    return rubro?`<span style="color:#123c69;font-weight:800">Rubro:</span> ${escapeHtml(rubro)}<br>`:'';
+  }
   window.certVisible=certVisible;
   window.certOrdenes=certOrdenes;
   window.certRubrosCodigos=certRubrosCodigos;
+  window.certRubroVisible=certRubroVisible;
   function certArchivoRenombrado(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[ARCHIVO_RENOMBRE:([^\]]*)\]/);return m?.[1]||c?.archivo_inspector||''}
   window.certArchivoRenombrado=certArchivoRenombrado;
   function certKey(c){return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_')}
@@ -6811,7 +6834,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return data.map(c=>`<div class="med-card">
       <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
       <div class="med-card-meta">
-        Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
+        Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}${certRubroVisible(c)?` · Rubro: ${escapeHtml(certRubroVisible(c))}`:''} · Módulos empresa: ${mods(c.modulos_original)}<br>
         ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
         ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
         ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
