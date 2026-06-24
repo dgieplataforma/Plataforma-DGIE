@@ -3056,7 +3056,12 @@ function getPrioLabel(p){return ({critico:'Crítico',alto:'Alto',medio:'Medio',b
 function usandoSupabaseProduccion(){return !!window.DGIE_DB?.isConfigured}
 function saveAppState(){if(usandoSupabaseProduccion())return;try{localStorage.setItem(APP_STORAGE_KEY,JSON.stringify({reclamos:RECLAMOS_ZONA,ordenes:OS_ZONA,intervenciones:INTERVENCIONES,comunicaciones:COMUNICACIONES,relevamientos:RELEVAMIENTOS,albumes:ALBUMES_ESTABLECIMIENTO,fotosAlbumes:FOTO_ALBUMES,counter:_reclamoCounter,ts:Date.now()}));}catch(e){console.warn('No se pudo guardar estado local',e)}}
 function loadAppState(){try{if(usandoSupabaseProduccion()){localStorage.removeItem(APP_STORAGE_KEY);return;}const raw=localStorage.getItem(APP_STORAGE_KEY);if(!raw)return;const st=JSON.parse(raw);if(Array.isArray(st.reclamos)){RECLAMOS_ZONA.splice(0,RECLAMOS_ZONA.length,...st.reclamos)}if(Array.isArray(st.ordenes)){OS_ZONA.splice(0,OS_ZONA.length,...st.ordenes)}if(Array.isArray(st.intervenciones)){INTERVENCIONES.splice(0,INTERVENCIONES.length,...st.intervenciones)}if(Array.isArray(st.comunicaciones)){COMUNICACIONES.splice(0,COMUNICACIONES.length,...st.comunicaciones)}if(Array.isArray(st.albumes)){ALBUMES_ESTABLECIMIENTO.splice(0,ALBUMES_ESTABLECIMIENTO.length,...st.albumes)}if(Array.isArray(st.fotosAlbumes)){FOTO_ALBUMES.splice(0,FOTO_ALBUMES.length,...st.fotosAlbumes)}if(st.relevamientos&&typeof st.relevamientos==='object'){Object.keys(st.relevamientos).forEach(k=>RELEVAMIENTOS[k]=st.relevamientos[k])}_reclamoCounter=Number(st.counter||RECLAMOS_ZONA.length||0);}catch(e){console.warn('No se pudo cargar estado local',e)}}
-function refreshVisiblePanels(){try{actualizarZoneDataReal&&actualizarZoneDataReal();}catch(e){} if(document.getElementById('nos-numero'))return; if(currentUser){try{renderTab([...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'))||0)}catch(e){}}}
+function refreshVisiblePanels(){
+  try{actualizarZoneDataReal&&actualizarZoneDataReal();}catch(e){}
+  if(typeof window.dgieVistaInternaActiva==='function'&&window.dgieVistaInternaActiva())return;
+  if(document.getElementById('nos-numero'))return;
+  if(currentUser){try{renderTab([...document.querySelectorAll('.tab')].findIndex(t=>t.classList.contains('active'))||0)}catch(e){}}
+}
 function countBy(arr,fn){return arr.reduce((acc,it)=>{const k=fn(it)||'Sin dato';acc[k]=(acc[k]||0)+1;return acc;},{});}
 function prioCounts(arr){const c=countBy(arr,x=>x.prio||'medio');return [c.critico||0,c.alto||0,c.medio||0,c.bajo||0];}
 function rubroLabelsAndData(arr,fn){const c=countBy(arr,fn);const entries=Object.entries(c).sort((a,b)=>b[1]-a[1]);return {labels:entries.map(e=>e[0]),data:entries.map(e=>e[1])};}
@@ -5199,10 +5204,8 @@ function renderChartInsp(){
       actualizarZoneDataReal();
       normalizarOSExistentes();
       saveAppState();
-      refreshVisiblePanels();
-      if(currentUser&&typeof window.renderTab==='function'&&!document.getElementById('nos-numero')){
-        const active=[...document.querySelectorAll('#nav-tabs .tab')].findIndex(t=>t.classList.contains('active'));
-        window.renderTab(Math.max(0,active));
+      if(!(typeof window.dgieVistaInternaActiva==='function'&&window.dgieVistaInternaActiva())){
+        refreshVisiblePanels();
       }
       if(document.getElementById('inspector-map-layer'))window.renderDgieRealMap('inspector');
       if(document.getElementById('coord-map-layer'))window.renderDgieRealMap('coord');
@@ -11825,6 +11828,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const idx=tabGuardada();
     setTimeout(()=>{
       if(!currentUser||typeof window.renderTab!=='function')return;
+      if(typeof window.dgieVistaInternaActiva==='function'&&window.dgieVistaInternaActiva())return;
       const tabs=(window.dgieTabsForUser?window.dgieTabsForUser(currentUser):(window.tabsForUser?window.tabsForUser(currentUser):[]))||[];
       window.renderTab(Math.min(idx,Math.max(0,tabs.length-1)));
     },180);
@@ -15600,6 +15604,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   let ultimaRecargaOS=0;
   async function recargarOSReal(){
     if(!window.DGIE_DB?.isConfigured||typeof window.cargarDatosPublicosDGIE!=='function')return;
+    if(typeof window.dgieVistaInternaActiva==='function'&&window.dgieVistaInternaActiva())return;
     if(document.getElementById('nos-numero'))return;
     const ahora=Date.now();
     if(ahora-ultimaRecargaOS<3500)return;
@@ -16242,6 +16247,42 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(n.nodeType===1)prepararTodas(n);
     }));
   }).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+<script id="dgie-preservar-vistas-internas-2026-06-24">
+(function(){
+  function tiene(sel){return !!document.querySelector(sel);}
+  function textoPrincipal(){
+    const raw=document.getElementById('main-content')?.textContent||'';
+    return String(raw).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  }
+  function detalleMedicionActivo(){
+    const el=document.getElementById('med-detalle');
+    return !!(el&&el.textContent&&el.textContent.trim());
+  }
+  function fichaActiva(){
+    return tiene('#ficha-body')||tiene('#map-ficha-body');
+  }
+  function formularioActivo(){
+    return [
+      '#nos-numero',
+      '#int-fecha','#int-avance','#int-desc','#int-fotos','#int-est','#int-os-combo','#int-os-selected',
+      '#rel-fecha','#rel-comentarios','#rel-fotos','#rel-est','#rel-os-combo','#rel-os-selected',
+      '#insp-cert-file','#insp-cert-medicion','#insp-cert-periodo','#insp-cert-obs','#insp-cert-os-list',
+      '#ap-concepto','#ap-materiales','.ap-material-row',
+      '.cert-final-modulos-row','.os-task-expanded'
+    ].some(tiene);
+  }
+  window.dgieVistaInternaActiva=function(){
+    if(formularioActivo())return true;
+    if(detalleMedicionActivo())return true;
+    if(fichaActiva())return true;
+    const txt=textoPrincipal();
+    return /(crear|editar|nueva|nuevo)\s+orden de servicio|nuevo relevamiento|editar relevamiento|nueva intervencion|editar intervencion|revisar certificado|nuevo analisis|editar analisis/.test(txt);
+  };
+  window.dgiePuedeRepintarVista=function(){
+    return !(typeof window.dgieVistaInternaActiva==='function'&&window.dgieVistaInternaActiva());
+  };
 })();
 </script>
 </body>

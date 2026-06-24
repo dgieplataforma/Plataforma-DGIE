@@ -69,6 +69,21 @@
       from += pageSize;
     }
   }
+  function oneOrError(data, label){
+    const row = Array.isArray(data) ? data[0] || null : data;
+    if(row) return { data:row, error:null };
+    return { data:null, error:{ message:`Supabase no devolvió datos al guardar ${label}. Revisá permisos o filtros de la tabla.` } };
+  }
+  async function updateOne(table, id, row, label){
+    const { data, error } = await client.from(table).update(row).eq('id', id).select('*').limit(1);
+    if(error) return { data:null, error };
+    return oneOrError(data, label);
+  }
+  async function upsertOne(table, row, options, label){
+    const { data, error } = await client.from(table).upsert(row, options).select('*').limit(1);
+    if(error) return { data:null, error };
+    return oneOrError(data, label);
+  }
 
   window.DGIE_DB = {
     isConfigured: true,
@@ -96,11 +111,7 @@
       return client.from('establecimientos').insert(row).select('*').single();
     },
     async actualizarEstablecimiento(id, row){
-      const { data, error } = await client.from('establecimientos').update(row).eq('id', id).select('*').limit(1);
-      if(error) return { data:null, error };
-      const actualizado = Array.isArray(data) ? data[0] || null : data;
-      if(!actualizado) return { data:null, error:{ message:'Supabase no permitió actualizar ese establecimiento. Revisá permisos de edición por zona en la tabla establecimientos.' } };
-      return { data:actualizado, error:null };
+      return updateOne('establecimientos', id, row, 'ese establecimiento');
     },
     async eliminarEstablecimiento(id){
       return client.from('establecimientos').delete().eq('id', id);
@@ -118,7 +129,7 @@
       return client.from('reclamos').insert(row).select('*').single();
     },
     async actualizarReclamo(id, row){
-      return client.from('reclamos').update(row).eq('id', id).select('*').single();
+      return updateOne('reclamos', id, row, 'ese reclamo');
     },
     async listarOrdenes(){
       return selectAll('ordenes_servicio', { orderBy:'created_at', ascending:false });
@@ -127,7 +138,7 @@
       return client.from('ordenes_servicio').insert(row).select('*').single();
     },
     async actualizarOrden(id, row){
-      return client.from('ordenes_servicio').update(row).eq('id', id).select('*').single();
+      return updateOne('ordenes_servicio', id, row, 'esa orden de servicio');
     },
     async actualizarEmpresaFinalizo(ordenId, valor){
       return client.rpc('marcar_empresa_finalizo', { p_orden_id: String(ordenId), p_valor: !!valor });
@@ -142,7 +153,7 @@
       return client.from('intervenciones').insert(row).select('*').single();
     },
     async actualizarIntervencion(id, row){
-      return client.from('intervenciones').update(row).eq('id', id).select('*').single();
+      return updateOne('intervenciones', id, row, 'esa intervencion');
     },
     async eliminarIntervencion(id){
       return client.from('intervenciones').delete().eq('id', id);
@@ -154,7 +165,7 @@
       return client.from('relevamientos').insert(row).select('*').single();
     },
     async actualizarRelevamiento(id, row){
-      return client.from('relevamientos').update(row).eq('id', id).select('*').single();
+      return updateOne('relevamientos', id, row, 'ese relevamiento');
     },
     async eliminarRelevamiento(id){
       return client.from('relevamientos').delete().eq('id', id);
@@ -166,7 +177,7 @@
       return client.from('avisos_globales').select('*').eq('id', id).maybeSingle();
     },
     async guardarAvisoGlobal(row){
-      return client.from('avisos_globales').upsert(row, { onConflict:'id' }).select('*').single();
+      return upsertOne('avisos_globales', row, { onConflict:'id' }, 'ese aviso');
     },
     async crearComunicacion(row){
       return client.from('comunicaciones').insert(row).select('*').single();
@@ -233,13 +244,13 @@
       return client.from('inspectores_zona').select('*').order('zona', { ascending:true });
     },
     async actualizarInspector(zona, row){
-      return client.from('inspectores_zona').upsert({ zona, ...row }, { onConflict:'zona' }).select('*').single();
+      return upsertOne('inspectores_zona', { zona, ...row }, { onConflict:'zona' }, 'ese inspector');
     },
     async listarEmpresas(){
       return client.from('empresas_zona').select('*').order('zona', { ascending:true });
     },
     async actualizarEmpresa(zona, row){
-      return client.from('empresas_zona').upsert({ zona, ...row }, { onConflict:'zona' }).select('*').single();
+      return upsertOne('empresas_zona', { zona, ...row }, { onConflict:'zona' }, 'esa empresa');
     },
     async listarCertificadosMedicion(zona){
       const filters = [];
@@ -252,7 +263,7 @@
       return client.from('certificados_medicion').insert(row).select('*').single();
     },
     async actualizarCertificadoMedicion(id, row){
-      return client.from('certificados_medicion').update(row).eq('id', id).select('*').single();
+      return updateOne('certificados_medicion', id, row, 'ese certificado');
     },
     async listarAnalisisPrecios(zona){
       const filters = [];
@@ -262,7 +273,7 @@
       return selectAll('analisis_precios', { orderBy:'updated_at', ascending:false, filters });
     },
     async guardarAnalisisPrecio(row){
-      return client.from('analisis_precios').upsert(row, { onConflict:'id' }).select('*').single();
+      return upsertOne('analisis_precios', row, { onConflict:'id' }, 'ese analisis de precios');
     },
     async eliminarAnalisisPrecio(id){
       return client.from('analisis_precios').delete().eq('id', id);
