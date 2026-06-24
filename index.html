@@ -15927,12 +15927,18 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function pad(v){return String(Math.max(0,Math.floor(v))).padStart(2,'0')}
   function esHoyMensaje(){const d=new Date();return d.getFullYear()===2026&&d.getMonth()===5&&d.getDate()===24}
   function rolUsuarioActual(){const user=typeof currentUser!=='undefined'?currentUser:window.currentUser;return (user?.role||user?.rol||'').toLowerCase()}
+  function usuarioVeCountdown(){return rolUsuarioActual()!=='empresa'}
   function usuarioVeAviso(){const rol=rolUsuarioActual();return rol==='inspector'||rol==='coordinador'||rol==='direccion'||rol==='dirección'}
   function esCoordinador(){const rol=rolUsuarioActual();return rol==='coordinador'||rol==='direccion'||rol==='dirección'}
   function countdownHTML(){return '<span class="arg-match-stack" id="arg-match-stack"><span class="arg-match-line"><span class="arg-match-countdown" id="arg-match-countdown" title="Cuenta regresiva selección argentina"><span class="arg-match-dot"></span><span class="arg-match-info"><span class="arg-match-title" data-arg-match-title>Próximo partido</span><span class="arg-match-sub" data-arg-match-sub>Argentina</span></span><span class="arg-match-time" aria-live="polite"><span data-arg-dd>00</span><small>d</small><b class="arg-match-sep">:</b><span data-arg-hh>00</span><small>h</small><b class="arg-match-sep">:</b><span data-arg-mm>00</span><small>m</small><b class="arg-match-sep">:</b><span data-arg-ss>00</span><small>s</small></span></span></span><span class="arg-topbar-msg" id="arg-topbar-msg" onclick="editarMensajeArgentinaHoy()" title="Editar mensaje"></span></span>'}
   function insertarCountdown(){
     const topbar=document.querySelector('.topbar'), right=topbar?.querySelector('.topbar-right');
     if(!topbar||!right)return;
+    if(!usuarioVeCountdown()){
+      document.getElementById('arg-match-stack')?.remove();
+      topbar.classList.remove('arg-has-arg','arg-has-msg');
+      return;
+    }
     topbar.classList.add('arg-has-arg');
     let stack=document.getElementById('arg-match-stack'), el=document.getElementById('arg-match-countdown');
     if(!stack){
