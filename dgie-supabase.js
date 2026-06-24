@@ -162,6 +162,12 @@
     async listarComunicaciones(){
       return selectAll('comunicaciones', { orderBy:'created_at', ascending:false });
     },
+    async obtenerAvisoGlobal(id){
+      return client.from('avisos_globales').select('*').eq('id', id).maybeSingle();
+    },
+    async guardarAvisoGlobal(row){
+      return client.from('avisos_globales').upsert(row, { onConflict:'id' }).select('*').single();
+    },
     async crearComunicacion(row){
       return client.from('comunicaciones').insert(row).select('*').single();
     },

@@ -15890,16 +15890,28 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 })();
 </script>
 <style id="dgie-argentina-countdown-2026-06-22">
-  .arg-match-countdown{display:inline-flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid #d7e7f7;border-radius:999px;background:linear-gradient(180deg,#fff,#f5fbff);box-shadow:0 3px 10px rgba(0,90,169,.08);white-space:nowrap;color:#123c69}
+  .topbar.arg-has-arg{display:grid;grid-template-columns:minmax(390px,1fr) minmax(270px,340px) max-content;column-gap:18px;align-items:center}
+  .topbar.arg-has-arg .topbar-brand{min-width:0;max-width:100%;padding-top:0}
+  .topbar.arg-has-arg .brand-text{line-height:1.06}
+  .topbar.arg-has-arg .topbar-right{justify-self:end;align-items:center}
+  .topbar.arg-has-msg{height:88px;padding-top:8px;padding-bottom:8px}
+  .arg-match-stack{display:inline-flex;flex-direction:column;align-items:center;justify-self:center;align-self:center;gap:4px;width:100%;min-width:0;max-width:340px}
+  .arg-match-line{display:inline-flex;align-items:center;justify-content:center;width:100%;gap:0}
+  .arg-match-countdown{display:inline-flex;align-items:center;justify-content:center;width:100%;gap:7px;padding:5px 10px;border:1px solid #d7e7f7;border-radius:999px;background:linear-gradient(180deg,#fff,#f5fbff);box-shadow:0 3px 10px rgba(0,90,169,.08);white-space:nowrap;color:#123c69}
   .arg-match-dot{width:8px;height:8px;border-radius:50%;background:#75bff2;box-shadow:0 0 0 3px rgba(117,191,242,.18)}
   .arg-match-info{display:flex;flex-direction:column;gap:1px;line-height:1}
-  .arg-match-title{font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#005aa9}
-  .arg-match-sub{font-size:10px;font-weight:800;color:#64748b}
-  .arg-match-time{display:flex;align-items:center;gap:3px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:900;color:#0f2f57}
+  .arg-match-title{font-size:9px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#005aa9}
+  .arg-match-sub{font-size:9px;font-weight:800;color:#64748b}
+  .arg-match-time{display:flex;align-items:center;gap:3px;font-variant-numeric:tabular-nums;font-size:13px;font-weight:900;color:#0f2f57}
   .arg-match-time span{min-width:2ch;text-align:center}
+  .arg-match-time small{font-size:9px;font-weight:900;color:#64748b;margin-left:-2px;text-transform:lowercase}
   .arg-match-sep{color:#8aa7c3;font-weight:900;margin:0 -1px}
-  @media(max-width:980px){.arg-match-sub{display:none}.arg-match-countdown{gap:6px;padding:4px 7px}.arg-match-time{font-size:13px}.arg-match-title{font-size:9px}}
-  @media(max-width:760px){.arg-match-countdown{display:none}}
+  .arg-msg-btn{display:none!important}
+  .arg-topbar-msg{display:none;width:100%;color:#005aa9;font-size:12px;font-weight:900;letter-spacing:.02em;line-height:1.15;text-align:center;white-space:nowrap;text-transform:uppercase;min-height:14px}
+  .arg-topbar-msg.arg-editable{cursor:pointer;pointer-events:auto}
+  .arg-topbar-msg.arg-empty{color:#7aa5cc;text-transform:none}
+  @media(max-width:1080px){.topbar.arg-has-arg{grid-template-columns:minmax(250px,1fr) minmax(238px,300px) max-content;column-gap:10px}.topbar.arg-has-arg .brand-text{font-size:14px}.arg-match-sub{display:none}.arg-match-countdown{gap:6px;padding:4px 8px}.arg-match-time{font-size:12px}.arg-topbar-msg{font-size:11px}}
+  @media(max-width:760px){.topbar.arg-has-arg{display:flex}.arg-match-stack{display:none}}
 </style>
 <script id="dgie-argentina-countdown-2026-06-22">
 (function(){
@@ -15907,20 +15919,31 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     {code:'ARG-AUT',titulo:'ARG vs AUT',rival:'Austria',cuando:'2026-06-22T14:00:00-03:00',detalle:'Hoy 14:00'},
     {code:'JOR-ARG',titulo:'JOR vs ARG',rival:'Jordania',cuando:'2026-06-27T23:00:00-03:00',detalle:'27/06 23:00'}
   ];
+  const MSG_KEY='dgie_argentina_mensaje_2026_06_24';
+  const AVISO_ID='argentina-2026-06-24';
+  let avisoMensajeCache='',avisoUltimaCarga=0,avisoCargando=false;
   let timer=null;
   function proximoPartido(){const now=Date.now();return PARTIDOS.find(p=>new Date(p.cuando).getTime()>now)||null}
   function pad(v){return String(Math.max(0,Math.floor(v))).padStart(2,'0')}
-  function countdownHTML(){return '<span class="arg-match-countdown" id="arg-match-countdown" title="Cuenta regresiva selección argentina"><span class="arg-match-dot"></span><span class="arg-match-info"><span class="arg-match-title" data-arg-match-title>Próximo partido</span><span class="arg-match-sub" data-arg-match-sub>Argentina</span></span><span class="arg-match-time" aria-live="polite"><span data-arg-hh>00</span><b class="arg-match-sep">:</b><span data-arg-mm>00</span><b class="arg-match-sep">:</b><span data-arg-ss>00</span></span></span>'}
+  function esHoyMensaje(){const d=new Date();return d.getFullYear()===2026&&d.getMonth()===5&&d.getDate()===24}
+  function rolUsuarioActual(){const user=typeof currentUser!=='undefined'?currentUser:window.currentUser;return (user?.role||user?.rol||'').toLowerCase()}
+  function usuarioVeAviso(){const rol=rolUsuarioActual();return rol==='inspector'||rol==='coordinador'||rol==='direccion'||rol==='dirección'}
+  function esCoordinador(){const rol=rolUsuarioActual();return rol==='coordinador'||rol==='direccion'||rol==='dirección'}
+  function countdownHTML(){return '<span class="arg-match-stack" id="arg-match-stack"><span class="arg-match-line"><span class="arg-match-countdown" id="arg-match-countdown" title="Cuenta regresiva selección argentina"><span class="arg-match-dot"></span><span class="arg-match-info"><span class="arg-match-title" data-arg-match-title>Próximo partido</span><span class="arg-match-sub" data-arg-match-sub>Argentina</span></span><span class="arg-match-time" aria-live="polite"><span data-arg-dd>00</span><small>d</small><b class="arg-match-sep">:</b><span data-arg-hh>00</span><small>h</small><b class="arg-match-sep">:</b><span data-arg-mm>00</span><small>m</small><b class="arg-match-sep">:</b><span data-arg-ss>00</span><small>s</small></span></span></span><span class="arg-topbar-msg" id="arg-topbar-msg" onclick="editarMensajeArgentinaHoy()" title="Editar mensaje"></span></span>'}
   function insertarCountdown(){
-    const topbar=document.querySelector('.topbar-right'), chip=topbar?.querySelector('.user-chip');
-    if(!topbar||!chip)return;
-    let el=document.getElementById('arg-match-countdown');
-    if(!el){
-      const badge=topbar.querySelector('.arg-mini-badge');
-      (badge||chip).insertAdjacentHTML(badge?'afterend':'beforebegin',countdownHTML());
+    const topbar=document.querySelector('.topbar'), right=topbar?.querySelector('.topbar-right');
+    if(!topbar||!right)return;
+    topbar.classList.add('arg-has-arg');
+    let stack=document.getElementById('arg-match-stack'), el=document.getElementById('arg-match-countdown');
+    if(!stack){
+      right.insertAdjacentHTML('beforebegin',countdownHTML());
+      stack=document.getElementById('arg-match-stack');
       el=document.getElementById('arg-match-countdown');
+    }else if(stack.parentElement!==topbar){
+      topbar.insertBefore(stack,right);
     }
     actualizarCountdown();
+    cargarMensajeArgentinaHoy(true);
     if(!timer)timer=setInterval(actualizarCountdown,1000);
   }
   function actualizarCountdown(){
@@ -15928,22 +15951,98 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!el)return;
     const p=proximoPartido();
     const title=el.querySelector('[data-arg-match-title]'), sub=el.querySelector('[data-arg-match-sub]');
-    const hh=el.querySelector('[data-arg-hh]'), mm=el.querySelector('[data-arg-mm]'), ss=el.querySelector('[data-arg-ss]');
+    const dd=el.querySelector('[data-arg-dd]'), hh=el.querySelector('[data-arg-hh]'), mm=el.querySelector('[data-arg-mm]'), ss=el.querySelector('[data-arg-ss]');
     if(!p){
       if(title)title.textContent='Próximo partido';
       if(sub)sub.textContent='A confirmar';
-      if(hh)hh.textContent='00'; if(mm)mm.textContent='00'; if(ss)ss.textContent='00';
+      if(dd)dd.textContent='00'; if(hh)hh.textContent='00'; if(mm)mm.textContent='00'; if(ss)ss.textContent='00';
       return;
     }
     const diff=Math.max(0,new Date(p.cuando).getTime()-Date.now());
-    const totalSeconds=Math.floor(diff/1000), hours=Math.floor(totalSeconds/3600), minutes=Math.floor((totalSeconds%3600)/60), seconds=totalSeconds%60;
+    const totalSeconds=Math.floor(diff/1000), days=Math.floor(totalSeconds/86400), hours=Math.floor((totalSeconds%86400)/3600), minutes=Math.floor((totalSeconds%3600)/60), seconds=totalSeconds%60;
     if(title)title.textContent=p.titulo;
     if(sub)sub.textContent=p.detalle;
+    if(dd)dd.textContent=pad(days);
     if(hh)hh.textContent=pad(hours);
     if(mm)mm.textContent=pad(minutes);
     if(ss)ss.textContent=pad(seconds);
+    if(Date.now()-avisoUltimaCarga>60000)cargarMensajeArgentinaHoy(false);else actualizarMensajeArgentinaHoy();
     if(diff<=0)setTimeout(actualizarCountdown,250);
   }
+  async function cargarMensajeArgentinaHoy(force){
+    if(!esHoyMensaje()||!usuarioVeAviso()){avisoMensajeCache='';actualizarMensajeArgentinaHoy();return}
+    if(avisoCargando||(!force&&Date.now()-avisoUltimaCarga<60000)){actualizarMensajeArgentinaHoy();return}
+    avisoCargando=true;
+    try{
+      if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.obtenerAvisoGlobal==='function'){
+        const {data,error}=await window.DGIE_DB.obtenerAvisoGlobal(AVISO_ID);
+        if(error)throw error;
+        avisoMensajeCache=data?.activo?String(data?.mensaje||'').trim():'';
+      }else{
+        avisoMensajeCache=(localStorage.getItem(MSG_KEY)||'').trim();
+      }
+      avisoUltimaCarga=Date.now();
+    }catch(err){
+      console.warn('No se pudo cargar el aviso de Argentina',err);
+      avisoMensajeCache=(localStorage.getItem(MSG_KEY)||'').trim();
+      avisoUltimaCarga=Date.now();
+    }finally{
+      avisoCargando=false;
+      actualizarMensajeArgentinaHoy();
+    }
+  }
+  function posicionarMensajeArgentinaHoy(){}
+  window.actualizarMensajeArgentinaHoy=function(){
+    const msgEl=document.getElementById('arg-topbar-msg'), btn=document.getElementById('arg-msg-btn');
+    if(!msgEl&&!btn)return;
+    const habilitado=esHoyMensaje()&&usuarioVeAviso();
+    const mensaje=String(avisoMensajeCache||'').trim();
+    const editable=habilitado&&esCoordinador();
+    const visible=habilitado&&(!!mensaje||editable);
+    document.querySelector('.topbar')?.classList.toggle('arg-has-msg',!!visible);
+    if(btn)btn.hidden=!(habilitado&&esCoordinador());
+    if(msgEl){
+      msgEl.classList.toggle('arg-editable',!!editable);
+      msgEl.classList.toggle('arg-empty',!!(editable&&!mensaje));
+      if(visible){msgEl.textContent=mensaje||'Escribe un mensaje';msgEl.style.display='block'}
+      else{msgEl.textContent='';msgEl.style.display='none'}
+    }
+  }
+  window.editarMensajeArgentinaHoy=function(){
+    if(!esHoyMensaje())return;
+    if(!esCoordinador())return;
+    const actual=String(avisoMensajeCache||localStorage.getItem(MSG_KEY)||'').trim();
+    const nuevo=prompt('Mensaje para mostrar hoy debajo del contador. Dejá vacío para quitarlo.',actual);
+    if(nuevo===null)return;
+    const limpio=nuevo.trim();
+    avisoMensajeCache=limpio;
+    window.actualizarMensajeArgentinaHoy();
+    (async()=>{
+      try{
+        if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.guardarAvisoGlobal==='function'){
+          const user=typeof currentUser!=='undefined'?currentUser:window.currentUser;
+          const {error}=await window.DGIE_DB.guardarAvisoGlobal({
+            id:AVISO_ID,
+            fecha:'2026-06-24',
+            mensaje:limpio,
+            destino:['inspector'],
+            activo:!!limpio,
+            creado_por_nombre:user?.name||user?.nombre||'Coordinación',
+            updated_at:new Date().toISOString()
+          });
+          if(error)throw error;
+        }
+        if(limpio)localStorage.setItem(MSG_KEY,limpio);else localStorage.removeItem(MSG_KEY);
+        avisoUltimaCarga=0;
+        cargarMensajeArgentinaHoy(true);
+      }catch(err){
+        console.warn('No se pudo guardar el aviso de Argentina',err);
+        alert('No se pudo guardar el mensaje en Supabase: '+(err?.message||err));
+        if(limpio)localStorage.setItem(MSG_KEY,limpio);else localStorage.removeItem(MSG_KEY);
+      }
+    })();
+  }
+  window.addEventListener('storage',ev=>{if(ev.key===MSG_KEY){avisoMensajeCache=(localStorage.getItem(MSG_KEY)||'').trim();window.actualizarMensajeArgentinaHoy()}});
   const prevLoadUser=window.loadUser;
   if(typeof prevLoadUser==='function'&&!prevLoadUser.__argCountdown){
     const wrapped=function(){const res=prevLoadUser.apply(this,arguments);setTimeout(insertarCountdown,60);return res};
