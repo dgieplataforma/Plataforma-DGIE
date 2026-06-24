@@ -16029,6 +16029,92 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     saveAppState&&saveAppState();renderEstablecimientos(document.getElementById('main-content'));
   };
 })();
+  </script>
+<style id="dgie-os-task-expandible-2026-06-24">
+  .os-table .os-task{
+    cursor:pointer;
+    border:1px solid transparent;
+    border-radius:8px;
+    padding:3px 5px;
+    transition:background .15s,border-color .15s,box-shadow .15s;
+  }
+  .os-table .os-task:hover,
+  .os-table .os-task:focus{
+    background:#f1f7ff;
+    border-color:#cfe0f3;
+    outline:none;
+  }
+  .os-table .os-task.os-task-expanded{
+    display:block;
+    -webkit-line-clamp:unset;
+    -webkit-box-orient:initial;
+    overflow:visible;
+    text-overflow:clip;
+    white-space:pre-wrap;
+    width:min(620px,62vw);
+    max-width:min(620px,62vw);
+    background:#fff;
+    border-color:#7db7ea;
+    box-shadow:0 10px 24px rgba(15,23,42,.14);
+    position:relative;
+    z-index:6;
+  }
+  .os-table tr:has(.os-task-expanded) td{
+    background:#fbfdff;
+    vertical-align:top;
+  }
+  @media(max-width:760px){
+    .os-table .os-task.os-task-expanded{
+      width:min(420px,78vw);
+      max-width:min(420px,78vw);
+    }
+  }
+</style>
+<script id="dgie-os-task-expandible-2026-06-24">
+(function(){
+  function prepararTarea(el){
+    if(!el||el.__osTaskExpandible)return;
+    el.__osTaskExpandible=true;
+    el.setAttribute('tabindex','0');
+    el.setAttribute('title','Tocar para ampliar o contraer');
+  }
+  function cerrarOtras(actual){
+    document.querySelectorAll('.os-task.os-task-expanded').forEach(el=>{
+      if(el!==actual)el.classList.remove('os-task-expanded');
+    });
+  }
+  function toggle(el){
+    if(!el)return;
+    prepararTarea(el);
+    cerrarOtras(el);
+    el.classList.toggle('os-task-expanded');
+  }
+  function prepararTodas(root=document){
+    root.querySelectorAll?.('.os-task').forEach(prepararTarea);
+  }
+  document.addEventListener('mouseover',ev=>{
+    const el=ev.target.closest?.('.os-task');
+    if(el)prepararTarea(el);
+  });
+  document.addEventListener('click',ev=>{
+    const el=ev.target.closest?.('.os-task');
+    if(!el)return;
+    ev.stopPropagation();
+    toggle(el);
+  });
+  document.addEventListener('keydown',ev=>{
+    const el=ev.target.closest?.('.os-task');
+    if(!el||!['Enter',' '].includes(ev.key))return;
+    ev.preventDefault();
+    toggle(el);
+  });
+  document.addEventListener('DOMContentLoaded',()=>prepararTodas());
+  new MutationObserver(muts=>{
+    muts.forEach(m=>m.addedNodes.forEach(n=>{
+      if(n.nodeType===1)prepararTodas(n);
+    }));
+  }).observe(document.documentElement,{childList:true,subtree:true});
+})();
 </script>
 </body>
 </html>
