@@ -6448,10 +6448,26 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const buffer=await file.arrayBuffer();
     const wb=XLSX.read(buffer,{type:'array'});
     const ws=wb.Sheets[wb.SheetNames[0]];
-    // Intento 1: celda fija G720 (planilla base)
-    const fijo=ws?.G720?.v;
-    if(fijo!=null&&fijo!=='')return fijo;
-    // Intento 2: buscar la etiqueta "TOTAL DE MODULOS MEDIDOS" y leer la celda adyacente a la derecha
+    function numCert(v){
+      if(v==null||v==='')return 0;
+      if(typeof v==='number')return v;
+      let s=String(v).replace(/\$/g,'').replace(/\s/g,'').replace(/[^0-9,.\-]/g,'');
+      const lastComma=s.lastIndexOf(',');
+      const lastDot=s.lastIndexOf('.');
+      if(lastComma>=0&&lastDot>=0){
+        const decimal=lastComma>lastDot?',':'.';
+        s=s.replace(decimal===','?/\./g:/,/g,'').replace(decimal,'.');
+      }else if(lastComma>=0){
+        s=s.replace(/\./g,'').replace(',','.');
+      }else{
+        const partes=s.split('.');
+        if(partes.length>2)s=s.replace(/\./g,'');
+      }
+      const n=Number(s);
+      return Number.isFinite(n)?n:0;
+    }
+    // Intento 1: buscar la etiqueta "TOTAL DE MODULOS MEDIDOS" y leer la celda adyacente a la derecha.
+    // En algunas planillas G720 es el monto en pesos (= modulos * valor modulo), no la cantidad de modulos.
     const ref=ws['!ref'];
     if(!ref)return '';
     const range=XLSX.utils.decode_range(ref);
@@ -6469,8 +6485,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         }
       }
     }
+    // Intento 2: si hay monto total y valor de modulo, derivar la cantidad real.
+    const monto=numCert(ws?.G720?.v??ws?.G720?.w);
+    const valorModulo=numCert(ws?.G719?.v??ws?.G719?.w);
+    if(monto>0&&valorModulo>0&&monto>valorModulo)return monto/valorModulo;
+    // Intento 3: compatibilidad con planillas viejas donde G720 si era la cantidad de modulos.
+    const fijo=ws?.G720?.v;
+    if(fijo!=null&&fijo!=='')return fijo;
     return '';
   }
+  window.leerModulosCertificadoArchivo=leerG720;
   window.autocompletarModuloCertificado=async function(fileId,inputId){
     const file=$(fileId)?.files?.[0], input=$(inputId);
     if(!file||!input)return;
@@ -6732,7 +6756,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="form-grid">
           <div class="form-field full" style="position:relative"><label class="form-label">Establecimiento</label><input class="form-input" id="cert-est-search" placeholder="Buscar por nombre, CUE o dirección..." oninput="filtrarEstablecimientosCertEmpresa()" onfocus="filtrarEstablecimientosCertEmpresa()" onblur="setTimeout(()=>{const s=$('cert-est-sugs');if(s)s.style.display='none'},150)" autocomplete="off"><input type="hidden" id="cert-est-id"><div id="cert-est-sugs" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;z-index:200"></div></div>
           <div class="form-field full"><label class="form-label">Archivo certificado Excel</label><input class="form-input" id="cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarCertificado('cert-file','cert-modulos')">${certLimitHelpHTML()}</div>
-          <div class="form-field"><label class="form-label">Módulos leídos de G720</label><input class="form-input" id="cert-modulos" type="number" step="0.001" placeholder="Se completa automáticamente" readonly></div>
+          <div class="form-field"><label class="form-label">Módulos</label><input class="form-input" id="cert-modulos" type="number" step="0.001" placeholder="Se completa automáticamente" readonly></div>
           <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="cert-obs" placeholder="Observaciones de la empresa..."></textarea></div>
         </div>
         <div class="form-error" id="cert-error">Seleccioná establecimiento, archivo y módulos.</div>
@@ -7075,7 +7099,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       </div>
       <div class="form-grid">
         <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${certLimitHelpHTML()}${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
-        <div class="form-field"><label class="form-label">Módulos inspección leídos de G720</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
+        <div class="form-field"><label class="form-label">Módulos inspección</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
         <div class="form-field"><label class="form-label">Medición Nº</label><input class="form-input" id="insp-cert-medicion" type="number" min="1" value="${escapeHtml(c.medicion_numero||'')}"></div>
         <div class="form-field"><label class="form-label">Período</label><input class="form-input" id="insp-cert-periodo" placeholder="Ej: Mayo 2026" value="${escapeHtml(c.periodo||'')}"></div>
         <div class="form-field full"><label class="form-label">Observaciones inspector</label><textarea class="form-textarea" id="insp-cert-obs">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</textarea></div>
@@ -7108,7 +7132,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       actualizado_por:currentUser?.name||'Inspector'
     };
     if(medir&&!patch.medicion_numero){alert('Para pasar a medición cargá el número de medición.');return;}
-    if(medir&&!patch.modulos_inspector){alert('Para pasar a medición subí el Excel corregido del inspector para leer la celda G720.');return;}
+    if(medir&&!patch.modulos_inspector){alert('Para pasar a medición subí el Excel corregido del inspector para leer los módulos del archivo.');return;}
     if(file){
       const archivoRenombrado=new File([file],nombreRenombrado,{type:file.type,lastModified:file.lastModified});
       const subida=await subirCertFile(archivoRenombrado);
@@ -8081,6 +8105,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   async function leerModuloG720(file){
     if(!file||!window.XLSX||!/\.(xls|xlsx)$/i.test(file.name))return '';
+    if(typeof window.leerModulosCertificadoArchivo==='function')return window.leerModulosCertificadoArchivo(file);
     const buffer=await file.arrayBuffer();
     const wb=XLSX.read(buffer,{type:'array'});
     const ws=wb.Sheets[wb.SheetNames[0]];
@@ -8209,7 +8234,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rubros=window.certRubrosCodigos?.(c)||[];
     const obsLimpia=(document.getElementById('insp-cert-obs')?.value||'').trim();
     if(medir&&!document.getElementById('insp-cert-medicion')?.value){alert('Para pasar a medición cargá el número de medición.');return;}
-    if(medir&&!modInspector){alert('Para pasar a medición subí el Excel corregido para leer la celda G720.');return;}
+    if(medir&&!modInspector){alert('Para pasar a medición subí el Excel corregido para leer los módulos del archivo.');return;}
     if(medir&&!ordenes.length){alert('Para pasar a medición cargá el/los números de orden de servicio.');return;}
     const duplicado=ordenDuplicadaCertificado(ordenes,c);
     if(duplicado){
@@ -12418,7 +12443,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rubros=certRubrosSeguro(c);
     const obsLimpia=(document.getElementById('insp-cert-obs')?.value||limpiarObs(c.observaciones_inspector)||'').trim();
     if(medir&&!document.getElementById('insp-cert-medicion')?.value){alert('Para pasar a medición cargá el número de medición.');return;}
-    if(medir&&!modInspector){alert('Para pasar a medición subí el Excel corregido para leer la celda G720.');return;}
+    if(medir&&!modInspector){alert('Para pasar a medición subí el Excel corregido para leer los módulos del archivo.');return;}
     if(medir&&!ordenes.length){alert('Para pasar a medición cargá el/los números de orden de servicio.');return;}
     const duplicado=ordenDuplicada(ordenes,c);
     if(duplicado){
@@ -16249,6 +16274,151 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }).observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>
+<script id="dgie-reclamos-reiterados-detalle-2026-06-25">
+(function(){
+  if(!document.getElementById('dgie-reclamos-reiterados-detalle-style')){
+    const st=document.createElement('style');
+    st.id='dgie-reclamos-reiterados-detalle-style';
+    st.textContent=`
+      .reclamo-reiterado-wrap{margin-top:10px}
+      .reclamo-reiterado-btn{border:1px solid #cfe0f3;background:#fff;color:#005aa9;border-radius:9px;padding:6px 10px;font-size:11px;font-weight:900;cursor:pointer}
+      .reclamo-reiterado-btn:hover{background:#e6f1fb;border-color:#8cb9e4}
+      .reclamo-reiterado-detalle{margin-top:8px;border:1px solid #d7e5f5;border-radius:12px;background:#f8fbff;padding:12px;color:#17324d}
+      .reclamo-reiterado-detalle[hidden]{display:none}
+      .reclamo-reiterado-card-title{font-size:13px;font-weight:900;color:#123c69;margin-bottom:7px}
+      .reclamo-reiterado-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:7px;margin-bottom:9px}
+      .reclamo-reiterado-dato{font-size:11px;color:#5d7188}
+      .reclamo-reiterado-dato strong{display:block;color:#213a58;font-size:12px;margin-bottom:2px}
+      .reclamo-reiterado-desc{white-space:pre-wrap;font-size:13px;line-height:1.4;background:#fff;border:1px solid #e5edf6;border-radius:10px;padding:10px}
+      .reclamo-reiterado-fotos{margin-top:9px}
+    `;
+    document.head.appendChild(st);
+  }
+  function esc(v){
+    if(typeof escapeHtml==='function')return escapeHtml(v==null?'':v);
+    return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function clean(v){
+    const txt=typeof limpiarMetaReiterado==='function'?limpiarMetaReiterado(v):String(v||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim();
+    return String(txt||'').trim();
+  }
+  function reclamosData(){try{return Array.isArray(RECLAMOS_ZONA)?RECLAMOS_ZONA:[]}catch(e){return Array.isArray(window.RECLAMOS_ZONA)?window.RECLAMOS_ZONA:[]}}
+  function osData(){try{return Array.isArray(OS_ZONA)?OS_ZONA:[]}catch(e){return Array.isArray(window.OS_ZONA)?window.OS_ZONA:[]}}
+  function normalizarNumero(v){return String(v||'').trim();}
+  function numeroReal(r){return normalizarNumero(r?.numero||r?.numero_reclamo||r?.nro||'');}
+  function numeroVisible(r){
+    if(typeof reclamoNumeroVisible==='function')return normalizarNumero(reclamoNumeroVisible(r));
+    return numeroReal(r);
+  }
+  function reiteradoDe(r){
+    if(typeof reclamoReiteradoDe==='function')return normalizarNumero(reclamoReiteradoDe(r));
+    const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';
+    if(directo)return normalizarNumero(directo);
+    const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);
+    return m?normalizarNumero(m[1]):'';
+  }
+  function zonaDe(r){
+    try{return Number(r?.zona||zonaEstablecimiento(r?.estId)||0)||''}catch(e){return Number(r?.zona||0)||''}
+  }
+  function prioridadTexto(r){
+    const p=String(r?.prio||r?.prioridad||'').toLowerCase();
+    return ({critico:'Critico',alto:'Alto',medio:'Medio',bajo:'Bajo'})[p]||'Sin prioridad';
+  }
+  function estadoTexto(r){
+    const estado=String(r?.estado||'').trim();
+    if(estado)return estado.charAt(0).toUpperCase()+estado.slice(1);
+    const os=String(r?.os||'').trim();
+    if(!os||['Sin OS','Pendiente','En trámite','En tramite'].includes(os))return 'Sin O.S.';
+    const found=osData().find(o=>String(o.numero)===os);
+    if(found&&typeof estadoOSLabel==='function')return estadoOSLabel(found.estado);
+    return 'Con O.S.';
+  }
+  function fotosDetalle(r){
+    if(typeof renderFotosReclamo==='function')return renderFotosReclamo(r)||'';
+    const fotos=Array.isArray(r?.fotos)?r.fotos:[];
+    if(!fotos.length)return '';
+    return `<div style="display:flex;gap:8px;flex-wrap:wrap">${fotos.map((f,i)=>{
+      const src=typeof fotoUrlDGIE==='function'?fotoUrlDGIE(f):(f?.url||f?.secure_url||f?.dataUrl||f?.path||'');
+      const nombre=typeof fotoNombreDGIE==='function'?fotoNombreDGIE(f,'Foto del reclamo'):(f?.nombre||f?.name||`Foto ${i+1}`);
+      return src?`<img src="${esc(src)}" alt="${esc(nombre)}" title="${esc(nombre)}" class="reclamo-foto-thumb" onclick="event.stopPropagation();window.open(this.src,'_blank')">`:'';
+    }).join('')}</div>`;
+  }
+  function buscarReclamoOriginal(numero){
+    const n=normalizarNumero(numero);
+    if(!n)return null;
+    const rows=reclamosData();
+    return rows.find(r=>numeroReal(r)===n)||rows.find(r=>numeroVisible(r)===n&&!reiteradoDe(r))||rows.find(r=>numeroVisible(r)===n)||null;
+  }
+  function detalleHTML(r, numeroBuscado){
+    if(!r){
+      return `<div class="reclamo-reiterado-card-title">No se encontro el reclamo ${esc(numeroBuscado)}</div><div class="reclamo-reiterado-desc">Puede que el reclamo original no este cargado en esta zona o no haya sincronizado todavia.</div>`;
+    }
+    const numero=numeroReal(r)||numeroVisible(r)||numeroBuscado||'S/N';
+    const descripcion=clean(r.descripcion||r.detalle||r.tarea||r.titulo||'Sin descripcion cargada');
+    const titulo=clean(r.titulo||'Reclamo');
+    const fotos=fotosDetalle(r);
+    return `<div class="reclamo-reiterado-card-title">Reclamo original completo: ${esc(numero)}</div>
+      <div class="reclamo-reiterado-grid">
+        <div class="reclamo-reiterado-dato"><strong>Establecimiento</strong>${esc(r.est||r.establecimiento||'—')}</div>
+        <div class="reclamo-reiterado-dato"><strong>Zona</strong>${esc(zonaDe(r)||'—')}</div>
+        <div class="reclamo-reiterado-dato"><strong>Fecha</strong>${esc([r.fecha,r.hora].filter(Boolean).join(' ')||'—')}</div>
+        <div class="reclamo-reiterado-dato"><strong>Rubro</strong>${esc(r.rubro||'—')}</div>
+        <div class="reclamo-reiterado-dato"><strong>Prioridad</strong>${esc(prioridadTexto(r))}</div>
+        <div class="reclamo-reiterado-dato"><strong>Estado / O.S.</strong>${esc(estadoTexto(r))}${r.os?` · ${esc(r.os)}`:''}</div>
+      </div>
+      <div class="reclamo-reiterado-desc"><strong>${esc(titulo)}</strong>${descripcion&&descripcion!==titulo?`\n${esc(descripcion)}`:''}</div>
+      ${fotos?`<div class="reclamo-reiterado-fotos">${fotos}</div>`:''}`;
+  }
+  function bloque(numero, actual){
+    return `<div class="reclamo-reiterado-wrap" data-reclamo-original="${esc(numero)}" data-reclamo-actual="${esc(actual||'')}"><button type="button" class="reclamo-reiterado-btn" onclick="event.stopPropagation();toggleDetalleReclamoReiterado(this)">Ver reclamo reiterado</button><div class="reclamo-reiterado-detalle" hidden></div></div>`;
+  }
+  window.toggleDetalleReclamoReiterado=function(btn){
+    const wrap=btn?.closest?.('.reclamo-reiterado-wrap');
+    const box=wrap?.querySelector?.('.reclamo-reiterado-detalle');
+    if(!wrap||!box)return;
+    const abrir=box.hidden;
+    if(abrir){
+      const numero=wrap.getAttribute('data-reclamo-original')||'';
+      box.innerHTML=detalleHTML(buscarReclamoOriginal(numero),numero);
+    }
+    box.hidden=!abrir;
+    btn.textContent=abrir?'Ocultar reclamo reiterado':'Ver reclamo reiterado';
+  };
+  const rowBase=window.rowReclamo;
+  if(typeof rowBase==='function'&&!rowBase.__conDetalleReiterado){
+    const wrapped=function(r,showEst){
+      const html=rowBase.apply(this,arguments);
+      const rep=reiteradoDe(r);
+      if(!rep||String(html).includes('reclamo-reiterado-wrap'))return html;
+      const insert=bloque(rep,numeroReal(r));
+      const marker='</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">';
+      return String(html).includes(marker)?String(html).replace(marker,insert+marker):String(html).replace('</div></div>',insert+'</div></div>');
+    };
+    wrapped.__conDetalleReiterado=true;
+    window.rowReclamo=wrapped;
+  }
+  function puedeMejorar(){
+    try{return !currentUser||currentUser.role==='inspector'}catch(e){return true}
+  }
+  function mejorar(root=document){
+    if(!puedeMejorar())return;
+    root.querySelectorAll?.('.reclamo-row').forEach(row=>{
+      if(row.querySelector('.reclamo-reiterado-wrap'))return;
+      const meta=row.querySelector('.reclamo-meta');
+      const txt=meta?.textContent||row.textContent||'';
+      const m=txt.match(/Reclamo original\s+([^\s·]+)/i);
+      if(!m)return;
+      const body=row.querySelector('.reclamo-body')||row;
+      body.insertAdjacentHTML('beforeend',bloque(m[1],''));
+    });
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>mejorar(),0));
+  new MutationObserver(muts=>{
+    muts.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)mejorar(n)}));
+  }).observe(document.documentElement,{childList:true,subtree:true});
+  setTimeout(()=>mejorar(),0);
+})();
+</script>
 <script id="dgie-preservar-vistas-internas-2026-06-24">
 (function(){
   function tiene(sel){return !!document.querySelector(sel);}
@@ -16270,7 +16440,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       '#rel-fecha','#rel-comentarios','#rel-fotos','#rel-est','#rel-os-combo','#rel-os-selected',
       '#insp-cert-file','#insp-cert-medicion','#insp-cert-periodo','#insp-cert-obs','#insp-cert-os-list',
       '#ap-concepto','#ap-materiales','.ap-material-row',
-      '.cert-final-modulos-row','.os-task-expanded'
+      '.cert-final-modulos-row','.os-task-expanded','.reclamo-reiterado-detalle:not([hidden])'
     ].some(tiene);
   }
   window.dgieVistaInternaActiva=function(){
