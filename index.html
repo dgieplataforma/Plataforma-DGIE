@@ -15953,11 +15953,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   let timer=null;
   function proximoPartido(){const now=Date.now();return PARTIDOS.find(p=>new Date(p.cuando).getTime()>now)||null}
   function pad(v){return String(Math.max(0,Math.floor(v))).padStart(2,'0')}
-  function esHoyMensaje(){const d=new Date();return d.getFullYear()===2026&&d.getMonth()===5&&d.getDate()===24}
+  function esHoyMensaje(){return true}
   function rolUsuarioActual(){const user=typeof currentUser!=='undefined'?currentUser:window.currentUser;return (user?.role||user?.rol||'').toLowerCase()}
   function usuarioVeCountdown(){return rolUsuarioActual()!=='empresa'}
-  function usuarioVeAviso(){const rol=rolUsuarioActual();return rol==='inspector'||rol==='coordinador'||rol==='direccion'||rol==='dirección'}
-  function esCoordinador(){const rol=rolUsuarioActual();return rol==='coordinador'||rol==='direccion'||rol==='dirección'}
+  function usuarioVeAviso(){const rol=rolUsuarioActual();return rol==='inspector'||rol==='coordinador'}
+  function esCoordinador(){const rol=rolUsuarioActual();return rol==='coordinador'}
   function countdownHTML(){return '<span class="arg-match-stack" id="arg-match-stack"><span class="arg-match-line"><span class="arg-match-countdown" id="arg-match-countdown" title="Cuenta regresiva selección argentina"><span class="arg-match-dot"></span><span class="arg-match-info"><span class="arg-match-title" data-arg-match-title>Próximo partido</span><span class="arg-match-sub" data-arg-match-sub>Argentina</span></span><span class="arg-match-time" aria-live="polite"><span data-arg-dd>00</span><small>d</small><b class="arg-match-sep">:</b><span data-arg-hh>00</span><small>h</small><b class="arg-match-sep">:</b><span data-arg-mm>00</span><small>m</small><b class="arg-match-sep">:</b><span data-arg-ss>00</span><small>s</small></span></span></span><span class="arg-topbar-msg" id="arg-topbar-msg" onclick="editarMensajeArgentinaHoy()" title="Editar mensaje"></span></span>'}
   function insertarCountdown(){
     const topbar=document.querySelector('.topbar'), right=topbar?.querySelector('.topbar-right');
@@ -16046,7 +16046,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!esHoyMensaje())return;
     if(!esCoordinador())return;
     const actual=String(avisoMensajeCache||localStorage.getItem(MSG_KEY)||'').trim();
-    const nuevo=prompt('Mensaje para mostrar hoy debajo del contador. Dejá vacío para quitarlo.',actual);
+    const nuevo=prompt('Mensaje para mostrar debajo del contador. Dejá vacío para quitarlo.',actual);
     if(nuevo===null)return;
     const limpio=nuevo.trim();
     avisoMensajeCache=limpio;
@@ -16057,9 +16057,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           const user=typeof currentUser!=='undefined'?currentUser:window.currentUser;
           const {error}=await window.DGIE_DB.guardarAvisoGlobal({
             id:AVISO_ID,
-            fecha:'2026-06-24',
+            fecha:new Date().toISOString().slice(0,10),
             mensaje:limpio,
-            destino:['inspector'],
+            destino:['inspector','coordinador'],
             activo:!!limpio,
             creado_por_nombre:user?.name||user?.nombre||'Coordinación',
             updated_at:new Date().toISOString()
