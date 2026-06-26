@@ -6861,7 +6861,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return data.map(c=>`<div class="med-card">
       <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
       <div class="med-card-meta">
-        Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}${certRubroVisible(c)?` · Rubro: ${escapeHtml(certRubroVisible(c))}`:''} · Módulos empresa: ${mods(c.modulos_original)}<br>
+        Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}${certRubroVisible(c)?` · Rubro/s: ${escapeHtml(certRubroVisible(c))}`:''} · Módulos empresa: ${mods(c.modulos_original)}<br>
         ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
         ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
         ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
@@ -15497,24 +15497,100 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(txt.includes('pint'))return 'Pintura';
     return '';
   }
+  function displayRubro(r){
+    return {
+      'Instalacion sanitaria':'Instalación sanitaria',
+      'Instalacion electrica':'Instalación eléctrica',
+      'Cubierta de techos':'Cubierta de techos',
+      'Albañileria':'Albañilería',
+      'Herreria':'Herrería'
+    }[r]||r;
+  }
+  function rubroDesdeToken(v){
+    const raw=String(v||'').trim();
+    if(!raw)return '';
+    const key=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const alias={
+      IS:'Instalacion sanitaria',SAN:'Instalacion sanitaria',SANITARIA:'Instalacion sanitaria',INSTALACIONSANITARIA:'Instalacion sanitaria',
+      IE:'Instalacion electrica',ELEC:'Instalacion electrica',ELECTRICA:'Instalacion electrica',ELECTRICIDAD:'Instalacion electrica',INSTALACIONELECTRICA:'Instalacion electrica',
+      GA:'Gas',GAS:'Gas',
+      CU:'Cubierta de techos',CUB:'Cubierta de techos',CUBIERTA:'Cubierta de techos',TECHOS:'Cubierta de techos',CUBIERTADETECHOS:'Cubierta de techos',
+      AL:'Albañileria',ALB:'Albañileria',ALBANILERIA:'Albañileria',
+      HE:'Herreria',HER:'Herreria',HERRERIA:'Herreria',
+      PI:'Pintura',PIN:'Pintura',PINTURA:'Pintura'
+    };
+    if(alias[key])return alias[key];
+    const byAbbr=RUBROS_CERT.find(([,abbr])=>abbr===key);
+    if(byAbbr)return byAbbr[0];
+    return normRubro(raw);
+  }
+  function splitRubrosRaw(raw){
+    if(Array.isArray(raw))return raw.flatMap(splitRubrosRaw);
+    const s=String(raw||'').trim();
+    if(!s)return [];
+    if(/^[A-Za-z]{2,5}(?:-[A-Za-z]{2,5})+$/.test(s))return s.split('-');
+    const asOne=rubroDesdeToken(s);
+    if(asOne)return [s];
+    return s.split(/\s*(?:,|;|\||\/|\n|-)\s*/).filter(Boolean);
+  }
+  function rubroCodigo(r){
+    const name=rubroDesdeToken(r);
+    const found=RUBROS_CERT.find(([n])=>n===name);
+    return found?found[1]:'';
+  }
+  function ordenarRubros(names){
+    const set=new Set(names.map(rubroDesdeToken).filter(Boolean));
+    return RUBROS_CERT.map(([name])=>name).filter(name=>set.has(name));
+  }
+  function extraerRubrosCert(c){
+    const obs=[c?.observaciones_empresa,c?.observaciones_inspector].map(x=>String(x||'')).join('\n');
+    const fuentes=[c?.rubros_certificado];
+    for(const m of obs.matchAll(/\[RUBROS_CERT:([^\]]*)\]/g))fuentes.push(m[1]);
+    fuentes.push(c?.rubro_certificado);
+    for(const m of obs.matchAll(/\[RUBRO_CERT:([^\]]*)\]/g))fuentes.push(m[1]);
+    return ordenarRubros(fuentes.flatMap(splitRubrosRaw));
+  }
   function rubroOptions(selected){
     const val=normRubro(selected)||'Instalacion sanitaria';
     return RUBROS_CERT.map(([r])=>`<option value="${esc(r)}" ${r===val?'selected':''}>${esc(r)}</option>`).join('');
   }
+  function rubrosChecklistHTML(selected=[]){
+    const sel=new Set(ordenarRubros(splitRubrosRaw(selected)));
+    return `<div id="cert-rubros" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px">
+      ${RUBROS_CERT.map(([r,abbr])=>`<label style="display:flex;align-items:center;gap:8px;border:1px solid #d7e5f5;border-radius:12px;padding:9px 10px;background:#fff;font-size:13px;font-weight:800;color:#123c69;cursor:pointer">
+        <input type="checkbox" class="cert-rubro-check" value="${esc(r)}" ${sel.has(r)?'checked':''}>
+        <span>${esc(displayRubro(r))}</span><span class="badge b-info" style="font-size:10px;padding:3px 7px;margin-left:auto">${esc(abbr)}</span>
+      </label>`).join('')}
+    </div><div style="font-size:12px;color:var(--muted);margin-top:5px">Podés seleccionar uno o más rubros.</div>`;
+  }
+  function rubrosSeleccionadosCert(){
+    return ordenarRubros([...document.querySelectorAll('.cert-rubro-check:checked')].map(x=>x.value));
+  }
   function rubroCert(c){
-    const src=[c?.rubro_certificado,c?.observaciones_empresa,c?.observaciones_inspector].map(x=>String(x||'')).join('\n');
-    const m=src.match(/\[RUBRO_CERT:([^\]]*)\]/);
-    return normRubro(c?.rubro_certificado||m?.[1]||'');
+    return extraerRubrosCert(c)[0]||'';
   }
   function rubroAbrev(c){
-    const r=rubroCert(c);
-    const found=RUBROS_CERT.find(([name])=>name===r);
-    return found?found[1]:'-';
+    const rubros=extraerRubrosCert(c);
+    const codigos=rubros.map(rubroCodigo).filter(Boolean);
+    return codigos.length?codigos.join(' / '):'-';
   }
-  function obsConRubro(obs,rubro){
-    const base=String(obs||'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').trim();
-    return [base,rubro?`[RUBRO_CERT:${rubro}]`:''].filter(Boolean).join('\n');
+  function rubrosVisiblesCert(c){
+    return extraerRubrosCert(c).map(displayRubro).join(', ');
   }
+  window.certRubroVisible=function(c){
+    return rubrosVisiblesCert(c);
+  };
+  window.certRubrosCodigos=function(c){
+    return extraerRubrosCert(c).map(rubroCodigo).filter(Boolean);
+  };
+  try{certRubrosCodigos=window.certRubrosCodigos}catch(_){}
+  function obsConRubros(obs,rubros){
+    const lista=ordenarRubros(rubros);
+    const base=String(obs||'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').trim();
+    const codigos=lista.map(rubroCodigo).filter(Boolean);
+    return [base,lista[0]?`[RUBRO_CERT:${lista[0]}]`:'',codigos.length?`[RUBROS_CERT:${codigos.join('-')}]`:'' ].filter(Boolean).join('\n');
+  }
+  const obsConRubro=(obs,rubro)=>obsConRubros(obs,[rubro]);
   function certOrdenesSafe(c){
     if(typeof window.certOrdenes==='function')return window.certOrdenes(c)||[];
     const m=String(c?.observaciones_inspector||'').match(/\[OS_CERT:([^\]]*)\]/);
@@ -15534,10 +15610,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.renderMedicionesEmpresa=async function(container,z){
     const res=renderEmpresaBase?await renderEmpresaBase.apply(this,arguments):undefined;
     setTimeout(()=>{
-      if($('cert-rubro'))return;
+      if($('cert-rubros')||$('cert-rubro'))return;
       const mod=$('cert-modulos');
       const field=mod?.closest('.form-field');
-      if(field)field.insertAdjacentHTML('afterend',`<div class="form-field"><label class="form-label">Rubro del certificado</label><select class="form-select" id="cert-rubro">${rubroOptions()}</select></div>`);
+      if(field)field.insertAdjacentHTML('afterend',`<div class="form-field full"><label class="form-label">Rubro/s del certificado</label>${rubrosChecklistHTML()}</div>`);
     },0);
     return res;
   };
@@ -15547,10 +15623,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const est=(typeof estById==='function'?estById(estId):(window.ESTABS||ESTABS||[]).find(e=>Number(e.id)===estId));
     const file=$('cert-file')?.files?.[0];
     const mod=num($('cert-modulos')?.value);
-    const rubro=normRubro($('cert-rubro')?.value)||'Instalacion sanitaria';
+    const rubros=rubrosSeleccionadosCert();
+    const rubro=rubros[0]||'';
+    const rubrosCodigos=rubros.map(rubroCodigo).filter(Boolean).join('-');
     if(file&&typeof validarTamanoCertificado==='function'&&!validarTamanoCertificado(file))return;
-    if(!est||!file||!mod){
-      if($('cert-error')){$('cert-error').textContent='Seleccioná establecimiento, archivo, módulos y rubro.';$('cert-error').style.display='block'}
+    if(!est||!file||!mod||!rubros.length){
+      if($('cert-error')){$('cert-error').textContent='Seleccioná establecimiento, archivo, módulos y al menos un rubro.';$('cert-error').style.display='block'}
       return;
     }
     if($('cert-error'))$('cert-error').style.display='none';
@@ -15565,7 +15643,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       modulos_original:mod,
       monto_empresa:mod,
       rubro_certificado:rubro,
-      observaciones_empresa:obsConRubro(($('cert-obs')?.value||'').trim(),rubro),
+      rubros_certificado:rubrosCodigos,
+      observaciones_empresa:obsConRubros(($('cert-obs')?.value||'').trim(),rubros),
       estado:'pendiente',
       creado_por:currentUser?.name||'Empresa',
       actualizado_por:currentUser?.name||'Empresa'
@@ -15576,6 +15655,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         if(error){
           const fallback={...row};
           delete fallback.rubro_certificado;
+          delete fallback.rubros_certificado;
           const retry=await window.DGIE_DB.crearCertificadoMedicion(fallback);
           if(retry.error)throw retry.error;
         }
@@ -15595,7 +15675,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const totalInspeccion=data.reduce((a,c)=>a+num(c.modulos_inspector||c.modulos_original),0);
     const totalDiff=totalInspeccion-totalEmpresa;
     const totalFinal=data.reduce((a,c)=>a+(typeof window.modulosCertificadoFinal==='function'?window.modulosCertificadoFinal(c):num(c.modulos_inspector||c.modulos_original)),0);
-    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Rubro</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Módulos cert. final</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`,ins=num(c.modulos_inspector||c.modulos_original),diff=ins-num(c.modulos_original),fin=typeof window.modulosCertificadoFinal==='function'?window.modulosCertificadoFinal(c):ins;return `<tr><td style="${td}">${esc(c.establecimiento_nombre||'')}</td><td style="${td}">${certOrdenesSafe(c).map(esc).join('<br>')}</td><td style="${td}">${esc(rubroAbrev(c))}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(ins)}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${mods(fin)}</td><td style="${td}">${esc(limpiarObsSafe(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="3">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}">${mods(totalFinal)}</td><td style="${th}"></td></tr></tfoot></table>`;
+    return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Rubros</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Módulos cert. final</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`,ins=num(c.modulos_inspector||c.modulos_original),diff=ins-num(c.modulos_original),fin=typeof window.modulosCertificadoFinal==='function'?window.modulosCertificadoFinal(c):ins;return `<tr><td style="${td}">${esc(c.establecimiento_nombre||'')}</td><td style="${td}">${certOrdenesSafe(c).map(esc).join('<br>')}</td><td style="${td}">${esc(rubroAbrev(c))}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(ins)}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${mods(fin)}</td><td style="${td}">${esc(limpiarObsSafe(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="3">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}">${mods(totalFinal)}</td><td style="${th}"></td></tr></tfoot></table>`;
   }
   function parcheTablaMedicion(numero){
     const data=certsMedidosNumero(numero);
