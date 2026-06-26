@@ -2125,7 +2125,7 @@ function openFicha(id){
       <div class="ficha-tab" id="ftab-2" onclick="switchFichaTab(2)">Fotos</div>
       <div class="ficha-tab" id="ftab-3" onclick="switchFichaTab(3)">Intervenciones</div>
       <div class="ficha-tab" id="ftab-4" onclick="switchFichaTab(4)">Relevamiento</div>
-      <div class="ficha-tab" id="ftab-5" onclick="switchFichaTab(5)">Planos</div>
+      <div class="ficha-tab" id="ftab-5" onclick="switchFichaTab(5)">Planos/documentación</div>
     </div>
     <div class="ficha-body" id="ficha-body"></div>`;
   switchFichaTab(0);
@@ -2154,15 +2154,15 @@ function renderRelevamientosDireccionList(data){const el=$('relevamientos-dir-li
 function renderPlanosFicha(estId){
   const canUp=currentUser?.role==='coordinador'||currentUser?.role==='inspector';
   const canDel=currentUser?.role==='coordinador';
-  return `<div class="card-header"><div><div class="card-title">Planos del establecimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Archivos PDF y DWG organizados por planta.</div></div>${canUp?`<button class="primary-btn" onclick="openSubirPlanoModal(${estId})">+ Subir plano</button>`:''}</div><div id="planos-list"><div style="text-align:center;padding:28px;color:var(--muted)">Cargando...</div></div>`;
+  return `<div class="card-header"><div><div class="card-title">Planos/documentación del establecimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Archivos PDF y DWG organizados por planta.</div></div>${canUp?`<button class="primary-btn" onclick="openSubirPlanoModal(${estId})">+ Subir plano/documentación</button>`:''}</div><div id="planos-list"><div style="text-align:center;padding:28px;color:var(--muted)">Cargando...</div></div>`;
 }
 async function cargarPlanos(estId){
   const el=document.getElementById('planos-list');
   if(!el)return;
   if(!window.DGIE_DB?.isConfigured){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin conexión a base de datos</div>';return;}
   const{data,error}=await window.DGIE_DB.listarPlanos(estId);
-  if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos</div>`;return;}
-  if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos cargados para este establecimiento</div>';return;}
+  if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos/documentación</div>`;return;}
+  if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos/documentación cargados para este establecimiento</div>';return;}
   const porPiso={};
   data.forEach(p=>{if(!porPiso[p.piso])porPiso[p.piso]=[];porPiso[p.piso].push(p);});
   const canDel=currentUser?.role==='coordinador';
@@ -2195,7 +2195,7 @@ window.openSubirPlanoModal=function(estId){
   bd.className='plano-upload-modal-backdrop';
   bd.id='plano-upload-modal-backdrop';
   bd.innerHTML=`<div class="plano-upload-modal">
-    <div class="plano-upload-modal-title">Subir plano</div>
+    <div class="plano-upload-modal-title">Subir plano/documentación</div>
     <div class="plano-drop-zone" id="plano-drop-zone" onclick="document.getElementById('plano-file-input').click()">
       <div style="font-size:32px">📎</div>
       <div class="plano-drop-zone-label">Hacer clic o arrastrar archivo PDF o DWG</div>
@@ -2216,7 +2216,7 @@ window.openSubirPlanoModal=function(estId){
         </select>
       </div>
       <div class="form-field">
-        <label class="form-label">Nombre del plano</label>
+        <label class="form-label">Nombre del plano/documentación</label>
         <input class="form-input" id="plano-nombre" placeholder="Ej: Estructura, Eléctrico..."/>
       </div>
       <div class="form-field full">
@@ -2227,7 +2227,7 @@ window.openSubirPlanoModal=function(estId){
     <div id="plano-upload-error" style="color:var(--danger);font-size:12px;font-weight:700;display:none;margin-top:8px"></div>
     <div class="modal-actions" style="margin-top:16px">
       <button class="secondary-btn" onclick="document.getElementById('plano-upload-modal-backdrop').remove()">Cancelar</button>
-      <button class="primary-btn" id="plano-upload-btn" onclick="guardarPlano(${estId})">Subir plano</button>
+      <button class="primary-btn" id="plano-upload-btn" onclick="guardarPlano(${estId})">Subir plano/documentación</button>
     </div>
   </div>`;
   bd.addEventListener('click',e=>{if(e.target===bd)bd.remove();});
@@ -2253,7 +2253,7 @@ window.guardarPlano=async function(estId){
   const errEl=document.getElementById('plano-upload-error');
   const btn=document.getElementById('plano-upload-btn');
   if(!fi?.files[0]){errEl.style.display='block';errEl.textContent='Seleccioná un archivo.';return;}
-  if(!nombre){errEl.style.display='block';errEl.textContent='Ingresá un nombre para el plano.';return;}
+  if(!nombre){errEl.style.display='block';errEl.textContent='Ingresá un nombre para el plano/documentación.';return;}
   errEl.style.display='none';
   if(!window.DGIE_DB?.isConfigured){errEl.style.display='block';errEl.textContent='Sin conexión a base de datos.';return;}
   const file=fi.files[0];
@@ -5286,13 +5286,13 @@ function renderChartInsp(){
   const baseOpenFicha=window.openFicha;
   window.openFicha=function(id){
     baseOpenFicha(id);
-    setTimeout(()=>{const tabs=$('ficha-body')?.previousElementSibling;if(tabs?.classList.contains('ficha-tabs'))tabs.innerHTML=['Reclamos','Órdenes de servicio','Fotos','Intervenciones','Estado Edilicio','Relevamiento','Planos'].map((t,i)=>`<div class="ficha-tab${i===0?' active':''}" id="ftab-${i}" onclick="switchFichaTab(${i})">${t}</div>`).join('');},0);
+    setTimeout(()=>{const tabs=$('ficha-body')?.previousElementSibling;if(tabs?.classList.contains('ficha-tabs'))tabs.innerHTML=['Reclamos','Órdenes de servicio','Fotos','Intervenciones','Estado Edilicio','Relevamiento','Planos/documentación'].map((t,i)=>`<div class="ficha-tab${i===0?' active':''}" id="ftab-${i}" onclick="switchFichaTab(${i})">${t}</div>`).join('');},0);
   };
   window.renderMapFichaBody=function(estId,tab=0){const body=$('map-ficha-body');if(!body)return;['map-ftab-0','map-ftab-1','map-ftab-2','map-ftab-3','map-ftab-4','map-ftab-5','map-ftab-6'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===tab));renderFichaBodyDGIE(body,estId,tab)}
   const baseInfo=window.renderEstablecimientoInfoBox;
   window.renderEstablecimientoInfoBox=function(estId=null){
     const html=baseInfo(estId);
-    return html.replace(/<div class="ficha-tab active" id="map-ftab-0"[\s\S]*?<div class="ficha-body" id="map-ficha-body"><\/div>/,`<div class="ficha-tab active" id="map-ftab-0" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},0)">Reclamos</div><div class="ficha-tab" id="map-ftab-1" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},1)">Órdenes de servicio</div><div class="ficha-tab" id="map-ftab-2" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},2)">Fotos</div><div class="ficha-tab" id="map-ftab-3" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},3)">Intervenciones</div><div class="ficha-tab" id="map-ftab-4" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},4)">Estado Edilicio</div><div class="ficha-tab" id="map-ftab-5" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},5)">Relevamiento</div><div class="ficha-tab" id="map-ftab-6" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},6)">Planos</div></div><div class="ficha-body" id="map-ficha-body"></div>`);
+    return html.replace(/<div class="ficha-tab active" id="map-ftab-0"[\s\S]*?<div class="ficha-body" id="map-ficha-body"><\/div>/,`<div class="ficha-tab active" id="map-ftab-0" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},0)">Reclamos</div><div class="ficha-tab" id="map-ftab-1" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},1)">Órdenes de servicio</div><div class="ficha-tab" id="map-ftab-2" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},2)">Fotos</div><div class="ficha-tab" id="map-ftab-3" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},3)">Intervenciones</div><div class="ficha-tab" id="map-ftab-4" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},4)">Estado Edilicio</div><div class="ficha-tab" id="map-ftab-5" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},5)">Relevamiento</div><div class="ficha-tab" id="map-ftab-6" onclick="switchMapFichaTab(${estId||'selectedMapEstabId'},6)">Planos/documentación</div></div><div class="ficha-body" id="map-ficha-body"></div>`);
   };
   const baseCard=window.renderIntervencionCard;
   window.renderIntervencionCard=function(it){const html=baseCard(it);const can=currentUser?.role==='inspector'&&Number(currentUser.zona)===Number(it.zona);return html.replace('</div>',`${can?`<div style="display:flex;gap:8px;margin-top:10px"><button class="secondary-btn" onclick="event.stopPropagation();editarIntervencion(${it.id})">Editar</button><button class="secondary-btn" style="color:var(--danger)" onclick="event.stopPropagation();eliminarIntervencion(${it.id})">Eliminar</button></div>`:''}</div>`)}
@@ -5351,7 +5351,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 </script>
 <script id="dgie-correcciones-puntuales-2026-05-07">
 (function(){
-  const FICHA_TABS=['Reclamos','Órdenes de servicio','Intervenciones','Estado Edilicio','Relevamiento','Planos'];
+  const FICHA_TABS=['Reclamos','Órdenes de servicio','Intervenciones','Estado Edilicio','Relevamiento','Planos/documentación'];
   const TAB_INTERVENCIONES=2;
   const TAB_ESTADO=3;
   const TAB_RELEVAMIENTO=4;
@@ -5934,8 +5934,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!el)return;
     if(!window.DGIE_DB?.isConfigured){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin conexión a base de datos</div>';return;}
     const {data,error}=await window.DGIE_DB.listarPlanos(estId);
-    if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos</div>`;return;}
-    if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos cargados para este establecimiento</div>';return;}
+    if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos/documentación</div>`;return;}
+    if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos/documentación cargados para este establecimiento</div>';return;}
     const porPiso={};
     data.forEach(p=>{if(!porPiso[p.piso])porPiso[p.piso]=[];porPiso[p.piso].push(p);});
     const canDel=currentUser?.role==='coordinador';
@@ -6284,8 +6284,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!el)return;
     if(!window.DGIE_DB?.isConfigured){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin conexión a base de datos</div>';return;}
     const {data,error}=await window.DGIE_DB.listarPlanos(estId);
-    if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos: ${escapeHtml(error.message||'')}</div>`;return;}
-    if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos cargados para este establecimiento</div>';return;}
+    if(error){el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--danger)">Error al cargar planos/documentación: ${escapeHtml(error.message||'')}</div>`;return;}
+    if(!data?.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--muted)">Sin planos/documentación cargados para este establecimiento</div>';return;}
     const porPiso={};
     data.forEach(p=>{const piso=p.piso||'PB';if(!porPiso[piso])porPiso[piso]=[];porPiso[piso].push(p);});
     const canDel=currentUser?.role==='coordinador';
