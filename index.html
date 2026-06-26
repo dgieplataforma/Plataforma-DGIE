@@ -16610,6 +16610,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 <script id="dgie-os-columnas-finales-2026-06-26">
 (function(){
   'use strict';
+  let ultimasOSInspector=[];
+  let ultimasOSEmpresa=[];
   function byId(id){return document.getElementById(id)}
   function esc(v){
     if(typeof escapeHtml==='function')return escapeHtml(v==null?'':v);
@@ -16701,6 +16703,74 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const id=jsArg(o?.id);
     return `<div class="os-download-actions"><button class="pdf-btn" onclick="openPresupuestoOS(${id})">Ver presupuesto</button><button class="pdf-btn" onclick="descargarOSPDF(${id})">Descargar orden</button></div>`;
   }
+  function botonPdfVisibleOS(tipo){
+    return `<button class="secondary-btn os-visible-pdf-btn" type="button" onclick="descargarPDFOrdenesVisibles('${tipo}')">Descargar PDF visible</button>`;
+  }
+  function textoPlanoPDF(v){
+    const tmp=document.createElement('div');
+    tmp.innerHTML=String(v==null?'':v);
+    return (tmp.textContent||tmp.innerText||'').replace(/\s+/g,' ').trim();
+  }
+  function prioridadTexto(o){
+    const p=String(o?.prio||'medio').toLowerCase();
+    return ({critico:'Crítico',alto:'Alta',medio:'Media',bajo:'Baja'}[p])||textoPlanoPDF(o?.prio||'Media');
+  }
+  function certificadoTexto(o){
+    const meds=[...new Set(certsDeOS(o).map(c=>String(c?.medicion_numero||'')).filter(Boolean))];
+    return meds.length?meds.map(m=>`M${m}`).join(', '):'—';
+  }
+  function filaPDFOrden(o){
+    return `<tr>
+      <td>${esc(o?.numero||'')}</td>
+      <td>${esc(o?.reclamoNumero||'—')}</td>
+      <td>${esc(o?.establecimiento||'')}</td>
+      <td>${esc(o?.tarea||'')}</td>
+      <td>${esc(o?.rubro||'')}</td>
+      <td>${esc(prioridadTexto(o))}</td>
+      <td>${esc(o?.fecha||'—')}</td>
+      <td>${esc(textoPlanoPDF(estadoLabel(o))||'—')}</td>
+      <td>${empresaFinalizada(o)?'Finalizada por empresa':'Sin informar'}</td>
+      <td>${esc(o?.fechaFinalizacion||'—')}</td>
+      <td>${esc(certificadoTexto(o))}</td>
+    </tr>`;
+  }
+  window.descargarPDFOrdenesVisibles=function(tipo){
+    const esEmpresa=tipo==='empresa';
+    const data=(esEmpresa?ultimasOSEmpresa:ultimasOSInspector).slice();
+    if(!data.length){alert('No hay órdenes visibles para exportar.');return}
+    const zona=esEmpresa?(currentUser?.zona||''):(currentUser?.role==='inspector'?(currentUser?.zona||''):'');
+    const titulo=esEmpresa?`Órdenes de servicio visibles - Empresa${zona?' Zona '+zona:''}`:`Órdenes de servicio visibles - Inspector${zona?' Zona '+zona:''}`;
+    const generado=new Date().toLocaleString('es-AR');
+    const rows=data.map(filaPDFOrden).join('');
+    const doc=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(titulo)}</title>
+      <style>
+        @page{size:A4 landscape;margin:9mm}
+        *{box-sizing:border-box}
+        body{font-family:Arial,Helvetica,sans-serif;color:#071f3a;margin:14px;background:#fff}
+        h1{font-size:18px;margin:0 0 4px;color:#073b70}
+        .meta{font-size:11px;color:#475569;margin-bottom:12px}
+        .actions{display:flex;gap:8px;margin-bottom:12px}
+        .actions button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#073b70;font-weight:bold;padding:8px 12px;cursor:pointer}
+        table{width:100%;border-collapse:collapse;table-layout:fixed}
+        th,td{border:1px solid #cbd5e1;padding:4px 5px;vertical-align:top;font-size:8.5px;line-height:1.25;word-break:break-word;overflow-wrap:anywhere}
+        th{background:#0b3d6f;color:#fff;text-transform:uppercase;font-size:7.8px;letter-spacing:0;text-align:left}
+        tr:nth-child(even) td{background:#f8fafc}
+        @media print{body{margin:0}.actions{display:none}}
+      </style></head><body>
+      <div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
+      <h1>${esc(titulo)}</h1>
+      <div class="meta">Según filtros visibles · ${data.length} orden${data.length!==1?'es':''} · Generado: ${esc(generado)}</div>
+      <table>
+        <colgroup><col style="width:7%"><col style="width:7%"><col style="width:13%"><col style="width:22%"><col style="width:8%"><col style="width:6%"><col style="width:8%"><col style="width:8%"><col style="width:9%"><col style="width:8%"><col style="width:4%"></colgroup>
+        <thead><tr><th>Orden</th><th>N° reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Prioridad</th><th>Fecha envío</th><th>Estado</th><th>Estado s/ empresa</th><th>Fecha finalización</th><th>Cert.</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></body></html>`;
+    const win=window.open('', '_blank');
+    if(!win){alert('El navegador bloqueó la ventana de PDF. Permití ventanas emergentes e intentá de nuevo.');return}
+    win.document.write(doc);
+    win.document.close();
+    setTimeout(()=>win.print(),350);
+  };
   function accionesOS(o){
     const id=jsArg(o?.id);
     return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="edit-btn" onclick="editarOS(${id})">Editar</button><button class="secondary-btn" style="color:var(--danger);padding:7px 10px" onclick="eliminarOS(${id})">Eliminar</button></div>`;
@@ -16739,6 +16809,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     st.textContent=`
       .os-download-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:150px}
       .os-download-actions .pdf-btn{padding:6px 9px;font-size:11px}
+      .os-visible-toolbar{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+      .os-visible-pdf-btn{padding:9px 12px;font-size:12px;white-space:nowrap}
       .os-table th:nth-child(9),.os-table td:nth-child(9){min-width:135px}
       .os-table th:nth-child(12),.os-table td:nth-child(12){min-width:165px}
       .empresa-os-table{table-layout:fixed!important;min-width:1580px!important}
@@ -16767,13 +16839,19 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const baseData=isZona?osPorZona(currentUser?.zona):OS_ZONA;
     const resumen=typeof window.resumenEstadosOS==='function'?window.resumenEstadosOS(baseData):`<span class="badge b-info">${baseData.length} órdenes</span>`;
     const acciones=typeof canManageOS==='function'&&canManageOS();
-    return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado con filtros por establecimiento, rubro, estado, fecha y certificación.</div></div>${resumen}</div>${typeof canCreateOS==='function'&&canCreateOS()?'<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button></div>':''}<div class="os-filters"><input class="estab-search" id="os-search" placeholder="Buscar por OS, reclamo, establecimiento o tarea..." oninput="filterOS()"><select class="filter-sel" id="os-rubro" onchange="filterOS()"><option value="">Todos los rubros</option>${[...new Set(OS_ZONA.map(o=>o.rubro).filter(Boolean))].map(r=>`<option>${esc(r)}</option>`).join('')}</select><select class="filter-sel" id="os-estado" onchange="filterOS()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="os-prio" onchange="filterOS()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="os-cert" onchange="filterOS()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="os-medicion" onchange="filterOS()"><option value="">Todas las mediciones</option>${opcionesMedicion()}</select>${filtrosFecha('os','filterOS()')}</div><div class="os-table-wrap"><table class="os-table"><thead>${headerHTML({acciones})}</thead><tbody id="os-table-body"></tbody></table></div></div>`;
+    const toolbarItems=[];
+    if(typeof canCreateOS==='function'&&canCreateOS())toolbarItems.push('<button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button>');
+    if(currentUser?.role==='inspector')toolbarItems.push(botonPdfVisibleOS('inspector'));
+    const toolbar=toolbarItems.length?`<div class="os-visible-toolbar">${toolbarItems.join('')}</div>`:'';
+    return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado con filtros por establecimiento, rubro, estado, fecha y certificación.</div></div>${resumen}</div>${toolbar}<div class="os-filters"><input class="estab-search" id="os-search" placeholder="Buscar por OS, reclamo, establecimiento o tarea..." oninput="filterOS()"><select class="filter-sel" id="os-rubro" onchange="filterOS()"><option value="">Todos los rubros</option>${[...new Set(OS_ZONA.map(o=>o.rubro).filter(Boolean))].map(r=>`<option>${esc(r)}</option>`).join('')}</select><select class="filter-sel" id="os-estado" onchange="filterOS()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="os-prio" onchange="filterOS()"><option value="">Todas las prioridades</option><option value="critico">Crítico</option><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select><select class="filter-sel" id="os-cert" onchange="filterOS()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="os-medicion" onchange="filterOS()"><option value="">Todas las mediciones</option>${opcionesMedicion()}</select>${filtrosFecha('os','filterOS()')}</div><div class="os-table-wrap"><table class="os-table"><thead>${headerHTML({acciones})}</thead><tbody id="os-table-body"></tbody></table></div></div>`;
   };
   window.renderOSTable=function(data){
     const el=byId('os-table-body');
     if(!el)return;
     const acciones=typeof canManageOS==='function'&&canManageOS();
     data=ordenar(data);
+    ultimasOSInspector=data;
+    window.dgieOSVisibleInspector=data;
     if(!data.length){setEmpty(el,acciones?13:12,'No se encontraron órdenes de servicio');return}
     el.innerHTML=data.map(o=>rowHTML(o,{editEstado:true,editPrioridad:true,acciones})).join('');
   };
@@ -16813,7 +16891,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   window.renderOSEmpresa=function(c,z){
     const data=osPorZona(z);
-    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${esc(z)} · Solo lectura</div><div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${esc(INSPECTORS[Number(z)-1]||'—')} · Zona ${esc(z)}</div></div><span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span></div><div class="os-filters"><input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, reclamo, establecimiento o tarea..." oninput="filterOSEmpresa()"><select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="empresa-os-orden" onchange="filterOSEmpresa()"><option value="desc">Orden: mayor a menor</option><option value="asc">Orden: menor a mayor</option></select><select class="filter-sel" id="empresa-os-cert" onchange="filterOSEmpresa()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="empresa-os-medicion" onchange="filterOSEmpresa()"><option value="">Todas las mediciones</option>${opcionesMedicion()}</select>${filtrosFecha('empresa-os','filterOSEmpresa()')}</div><div class="os-table-wrap"><table class="os-table empresa-os-table"><thead>${headerHTML()}</thead><tbody id="empresa-os-body"></tbody></table></div></div>`;
+    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${esc(z)} · Solo lectura</div><div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${esc(INSPECTORS[Number(z)-1]||'—')} · Zona ${esc(z)}</div></div><span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span></div><div class="os-visible-toolbar">${botonPdfVisibleOS('empresa')}</div><div class="os-filters"><input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, reclamo, establecimiento o tarea..." oninput="filterOSEmpresa()"><select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="empresa-os-orden" onchange="filterOSEmpresa()"><option value="desc">Orden: mayor a menor</option><option value="asc">Orden: menor a mayor</option></select><select class="filter-sel" id="empresa-os-cert" onchange="filterOSEmpresa()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="empresa-os-medicion" onchange="filterOSEmpresa()"><option value="">Todas las mediciones</option>${opcionesMedicion()}</select>${filtrosFecha('empresa-os','filterOSEmpresa()')}</div><div class="os-table-wrap"><table class="os-table empresa-os-table"><thead>${headerHTML()}</thead><tbody id="empresa-os-body"></tbody></table></div></div>`;
     window.filterOSEmpresa();
     if(!window.certsLoaded&&typeof cargarCertificadosMedicion==='function')cargarCertificadosMedicion().then(()=>{if(byId('empresa-os-body'))window.renderOSEmpresa(c,z)}).catch(()=>{});
   };
@@ -16827,6 +16905,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const desde=byId('empresa-os-desde')?.value||'';
     const hasta=byId('empresa-os-hasta')?.value||'';
     const data=ordenar(osPorZona(z).filter(o=>(!st||estadoCanon(o)===st)&&textoOS(o).includes(q)&&certPasa(o,cert,med)&&rangoFecha(o.fecha,desde,hasta)),dir);
+    ultimasOSEmpresa=data;
+    window.dgieOSVisibleEmpresa=data;
     const badge=byId('empresa-os-count');
     if(badge)badge.textContent=`${data.length} orden${data.length!==1?'es':''}`;
     const el=byId('empresa-os-body');
