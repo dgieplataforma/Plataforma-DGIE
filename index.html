@@ -16933,5 +16933,287 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
+<script id="dgie-ficha-certificados-establecimiento-2026-06-30">
+(function(){
+  'use strict';
+  const TAB_ID='ftab-certificados';
+  const MAP_TAB_ID='map-ftab-certificados';
+  function byId(id){return document.getElementById(id)}
+  function esc(v){
+    if(typeof escapeHtml==='function')return escapeHtml(v==null?'':v);
+    return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function n(v){return Number(String(v??'').replace(',','.'))||0}
+  function mods(v){return n(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
+  function estabs(){return Array.isArray(window.ESTABS)?window.ESTABS:(typeof ESTABS!=='undefined'?ESTABS:[])}
+  function certs(){return Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[]}
+  function estById(id){return estabs().find(e=>Number(e.id)===Number(id))}
+  function normal(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim()}
+  function zonaCert(c){
+    const directa=Number(c?.zona);
+    if(Number.isFinite(directa)&&directa>0)return directa;
+    const estId=Number(c?.establecimiento_id||c?.estId||0);
+    if(estId&&typeof zonaEstablecimiento==='function')return Number(zonaEstablecimiento(estId)||0);
+    return 0;
+  }
+  function finMap(){try{return JSON.parse(localStorage.getItem('dgie_cert_finalizada_medicion_zona_v1')||'{}')||{}}catch(_){return {}}}
+  function certTieneFin(c){
+    const obs=String(c?.observaciones_inspector||'');
+    if(!/\[MEDICION_FINALIZADA:[^\]]+\]/.test(obs))return false;
+    const m=obs.match(/\[MEDICION_FINALIZADA:([^\]]+)\]/);
+    const zonaMeta=m?.[1]?.match(/(?:ZONA[:=]?|Z)(\d{1,2})/i)?.[1];
+    return !zonaMeta||Number(zonaMeta)===zonaCert(c);
+  }
+  function medicionFinalizada(c){
+    if(!c?.medicion_numero)return false;
+    return !!finMap()[`${Number(zonaCert(c))||0}:${String(c.medicion_numero)}`]||certTieneFin(c);
+  }
+  function certYaCertificado(c){
+    if(!c||String(c?.estado||'').toLowerCase()==='eliminado')return false;
+    if(typeof window.certVisible==='function'&&!window.certVisible(c))return false;
+    return String(c?.estado||'').toLowerCase()==='medido'&&!!c?.medicion_numero&&medicionFinalizada(c);
+  }
+  function certDelEstablecimiento(c,estId){
+    const e=estById(estId);
+    const cid=Number(c?.establecimiento_id||c?.estId||c?.establecimientoId||0);
+    if(cid&&cid===Number(estId))return true;
+    return e&&normal(c?.establecimiento_nombre||c?.establecimiento||c?.escuela)===normal(e.n);
+  }
+  function certOrdenesSafe(c){
+    if(typeof window.certOrdenes==='function')return window.certOrdenes(c)||[];
+    const m=String(c?.observaciones_inspector||'').match(/\[OS_CERT:([^\]]*)\]/);
+    return String(c?.ordenes_servicio_certificado||c?.ordenes_certificado||m?.[1]||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function rubrosCert(c){
+    if(typeof window.certRubroVisible==='function'){
+      const r=window.certRubroVisible(c);
+      if(r)return r;
+    }
+    const m=String(c?.observaciones_inspector||c?.observaciones_empresa||'').match(/\[RUBRO_CERT:([^\]]*)\]/);
+    return c?.rubro_certificado||m?.[1]||'—';
+  }
+  function obsLimpia(v){
+    if(typeof window.limpiarObsCert==='function')return window.limpiarObsCert(v);
+    return String(v||'').replace(/\s*\[[A-Z_]+:[^\]]*\]/g,'').trim();
+  }
+  function modInspeccion(c){return n(c?.modulos_inspector||c?.modulos_original)}
+  function modFinal(c){
+    if(typeof window.modulosCertificadoFinal==='function')return window.modulosCertificadoFinal(c);
+    const final=n(c?.modulos_final??c?.monto_final);
+    return final>0?final:modInspeccion(c);
+  }
+  function fileLink(url,nombre){
+    const name=nombre||'Archivo';
+    return url?`<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>`:esc(name);
+  }
+  function fechaMedicionLabel(c){
+    const fecha=c?.fecha_medicion||c?.fecha_envio_administracion||c?.updated_at||'';
+    if(!fecha)return '';
+    const s=String(fecha).slice(0,10), m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(m)return `${m[3]}/${m[2]}/${m[1]}`;
+    try{return new Date(fecha).toLocaleDateString('es-AR')}catch(_){return ''}
+  }
+  function jsArg(v){
+    if(typeof v==='number'&&Number.isFinite(v))return String(v);
+    const num=Number(v);
+    if(String(v).trim()!==''&&Number.isFinite(num)&&String(num)===String(v))return String(num);
+    return `'${String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ')}'`;
+  }
+  function osNum(v){const m=String(v||'').match(/\d+/g);return m?Number(m[m.length-1])||0:0}
+  function osEstadoCanon(o){return typeof getEstadoOS==='function'?getEstadoOS(o):String(o?.estado||'pendiente').toLowerCase()}
+  function osEstadoLabel(o){return typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):String(o?.estado||'Pendiente')}
+  function osEstadoBadge(o){
+    const st=osEstadoCanon(o);
+    const cls=st==='finalizado'?'b-ok':st==='trabajando'?'b-info':st==='anulado'?'b-danger':'b-warn';
+    return `<span class="badge ${cls}">${esc(osEstadoLabel(o))}</span>`;
+  }
+  function osPrioridadBadge(o){
+    if(typeof prioBadgeFecha==='function')return prioBadgeFecha(o?.prio);
+    const p=String(o?.prio||'medio').toLowerCase();
+    const map={critico:['Crítico','b-danger'],alto:['Alta','b-warn'],medio:['Media','b-info'],bajo:['Baja','b-ok']};
+    const it=map[p]||map.medio;
+    return `<span class="badge ${it[1]}">${it[0]}</span>`;
+  }
+  function osEmpresaFinalizada(o){
+    if(o?.empresaFinalizo)return true;
+    try{
+      const store=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}')||{};
+      return !!(store[`remote:${o?.remoteId}`]||store[`numero:${o?.numero}`]||store[`local:${o?.id}`]);
+    }catch(_){return false}
+  }
+  function osEmpresaBadge(o){
+    return osEmpresaFinalizada(o)
+      ? '<span class="badge b-ok">Finalizada por empresa</span>'
+      : '<span class="badge b-neutral">Sin informar</span>';
+  }
+  function osCertBadge(o){
+    if(typeof window.certBadgeOS==='function')return window.certBadgeOS(o);
+    return '—';
+  }
+  function osAccionesPDF(o){
+    const id=jsArg(o?.id);
+    return `<div class="ficha-os-actions">
+      <button class="pdf-btn" type="button" onclick="openPresupuestoOS(${id})">Ver presupuesto</button>
+      <button class="pdf-btn" type="button" onclick="descargarOSPDF(${id})">Descargar orden</button>
+    </div>`;
+  }
+  function renderFichaOrdenesServicio(fb,estId){
+    currentFichaId=estId;
+    const data=(Array.isArray(window.OS_ZONA)?window.OS_ZONA:(typeof OS_ZONA!=='undefined'?OS_ZONA:[]))
+      .filter(o=>Number(o?.estId||o?.establecimiento_id||0)===Number(estId))
+      .sort((a,b)=>osNum(b?.numero)-osNum(a?.numero));
+    fb.dataset.fichaOsEstId=String(estId);
+    if(!data.length){
+      fb.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Sin órdenes de servicio</div>';
+      return;
+    }
+    fb.innerHTML=`<div class="card-header" style="margin-bottom:10px"><div><div class="card-title">Órdenes de servicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} orden${data.length!==1?'es':''} vinculada${data.length!==1?'s':''} a este establecimiento</div></div><span class="badge b-info">${data.length}</span></div>
+      <div class="os-table-wrap"><table class="os-table ficha-os-table">
+        <thead><tr><th>Orden de servicio</th><th>N° reclamo</th><th>Tarea</th><th>Rubro</th><th>Prioridad</th><th>Fecha de envío</th><th>Estado</th><th>Estado s/ empresa</th><th>Fecha finalización</th><th>Certificado</th><th>Descargar orden</th></tr></thead>
+        <tbody>${data.map(o=>`<tr>
+          <td><div class="os-num">${esc(o?.numero||'')}</div></td>
+          <td>${esc(o?.reclamoNumero||'—')}</td>
+          <td><div class="ficha-os-task">${esc(o?.tarea||o?.titulo||'Sin detalle')}</div></td>
+          <td>${esc(o?.rubro||'—')}</td>
+          <td>${osPrioridadBadge(o)}</td>
+          <td>${esc(o?.fecha||'—')}</td>
+          <td>${osEstadoBadge(o)}</td>
+          <td>${osEmpresaBadge(o)}</td>
+          <td>${esc(o?.fechaFinalizacion||'—')}</td>
+          <td>${osCertBadge(o)}</td>
+          <td>${osAccionesPDF(o)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    if(!window.certsLoaded&&typeof window.cargarCertificadosMedicion==='function'){
+      window.cargarCertificadosMedicion().then(()=>{
+        if(fb.isConnected&&fb.dataset.fichaOsEstId===String(estId))renderFichaOrdenesServicio(fb,estId);
+      }).catch(()=>{});
+    }
+  }
+  function renderCertFichaCard(c){
+    const obs=obsLimpia(c?.observaciones_inspector)||obsLimpia(c?.observaciones_empresa)||'Sin observaciones';
+    const ordenes=certOrdenesSafe(c);
+    const fecha=fechaMedicionLabel(c);
+    return `<div class="med-version-row ficha-cert-row">
+      <div>
+        <div class="med-card-title">${esc(c?.establecimiento_nombre||c?.establecimiento||c?.escuela||estById(c?.establecimiento_id)?.n||'Establecimiento')}</div>
+        <div class="med-card-meta">
+          Original: ${fileLink(c?.url_original,c?.archivo_original||'Archivo original')} · Rubro/s: ${esc(rubrosCert(c))} · Módulos empresa: ${mods(c?.modulos_original)}<br>
+          ${ordenes.length?`O.S. ${esc(ordenes.join(', '))}<br>`:''}
+          ${c?.url_inspector||c?.archivo_inspector?`Inspector: ${fileLink(c?.url_inspector,c?.archivo_inspector||c?.archivo_original||'Archivo inspección')} · Módulos inspección: ${mods(modInspeccion(c))}<br>`:''}
+          ${esc(obs)}
+          <div class="cert-final-modulos-row ficha-cert-final-row">
+            <span>Módulos certificado final</span>
+            <strong>${mods(modFinal(c))}</strong>
+          </div>
+        </div>
+      </div>
+      <div class="med-actions ficha-cert-actions">
+        <span class="badge b-ok">Medición Nº ${esc(c?.medicion_numero)}</span>
+        ${fecha?`<span class="badge b-neutral">${esc(fecha)}</span>`:''}
+      </div>
+    </div>`;
+  }
+  function renderFichaCertificados(estId){
+    const data=certs()
+      .filter(c=>certYaCertificado(c)&&certDelEstablecimiento(c,estId))
+      .sort((a,b)=>Number(b.medicion_numero||0)-Number(a.medicion_numero||0)||String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
+    if(!data.length)return '<div style="text-align:center;padding:30px;color:var(--muted)">Sin certificados finalizados para este establecimiento</div>';
+    const total=data.reduce((a,c)=>a+modFinal(c),0);
+    return `<div class="med-card ficha-cert-card">
+      <div class="card-header" style="margin-bottom:8px">
+        <div>
+          <div class="card-title">Certificados finalizados</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificado${data.length!==1?'s':''} · Total módulos cert. final: ${mods(total)}</div>
+        </div>
+        <span class="badge b-ok">${data.length}</span>
+      </div>
+      ${data.map(renderCertFichaCard).join('')}
+    </div>`;
+  }
+  function ensureFichaTab(ctx,estId){
+    const tabs=ctx==='map'?byId('map-ficha-body')?.previousElementSibling:byId('ficha-body')?.previousElementSibling;
+    if(!tabs||!tabs.classList.contains('ficha-tabs'))return;
+    const id=ctx==='map'?MAP_TAB_ID:TAB_ID;
+    const existing=byId(id);
+    if(existing)existing.remove();
+    const html=`<div class="ficha-tab" id="${id}" onclick="mostrarFichaCertificadosEstablecimiento(${Number(estId)},'${ctx}')">Certificados</div>`;
+    const before=[...tabs.children].find(t=>/planos|documentaci/i.test(String(t.textContent||'')));
+    if(before)before.insertAdjacentHTML('beforebegin',html);
+    else tabs.insertAdjacentHTML('beforeend',html);
+  }
+  window.mostrarFichaCertificadosEstablecimiento=async function(estId,ctx='ficha'){
+    currentFichaId=estId;
+    ensureFichaTab(ctx,estId);
+    const body=ctx==='map'?byId('map-ficha-body'):byId('ficha-body');
+    if(!body)return;
+    const tabId=ctx==='map'?MAP_TAB_ID:TAB_ID;
+    body.previousElementSibling?.querySelectorAll('.ficha-tab').forEach(t=>t.classList.toggle('active',t.id===tabId));
+    body.innerHTML='<div style="text-align:center;padding:26px;color:var(--muted)">Cargando certificados...</div>';
+    if(typeof window.cargarCertificadosMedicion==='function')await window.cargarCertificadosMedicion();
+    body.innerHTML=renderFichaCertificados(estId);
+  };
+  const openFichaPrev=window.openFicha;
+  window.openFicha=function(id){
+    const res=typeof openFichaPrev==='function'?openFichaPrev.apply(this,arguments):undefined;
+    setTimeout(()=>ensureFichaTab('ficha',id),30);
+    return res;
+  };
+  const renderFichaBodyPrev=window.renderFichaBodyDGIE;
+  window.renderFichaBodyDGIE=function(fb,estId,i){
+    if(i===1&&fb){renderFichaOrdenesServicio(fb,estId);return}
+    return typeof renderFichaBodyPrev==='function'?renderFichaBodyPrev.apply(this,arguments):undefined;
+  };
+  const switchFichaPrev=window.switchFichaTab;
+  window.switchFichaTab=function(i){
+    byId(TAB_ID)?.classList.remove('active');
+    const res=typeof switchFichaPrev==='function'?switchFichaPrev.apply(this,arguments):undefined;
+    setTimeout(()=>ensureFichaTab('ficha',currentFichaId),0);
+    return res;
+  };
+  const renderMapBodyPrev=window.renderMapFichaBody;
+  window.renderMapFichaBody=function(estId,tab=0){
+    byId(MAP_TAB_ID)?.classList.remove('active');
+    const res=typeof renderMapBodyPrev==='function'?renderMapBodyPrev.apply(this,arguments):undefined;
+    setTimeout(()=>ensureFichaTab('map',estId),0);
+    return res;
+  };
+  const switchMapPrev=window.switchMapFichaTab;
+  if(typeof switchMapPrev==='function'){
+    window.switchMapFichaTab=function(estId,tab){
+      byId(MAP_TAB_ID)?.classList.remove('active');
+      return switchMapPrev.apply(this,arguments);
+    };
+  }
+  const renderInfoPrev=window.renderEstablecimientoInfoBox;
+  if(typeof renderInfoPrev==='function'){
+    window.renderEstablecimientoInfoBox=function(estId=null){
+      const html=renderInfoPrev.apply(this,arguments);
+      if(!estId)return html;
+      const tab=`<div class="ficha-tab" id="${MAP_TAB_ID}" onclick="mostrarFichaCertificadosEstablecimiento(${Number(estId)},'map')">Certificados</div>`;
+      if(html.includes(MAP_TAB_ID))return html;
+      if(/(<div class="ficha-tab"[^>]*>Planos\/documentación<\/div>)/.test(html))return html.replace(/(<div class="ficha-tab"[^>]*>Planos\/documentación<\/div>)/,`${tab}$1`);
+      return html.replace(/(<\/div>\s*<div class="ficha-body" id="map-ficha-body"><\/div>)/,`${tab}$1`);
+    };
+  }
+  const st=document.createElement('style');
+  st.id='dgie-ficha-certificados-style';
+  st.textContent=`
+    .ficha-cert-card{margin-bottom:0}
+    .ficha-cert-row{align-items:flex-start}
+    .ficha-cert-actions{display:flex;gap:6px;align-items:flex-end;justify-content:flex-start;flex-direction:column}
+    .ficha-cert-final-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px}
+    .ficha-cert-final-row span{font-size:12px;font-weight:800;color:#123c69}
+    .ficha-cert-final-row strong{font-size:12px;color:#123c69;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 10px}
+    .ficha-os-table{min-width:1420px}
+    .ficha-os-table th:nth-child(3),.ficha-os-table td:nth-child(3){min-width:340px}
+    .ficha-os-task{font-weight:600;color:#1e293b;line-height:1.38;white-space:normal;overflow-wrap:anywhere}
+    .ficha-os-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:150px}
+    .ficha-os-actions .pdf-btn{padding:6px 9px;font-size:11px}
+    @media(max-width:760px){.ficha-cert-row{display:block}.ficha-cert-actions{align-items:flex-start;margin-top:10px;flex-direction:row;flex-wrap:wrap}}
+  `;
+  if(!document.getElementById(st.id))document.head.appendChild(st);
+})();
+</script>
 </body>
 </html>
