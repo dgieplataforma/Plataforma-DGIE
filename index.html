@@ -2729,18 +2729,17 @@ function renderLcGraficos(zona){
     ? OS_ZONA.filter(o=>Number(o.zona)===z||zonaEstablecimiento(o.estId)===z)
     : OS_ZONA.slice();
 
-  const estados=['pendiente','trabajando','finalizado','anulado'];
-  const estadoLabels=['Pendiente','Trabajando','Finalizado','Anulado'];
-  const estadoColors=['#f59e0b','#2563eb','#16a34a','#991b1b'];
   const estadoData = (typeof reclamoEstadoCounts==='function')
     ? reclamoEstadoCounts(recBase, osBase)
-    : estados.map(est=>recBase.filter(r=>{
+    : ['pendiente','trabajando','finalizado','anulado'].map(est=>recBase.filter(r=>{
       const os=typeof findOSForReclamo==='function'?findOSForReclamo(r, osBase):null;
       const e=os?(typeof getEstadoOS==='function'?getEstadoOS(os):String(os.estado||'').toLowerCase()):'pendiente';
       return e===est;
     }).length);
   const totalEstados=estadoData.reduce((a,b)=>a+b,0);
-  _drawLc('lc-mant-estados','doughnut',estadoLabels,totalEstados?estadoData:[1,1,1,1],estadoColors);
+  const estadoLabels=estadoData.length===5?['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado']:['Pendiente','Trabajando','Finalizado','Anulado'];
+  const estadoColors=estadoData.length===5?['#f59e0b','#64748b','#2563eb','#16a34a','#991b1b']:['#f59e0b','#2563eb','#16a34a','#991b1b'];
+  _drawLc('lc-mant-estados','doughnut',estadoLabels,totalEstados?estadoData:estadoData.map(()=>1),estadoColors);
 }
 
 
@@ -2856,9 +2855,38 @@ function resetLandingMapFilters(){
 }
 
 let _landingLeafletMap=null,_landingLeafletMarkers=null;
+function landingPseudoPos(e){
+  const seed=String(e?.id||e?.cue||e?.n||'0').split('').reduce((a,ch)=>((a*31)+ch.charCodeAt(0))>>>0,7);
+  const left=8+((seed%8400)/100);
+  const top=10+(((seed>>>8)%7600)/100);
+  return {left,top};
+}
+function renderLcMapaFallback(visibles){
+  const mapEl=document.getElementById('landing-map');
+  if(!mapEl)return;
+  mapEl.querySelectorAll('.landing-map-fallback-dot,.landing-map-empty').forEach(n=>n.remove());
+  if(!visibles.length){
+    mapEl.insertAdjacentHTML('beforeend','<div class="landing-map-empty">No hay establecimientos para los filtros seleccionados.</div>');
+    return;
+  }
+  const html=visibles.map(e=>{
+    const pos=landingPseudoPos(e);
+    const color=e.nivel==='Secundario'?'#005aa9':(e.nivel==='Inicial'||e.nivel==='Primario')?'#2e7d32':'#d97706';
+    const sel=Number(selectedLandingEstabId)===Number(e.id);
+    return `<button type="button" class="landing-map-dot landing-map-fallback-dot${sel?' selected':''}" title="${escapeHtml(e.n||'Establecimiento')}" onclick="selectLandingEstablecimiento(${Number(e.id)})" style="left:${pos.left}%;top:${pos.top}%;background:${color};z-index:4"></button>`;
+  }).join('');
+  mapEl.insertAdjacentHTML('beforeend',html);
+}
 function renderLcMapa(skipFit){
   const mapEl=document.getElementById('landing-map');
-  if(!mapEl||!window.L)return;
+  if(!mapEl)return;
+  const visibles=landingMapFiltrados();
+  const counter=document.getElementById('landing-map-counter');
+  if(counter)counter.textContent=`${visibles.length} de ${ESTABS.length}`;
+  if(!window.L){
+    renderLcMapaFallback(visibles);
+    return;
+  }
   if(!_landingLeafletMap){
     const lf=document.createElement('div');
     lf.id='landing-map-leaflet';
@@ -2869,10 +2897,8 @@ function renderLcMapa(skipFit){
     _landingLeafletMarkers=L.layerGroup().addTo(_landingLeafletMap);
     setTimeout(()=>{try{_landingLeafletMap.invalidateSize();}catch(_){}},80);
   }
+  mapEl.querySelectorAll('.landing-map-fallback-dot,.landing-map-empty').forEach(n=>n.remove());
   _landingLeafletMarkers.clearLayers();
-  const visibles=landingMapFiltrados();
-  const counter=document.getElementById('landing-map-counter');
-  if(counter)counter.textContent=`${visibles.length} de ${ESTABS.length}`;
   const bounds=[];
   visibles.forEach(e=>{
     const lat=Number(e.lat),lng=Number(e.lng);
@@ -2887,6 +2913,7 @@ function renderLcMapa(skipFit){
     marker.on('click',()=>selectLandingEstablecimiento(Number(e.id)));
     marker.addTo(_landingLeafletMarkers);
   });
+  if(!bounds.length)renderLcMapaFallback(visibles);
   if(!skipFit){if(bounds.length)_landingLeafletMap.fitBounds(bounds,{padding:[28,28],maxZoom:14});else _landingLeafletMap.setView([-31.4167,-64.1833],12);}
 }
 function _drawLc(id,type,labels,data,colors){
@@ -18381,6 +18408,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
     catch(_){return ''}
   }
+  function certFechaCarga(c){
+    const v=c?.created_at||c?.fecha_carga||c?.fechaCarga||c?.fecha_subida||c?.fecha||'';
+    if(!v)return '';
+    try{return new Date(v).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+    catch(_){return String(v)}
+  }
   function certComentariosHTML(c){
     const key=certCommentKey(c);
     const msgs=certMsgs(c);
@@ -18418,6 +18451,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${c?.medicion_numero?`Medición Nº ${esc(c.medicion_numero)} · Módulos certificado final: ${mods(modCert(c))}<br>`:''}
         ${cleanObs(c?.observaciones_empresa)?`<span style="color:#64748b">Empresa: ${esc(cleanObs(c.observaciones_empresa))}</span><br>`:''}
         ${cleanObs(c?.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${esc(cleanObs(c.observaciones_inspector))}</span>`:''}
+        ${certFechaCarga(c)?`<div style="font-size:12px;color:#64748b;margin-top:6px">Cargado: ${esc(certFechaCarga(c))}</div>`:''}
       </div>
       ${certComentariosHTML(c)}
       <div class="med-actions" style="margin-top:10px">
@@ -18736,7 +18770,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function cardCert(card,usados){
     const explicit=card.getAttribute('data-cert-card');
     if(explicit)return certs().find(c=>key(c)===explicit||String(c.id)===explicit||String(c.localId)===explicit);
-    const title=card.querySelector('.med-card-title')?.textContent?.trim()||'';
+    const title=directChild(card,'med-card-title')?.textContent?.trim()||'';
     const text=card.textContent||'';
     const candidates=certs().filter(c=>String(c?.estado||'')!=='eliminado'&&String(c?.establecimiento_nombre||'').trim()===title);
     return candidates.find(c=>{
@@ -18746,6 +18780,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const inspector=String(c?.archivo_inspector||'').trim();
       return (original&&text.includes(original))||(inspector&&text.includes(inspector));
     })||candidates.find(c=>!usados.has(key(c)))||null;
+  }
+  function directChild(card,cls){
+    return [...(card?.children||[])].find(el=>el.classList?.contains(cls))||null;
   }
   function comentariosHTML(c){
     const k=key(c);
@@ -18776,8 +18813,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!document.getElementById('med-list'))return;
     const usados=new Set();
     document.querySelectorAll('#med-list .med-card').forEach(card=>{
-      if(!card.querySelector('.med-card-title')||card.querySelector('.dgie-cert-comments-restored')||card.querySelector('[id^="conv-txt-"]'))return;
-      const actions=card.querySelector('.med-actions');
+      if(!directChild(card,'med-card-title')||card.querySelector('.dgie-cert-comments-restored')||card.querySelector('[id^="conv-txt-"]'))return;
+      const actions=directChild(card,'med-actions');
       if(!actions)return;
       const c=cardCert(card,usados);
       if(!c)return;
