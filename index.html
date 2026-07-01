@@ -8788,7 +8788,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       o.empresaFinalizoFecha=fechaAnterior;
       limpiarEmpresaFinalizoLocal(o);
       console.warn('empresa_finalizo Supabase error:',error.message||error);
-      toastDGIE('No se guardó en Supabase. No se cambió el estado.','error');
+      toastDGIE('No se guardó en Supabase. No se cambió el estado. '+(error.message||error),'error');
     }else{
       o.empresaFinalizo=!!val;
       o.empresaFinalizoFecha=now;

@@ -141,7 +141,17 @@
       return updateOne('ordenes_servicio', id, row, 'esa orden de servicio');
     },
     async actualizarEmpresaFinalizo(ordenId, valor){
-      return client.rpc('marcar_empresa_finalizo', { p_orden_id: String(ordenId), p_valor: !!valor });
+      const rpc = await client.rpc('marcar_empresa_finalizo', { p_orden_id: String(ordenId), p_valor: !!valor });
+      if(!rpc.error) return rpc;
+      const msg = String(rpc.error.message || '').toLowerCase();
+      const code = String(rpc.error.code || '');
+      const faltaRpc = code === 'PGRST202' || code === '42883' || msg.includes('marcar_empresa_finalizo') || msg.includes('function');
+      if(!faltaRpc) return rpc;
+      return updateOne('ordenes_servicio', ordenId, {
+        empresa_finalizo: !!valor,
+        empresa_finalizo_fecha: valor ? new Date().toISOString() : null,
+        empresa_finalizo_por: null
+      }, 'el estado de empresa');
     },
     async eliminarOrden(id){
       return client.from('ordenes_servicio').delete().eq('id', id);
