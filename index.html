@@ -136,6 +136,14 @@
 .landing-map-counter{position:absolute;top:10px;right:10px;background:#fff;border:1px solid #d9e2ef;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:900;color:#005aa9;z-index:500;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 .landing-map-dot.selected{outline:4px solid rgba(0,90,169,.22);transform:scale(2);z-index:6}
 .landing-map-empty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.95);border:1px solid #d9e2ef;border-radius:12px;padding:12px 14px;color:#64748b;font-size:12px;font-weight:900;text-align:center;box-shadow:0 6px 18px rgba(15,23,42,.08)}
+.landing-map-inner.dgie-public-map-ready{min-height:360px;background:linear-gradient(90deg,rgba(255,255,255,.28) 1px,transparent 1px) 0 0/58px 58px,linear-gradient(0deg,rgba(255,255,255,.28) 1px,transparent 1px) 0 0/58px 58px,radial-gradient(circle at 20% 18%,rgba(0,90,169,.14),transparent 25%),radial-gradient(circle at 80% 78%,rgba(46,125,50,.12),transparent 28%),linear-gradient(160deg,#e9f3fb 0%,#d7e8f3 100%)}
+.landing-map-inner.dgie-public-map-ready:before{content:"";position:absolute;inset:0;background:linear-gradient(28deg,transparent 0 47%,rgba(255,255,255,.62) 48% 49%,transparent 50%),linear-gradient(118deg,transparent 0 43%,rgba(255,255,255,.48) 44% 45%,transparent 46%),linear-gradient(68deg,transparent 0 58%,rgba(255,255,255,.42) 59% 60%,transparent 61%);background-size:210px 160px,260px 190px,300px 220px;pointer-events:none}
+.landing-map-dot.dgie-public-map-dot{width:11px;height:11px;border:2px solid #fff;box-shadow:0 2px 8px rgba(15,23,42,.25);transform:translate(-50%,-50%);z-index:6}
+.landing-map-dot.dgie-public-map-dot:hover{transform:translate(-50%,-50%) scale(1.8);z-index:20}
+.landing-map-dot.dgie-public-map-dot.selected{outline:4px solid rgba(0,90,169,.22);transform:translate(-50%,-50%) scale(1.9);z-index:21}
+.landing-map-dot.dgie-public-map-dot.aprox{opacity:.72;border-style:dashed;box-shadow:0 1px 5px rgba(15,23,42,.18)}
+.landing-map-zone-label{position:absolute;z-index:3;transform:translate(-50%,-50%);padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.82);border:1px solid rgba(203,213,225,.9);color:#64748b;font-size:10px;font-weight:900;pointer-events:none}
+.landing-map-counter small{color:#64748b;font-weight:800}
 .landing-charts-col{display:flex;flex-direction:column;gap:12px}
 .landing-chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-shadow:0 4px 12px rgba(15,23,42,.06);flex:1}
 .landing-chart-title{font-size:12px;font-weight:700;color:#1e3a5f;margin-bottom:8px}
@@ -5019,6 +5027,7 @@ function renderChartInsp(){
       applyStoredLocations();
       if(document.getElementById('inspector-map-layer'))window.renderDgieRealMap('inspector');
       if(document.getElementById('coord-map-layer'))window.renderDgieRealMap('coord');
+      if(document.getElementById('landing-map')&&typeof window.renderLcMapa==='function')window.renderLcMapa();
     }catch(err){console.warn('No se pudieron cargar coordenadas remotas',err);}
   }
   function establecimientoNombre(id){
@@ -18875,6 +18884,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const data=estadoDataDGIE(recs,oss);
     const labels=data.length===5?LABELS_5:LABELS_4;
     const colors=data.length===5?COLORS_5:COLORS_4;
+    const el=document.getElementById(id);
+    if(window.Chart&&el&&typeof Chart.getChart==='function'){
+      const prev=Chart.getChart(el);
+      if(prev&&typeof prev.destroy==='function')prev.destroy();
+    }
+    if(typeof _lcCharts!=='undefined'&&_lcCharts[id])_lcCharts[id]=null;
+    if(typeof chartInstances!=='undefined'&&chartInstances[id])chartInstances[id]=null;
     if(typeof drawDonutSafe==='function')drawDonutSafe(id,data,labels,colors);
     else if(typeof _drawLc==='function')_drawLc(id,'doughnut',labels,data.some(n=>Number(n)>0)?data:data.map(()=>1),colors);
   }
@@ -18902,6 +18918,160 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
   }
   setTimeout(()=>{try{if(document.getElementById('lc-mant-estados'))window.renderLcGraficos?.(window._lcZonaGraficosActiva||null)}catch(e){}},300);
+})();
+</script>
+<style id="dgie-mapa-publico-estable-2026-07-01">
+.landing-map-inner.dgie-public-map-ready{
+  min-height:360px;
+  background:
+    linear-gradient(90deg,rgba(255,255,255,.28) 1px,transparent 1px) 0 0/58px 58px,
+    linear-gradient(0deg,rgba(255,255,255,.28) 1px,transparent 1px) 0 0/58px 58px,
+    radial-gradient(circle at 20% 18%,rgba(0,90,169,.14),transparent 25%),
+    radial-gradient(circle at 80% 78%,rgba(46,125,50,.12),transparent 28%),
+    linear-gradient(160deg,#e9f3fb 0%,#d7e8f3 100%);
+}
+.landing-map-inner.dgie-public-map-ready:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(28deg,transparent 0 47%,rgba(255,255,255,.62) 48% 49%,transparent 50%),
+    linear-gradient(118deg,transparent 0 43%,rgba(255,255,255,.48) 44% 45%,transparent 46%),
+    linear-gradient(68deg,transparent 0 58%,rgba(255,255,255,.42) 59% 60%,transparent 61%);
+  background-size:210px 160px,260px 190px,300px 220px;
+  pointer-events:none;
+}
+.landing-map-dot.dgie-public-map-dot{
+  width:11px;
+  height:11px;
+  border:2px solid #fff;
+  box-shadow:0 2px 8px rgba(15,23,42,.25);
+  transform:translate(-50%,-50%);
+  z-index:6;
+}
+.landing-map-dot.dgie-public-map-dot:hover{
+  transform:translate(-50%,-50%) scale(1.8);
+  z-index:20;
+}
+.landing-map-dot.dgie-public-map-dot.selected{
+  outline:4px solid rgba(0,90,169,.22);
+  transform:translate(-50%,-50%) scale(1.9);
+  z-index:21;
+}
+.landing-map-zone-label{
+  position:absolute;
+  z-index:3;
+  transform:translate(-50%,-50%);
+  padding:3px 7px;
+  border-radius:999px;
+  background:rgba(255,255,255,.82);
+  border:1px solid rgba(203,213,225,.9);
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
+  pointer-events:none;
+}
+.landing-map-counter small{
+  color:#64748b;
+  font-weight:800;
+}
+</style>
+<script id="dgie-mapa-publico-estable-2026-07-01">
+(function(){
+  function rows(){
+    return Array.isArray(window.ESTABS) ? window.ESTABS : (typeof ESTABS!=='undefined' ? ESTABS : []);
+  }
+  function esc(v){
+    return typeof escapeHtml==='function' ? escapeHtml(v) : String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]));
+  }
+  function hasCoords(e){
+    const lat=Number(e?.lat), lng=Number(e?.lng);
+    return Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0&&lat>=-32.8&&lat<=-30.8&&lng>=-65.5&&lng<=-63.0;
+  }
+  function colorNivel(e){
+    const nivel=String(e?.nivel||'').toLowerCase();
+    if(nivel.includes('secund'))return '#005aa9';
+    if(nivel.includes('inicial')||nivel.includes('primar'))return '#2e7d32';
+    return '#d97706';
+  }
+  function hashText(text){
+    let h=2166136261;
+    for(let i=0;i<String(text).length;i++){h^=String(text).charCodeAt(i);h=Math.imul(h,16777619);}
+    return h>>>0;
+  }
+  function pseudoCoord(e,i){
+    const centers={1:[-31.3825,-64.2395],2:[-31.3615,-64.1870],3:[-31.3945,-64.1510],4:[-31.4230,-64.1450],5:[-31.4555,-64.1515],6:[-31.4560,-64.2050],7:[-31.4325,-64.2360],8:[-31.4025,-64.2180],9:[-31.3860,-64.1700],10:[-31.4140,-64.1840],11:[-31.4470,-64.1810],12:[-31.4740,-64.1770],13:[-31.4330,-64.1150],14:[-31.3925,-64.1140],15:[-31.4735,-64.2280],16:[-31.3530,-64.2330],17:[-31.4050,-64.2680]};
+    const c=centers[Number(e?.zona)]||[-31.4167,-64.1833];
+    const h=hashText([e?.id,e?.n,e?.dir,e?.barrio].join('|'));
+    const angle=((h%360)/180)*Math.PI;
+    const radius=.004+((h%1000)/1000)*.018;
+    return {lat:c[0]+Math.sin(angle)*radius+(((i%9)-4)*.00055),lng:c[1]+Math.cos(angle)*radius+(((i%7)-3)*.00065)};
+  }
+  function filtrados(){
+    if(typeof landingMapFiltrados==='function')return landingMapFiltrados();
+    const q=(document.getElementById('landing-map-search')?.value||'').trim().toLowerCase();
+    const zona=document.getElementById('landing-map-zona')?.value||'';
+    const nivel=document.getElementById('landing-map-nivel')?.value||'';
+    const estado=document.getElementById('landing-map-estado')?.value||'';
+    return rows().filter(e=>{
+      const text=[e.n,e.dir,e.barrio,e.cue].join(' ').toLowerCase();
+      return (!q||text.includes(q))&&(!zona||Number(e.zona)===Number(zona))&&(!nivel||e.nivel===nivel)&&(!estado||e.est===estado);
+    });
+  }
+  function projected(items){
+    const coords=items.map((e,i)=>{
+      const c=hasCoords(e)?{lat:Number(e.lat),lng:Number(e.lng)}:pseudoCoord(e,i);
+      return {...c,e};
+    });
+    if(!coords.length)return [];
+    let minLat=Math.min(...coords.map(c=>c.lat)), maxLat=Math.max(...coords.map(c=>c.lat));
+    let minLng=Math.min(...coords.map(c=>c.lng)), maxLng=Math.max(...coords.map(c=>c.lng));
+    const latPad=Math.max((maxLat-minLat)*.12,.01), lngPad=Math.max((maxLng-minLng)*.12,.01);
+    minLat-=latPad; maxLat+=latPad; minLng-=lngPad; maxLng+=lngPad;
+    return coords.map((c,i)=>{
+      const left=6+((c.lng-minLng)/(maxLng-minLng))*88;
+      const top=6+((maxLat-c.lat)/(maxLat-minLat))*88;
+      return {...c,left:Math.max(4,Math.min(96,left)),top:Math.max(4,Math.min(96,top)),i};
+    });
+  }
+  function renderZoneLabels(mapEl,pts){
+    const zonas=new Map();
+    pts.forEach(p=>{
+      const z=Number(p.e?.zona)||0;
+      if(!z)return;
+      const cur=zonas.get(z)||{left:0,top:0,n:0};
+      cur.left+=p.left; cur.top+=p.top; cur.n++;
+      zonas.set(z,cur);
+    });
+    return [...zonas.entries()].map(([z,v])=>`<div class="landing-map-zone-label" style="left:${v.left/v.n}%;top:${v.top/v.n}%">Z${z}</div>`).join('');
+  }
+  window.renderLcMapa=function(){
+    const mapEl=document.getElementById('landing-map');
+    if(!mapEl)return;
+    const visibles=filtrados();
+    const counter=document.getElementById('landing-map-counter');
+    const aproximados=visibles.filter(e=>!hasCoords(e)).length;
+    if(counter)counter.innerHTML=`${visibles.length} visibles <small>de ${rows().length}${aproximados?` · ${aproximados} aprox.`:''}</small>`;
+    mapEl.classList.add('dgie-public-map-ready');
+    mapEl.querySelectorAll('#landing-map-leaflet,.leaflet-container,.landing-map-fallback-dot,.dgie-public-map-dot,.landing-map-empty,.landing-map-zone-label').forEach(n=>{
+      try{n.remove();}catch(_e){}
+    });
+    if(!visibles.length){
+      mapEl.insertAdjacentHTML('beforeend','<div class="landing-map-empty">No hay establecimientos para los filtros seleccionados.</div>');
+      return;
+    }
+    const pts=projected(visibles);
+    mapEl.insertAdjacentHTML('beforeend',renderZoneLabels(mapEl,pts));
+    const dots=pts.map(p=>{
+      const e=p.e;
+      const sel=Number(window.selectedLandingEstabId||selectedLandingEstabId)===Number(e.id);
+      const exacta=hasCoords(e);
+      const tipo=exacta?'ubicación exacta':'ubicación aproximada';
+      return `<button type="button" class="landing-map-dot dgie-public-map-dot${exacta?'':' aprox'}${sel?' selected':''}" title="${esc(e.n||'Establecimiento')} · Zona ${esc(e.zona||'')} · ${tipo}" onclick="selectLandingEstablecimiento(${Number(e.id)})" style="left:${p.left}%;top:${p.top}%;background:${colorNivel(e)}"></button>`;
+    }).join('');
+    mapEl.insertAdjacentHTML('beforeend',dots);
+  };
+  setTimeout(()=>{try{window.renderLcMapa()}catch(_e){}},150);
 })();
 </script>
 </body>
