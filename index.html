@@ -18620,7 +18620,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const k=key(r);
       const actual=window.estadoInspectorReclamoKey(r);
       const badge=actual?`<span class="badge ${ESTADOS[actual]?.cls||'b-neutral'}">${esc(ESTADOS[actual]?.label||actual)} por inspector</span>`:'<span class="badge b-neutral">Estado automático</span>';
-      const panel=`<div class="reclamo-estado-inspector" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px 0 10px 10px">
+      const panel=`<div class="reclamo-estado-inspector" style="display:flex;justify-content:flex-end;align-items:flex-end;gap:6px;flex-wrap:wrap;margin-top:2px">
         ${badge}
         <select class="filter-sel" style="min-width:165px;padding:7px 10px;font-size:12px" onchange="guardarEstadoInspectorReclamo('${esc(k)}',this.value)">
           <option value="" ${actual?'':'selected'}>Automático por O.S.</option>
@@ -18629,7 +18629,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           <option value="finalizado" ${actual==='finalizado'?'selected':''}>Finalizado</option>
         </select>
       </div>`;
-      return html+panel;
+      const integrado=html.replace(/<\/div>\s*<\/div>\s*$/,panel+'</div></div>');
+      return integrado!==html?integrado:html+panel;
     };
     try{rowReclamo=window.rowReclamo}catch(_){}
   }
