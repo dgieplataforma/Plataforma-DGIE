@@ -18629,8 +18629,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           <option value="finalizado" ${actual==='finalizado'?'selected':''}>Finalizado</option>
         </select>
       </div>`;
-      const integrado=html.replace(/<\/div>\s*<\/div>\s*$/,panel+'</div></div>');
-      return integrado!==html?integrado:html+panel;
+      const anularMarker='<div style="display:flex;justify-content:flex-end;margin:-4px 0 10px"';
+      const anularIdx=String(html).indexOf(anularMarker);
+      const rowHtml=anularIdx>=0?String(html).slice(0,anularIdx):String(html);
+      const extraHtml=anularIdx>=0?String(html).slice(anularIdx):'';
+      const integrado=rowHtml.replace(/<\/div>\s*<\/div>\s*$/,panel+'</div></div>');
+      return (integrado!==rowHtml?integrado:rowHtml+panel)+extraHtml;
     };
     try{rowReclamo=window.rowReclamo}catch(_){}
   }
