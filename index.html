@@ -18345,6 +18345,42 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return kind==='original'?(c?.url_original||''):(c?.url_inspector||c?.url_original||'');
   }
   function cleanObs(v){return String(v||'').replace(/\s*\[[A-Z_]+:[^\]]*\]/g,'').trim()}
+  function certCommentKey(c){
+    return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_');
+  }
+  function certMsgs(c){
+    return typeof window.conversacionCert==='function'
+      ? (window.conversacionCert(c)||[])
+      : (Array.isArray(c?.conversacion)?c.conversacion:[]);
+  }
+  function certMsgFecha(v){
+    try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+    catch(_){return ''}
+  }
+  function certComentariosHTML(c){
+    const key=certCommentKey(c);
+    const msgs=certMsgs(c);
+    const userName=String(currentUser?.name||'');
+    const mensajes=msgs.length?msgs.map((m,idx)=>{
+      const esInspector=String(m?.rol||'')==='inspector';
+      const puedeBorrar=String(m?.autor||'')===userName;
+      return `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:${esInspector?'#eef4ff':'#f1f5f9'};border-left:3px solid ${esInspector?'var(--blue)':'#94a3b8'}">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div style="font-size:11px;font-weight:700;color:${esInspector?'var(--blue)':'#64748b'};margin-bottom:2px">${esc(m?.autor||m?.rol||'Usuario')} <span style="font-weight:400;color:#b0bccc">${certMsgFecha(m?.fecha)?'· '+certMsgFecha(m?.fecha):''}</span></div>
+          ${puedeBorrar?`<button class="secondary-btn" style="padding:3px 7px;color:var(--danger);font-size:11px" onclick="borrarMensajeCertificado('${key}',${idx})">Borrar</button>`:''}
+        </div>
+        <div style="font-size:13px;color:#334155">${esc(m?.texto||'')}</div>
+      </div>`;
+    }).join(''):`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Sin comentarios todavía.</div>`;
+    return `<div style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
+      <div style="font-size:13px;font-weight:900;color:#123c69;margin-bottom:8px">Comentarios</div>
+      ${mensajes}
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:4px">
+        <textarea id="conv-txt-${key}" class="form-textarea" style="font-size:13px;min-height:58px" placeholder="Escribí un comentario sobre este certificado..."></textarea>
+        <button class="secondary-btn" style="align-self:flex-end" onclick="enviarMensajeCertificado('${key}')">Enviar</button>
+      </div>
+    </div>`;
+  }
   function certCard(c){
     const id=String(c?.id||c?.localId||'').replace(/'/g,"\\'");
     const rubros=certRubros(c);
@@ -18359,6 +18395,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${cleanObs(c?.observaciones_empresa)?`<span style="color:#64748b">Empresa: ${esc(cleanObs(c.observaciones_empresa))}</span><br>`:''}
         ${cleanObs(c?.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${esc(cleanObs(c.observaciones_inspector))}</span>`:''}
       </div>
+      ${certComentariosHTML(c)}
       <div class="med-actions" style="margin-top:10px">
         ${certEstadoBadge(c)}
         <button class="secondary-btn" onclick="seleccionarAnalisisPrecioCertificado('${id}')">Análisis de precios</button>
