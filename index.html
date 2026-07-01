@@ -18385,7 +18385,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const id=String(c?.id||c?.localId||'').replace(/'/g,"\\'");
     const rubros=certRubros(c);
     const ordenes=certOrdenesSmart(c);
-    return `<div class="med-card">
+    return `<div class="med-card" data-cert-card="${esc(certCommentKey(c))}">
       <div class="med-card-title">${esc(c?.establecimiento_nombre||'Establecimiento')}</div>
       <div class="med-card-meta">
         Original: ${certFileUrl(c,'original')?`<a href="${esc(certFileUrl(c,'original'))}" target="_blank" rel="noopener">${esc(c?.archivo_original||'Archivo')}</a>`:esc(c?.archivo_original||'Archivo')}${rubros?` · Rubro/s: ${esc(rubros)}`:''} · Módulos empresa: ${mods(c?.modulos_original)}<br>
@@ -18540,6 +18540,94 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     return typeof renderTabPrev==='function'?renderTabPrev.apply(this,arguments):undefined;
   };
+})();
+</script>
+<script id="dgie-restaurar-comentarios-certificados-2026-07-01">
+(function(){
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  function certs(){return Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[]}
+  function key(c){
+    return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_');
+  }
+  function msgs(c){
+    if(typeof window.conversacionCert==='function')return window.conversacionCert(c)||[];
+    if(Array.isArray(c?.conversacion))return c.conversacion;
+    const m=String(c?.observaciones_inspector||'').match(/\[CONV_CERT:([^\]]*)\]/);
+    if(!m)return [];
+    try{return JSON.parse(decodeURIComponent(m[1]))||[]}catch(_){return []}
+  }
+  function fecha(v){
+    try{return v?new Date(v).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}catch(_){return ''}
+  }
+  function cardCert(card,usados){
+    const explicit=card.getAttribute('data-cert-card');
+    if(explicit)return certs().find(c=>key(c)===explicit||String(c.id)===explicit||String(c.localId)===explicit);
+    const title=card.querySelector('.med-card-title')?.textContent?.trim()||'';
+    const text=card.textContent||'';
+    const candidates=certs().filter(c=>String(c?.estado||'')!=='eliminado'&&String(c?.establecimiento_nombre||'').trim()===title);
+    return candidates.find(c=>{
+      const k=key(c);
+      if(usados.has(k))return false;
+      const original=String(c?.archivo_original||'').trim();
+      const inspector=String(c?.archivo_inspector||'').trim();
+      return (original&&text.includes(original))||(inspector&&text.includes(inspector));
+    })||candidates.find(c=>!usados.has(key(c)))||null;
+  }
+  function comentariosHTML(c){
+    const k=key(c);
+    const user=String(currentUser?.name||'');
+    const list=msgs(c);
+    const items=list.length?list.map((m,idx)=>{
+      const inspector=String(m?.rol||'')==='inspector';
+      const own=String(m?.autor||'')===user;
+      const f=fecha(m?.fecha);
+      return `<div style="margin-bottom:8px;padding:8px 10px;border-radius:8px;background:${inspector?'#eef4ff':'#f1f5f9'};border-left:3px solid ${inspector?'var(--blue)':'#94a3b8'}">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div style="font-size:11px;font-weight:700;color:${inspector?'var(--blue)':'#64748b'};margin-bottom:2px">${esc(m?.autor||m?.rol||'Usuario')} <span style="font-weight:400;color:#b0bccc">${f?'· '+esc(f):''}</span></div>
+          ${own?`<button class="secondary-btn" style="padding:3px 7px;color:var(--danger);font-size:11px" onclick="borrarMensajeCertificado('${k}',${idx})">Borrar</button>`:''}
+        </div>
+        <div style="font-size:13px;color:#334155">${esc(m?.texto||'')}</div>
+      </div>`;
+    }).join(''):`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Sin comentarios todavía.</div>`;
+    return `<div class="dgie-cert-comments-restored" style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
+      <div style="font-size:13px;font-weight:900;color:#123c69;margin-bottom:8px">Comentarios</div>
+      ${items}
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:4px">
+        <textarea id="conv-txt-${k}" class="form-textarea" style="font-size:13px;min-height:58px" placeholder="Escribí un comentario sobre este certificado..."></textarea>
+        <button class="secondary-btn" style="align-self:flex-end" onclick="enviarMensajeCertificado('${k}')">Enviar</button>
+      </div>
+    </div>`;
+  }
+  function restaurar(){
+    if(!document.getElementById('med-list'))return;
+    const usados=new Set();
+    document.querySelectorAll('#med-list .med-card').forEach(card=>{
+      if(!card.querySelector('.med-card-title')||card.querySelector('.dgie-cert-comments-restored')||card.querySelector('[id^="conv-txt-"]'))return;
+      const actions=card.querySelector('.med-actions');
+      if(!actions)return;
+      const c=cardCert(card,usados);
+      if(!c)return;
+      usados.add(key(c));
+      card.setAttribute('data-cert-card',key(c));
+      actions.insertAdjacentHTML('beforebegin',comentariosHTML(c));
+    });
+  }
+  const filtrarPrev=window.filtrarMedicionesInspector;
+  window.filtrarMedicionesInspector=function(){
+    const res=typeof filtrarPrev==='function'?filtrarPrev.apply(this,arguments):undefined;
+    setTimeout(restaurar,0);
+    return res;
+  };
+  const renderPrev=window.renderMedicionesInspector;
+  window.renderMedicionesInspector=async function(){
+    const res=typeof renderPrev==='function'?await renderPrev.apply(this,arguments):undefined;
+    setTimeout(restaurar,0);
+    return res;
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(restaurar,0));
+  const obs=new MutationObserver(()=>restaurar());
+  obs.observe(document.body,{childList:true,subtree:true});
+  setTimeout(restaurar,0);
 })();
 </script>
 </body>
