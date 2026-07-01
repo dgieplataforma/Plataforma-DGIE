@@ -18653,7 +18653,19 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     r.updatedAt=now;
     try{
       if(r.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarReclamo==='function'){
-        const {data,error}=await window.DGIE_DB.actualizarReclamo(r.remoteId,{descripcion,updated_at:now});
+        let data=null;
+        let error=null;
+        try{
+          const res=await window.DGIE_DB.actualizarReclamo(r.remoteId,{descripcion,updated_at:now});
+          data=res?.data||null;
+          error=res?.error||null;
+        }catch(fetchError){
+          error=fetchError;
+        }
+        if(error&&typeof window.DGIE_DB.actualizarReclamoSimple==='function'){
+          const simple=await window.DGIE_DB.actualizarReclamoSimple(r.remoteId,{descripcion,updated_at:now});
+          error=simple?.error||null;
+        }
         if(error)throw error;
         r.updatedAt=data?.updated_at||now;
       }
@@ -18663,7 +18675,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       r.estadoInspector=prevEstado;
       r.estado_inspector=prevEstado;
       r.descripcion=prevDesc;
-      alert('No se pudo guardar el estado del reclamo en Supabase: '+(error.message||error));
+      alert('No se pudo sincronizar el estado del reclamo con Supabase. Revisá conexión y volvé a intentar. Detalle: '+(error.message||error));
       refrescarEstadoReclamos();
     }
   };

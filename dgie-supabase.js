@@ -131,6 +131,10 @@
     async actualizarReclamo(id, row){
       return updateOne('reclamos', id, row, 'ese reclamo');
     },
+    async actualizarReclamoSimple(id, row){
+      const { error } = await client.from('reclamos').update(row).eq('id', id);
+      return { data:null, error };
+    },
     async listarOrdenes(){
       return selectAll('ordenes_servicio', { orderBy:'created_at', ascending:false });
     },
