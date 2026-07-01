@@ -18527,7 +18527,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=RECLAMOS_ZONA||[];
     const ctx='cc-rec';
     resetSmartCtx(ctx);
-    return `<div class="section-label">Call Center · Seguimiento de reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Listado de reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, prioridad y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="cc-rec-count">${base.length} reclamos</span>${pdfButton(ctx,'PDF filtrado')}</div></div>
+    return `<div class="section-label">Call Center · Seguimiento de reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Listado de reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, prioridad y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="cc-rec-count">${base.length} reclamos</span>${pdfButton(ctx,'PDF filtrado')}<button class="secondary-btn" style="padding:6px 13px;font-size:12px;font-weight:700" onclick="descargarExcelReclamosCallcenter()">Excel</button></div></div>
       <div class="os-filters">
         <input class="estab-search" id="cc-rec-q" placeholder="Buscar por número, escuela, descripción, rubro u OS..." oninput="filtrarReclamosCallcenter()">
         ${smartHTML(ctx,callcenterFields(base),'filtrarReclamosCallcenter')}
@@ -18556,6 +18556,35 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
   window.descargarPDFReclamosCallcenter=function(){
     if(typeof window.dgieSmartExportPDF==='function')window.dgieSmartExportPDF('cc-rec');
+  };
+  window.descargarExcelReclamosCallcenter=function(){
+    if(!window.XLSX){alert('Librería Excel no disponible. Recargá la página.');return;}
+    const rows=callcenterRows();
+    if(!rows.length){alert('No hay reclamos para exportar con los filtros actuales.');return;}
+    const data=rows.map(r=>{
+      const st=estadoCallcenter(r);
+      const creado=r?.createdAt||r?.creadoEn||r?.created_at||r?.fechaHora||r?.fecha_hora||'';
+      const editado=r?.updatedAt||r?.editadoEn||r?.updated_at||'';
+      return {
+        'N° Reclamo':r?.numero||'S/N',
+        'Zona':zonaEst(r)||'—',
+        'Establecimiento':r?.est||r?.establecimiento||'—',
+        'Descripción':tituloRecVisible(r),
+        'Rubro':rubroRec(r)||'—',
+        'Fecha':r?.fecha||'—',
+        'Prioridad':r?.prio||r?.prioridad||'medio',
+        'Estado':st.label,
+        'OS':r?.os&&r.os!=='Sin OS'?r.os:'—',
+        'Fotos':Array.isArray(r?.fotos)?r.fotos.length:Number(r?.fotos||0),
+        'Cargado':creado?new Date(creado).toLocaleString('es-AR'):'—',
+        'Editado':editado?new Date(editado).toLocaleString('es-AR'):''
+      };
+    });
+    const ws=XLSX.utils.json_to_sheet(data);
+    ws['!cols']=[{wch:14},{wch:7},{wch:36},{wch:55},{wch:20},{wch:12},{wch:12},{wch:22},{wch:14},{wch:8},{wch:20},{wch:20}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Reclamos');
+    XLSX.writeFile(wb,`DGIE_Reclamos_CallCenter_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
   const renderTabPrev=window.renderTab;
   window.renderTab=function(i){
@@ -18773,6 +18802,69 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const obs=new MutationObserver(()=>restaurar());
   obs.observe(document.body,{childList:true,subtree:true});
   setTimeout(restaurar,0);
+})();
+</script>
+<script id="dgie-graficos-publico-inspector-misma-logica-2026-07-01">
+(function(){
+  const LABELS_5=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'];
+  const COLORS_5=['#f59e0b','#64748b','#2563eb','#16a34a','#991b1b'];
+  const LABELS_4=['Pendiente','Trabajando','Finalizado','Anulado'];
+  const COLORS_4=['#f59e0b','#2563eb','#16a34a','#991b1b'];
+  function zonaItemDGIE(item){
+    const z=Number(item?.zona||0);
+    if(z)return z;
+    const est=Number(item?.estId||item?.establecimiento_id||0);
+    try{return est&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(est))||0:0}catch(e){return 0}
+  }
+  function reclamosZonaDGIE(z){
+    const rows=Array.isArray(window.RECLAMOS_ZONA)?window.RECLAMOS_ZONA:(typeof RECLAMOS_ZONA!=='undefined'?RECLAMOS_ZONA:[]);
+    return z?rows.filter(r=>zonaItemDGIE(r)===Number(z)):rows.slice();
+  }
+  function ordenesZonaDGIE(z){
+    const rows=Array.isArray(window.OS_ZONA)?window.OS_ZONA:(typeof OS_ZONA!=='undefined'?OS_ZONA:[]);
+    return z?rows.filter(o=>zonaItemDGIE(o)===Number(z)):rows.slice();
+  }
+  function estadoDataDGIE(recs,oss){
+    if(typeof window.reclamoEstadoCounts==='function')return window.reclamoEstadoCounts(recs,oss);
+    if(typeof reclamoEstadoCounts==='function')return reclamoEstadoCounts(recs,oss);
+    const counts={pendiente:0,trabajando:0,finalizado:0,anulado:0};
+    (recs||[]).forEach(r=>{
+      const st=typeof window.estadoReclamoCanon==='function'?window.estadoReclamoCanon(r,oss):(typeof estadoReclamoCanon==='function'?estadoReclamoCanon(r,oss):'pendiente');
+      counts[counts[st]!==undefined?st:'pendiente']++;
+    });
+    return [counts.pendiente,counts.trabajando,counts.finalizado,counts.anulado];
+  }
+  function dibujarEstadoReclamosDGIE(id,recs,oss){
+    const data=estadoDataDGIE(recs,oss);
+    const labels=data.length===5?LABELS_5:LABELS_4;
+    const colors=data.length===5?COLORS_5:COLORS_4;
+    if(typeof drawDonutSafe==='function')drawDonutSafe(id,data,labels,colors);
+    else if(typeof _drawLc==='function')_drawLc(id,'doughnut',labels,data.some(n=>Number(n)>0)?data:data.map(()=>1),colors);
+  }
+  window.dgieDibujarEstadoReclamos=dibujarEstadoReclamosDGIE;
+  const renderLcPrev=window.renderLcGraficos;
+  if(typeof renderLcPrev==='function'){
+    window.renderLcGraficos=function(zona){
+      const out=renderLcPrev.apply(this,arguments);
+      const z=zona||window._lcZonaGraficosActiva||null;
+      dibujarEstadoReclamosDGIE('lc-mant-estados',reclamosZonaDGIE(z),ordenesZonaDGIE(z));
+      return out;
+    };
+  }
+  const renderInspPrev=window.renderChartInsp;
+  if(typeof renderInspPrev==='function'){
+    window.renderChartInsp=function(view='principal'){
+      const out=renderInspPrev.apply(this,arguments);
+      const z=Number(currentUser?.zona||selectedZona||1);
+      const recs=reclamosZonaDGIE(z);
+      const oss=ordenesZonaDGIE(z);
+      dibujarEstadoReclamosDGIE('chart-insp-estado-reclamos',recs,oss);
+      dibujarEstadoReclamosDGIE('chart-zona-reclamos',recs,oss);
+      dibujarEstadoReclamosDGIE('chart-zona-rec-ejec',recs,oss);
+      return out;
+    };
+  }
+  setTimeout(()=>{try{if(document.getElementById('lc-mant-estados'))window.renderLcGraficos?.(window._lcZonaGraficosActiva||null)}catch(e){}},300);
 })();
 </script>
 </body>
