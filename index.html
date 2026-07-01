@@ -17902,6 +17902,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function setLast(ctx,title,type,rows,total=null){
     LAST[ctx]={title,type,rows:Array.isArray(rows)?rows.slice():[],total};
   }
+  function resetSmartCtx(ctx){
+    STORE[ctx]=[];
+    delete LAST[ctx];
+  }
   function filtrosExport(ctx){
     const qIds={'insp-rec':'insp-rec-q','coord-rec':'coord-rec-q','os':'os-search','coord-os':'coord-os-q','med':'med-q','cc-rec':'cc-rec-q'};
     const parts=[];
@@ -18135,6 +18139,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const z=Number(currentUser?.zona||0);
     const base=(RECLAMOS_ZONA||[]).filter(r=>zonaEst(r)===z);
     const ctx='insp-rec';
+    resetSmartCtx(ctx);
     container.innerHTML=`<div class="card"><div class="card-header"><div><div class="card-title">Reclamos Zona ${esc(z)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por estado, prioridad, O.S. y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="insp-rec-count">${base.length} reclamos</span>${pdfButton(ctx,'PDF filtrado')}</div></div>
       <div class="os-filters">
         <input class="estab-search" id="insp-rec-q" placeholder="Buscar por establecimiento, título, número o rubro..." oninput="filterReclamosInspector()">
@@ -18162,6 +18167,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.renderReclamosCoordinador=function(container){
     const base=RECLAMOS_ZONA||[];
     const ctx='coord-rec';
+    resetSmartCtx(ctx);
     container.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, prioridad, O.S. y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="coord-reclamos-count">— reclamos</span>${pdfButton(ctx,'PDF filtrado')}<button class="secondary-btn" style="padding:6px 13px;font-size:12px;font-weight:700" onclick="exportarReclamosExcel()">Excel</button></div></div>
       <div class="os-filters">
         <input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título, número o rubro..." oninput="filterReclamosCoord()">
@@ -18252,6 +18258,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=isZona?osPorZona(currentUser?.zona):OS_ZONA;
     const actions=typeof canManageOS==='function'&&canManageOS();
     const ctx='os';
+    resetSmartCtx(ctx);
     const toolbar=[typeof canCreateOS==='function'&&canCreateOS()?'<button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button>':''].filter(Boolean).join('');
     return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por rubro, estado, prioridad, certificación y medición.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="os-count">${base.length} órdenes</span>${pdfButton(ctx,'PDF filtrado')}</div></div>${toolbar?`<div class="os-visible-toolbar">${toolbar}</div>`:''}
       <div class="os-filters">
@@ -18281,6 +18288,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.renderOSGeneral=function(container){
     const base=OS_ZONA||[];
     const ctx='coord-os';
+    resetSmartCtx(ctx);
     container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="coord-os-count">${base.length} órdenes</span>${pdfButton(ctx,'PDF filtrado')}</div></div>
       <div class="os-filters">
         <input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, reclamo, establecimiento, rubro o tarea..." oninput="filterOSCoord()">
@@ -18382,14 +18390,24 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       await renderMedicionesInspectorPrev.apply(this,arguments);
       const base=certsZonaSmart(z);
       const ctx='med';
+      resetSmartCtx(ctx);
+      [...document.querySelectorAll('.dgie-smart-summary-row')].filter(el=>el.querySelector('#med-smart-count')).slice(1).forEach(el=>el.remove());
+      document.querySelectorAll('#med-sf-chips').forEach((el,i)=>{if(i>0)el.remove()});
       const old=byId('med-q')?.closest('.os-filters');
       if(old){
+        old.parentElement?.querySelectorAll('.dgie-smart-summary-row').forEach(el=>el.remove());
+        old.parentElement?.querySelectorAll('#med-sf-chips').forEach(el=>el.remove());
         setConfig(ctx,certFields(base),'filtrarMedicionesInspector');
         old.outerHTML=`<div class="dgie-smart-summary-row"><span class="badge b-info" id="med-smart-count">${base.length} certificados</span>${pdfButton(ctx,'PDF filtrado')}</div><div class="os-filters">
           <input class="estab-search" id="med-q" placeholder="Buscar establecimiento, archivo, rubro, O.S. o medición..." oninput="filtrarMedicionesInspector()">
           ${smartHTML(ctx,certFields(base),'filtrarMedicionesInspector')}
         </div>${smartChipsSlot(ctx)}`;
       }
+      setTimeout(()=>{
+        const rows=[...document.querySelectorAll('.dgie-smart-summary-row')].filter(el=>el.querySelector('#med-smart-count'));
+        rows.slice(1).forEach(el=>el.remove());
+        [...document.querySelectorAll('#med-sf-chips')].slice(1).forEach(el=>el.remove());
+      },0);
       window.filtrarMedicionesInspector();
     };
   }
@@ -18440,6 +18458,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function callcenterHTML(){
     const base=RECLAMOS_ZONA||[];
     const ctx='cc-rec';
+    resetSmartCtx(ctx);
     return `<div class="section-label">Call Center · Seguimiento de reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Listado de reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, prioridad y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="cc-rec-count">${base.length} reclamos</span>${pdfButton(ctx,'PDF filtrado')}</div></div>
       <div class="os-filters">
         <input class="estab-search" id="cc-rec-q" placeholder="Buscar por número, escuela, descripción, rubro u OS..." oninput="filtrarReclamosCallcenter()">
