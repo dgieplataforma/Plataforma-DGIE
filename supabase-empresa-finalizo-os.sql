@@ -3,6 +3,8 @@ alter table public.ordenes_servicio
   add column if not exists empresa_finalizo_fecha timestamptz,
   add column if not exists empresa_finalizo_por text;
 
+drop function if exists public.marcar_empresa_finalizo(uuid, boolean);
+
 create or replace function public.marcar_empresa_finalizo(
   p_orden_id uuid,
   p_valor boolean

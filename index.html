@@ -18082,6 +18082,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return !!os&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(os);
   }
   function estadoReclamo(r){
+    const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
+    if(manual)return manual;
     if(typeof window.estadoReclamoCanon==='function')return window.estadoReclamoCanon(r,OS_ZONA);
     if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return 'anulado';
     if(!reclamoTieneOS(r))return 'pendiente';
@@ -18093,6 +18095,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function textoRec(r){
     return `${reclamoNumero(r)} ${r?.numero||''} ${r?.est||r?.establecimiento||''} ${r?.titulo||''} ${r?.descripcion||''} ${r?.rubro||''} ${r?.os||''}`.toLowerCase();
+  }
+  function tituloRecVisible(r){
+    const raw=String(r?.titulo||r?.descripcion||'—');
+    return typeof window.limpiarMetaEstadoInspectorReclamo==='function'?window.limpiarMetaEstadoInspectorReclamo(raw):raw;
   }
   function reclamoFields(base,{zona=false}={}){
     const fields=[];
@@ -18127,7 +18133,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <td><div class="os-num">${esc(reclamoNumero(r)||'—')}</div>${reiterado?`<span class="badge b-warn" style="font-size:11px;margin-top:4px">Reiterado</span>`:''}</td>
       <td>${esc(zona)}</td>
       <td>${esc(r?.est||r?.establecimiento||'—')}</td>
-      <td>${esc(r?.titulo||r?.descripcion||'—')}${comentario?`<div style="font-size:11px;color:#991b1b;font-weight:700;margin-top:4px">Motivo: ${esc(comentario)}</div>`:''}</td>
+      <td>${esc(tituloRecVisible(r))}${comentario?`<div style="font-size:11px;color:#991b1b;font-weight:700;margin-top:4px">Motivo: ${esc(comentario)}</div>`:''}</td>
       <td>${esc(rubroRec(r)||'—')}</td>
       <td>${esc(r?.fecha||'—')}</td>
       <td>${typeof prioBadgeFecha==='function'?prioBadgeFecha(r?.prio||r?.prioridad):esc(r?.prio||r?.prioridad||'medio')}</td>
@@ -18216,6 +18222,26 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }catch(e){return false}
   }
   function textoOS(o){return `${o?.numero||''} ${o?.reclamoNumero||''} ${o?.establecimiento||''} ${o?.tarea||''} ${o?.rubro||''}`.toLowerCase()}
+  function resumenEstadosOSVisible(data,total){
+    const counts={pendiente:0,trabajando:0,finalizado:0,anulado:0};
+    (data||[]).forEach(o=>{
+      const k=estadoOS(o);
+      counts[counts[k]!==undefined?k:'pendiente']++;
+    });
+    const visible=(data||[]).length;
+    const base=Number.isFinite(Number(total))?Number(total):visible;
+    return `<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+      <span class="badge b-info">${visible} visibles de ${base}</span>
+      <span class="badge b-warn">${counts.pendiente} pendientes</span>
+      <span class="badge b-info">${counts.trabajando} trabajando</span>
+      <span class="badge b-ok">${counts.finalizado} finalizadas</span>
+      <span class="badge b-danger">${counts.anulado} anuladas</span>
+    </div>`;
+  }
+  function actualizarResumenEstadosOS(id,data,total){
+    const el=byId(id);
+    if(el)el.innerHTML=resumenEstadosOSVisible(data,total);
+  }
   function osFields(base,{zona=false}={}){
     const fields=[];
     if(zona)fields.push({key:'zona',label:'Zona',options:zonaOptions,test:(o,v)=>String(zonaOS(o))===String(v)});
@@ -18260,7 +18286,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const ctx='os';
     resetSmartCtx(ctx);
     const toolbar=[typeof canCreateOS==='function'&&canCreateOS()?'<button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button>':''].filter(Boolean).join('');
-    return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por rubro, estado, prioridad, certificación y medición.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="os-count">${base.length} órdenes</span>${pdfButton(ctx,'PDF filtrado')}</div></div>${toolbar?`<div class="os-visible-toolbar">${toolbar}</div>`:''}
+    return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por rubro, estado, prioridad, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>${toolbar?`<div class="os-visible-toolbar">${toolbar}</div>`:''}
       <div class="os-filters">
         <input class="estab-search" id="os-search" placeholder="Buscar por OS, reclamo, establecimiento o tarea..." oninput="filterOS()">
         ${smartHTML(ctx,osFields(base),'filterOS')}
@@ -18276,8 +18302,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=currentUser?.role==='inspector'?osPorZona(currentUser.zona):OS_ZONA;
     const data=base.filter(o=>(!q||textoOS(o).includes(q))&&rangoFecha(o.fecha,desde,hasta)&&smartMatches('os',o)).sort((a,b)=>osNum(b.numero)-osNum(a.numero));
     setLast('os',currentUser?.role==='inspector'?`Órdenes de servicio Zona ${currentUser.zona}`:'Órdenes de servicio','ordenes',data,base.length);
-    const badge=byId('os-count');
-    if(badge)badge.textContent=`${data.length} visibles de ${base.length}`;
+    actualizarResumenEstadosOS('os-state-summary',data,base.length);
     window.dgieSmartRenderChips('os');
     if(typeof window.renderOSTable==='function')window.renderOSTable(data);
     else{
@@ -18289,7 +18314,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=OS_ZONA||[];
     const ctx='coord-os';
     resetSmartCtx(ctx);
-    container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="coord-os-count">${base.length} órdenes</span>${pdfButton(ctx,'PDF filtrado')}</div></div>
+    container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="coord-os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>
       <div class="os-filters">
         <input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, reclamo, establecimiento, rubro o tarea..." oninput="filterOSCoord()">
         ${smartHTML(ctx,osFields(base,{zona:true}),'filterOSCoord')}
@@ -18307,8 +18332,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const data=(OS_ZONA||[]).filter(o=>(!q||textoOS(o).includes(q))&&rangoFecha(o.fecha,desde,hasta)&&smartMatches('coord-os',o)).sort((a,b)=>osNum(b.numero)-osNum(a.numero));
     const total=(OS_ZONA||[]).length;
     setLast('coord-os','Órdenes de servicio - Coordinación','ordenes',data,total);
-    const badge=byId('coord-os-count');
-    if(badge)badge.textContent=`${data.length} visibles de ${total}`;
+    actualizarResumenEstadosOS('coord-os-state-summary',data,total);
     window.dgieSmartRenderChips('coord-os');
     const el=byId('coord-os-body');
     if(!el)return;
@@ -18461,6 +18485,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(list)list.innerHTML=renderCertSeguimientoSmart(data);
   };
   function estadoCallcenter(r){
+    const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
+    if(manual){
+      if(manual==='finalizado')return {key:'finalizado',label:'Finalizado',cls:'b-ok'};
+      if(manual==='trabajando')return {key:'trabajando',label:'Trabajando',cls:'b-info'};
+      if(manual==='anulado')return {key:'anulado',label:'Reclamo / OS anulada',cls:'b-danger'};
+      return {key:'pendiente',label:'Pendiente',cls:'b-warn'};
+    }
     if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return {key:'anulado',label:'Reclamo / OS anulada',cls:'b-danger'};
     const os=String(r?.os||'').trim();
     if(!os||['Sin OS','Pendiente'].includes(os))return {key:'sin_os',label:'Sin OS',cls:'b-neutral'};
@@ -18475,7 +18506,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function callcenterFields(base){
     return [
       {key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)},
-      {key:'estado',label:'Estado',options:()=>[opt('sin_os','Sin OS'),opt('con_os','Con OS pendiente'),opt('trabajando','Con OS trabajando'),opt('finalizado','Finalizado'),opt('anulado','Reclamo / OS anulada'),opt('en_tramite','En trámite')],test:(r,v)=>estadoCallcenter(r).key===v},
+      {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('sin_os','Sin OS'),opt('con_os','Con OS pendiente'),opt('trabajando','Con OS trabajando'),opt('finalizado','Finalizado'),opt('anulado','Reclamo / OS anulada'),opt('en_tramite','En trámite')],test:(r,v)=>estadoCallcenter(r).key===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
     ];
@@ -18520,7 +18551,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const reiterado=typeof reclamoReiteradoDe==='function'?reclamoReiteradoDe(r):'';
       const fotos=Array.isArray(r?.fotos)?r.fotos.length:Number(r?.fotos||0);
       const comentario=String(r?.anuladoComentario||r?.anulado_comentario||'').trim();
-      return `<tr><td><div class="os-num">${esc(r?.numero||'S/N')}</div>${reiterado?`<div style="font-size:11px;color:#b45309;font-weight:800;margin-top:4px">Reiterado de ${esc(reiterado)}</div>`:''}</td><td>${esc(zonaEst(r)||'—')}</td><td>${esc(r?.est||r?.establecimiento||'—')}</td><td><div class="os-task">${esc(r?.titulo||r?.descripcion||'—')}</div>${comentario?`<div style="font-size:11px;color:#991b1b;font-weight:700;margin-top:4px">Anulado: ${esc(comentario)}</div>`:''}</td><td>${esc(rubroRec(r)||'—')}</td><td>${esc(r?.fecha||'—')}</td><td>${typeof prioBadgeCallcenter==='function'?prioBadgeCallcenter(r?.prio||r?.prioridad):(typeof prioBadgeFecha==='function'?prioBadgeFecha(r?.prio||r?.prioridad):esc(r?.prio||r?.prioridad||'medio'))}</td><td><span class="badge ${st.cls}">${esc(st.label)}</span></td><td>${fotos?`<span class="badge b-info">${fotos}</span>`:'—'}</td><td>${auditCC(r)}</td><td><button class="edit-btn" type="button" onclick='abrirEdicionReclamoCallcenter(${JSON.stringify(key)})'>Editar</button></td></tr>`;
+      return `<tr><td><div class="os-num">${esc(r?.numero||'S/N')}</div>${reiterado?`<div style="font-size:11px;color:#b45309;font-weight:800;margin-top:4px">Reiterado de ${esc(reiterado)}</div>`:''}</td><td>${esc(zonaEst(r)||'—')}</td><td>${esc(r?.est||r?.establecimiento||'—')}</td><td><div class="os-task">${esc(tituloRecVisible(r))}</div>${comentario?`<div style="font-size:11px;color:#991b1b;font-weight:700;margin-top:4px">Anulado: ${esc(comentario)}</div>`:''}</td><td>${esc(rubroRec(r)||'—')}</td><td>${esc(r?.fecha||'—')}</td><td>${typeof prioBadgeCallcenter==='function'?prioBadgeCallcenter(r?.prio||r?.prioridad):(typeof prioBadgeFecha==='function'?prioBadgeFecha(r?.prio||r?.prioridad):esc(r?.prio||r?.prioridad||'medio'))}</td><td><span class="badge ${st.cls}">${esc(st.label)}</span></td><td>${fotos?`<span class="badge b-info">${fotos}</span>`:'—'}</td><td>${auditCC(r)}</td><td><button class="edit-btn" type="button" onclick='abrirEdicionReclamoCallcenter(${JSON.stringify(key)})'>Editar</button></td></tr>`;
     }).join(''):`<tr><td colspan="11" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
   };
   window.descargarPDFReclamosCallcenter=function(){
@@ -18540,6 +18571,103 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     return typeof renderTabPrev==='function'?renderTabPrev.apply(this,arguments):undefined;
   };
+})();
+</script>
+<script id="dgie-estado-inspector-reclamos-2026-07-01">
+(function(){
+  const ESTADOS={
+    pendiente:{label:'Pendiente',cls:'b-warn'},
+    trabajando:{label:'Trabajando',cls:'b-info'},
+    finalizado:{label:'Finalizado',cls:'b-ok'}
+  };
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function key(r){return String(r?.remoteId||r?.id||r?.numero||'')}
+  function normEstado(v){
+    const s=String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    if(s.startsWith('trab'))return 'trabajando';
+    if(s.startsWith('final'))return 'finalizado';
+    if(s.startsWith('pend'))return 'pendiente';
+    return '';
+  }
+  function metaEstado(txt){
+    const m=String(txt||'').match(/\[ESTADO_INSPECTOR:([a-z_]+)\]/i);
+    return normEstado(m?.[1]||'');
+  }
+  function limpiarMetaEstado(txt){
+    return String(txt||'').replace(/\s*\[ESTADO_INSPECTOR:[a-z_]+\]\s*/ig,'').trim();
+  }
+  function findReclamo(k){
+    k=String(k||'');
+    return (RECLAMOS_ZONA||[]).find(r=>String(r.remoteId||'')===k||String(r.id||'')===k||String(r.numero||'')===k);
+  }
+  window.estadoInspectorReclamoKey=function(r){
+    if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return '';
+    return normEstado(r?.estadoInspector||r?.estado_inspector||r?.estado_inspector_manual)||metaEstado(r?.descripcion);
+  };
+  window.limpiarMetaEstadoInspectorReclamo=limpiarMetaEstado;
+  const estadoCanonPrev=window.estadoReclamoCanon;
+  window.estadoReclamoCanon=function(r,ordenes){
+    const manual=window.estadoInspectorReclamoKey(r);
+    if(manual)return manual;
+    return typeof estadoCanonPrev==='function'?estadoCanonPrev.apply(this,arguments):'pendiente';
+  };
+  const rowPrev=window.rowReclamo;
+  if(typeof rowPrev==='function'){
+    window.rowReclamo=function(r,showEst){
+      let html=rowPrev.apply(this,arguments);
+      if(currentUser?.role!=='inspector')return html;
+      if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return html;
+      const k=key(r);
+      const actual=window.estadoInspectorReclamoKey(r);
+      const badge=actual?`<span class="badge ${ESTADOS[actual]?.cls||'b-neutral'}">${esc(ESTADOS[actual]?.label||actual)} por inspector</span>`:'<span class="badge b-neutral">Estado automático</span>';
+      const panel=`<div class="reclamo-estado-inspector" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px 0 10px 10px">
+        ${badge}
+        <select class="filter-sel" style="min-width:165px;padding:7px 10px;font-size:12px" onchange="guardarEstadoInspectorReclamo('${esc(k)}',this.value)">
+          <option value="" ${actual?'':'selected'}>Automático por O.S.</option>
+          <option value="pendiente" ${actual==='pendiente'?'selected':''}>Pendiente</option>
+          <option value="trabajando" ${actual==='trabajando'?'selected':''}>Trabajando</option>
+          <option value="finalizado" ${actual==='finalizado'?'selected':''}>Finalizado</option>
+        </select>
+      </div>`;
+      return html+panel;
+    };
+    try{rowReclamo=window.rowReclamo}catch(_){}
+  }
+  window.guardarEstadoInspectorReclamo=async function(k,estado){
+    const r=findReclamo(k);
+    if(!r){alert('No se encontró el reclamo.');return}
+    const nuevo=normEstado(estado);
+    const prevEstado=r.estadoInspector||r.estado_inspector||'';
+    const prevDesc=r.descripcion||'';
+    const now=new Date().toISOString();
+    const base=limpiarMetaEstado(prevDesc);
+    const descripcion=nuevo?[base,`[ESTADO_INSPECTOR:${nuevo}]`].filter(Boolean).join('\n'):base;
+    r.estadoInspector=nuevo;
+    r.estado_inspector=nuevo;
+    r.descripcion=descripcion;
+    r.updatedAt=now;
+    try{
+      if(r.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarReclamo==='function'){
+        const {data,error}=await window.DGIE_DB.actualizarReclamo(r.remoteId,{descripcion,updated_at:now});
+        if(error)throw error;
+        r.updatedAt=data?.updated_at||now;
+      }
+      if(typeof saveAppState==='function')saveAppState();
+      refrescarEstadoReclamos();
+    }catch(error){
+      r.estadoInspector=prevEstado;
+      r.estado_inspector=prevEstado;
+      r.descripcion=prevDesc;
+      alert('No se pudo guardar el estado del reclamo en Supabase: '+(error.message||error));
+      refrescarEstadoReclamos();
+    }
+  };
+  function refrescarEstadoReclamos(){
+    if(typeof filterReclamosInspector==='function')filterReclamosInspector();
+    if(typeof filterReclamosCoord==='function')filterReclamosCoord();
+    if(typeof filtrarReclamosCallcenter==='function')filtrarReclamosCallcenter();
+    if(typeof renderChartInsp==='function'&&document.getElementById('dashboard-zona-body'))renderChartInsp('principal');
+  }
 })();
 </script>
 <script id="dgie-restaurar-comentarios-certificados-2026-07-01">
