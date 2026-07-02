@@ -3753,7 +3753,7 @@ function renderDashboardCoordinador(){
       <div class="metric-card"><div class="metric-lbl">Establecimientos</div><div class="metric-val">${estabs.length}</div></div>
       <div class="metric-card"><div class="metric-lbl">Reclamos registrados</div><div class="metric-val v-info">${recs.length}</div></div>
       <div class="metric-card"><div class="metric-lbl">Mantenimientos finalizados</div><div class="metric-val v-ok">${fin.length}</div></div>
-      <div class="metric-card"><div class="metric-lbl">En trabajo / pendientes</div><div class="metric-val v-warn">${trabajando+pendientes}</div></div>
+      ${real.zona?`<div class="metric-card"><div class="metric-lbl">Inspector</div><div class="metric-val" style="font-size:20px">${escapeHtml(INSPECTORS[Number(real.zona)-1]||'Sin inspector')}</div></div>`:`<div class="metric-card"><div class="metric-lbl">Coordinación</div><div class="metric-val" style="font-size:20px">${escapeHtml(currentUser?.name||'Coordinación')}</div></div>`}
     </div>
     <div class="inspector-pro-grid">
       <div class="inspector-map-card">
@@ -5702,7 +5702,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.renderDashboardCoordinador=function(){
     let html=dashPrev();
     if(currentUser?.role==='coordinador'){
-      html=html.replace(/<div class="metric-lbl">Inspector<\/div>/g,'<div class="metric-lbl">Coordinadora</div>');
+      // Mantener "Inspector" cuando el coordinador filtra una zona.
       html=html.replace(/Inspector:\s*Rocio Peralta/g,'Coordinadora: Rocio Peralta');
       html=html.replace(/Inspector:\s*Augusto Zamora/g,'Coordinador: Augusto Zamora');
     }
@@ -18124,11 +18124,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function estadoReclamo(r){
     const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
     if(manual)return manual;
-    if(typeof window.estadoReclamoCanon==='function')return window.estadoReclamoCanon(r,OS_ZONA);
     if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return 'anulado';
-    if(!reclamoTieneOS(r))return 'pendiente';
-    const os=OS_ZONA.find(o=>String(o.numero)===String(r.os));
-    return os&&typeof getEstadoOS==='function'?getEstadoOS(os):'pendiente';
+    const os=typeof findOSForReclamo==='function'?findOSForReclamo(r,OS_ZONA):OS_ZONA.find(o=>String(o.numero)===String(r.os));
+    if(!os&&!reclamoTieneOS(r))return 'pendiente';
+    const st=os&&typeof getEstadoOS==='function'?getEstadoOS(os):'orden_servicio';
+    return st==='pendiente'?'orden_servicio':(st||'orden_servicio');
   }
   function rubroRec(r){
     return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,r?.titulo||r?.descripcion||''):String(r?.rubro||'');
@@ -18144,7 +18144,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const fields=[];
     if(zona)fields.push({key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)});
     fields.push(
-      {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
+      {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('orden_servicio','Orden de servicio'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con OS asignada'),opt('sin','Sin OS')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
@@ -19069,6 +19069,337 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
     window.loadUser.__dgieDataFirst=true;
   }
+})();
+</script>
+<script id="dgie-reclamos-exportes-coordinacion-2026-07-02">
+(function(){
+  'use strict';
+  function esc(v){
+    if(typeof escapeHtml==='function')return escapeHtml(v==null?'':v);
+    return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function plain(v){
+    const d=document.createElement('div');
+    d.innerHTML=String(v||'');
+    return (d.textContent||d.innerText||'').trim();
+  }
+  function norm(v){
+    return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  }
+  function reclamosGlobal(){
+    try{return Array.isArray(RECLAMOS_ZONA)?RECLAMOS_ZONA:(window.RECLAMOS_ZONA||[])}catch(_e){return window.RECLAMOS_ZONA||[]}
+  }
+  function ordenesGlobal(){
+    try{return Array.isArray(OS_ZONA)?OS_ZONA:(window.OS_ZONA||[])}catch(_e){return window.OS_ZONA||[]}
+  }
+  function usuarioActual(){
+    try{return currentUser||window.currentUser||null}catch(_e){return window.currentUser||null}
+  }
+  function fechaISO(v){
+    const s=String(v||'').trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+    const p=s.split('/');
+    if(p.length>=3)return `${String(p[2]).length===2?'20'+p[2]:p[2]}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`;
+    return s;
+  }
+  function zonaReclamo(r){
+    try{return Number(r?.zona||(r?.estId&&zonaEstablecimiento(r.estId))||(r?.establecimiento_id&&zonaEstablecimiento(r.establecimiento_id))||0)||0}catch(_e){return Number(r?.zona||0)||0}
+  }
+  function reclamoNumero(r){
+    try{return String((typeof reclamoNumeroVisible==='function'&&reclamoNumeroVisible(r))||r?.numero||'S/N')}catch(_e){return String(r?.numero||'S/N')}
+  }
+  function tituloReclamo(r){
+    const raw=String(r?.titulo||r?.descripcion||'');
+    try{return typeof window.limpiarMetaEstadoInspectorReclamo==='function'?window.limpiarMetaEstadoInspectorReclamo(raw):raw}catch(_e){return raw}
+  }
+  function rubroReclamo(r){
+    try{return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,tituloReclamo(r)):String(r?.rubro||'')}catch(_e){return String(r?.rubro||'')}
+  }
+  function prioridadKey(r){
+    const k=norm(r?.prio||r?.prioridad||'medio');
+    if(k.startsWith('critic'))return 'critico';
+    if(k.startsWith('alt'))return 'alto';
+    if(k.startsWith('baj'))return 'bajo';
+    return 'medio';
+  }
+  function prioridadLabel(r){
+    return {critico:'Crítico',alto:'Alto',medio:'Medio',bajo:'Bajo'}[prioridadKey(r)]||'Medio';
+  }
+  function fotosCount(r){
+    return Array.isArray(r?.fotos)?r.fotos.length:Number(r?.fotos||0)||0;
+  }
+  function osVinculada(r){
+    try{
+      if(typeof findOSForReclamo==='function'){
+        const os=findOSForReclamo(r,ordenesGlobal());
+        if(os)return os;
+      }
+    }catch(_e){}
+    const n=String(r?.os||'').trim();
+    if(!n||['Sin OS','Pendiente','En trámite','En tramite'].includes(n))return null;
+    return ordenesGlobal().find(o=>String(o?.numero)===n)||{numero:n,estado:'pendiente'};
+  }
+  function estadoOSSeguro(o){
+    try{return typeof getEstadoOS==='function'?getEstadoOS(o):norm(o?.estado||'pendiente')}catch(_e){return norm(o?.estado||'pendiente')}
+  }
+  function estadoReclamoCoord(r){
+    try{
+      const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
+      if(manual)return manual;
+    }catch(_e){}
+    const raw=norm(r?.estado||r?.estado_reclamo||'');
+    if(raw==='anulado')return 'anulado';
+    const os=osVinculada(r);
+    if(!os)return 'pendiente';
+    const st=estadoOSSeguro(os);
+    if(['trabajando','finalizado','anulado'].includes(st))return st;
+    return 'orden_servicio';
+  }
+  function estadoReclamoLabel(r){
+    return {pendiente:'Pendiente',orden_servicio:'Orden de servicio',trabajando:'Trabajando',finalizado:'Finalizado',anulado:'Anulado'}[estadoReclamoCoord(r)]||'Pendiente';
+  }
+  function fechaHora(v){
+    if(!v)return '';
+    const d=new Date(v);
+    if(Number.isNaN(d.getTime()))return '';
+    return d.toLocaleString('es-AR');
+  }
+  function rowsVisibles(ctx){
+    const last=window.DGIE_SMART_FILTER_LAST?.[ctx];
+    if(last&&Array.isArray(last.rows))return last.rows.slice();
+    return reclamosGlobal().slice();
+  }
+  function resumenFiltros(ctx){
+    const cfg=window.DGIE_SMART_FILTER_CONFIG?.[ctx]||{};
+    const filtros=window.DGIE_SMART_FILTERS?.[ctx]||[];
+    const qIds={'coord-rec':'coord-rec-q','cc-rec':'cc-rec-q','insp-rec':'insp-rec-q'};
+    const partes=[];
+    const q=document.getElementById(qIds[ctx]||'')?.value?.trim();
+    if(q)partes.push(`Búsqueda: ${q}`);
+    filtros.forEach(f=>{
+      const campo=(cfg.fields||[]).find(x=>x.key===f.field);
+      partes.push(`${campo?.label||f.field}: ${f.label||f.value}`);
+    });
+    const desde=document.getElementById(`${ctx}-desde`)?.value||'';
+    const hasta=document.getElementById(`${ctx}-hasta`)?.value||'';
+    if(desde||hasta)partes.push(`Fecha: ${desde||'inicio'} a ${hasta||'hoy'}`);
+    return partes.length?partes.join(' · '):'Sin filtros';
+  }
+  function reclamoExcelRows(rows){
+    return rows.map(r=>{
+      const os=osVinculada(r);
+      const creado=r?.createdAt||r?.creadoEn||r?.created_at||r?.fechaHora||r?.fecha_hora||'';
+      const editado=r?.updatedAt||r?.editadoEn||r?.updated_at||'';
+      return [
+        reclamoNumero(r),
+        zonaReclamo(r)||'',
+        r?.est||r?.establecimiento||'',
+        tituloReclamo(r),
+        rubroReclamo(r),
+        r?.fecha||'',
+        prioridadLabel(r),
+        estadoReclamoLabel(r),
+        os?.numero||'',
+        fotosCount(r),
+        fechaHora(creado),
+        fechaHora(editado)
+      ];
+    });
+  }
+  function exportarExcelReclamosTabla(ctx,titulo,prefix){
+    if(!window.XLSX){alert('Librería Excel no disponible. Recargá la página.');return;}
+    const rows=rowsVisibles(ctx);
+    if(!rows.length){alert('No hay reclamos para exportar con los filtros actuales.');return;}
+    const headers=['N° Reclamo','Zona','Establecimiento','Descripción','Rubro','Fecha','Prioridad','Estado','O.S.','Fotos','Cargado','Editado'];
+    const aoa=[headers].concat(reclamoExcelRows(rows));
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    const ref=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:aoa.length-1,c:headers.length-1}});
+    ws['!ref']=ref;
+    ws['!autofilter']={ref};
+    ws['!cols']=[{wch:15},{wch:8},{wch:38},{wch:64},{wch:22},{wch:13},{wch:13},{wch:20},{wch:16},{wch:8},{wch:22},{wch:22}];
+    ws['!rows']=[{hpt:24}];
+    headers.forEach((_,c)=>{
+      const cell=ws[XLSX.utils.encode_cell({r:0,c})];
+      if(cell)cell.s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'0B5EA8'}},alignment:{horizontal:'center',vertical:'center'}};
+    });
+    for(let r=1;r<aoa.length;r++){
+      for(let c=0;c<headers.length;c++){
+        const cell=ws[XLSX.utils.encode_cell({r,c})];
+        if(cell)cell.s={alignment:{vertical:'top',wrapText:true}};
+      }
+    }
+    const resumen=XLSX.utils.aoa_to_sheet([
+      ['Reporte',titulo],
+      ['Generado',new Date().toLocaleString('es-AR')],
+      ['Registros visibles',rows.length],
+      ['Total del módulo',window.DGIE_SMART_FILTER_LAST?.[ctx]?.total??rows.length],
+      ['Filtros',resumenFiltros(ctx)]
+    ]);
+    resumen['!cols']=[{wch:20},{wch:90}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Reclamos');
+    XLSX.utils.book_append_sheet(wb,resumen,'Resumen');
+    XLSX.writeFile(wb,`${prefix}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+  window.exportarReclamosExcel=function(){
+    exportarExcelReclamosTabla('coord-rec','Reclamos - Coordinación','DGIE_Reclamos_Coordinacion');
+  };
+  window.descargarExcelReclamosCallcenter=function(){
+    exportarExcelReclamosTabla('cc-rec','Listado de reclamos - Call Center','DGIE_Reclamos_CallCenter');
+  };
+
+  function contar(rows,fn){
+    const out=new Map();
+    rows.forEach(r=>{
+      const k=fn(r)||'Sin datos';
+      out.set(k,(out.get(k)||0)+1);
+    });
+    return out;
+  }
+  function ordenarConteo(map){
+    return [...map.entries()].sort((a,b)=>b[1]-a[1]||String(a[0]).localeCompare(String(b[0]),'es'));
+  }
+  function ordenarZonas(map){
+    const zonaNum=label=>{
+      const m=String(label||'').match(/(\d+)/);
+      return m?Number(m[1]):999;
+    };
+    return [...map.entries()].sort((a,b)=>zonaNum(a[0])-zonaNum(b[0]));
+  }
+  function ordenarEstados(map){
+    const orden=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'];
+    const usados=new Set();
+    const fijos=orden.filter(k=>map.has(k)).map(k=>{usados.add(k);return [k,map.get(k)]});
+    return fijos.concat([...map.entries()].filter(([k])=>!usados.has(k)));
+  }
+  function colorItem(colores,label,index){
+    if(Array.isArray(colores))return colores[index%colores.length];
+    const key=String(label||'');
+    return colores[key]||colores[norm(key)]||'#0b5ea8';
+  }
+  function donutHTML(titulo,items,colores){
+    const total=items.reduce((a,it)=>a+it[1],0);
+    let offset=0;
+    const circ=289.027;
+    const segs=total?items.map((it,i)=>{
+      const len=(it[1]/total)*circ;
+      const html=`<circle r="46" cx="62" cy="62" fill="transparent" stroke="${colorItem(colores,it[0],i)}" stroke-width="20" stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 62 62)"></circle>`;
+      offset+=len;
+      return html;
+    }).join(''):`<circle r="46" cx="62" cy="62" fill="transparent" stroke="#e2e8f0" stroke-width="20"></circle>`;
+    return `<div class="pdf-chart"><h2>${esc(titulo)}</h2><div class="pdf-donut-row"><svg viewBox="0 0 124 124" width="124" height="124">${segs}<circle r="27" cx="62" cy="62" fill="#fff"></circle><text x="62" y="67" text-anchor="middle" font-size="16" font-weight="800" fill="#123c69">${total}</text></svg><div class="pdf-legend">${items.map((it,i)=>`<div><span style="background:${colorItem(colores,it[0],i)}"></span>${esc(it[0])}: <b>${it[1]}</b></div>`).join('')||'<div>Sin datos</div>'}</div></div></div>`;
+  }
+  function barrasHTML(titulo,items,total,maxItems){
+    const recortados=items.slice(0,maxItems||8);
+    return `<div class="pdf-chart"><h2>${esc(titulo)}</h2><div class="pdf-bars">${recortados.map(it=>{
+      const pct=total?Math.round((it[1]/total)*100):0;
+      return `<div class="pdf-bar-row"><div>${esc(it[0])}</div><div><span style="width:${pct}%"></span></div><b>${it[1]} (${pct}%)</b></div>`;
+    }).join('')||'<div class="pdf-empty">Sin datos</div>'}</div></div>`;
+  }
+  function tituloPDFCoord(ctx){
+    const filtros=window.DGIE_SMART_FILTERS?.[ctx]||[];
+    const cfg=window.DGIE_SMART_FILTER_CONFIG?.[ctx]||{};
+    const zonas=filtros.filter(f=>f.field==='zona').map(f=>f.label||`Zona ${f.value}`);
+    const principales=filtros.filter(f=>f.field!=='zona').map(f=>{
+      const campo=(cfg.fields||[]).find(x=>x.key===f.field);
+      return `${campo?.label||f.field}: ${f.label||f.value}`;
+    });
+    const q=document.getElementById('coord-rec-q')?.value?.trim();
+    if(q)principales.unshift(`Búsqueda: ${q}`);
+    const base=principales.length?principales.join(' · '):'Todos los reclamos';
+    return `${base} · ${zonas.length?zonas.join(', '):'Todas las zonas'}`;
+  }
+  function exportarPDFReclamosCoord(){
+    const rows=rowsVisibles('coord-rec');
+    if(!rows.length){alert('No hay reclamos visibles para exportar.');return;}
+    const total=rows.length;
+    const porPrioridad=ordenarConteo(contar(rows,r=>prioridadLabel(r)));
+    const porEstado=ordenarEstados(contar(rows,r=>estadoReclamoLabel(r)));
+    const porRubro=ordenarConteo(contar(rows,r=>rubroReclamo(r)||'Sin rubro'));
+    const porZona=ordenarZonas(contar(rows,r=>`Zona ${zonaReclamo(r)||'S/D'}`));
+    const conOS=rows.filter(r=>estadoReclamoCoord(r)!=='pendiente'&&osVinculada(r)).length;
+    const finalizados=rows.filter(r=>estadoReclamoCoord(r)==='finalizado').length;
+    const anulados=rows.filter(r=>estadoReclamoCoord(r)==='anulado').length;
+    const tabla=reclamoExcelRows(rows).map(r=>`<tr>${r.slice(0,10).map(c=>`<td>${esc(c||'—')}</td>`).join('')}</tr>`).join('');
+    const tituloGrande=tituloPDFCoord('coord-rec');
+    const estadoColors={'Pendiente':'#f59e0b','Orden de servicio':'#7dd3fc','Trabajando':'#2563eb','Finalizado':'#16a34a','Anulado':'#dc2626'};
+    const css=`<style>
+      @page{size:A4 landscape;margin:9mm}
+      body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;font-size:8.7pt}
+      h1{font-size:18pt;color:#123c69;margin:0 0 4px}
+      h2{font-size:11pt;color:#123c69;margin:0 0 8px}
+      .eyebrow{font-size:10pt;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+      .meta{color:#475569;margin-bottom:8px}.filters{font-weight:700;color:#334155;margin:8px 0 12px}
+      .actions{margin-bottom:12px}.actions button{padding:8px 12px;font-weight:bold}
+      .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 12px}.kpi{border:1px solid #cbd5e1;border-left:5px solid #0b5ea8;border-radius:8px;padding:8px}.kpi b{display:block;font-size:16pt;color:#0b5ea8}.kpi span{color:#475569;font-weight:700}
+      .charts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.pdf-chart{border:1px solid #d8e3f0;border-radius:8px;padding:10px;break-inside:avoid}.pdf-donut-row{display:flex;gap:12px;align-items:center}.pdf-legend{display:grid;gap:4px}.pdf-legend span{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}.pdf-bar-row{display:grid;grid-template-columns:145px 1fr 70px;gap:8px;align-items:center;margin:5px 0}.pdf-bar-row>div:nth-child(2){height:10px;background:#e8eef5;border-radius:999px;overflow:hidden}.pdf-bar-row span{display:block;height:100%;background:#0b5ea8;border-radius:999px}.pdf-empty{color:#64748b}
+      table{width:100%;border-collapse:collapse;table-layout:fixed}th{background:#0f172a;color:#fff;text-align:left;padding:6px;border:1px solid #0f172a;font-size:8pt}td{border:1px solid #cbd5e1;padding:5px;vertical-align:top;overflow-wrap:anywhere}tr:nth-child(even) td{background:#f8fafc}
+      @media print{.actions{display:none}}
+    </style>`;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(tituloGrande)}</title>${css}</head><body>
+      <div class="actions"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
+      <div class="eyebrow">Reclamos - Coordinación</div>
+      <h1>${esc(tituloGrande)}</h1>
+      <div class="meta">Generado: ${esc(new Date().toLocaleString('es-AR'))} · ${total} visibles de ${esc(window.DGIE_SMART_FILTER_LAST?.['coord-rec']?.total??total)}</div>
+      <div class="filters">${esc(resumenFiltros('coord-rec'))}</div>
+      <div class="cards"><div class="kpi"><b>${total}</b><span>Reclamos filtrados</span></div><div class="kpi"><b>${conOS}</b><span>Con O.S.</span></div><div class="kpi"><b>${finalizados}</b><span>Finalizados</span></div><div class="kpi"><b>${anulados}</b><span>Anulados</span></div></div>
+      <div class="charts">
+        ${donutHTML('Prioridad',porPrioridad,['#b91c1c','#ea580c','#2563eb','#16a34a'])}
+        ${donutHTML('Estado operativo',porEstado,estadoColors)}
+        ${barrasHTML('Rubros más frecuentes',porRubro,total,8)}
+        ${barrasHTML('Distribución por zona',porZona,total,17)}
+      </div>
+      <table><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>O.S.</th><th>Fotos</th></tr></thead><tbody>${tabla}</tbody></table>
+    </body></html>`;
+    const w=window.open('','_blank');
+    if(!w){alert('No se pudo abrir la vista de PDF. Permití ventanas emergentes para esta página.');return;}
+    w.document.open();w.document.write(html);w.document.close();setTimeout(()=>w.print(),350);
+  }
+  const pdfPrev=window.dgieSmartExportPDF;
+  window.dgieSmartExportPDF=function(ctx){
+    if(ctx==='coord-rec')return exportarPDFReclamosCoord();
+    return typeof pdfPrev==='function'?pdfPrev.apply(this,arguments):undefined;
+  };
+
+  function nombreCoordinacion(){
+    const u=usuarioActual();
+    const raw=String(u?.name||u?.nombre||document.getElementById('topbar-name')?.textContent||'Coordinación').trim();
+    return raw&&norm(raw)!=='coordinador'?raw:'Coordinación';
+  }
+  function referenteDashboardCoordinacion(){
+    let z='';
+    try{z=typeof coordDashboardScopeValue==='function'?coordDashboardScopeValue():''}catch(_e){}
+    if(!z)z=document.getElementById('coord-dashboard-zona')?.value||'';
+    if(z){
+      let nombre='';
+      try{nombre=INSPECTORS[Number(z)-1]||''}catch(_e){}
+      return {label:'Inspector',nombre:nombre||`Zona ${z}`};
+    }
+    return {label:'Coordinación',nombre:nombreCoordinacion()};
+  }
+  function corregirTarjetaCoordinador(){
+    if(usuarioActual()?.role!=='coordinador')return;
+    const ref=referenteDashboardCoordinacion();
+    document.querySelectorAll('.metric-card').forEach(card=>{
+      const lbl=card.querySelector('.metric-lbl');
+      const val=card.querySelector('.metric-val');
+      const t=norm(lbl?.textContent||'');
+      if(lbl&&val&&(t.startsWith('inspector')||t.startsWith('coordinador')||t.startsWith('coordinacion'))){
+        lbl.textContent=ref.label;
+        val.textContent=ref.nombre;
+      }
+    });
+  }
+  const dashPrev=window.renderDashboardCoordinador;
+  if(typeof dashPrev==='function'&&!dashPrev.__dgieCoordNombreFix){
+    window.renderDashboardCoordinador=function(){
+      const html=dashPrev.apply(this,arguments);
+      setTimeout(corregirTarjetaCoordinador,0);
+      return html;
+    };
+    window.renderDashboardCoordinador.__dgieCoordNombreFix=true;
+  }
+  document.addEventListener('dgie:data-ready',()=>setTimeout(corregirTarjetaCoordinador,120));
 })();
 </script>
 </body>
