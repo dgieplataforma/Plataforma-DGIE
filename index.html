@@ -2419,13 +2419,11 @@ var _lcCharts={};
 function showLanding(){
   document.getElementById('landing-screen').classList.add('active');
   document.getElementById('app-wrapper').style.display='none';
-  setTimeout(renderLcCharts,200);
+  setTimeout(()=>window.dgieRequestLandingRender?window.dgieRequestLandingRender('landing-inicial'):renderLcCharts(),200);
   setTimeout(()=>{
     const carga=window.cargarDatosPublicosDGIE?.();
-    if(carga&&typeof carga.finally==='function')carga.finally(()=>setTimeout(renderLcCharts,80));
+    if(carga&&typeof carga.finally==='function')carga.finally(()=>setTimeout(()=>window.dgieRequestLandingRender?window.dgieRequestLandingRender('landing-datos'):renderLcCharts(),80));
   },450);
-  setTimeout(()=>{if((RECLAMOS_ZONA.length||OS_ZONA.length)&&typeof renderLcCharts==='function')renderLcCharts();},2500);
-  setTimeout(()=>{if((RECLAMOS_ZONA.length||OS_ZONA.length)&&typeof renderLcCharts==='function')renderLcCharts();},4500);
 }
 function hideLanding(){
   document.getElementById('landing-screen').classList.remove('active');
@@ -3185,8 +3183,8 @@ function estadoOSCanon(estado){
 }
 function estadoOSLabel(estado){return {pendiente:'Pendiente',trabajando:'Trabajando',finalizado:'Finalizado',anulado:'Anulado'}[estadoOSCanon(estado)]||'Pendiente'}
 function getEstadoOS(o){return estadoOSCanon(o?.estado)}
-const RECLAMO_ESTADO_LABELS=['Pendiente','Trabajando','Finalizado','Anulado'];
-const RECLAMO_ESTADO_COLORS=['#f59e0b','#2563eb','#16a34a','#991b1b'];
+const RECLAMO_ESTADO_LABELS=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'];
+const RECLAMO_ESTADO_COLORS=['#f59e0b','#64748b','#2563eb','#16a34a','#991b1b'];
 function findOSForReclamo(r,ordenes=OS_ZONA){
   if(!r)return null;
   const recNum=String(r.numero||'').trim();
@@ -18929,6 +18927,148 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
   }
   setTimeout(()=>{try{if(document.getElementById('lc-mant-estados'))window.renderLcGraficos?.(window._lcZonaGraficosActiva||null)}catch(e){}},300);
+})();
+</script>
+<script id="dgie-fluidez-datos-render-2026-07-02">
+(function(){
+  'use strict';
+  const log=(msg,err)=>{try{console.warn(msg,err||'')}catch(_e){}};
+  window.DGIE_DATA_VERSION=Number(window.DGIE_DATA_VERSION||0);
+  window.DGIE_DATA_READY=!!window.DGIE_DATA_READY;
+
+  function visibleLanding(){
+    const el=document.getElementById('landing-screen');
+    return !!(el&&el.classList.contains('active'));
+  }
+  function puedeRepintar(){
+    try{
+      if(typeof window.dgieVistaInternaActiva==='function'&&window.dgieVistaInternaActiva())return false;
+      if(document.getElementById('nos-numero'))return false;
+      return true;
+    }catch(_e){return true}
+  }
+  function tabActivo(){
+    const tabs=[...document.querySelectorAll('#nav-tabs .tab')];
+    const idx=tabs.findIndex(t=>t.classList.contains('active'));
+    return idx>=0?idx:0;
+  }
+
+  let panelTimer=null;
+  function repintarVisible(){
+    panelTimer=null;
+    try{if(typeof actualizarZoneDataReal==='function')actualizarZoneDataReal()}catch(e){}
+    if(visibleLanding()){
+      if(typeof window.renderLcCharts==='function')window.renderLcCharts();
+      return;
+    }
+    if(!currentUser||!puedeRepintar())return;
+    if(typeof window.renderTab==='function')window.renderTab(tabActivo());
+  }
+  window.dgieRequestVisibleRender=function(_reason,delay){
+    if(panelTimer)clearTimeout(panelTimer);
+    panelTimer=setTimeout(repintarVisible,Number(delay)||100);
+  };
+  window.dgieRequestLandingRender=function(reason,delay){
+    if(!visibleLanding())return;
+    window.dgieRequestVisibleRender(reason,Number(delay)||80);
+  };
+
+  const refreshPrev=window.refreshVisiblePanels;
+  window.refreshVisiblePanels=function(){
+    if(!puedeRepintar())return;
+    window.dgieRequestVisibleRender('refreshVisiblePanels',90);
+  };
+  if(typeof refreshPrev==='function')window.refreshVisiblePanels.__prev=refreshPrev;
+
+  function signature(parts){
+    try{return JSON.stringify(parts)}catch(_e){return String(Date.now())}
+  }
+  function wrapChartDraw(name,makeSig){
+    const prev=window[name];
+    if(typeof prev!=='function'||prev.__dgieFluidez)return;
+    const sigs=wrapChartDraw.sigs||(wrapChartDraw.sigs={});
+    window[name]=function(){
+      const id=arguments[0];
+      const el=typeof id==='string'?document.getElementById(id):null;
+      const sig=makeSig?makeSig(arguments):signature([name,...Array.from(arguments)]);
+      if(el&&sigs[id]===sig&&window.Chart&&typeof Chart.getChart==='function'&&Chart.getChart(el))return;
+      if(id)sigs[id]=sig;
+      return prev.apply(this,arguments);
+    };
+    window[name].__dgieFluidez=true;
+  }
+  wrapChartDraw('drawDonut',args=>signature(['donut',args[0],args[1],args[2],args[3]]));
+  wrapChartDraw('drawDonutSafe',args=>signature(['donutSafe',args[0],args[1],args[2],args[3]]));
+  wrapChartDraw('drawBarCustom',args=>signature(['barCustom',args[0],args[1],args[2],args[3]]));
+  wrapChartDraw('_drawLc',args=>signature(['lc',args[0],args[1],args[2],args[3],args[4]]));
+
+  function coalescer(name,delay){
+    const prev=window[name];
+    if(typeof prev!=='function'||prev.__dgieCoalesced)return;
+    let timer=null,lastArgs=null,lastThis=null;
+    window[name]=function(){
+      lastArgs=arguments;
+      lastThis=this;
+      if(timer)clearTimeout(timer);
+      timer=setTimeout(()=>{
+        timer=null;
+        try{prev.apply(lastThis,lastArgs)}catch(e){log('Error renderizando '+name,e)}
+      },Number(delay)||70);
+    };
+    window[name].__dgieCoalesced=true;
+  }
+  ['renderChartDir','renderChartInsp','renderChartCoordinadorDashboard','renderChartDashboardOS'].forEach(name=>coalescer(name,70));
+  coalescer('renderLcCharts',80);
+
+  const cargarPrev=window.cargarDatosPublicosDGIE;
+  if(typeof cargarPrev==='function'&&!cargarPrev.__dgieSingleFlight){
+    let inFlight=null;
+    window.cargarDatosPublicosDGIE=function(){
+      if(inFlight)return inFlight;
+      window.DGIE_DATA_LOADING=true;
+      const args=arguments,ctx=this;
+      inFlight=Promise.resolve()
+        .then(()=>cargarPrev.apply(ctx,args))
+        .then(res=>{
+          window.DGIE_DATA_READY=true;
+          window.DGIE_DATA_VERSION=Number(window.DGIE_DATA_VERSION||0)+1;
+          try{document.dispatchEvent(new CustomEvent('dgie:data-ready',{detail:{version:window.DGIE_DATA_VERSION}}))}catch(_e){}
+          window.dgieRequestVisibleRender('data-ready',80);
+          return res;
+        })
+        .catch(err=>{log('No se pudo sincronizar datos DGIE',err);throw err})
+        .finally(()=>{window.DGIE_DATA_LOADING=false;inFlight=null});
+      return inFlight;
+    };
+    window.cargarDatosPublicosDGIE.__dgieSingleFlight=true;
+  }
+
+  const loadPrev=window.loadUser;
+  if(typeof loadPrev==='function'&&!loadPrev.__dgieDataFirst){
+    let iniciando=false;
+    window.loadUser=function(user){
+      if(window.DGIE_DB?.isConfigured&&!window.DGIE_DATA_READY&&!iniciando&&typeof window.cargarDatosPublicosDGIE==='function'){
+        iniciando=true;
+        currentUser=user;
+        try{
+          if(document.getElementById('topbar-av'))document.getElementById('topbar-av').textContent=user.initials||'';
+          if(document.getElementById('topbar-name'))document.getElementById('topbar-name').textContent=user.name||'';
+          if(typeof buildTabs==='function'&&typeof dgieTabsForUser==='function')buildTabs(dgieTabsForUser(user));
+          if(typeof hideGlobal==='function')hideGlobal();
+          if(typeof hideLanding==='function')hideLanding();
+          const app=document.getElementById('app-wrapper');
+          if(app)app.style.display='';
+          const main=document.getElementById('main-content');
+          if(main)main.innerHTML='<div class="card"><div class="card-title">Cargando datos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Sincronizando informacion de Supabase...</div></div>';
+        }catch(e){}
+        return Promise.resolve(window.cargarDatosPublicosDGIE())
+          .catch(err=>log('No se pudo precargar DGIE antes del ingreso',err))
+          .finally(()=>{iniciando=false;loadPrev.call(this,user)});
+      }
+      return loadPrev.apply(this,arguments);
+    };
+    window.loadUser.__dgieDataFirst=true;
+  }
 })();
 </script>
 </body>
