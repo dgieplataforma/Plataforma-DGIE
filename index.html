@@ -19461,6 +19461,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const RUBROS_INSP=['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
   const IDS_INSP=['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-estado-os','chart-insp-modulos-presupuesto','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos'];
   const store=window.__dgieInspectorDashboardCharts||(window.__dgieInspectorDashboardCharts={});
+  const chartSigs=window.__dgieInspectorDashboardChartSigs||(window.__dgieInspectorDashboardChartSigs={});
   let lastSig='';
 
   function norm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
@@ -19535,12 +19536,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     if(typeof chartInstances!=='undefined'&&chartInstances)chartInstances[id]=null;
     store[id]=null;
+    chartSigs[id]='';
   }
   function activos(){
     if(!window.Chart)return false;
     return IDS_INSP.every(id=>{
       const el=document.getElementById(id);
       if(!el)return false;
+      const rect=el.getBoundingClientRect();
+      if(rect.width<80||rect.height<80)return false;
       if(typeof Chart.getChart==='function'&&Chart.getChart(el))return true;
       return !!store[id];
     });
@@ -19548,19 +19552,26 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function donut(id,labels,data,colors){
     const el=document.getElementById(id);
     if(!el||!window.Chart)return;
-    destruir(id);
     const clean=(data||[]).map(n=>Number(n)||0);
+    const sig=JSON.stringify(['donut',labels,clean,colors]);
+    const mounted=typeof Chart.getChart==='function'?Chart.getChart(el):store[id];
+    if(chartSigs[id]===sig&&mounted)return;
+    destruir(id);
     const has=clean.some(n=>n>0);
     store[id]=new Chart(el,{type:'doughnut',data:{labels:has?labels:['Sin datos'],datasets:[{data:has?clean:[1],backgroundColor:has?colors:['#e2e8f0'],borderWidth:0,hoverOffset:0}]},options:{responsive:true,maintainAspectRatio:false,resizeDelay:120,animation:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:11,padding:10,color:'#64748b',font:{size:11,weight:'700'}}},tooltip:{enabled:has}}}});
+    chartSigs[id]=sig;
   }
   function hbar(id,labels,data){
     const el=document.getElementById(id);
     if(!el||!window.Chart)return;
-    destruir(id);
     const cleanLabels=(labels||[]).length?labels:['Sin datos'];
     const cleanData=(data||[]).length?data.map(n=>Number(n)||0):[0];
     const has=cleanData.some(n=>n>0);
     const shownLabels=has?cleanLabels:['Sin datos'];
+    const sig=JSON.stringify(['hbar',shownLabels,has?cleanData:[1]]);
+    const mounted=typeof Chart.getChart==='function'?Chart.getChart(el):store[id];
+    if(chartSigs[id]===sig&&mounted)return;
+    destruir(id);
     store[id]=new Chart(el,{
       type:'bar',
       data:{
@@ -19596,6 +19607,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         }
       }
     });
+    chartSigs[id]=sig;
   }
   function certFinalizado(c,z){
     if(!c?.medicion_numero)return false;
@@ -19648,10 +19660,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   },120));
 })();
 </script>
-<style id="dgie-coord-dashboard-charts-estables-2026-07-02">
+<style id="dgie-dashboard-charts-estables-2026-07-02">
 #main-content .inspector-charts-grid .inspector-chart-card{min-height:300px}
 #main-content .inspector-charts-grid .inspector-chart-wrap{height:230px!important;min-height:230px!important;max-height:260px!important;position:relative!important;overflow:hidden!important}
 #main-content .inspector-charts-grid .inspector-chart-card.wide .inspector-chart-wrap{height:245px!important;min-height:245px!important;max-height:280px!important}
+#main-content .inspector-charts-grid canvas[id^="chart-insp-"]{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important}
 #main-content .inspector-charts-grid canvas[id^="chart-coord-"]{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important}
 </style>
 <script id="dgie-coord-dashboard-charts-estables-2026-07-02">
@@ -19918,6 +19931,61 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   instalarGate();
   document.addEventListener('DOMContentLoaded', instalarGate);
+})();
+</script>
+<script id="dgie-inspector-charts-watchdog-2026-07-02">
+(function(){
+  'use strict';
+  const IDS=['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-estado-os','chart-insp-modulos-presupuesto','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos'];
+  function chartOk(id){
+    const el=document.getElementById(id);
+    if(!el||!window.Chart||typeof Chart.getChart!=='function')return false;
+    const rect=el.getBoundingClientRect();
+    if(rect.width<80||rect.height<80)return false;
+    return !!Chart.getChart(el);
+  }
+  function asegurarTamanos(){
+    IDS.forEach(id=>{
+      const el=document.getElementById(id);
+      const wrap=el&&el.closest('.inspector-chart-wrap');
+      if(wrap){
+        wrap.style.minHeight=wrap.closest('.wide')?'245px':'230px';
+        wrap.style.height=wrap.closest('.wide')?'245px':'230px';
+        wrap.style.position='relative';
+      }
+      if(el){
+        el.style.display='block';
+        el.style.width='100%';
+        el.style.height='100%';
+      }
+    });
+  }
+  function verificar(){
+    if(!document.getElementById('chart-insp-prioridad'))return;
+    asegurarTamanos();
+    const faltan=IDS.some(id=>!chartOk(id));
+    if(faltan&&typeof window.renderChartInsp==='function'){
+      const sigs=window.__dgieInspectorDashboardChartSigs;
+      if(sigs)Object.keys(sigs).forEach(k=>delete sigs[k]);
+      try{window.renderChartInsp('watchdog')}catch(_e){}
+    }
+  }
+  function programar(){
+    [120,450,1000,2200].forEach(ms=>setTimeout(verificar,ms));
+  }
+  const renderPrev=window.renderChartInsp;
+  if(typeof renderPrev==='function'&&!renderPrev.__dgieInspectorWatchdog){
+    const wrapped=function(){
+      const out=renderPrev.apply(this,arguments);
+      setTimeout(verificar,180);
+      return out;
+    };
+    wrapped.__dgieInspectorWatchdog=true;
+    window.renderChartInsp=wrapped;
+  }
+  document.addEventListener('DOMContentLoaded',programar);
+  document.addEventListener('dgie:data-ready',()=>setTimeout(programar,120));
+  window.addEventListener('load',programar);
 })();
 </script>
 </body>
