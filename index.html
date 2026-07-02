@@ -4181,6 +4181,17 @@ function renderChartInsp(){
     const z = zonaActual();
     const recs = reclamosZona(z);
     const oss = osZona(z);
+    // Si los datos no cambiaron y los charts siguen montados, no recrear (evita parpadeo).
+    const certsSig = certificadosZona(z).filter(medicionFinalizada).reduce((a,c)=>a+modulosCert(c),0);
+    const sigBase = z + '|' + recs.length + '|' + oss.length + '|' + certsSig + '|' +
+      recs.map(r => String(r.numero||'') + (r.prio||r.prioridad||'') + (r.os||'')).join(',') + '|' +
+      oss.map(o => String(o.numero||'') + estadoOS(o)).join(',');
+    const chartsMontados = INSPECTOR_CHART_IDS.every(id => {
+      const el = document.getElementById(id);
+      return el && window.Chart && typeof Chart.getChart === 'function' && Chart.getChart(el);
+    });
+    if(sigBase === renderFixedInspectorCharts.__lastSig && chartsMontados) return true;
+    renderFixedInspectorCharts.__lastSig = sigBase;
     const finalizadas = oss.filter(o => estadoOS(o) === 'finalizado' || estadoOS(o) === 'finalizada');
     const prioLabels = ['Crítico','Alto','Medio','Bajo'];
     const prioMap = {critico:0, alto:0, medio:0, bajo:0};
@@ -4218,15 +4229,26 @@ function renderChartInsp(){
     return true;
   }
 
+  let inspRetries = 0;
   window.renderChartInsp = function(){
-    if(!renderFixedInspectorCharts()) setTimeout(window.renderChartInsp, 160);
+    if(!renderFixedInspectorCharts()){
+      if(inspRetries++ < 25) setTimeout(window.renderChartInsp, 160);
+    } else {
+      inspRetries = 0;
+    }
   };
 
-  function schedule(){ setTimeout(window.renderChartInsp, 80); setTimeout(window.renderChartInsp, 350); }
+  function schedule(){ inspRetries = 0; setTimeout(window.renderChartInsp, 80); setTimeout(window.renderChartInsp, 350); }
   document.addEventListener('DOMContentLoaded', schedule);
   window.addEventListener('load', schedule);
   const obs = new MutationObserver(() => {
-    if(INSPECTOR_CHART_IDS.some(id => document.getElementById(id))) schedule();
+    // Sólo re-renderizar si hay algún canvas de inspector SIN chart montado
+    // (evita recrear los gráficos con cada mutación del DOM, p.ej. el countdown del header).
+    const necesitaRender = INSPECTOR_CHART_IDS.some(id => {
+      const el = document.getElementById(id);
+      return el && !(window.Chart && typeof Chart.getChart === 'function' && Chart.getChart(el));
+    });
+    if(necesitaRender) schedule();
   });
   obs.observe(document.documentElement, {childList:true, subtree:true});
 })();
@@ -19432,6 +19454,470 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     window.renderDashboardCoordinador.__dgieCoordNombreFix=true;
   }
   document.addEventListener('dgie:data-ready',()=>setTimeout(corregirTarjetaCoordinador,120));
+})();
+</script>
+<script id="dgie-inspector-dashboard-charts-estables-2026-07-02">
+(function(){
+  const RUBROS_INSP=['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
+  const IDS_INSP=['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-estado-os','chart-insp-modulos-presupuesto','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos'];
+  const store=window.__dgieInspectorDashboardCharts||(window.__dgieInspectorDashboardCharts={});
+  let lastSig='';
+
+  function norm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+  function zonaActual(){return Number(currentUser?.zona||selectedZona||1)}
+  function zonaDe(item){
+    const directa=Number(item?.zona);
+    if(Number.isFinite(directa)&&directa>0)return directa;
+    if(item?.estId&&typeof zonaEstablecimiento==='function')return Number(zonaEstablecimiento(item.estId))||null;
+    return null;
+  }
+  function estadoOSLocal(o){
+    if(typeof getEstadoOS==='function')return norm(getEstadoOS(o));
+    const e=norm(o?.estado);
+    if(e.includes('finaliz'))return 'finalizado';
+    if(e.includes('trabaj')||e.includes('ejec'))return 'trabajando';
+    if(e.includes('anul')||e.includes('cancel'))return 'anulado';
+    return 'pendiente';
+  }
+  function prioridadLocal(r){
+    const p=norm(r?.prio||r?.prioridad||r?.prioridadReclamo||'medio');
+    if(p.includes('critic'))return 'critico';
+    if(p.includes('alt'))return 'alto';
+    if(p.includes('baj'))return 'bajo';
+    return 'medio';
+  }
+  function rubroLocal(item){
+    const txt=String(item?.rubro||item?.titulo||item?.tipo||item?.tarea||'Otro').trim();
+    const k=norm(txt);
+    if(k.includes('sanit')||k.includes('ban')||k.includes('cloac'))return 'Sanitarios';
+    if(k.includes('electric')||k.includes('ilumin'))return 'Electricidad';
+    if(k.includes('gas'))return 'Gas';
+    if(k.includes('cubierta')||k.includes('techo'))return 'Cubierta';
+    if(k.includes('alban')||k.includes('mampost')||k.includes('revoq'))return 'Albañilería';
+    if(k.includes('herrer')||k.includes('porton')||k.includes('reja'))return 'Herrería';
+    if(k.includes('pint'))return 'Pintura';
+    if(k.includes('carpint')||k.includes('puerta')||k.includes('cerradura'))return 'Carpintería';
+    if(k.includes('pluvial')||k.includes('canaleta')||k.includes('desague'))return 'Pluviales';
+    return RUBROS_INSP.includes(txt)?txt:'Otro';
+  }
+  function osDeReclamo(r,oss){
+    if(typeof window.findOSForReclamo==='function'){
+      try{return window.findOSForReclamo(r,oss)||null}catch(_e){}
+    }
+    const n=String(r?.numero||'').trim();
+    const ref=String(r?.os||'').trim();
+    if(ref&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(ref)){
+      const byNum=(oss||[]).find(o=>String(o?.numero||'').trim()===ref);
+      if(byNum)return byNum;
+    }
+    return n?(oss||[]).find(o=>String(o?.reclamoNumero||o?.reclamo||'').split(',').map(x=>x.trim()).includes(n))||null:null;
+  }
+  function estadoReclamoLocal(r,oss){
+    if(typeof window.estadoReclamoCanon==='function'){
+      try{return window.estadoReclamoCanon(r,oss)||'pendiente'}catch(_e){}
+    }
+    const os=osDeReclamo(r,oss);
+    if(!os)return 'pendiente';
+    const st=estadoOSLocal(os);
+    return st==='pendiente'?'orden_servicio':st;
+  }
+  function contar(labels,items,getter){
+    const out=Object.fromEntries(labels.map(l=>[l,0]));
+    (items||[]).forEach(item=>{const k=getter(item);out[k]=Number(out[k]||0)+1});
+    return labels.map(l=>out[l]||0);
+  }
+  function destruir(id){
+    const el=document.getElementById(id);
+    if(store[id]&&typeof store[id].destroy==='function')store[id].destroy();
+    if(window.Chart&&el&&typeof Chart.getChart==='function'){
+      const prev=Chart.getChart(el);
+      if(prev&&typeof prev.destroy==='function')prev.destroy();
+    }
+    if(typeof chartInstances!=='undefined'&&chartInstances)chartInstances[id]=null;
+    store[id]=null;
+  }
+  function activos(){
+    if(!window.Chart)return false;
+    return IDS_INSP.every(id=>{
+      const el=document.getElementById(id);
+      if(!el)return false;
+      if(typeof Chart.getChart==='function'&&Chart.getChart(el))return true;
+      return !!store[id];
+    });
+  }
+  function donut(id,labels,data,colors){
+    const el=document.getElementById(id);
+    if(!el||!window.Chart)return;
+    destruir(id);
+    const clean=(data||[]).map(n=>Number(n)||0);
+    const has=clean.some(n=>n>0);
+    store[id]=new Chart(el,{type:'doughnut',data:{labels:has?labels:['Sin datos'],datasets:[{data:has?clean:[1],backgroundColor:has?colors:['#e2e8f0'],borderWidth:0,hoverOffset:0}]},options:{responsive:true,maintainAspectRatio:false,resizeDelay:120,animation:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:11,padding:10,color:'#64748b',font:{size:11,weight:'700'}}},tooltip:{enabled:has}}}});
+  }
+  function hbar(id,labels,data){
+    const el=document.getElementById(id);
+    if(!el||!window.Chart)return;
+    destruir(id);
+    const cleanLabels=(labels||[]).length?labels:['Sin datos'];
+    const cleanData=(data||[]).length?data.map(n=>Number(n)||0):[0];
+    const has=cleanData.some(n=>n>0);
+    const shownLabels=has?cleanLabels:['Sin datos'];
+    store[id]=new Chart(el,{
+      type:'bar',
+      data:{
+        labels:shownLabels,
+        datasets:[{
+          data:has?cleanData:[1],
+          backgroundColor:shownLabels.map(l=>typeof rubroColor==='function'?rubroColor(l):'#005aa9'),
+          borderRadius:8,
+          barThickness:18,
+          maxBarThickness:22
+        }]
+      },
+      options:{
+        indexAxis:'y',
+        responsive:true,
+        maintainAspectRatio:false,
+        resizeDelay:120,
+        animation:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{enabled:has}
+        },
+        scales:{
+          x:{
+            beginAtZero:true,
+            ticks:{precision:0,color:'#64748b'},
+            grid:{color:'rgba(15,23,42,.06)'}
+          },
+          y:{
+            ticks:{color:'#334155',font:{weight:'700',size:11}},
+            grid:{display:false}
+          }
+        }
+      }
+    });
+  }
+  function certFinalizado(c,z){
+    if(!c?.medicion_numero)return false;
+    if(typeof esMedicionFinalizada==='function'){
+      try{return !!esMedicionFinalizada(c.medicion_numero,z)}catch(_e){}
+    }
+    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''));
+  }
+  function modCert(c){
+    const parse=v=>Number(String(v??'').replace(',','.'))||0;
+    const final=parse(c?.modulos_final??c?.monto_final);
+    return final>0?final:parse(c?.modulos_inspector||c?.modulos_original);
+  }
+  function consumoModulos(z){
+    const certs=(typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[]);
+    return certs.filter(c=>{
+      if(norm(c?.estado)!=='medido')return false;
+      const cz=Number(typeof zonaCertificado==='function'?zonaCertificado(c):zonaDe(c)||c?.zona||0);
+      return cz===z&&certFinalizado(c,cz);
+    }).reduce((sum,c)=>sum+modCert(c),0);
+  }
+
+  window.renderChartInsp=function(){
+    if(!document.getElementById('chart-insp-prioridad'))return;
+    if(!window.Chart){setTimeout(window.renderChartInsp,120);return;}
+    const z=zonaActual();
+    const recs=(typeof RECLAMOS_ZONA!=='undefined'?RECLAMOS_ZONA:[]).filter(r=>zonaDe(r)===z);
+    const oss=(typeof OS_ZONA!=='undefined'?OS_ZONA:[]).filter(o=>zonaDe(o)===z);
+    const fin=oss.filter(o=>estadoOSLocal(o)==='finalizado');
+    const prioData=['critico','alto','medio','bajo'].map(p=>recs.filter(r=>prioridadLocal(r)===p).length);
+    const estadosRec=recs.map(r=>estadoReclamoLocal(r,oss));
+    const recData=['pendiente','orden_servicio','trabajando','finalizado','anulado'].map(st=>estadosRec.filter(x=>x===st).length);
+    const osData=['finalizado','trabajando','pendiente','anulado'].map(st=>oss.filter(o=>estadoOSLocal(o)===st).length);
+    const consumidos=consumoModulos(z);
+    const modData=[consumidos,Math.max(0,11300-consumidos)];
+    const rubRec=contar(RUBROS_INSP,recs,rubroLocal);
+    const rubFin=contar(RUBROS_INSP,fin,rubroLocal);
+    const sig=JSON.stringify([z,prioData,recData,osData,modData,rubRec,rubFin]);
+    if(sig===lastSig&&activos())return;
+    lastSig=sig;
+    donut('chart-insp-prioridad',['Crítico','Alto','Medio','Bajo'],prioData,['#b91c1c','#ea580c','#2563eb','#16a34a']);
+    donut('chart-insp-estado-reclamos',['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'],recData,['#f59e0b','#7dd3fc','#2563eb','#16a34a','#dc2626']);
+    donut('chart-insp-estado-os',['Finalizado','Trabajando','Pendiente','Anulado'],osData,['#16a34a','#2563eb','#f59e0b','#dc2626']);
+    donut('chart-insp-modulos-presupuesto',['Consumidos','Restantes'],modData,['#005aa9','#dbe6f2']);
+    hbar('chart-insp-rubro-reclamos',RUBROS_INSP,rubRec);
+    hbar('chart-insp-rubro-mantenimientos',RUBROS_INSP,rubFin);
+  };
+  document.addEventListener('dgie:data-ready',()=>setTimeout(()=>{
+    if(document.getElementById('chart-insp-prioridad'))window.renderChartInsp();
+  },120));
+})();
+</script>
+<style id="dgie-coord-dashboard-charts-estables-2026-07-02">
+#main-content .inspector-charts-grid .inspector-chart-card{min-height:300px}
+#main-content .inspector-charts-grid .inspector-chart-wrap{height:230px!important;min-height:230px!important;max-height:260px!important;position:relative!important;overflow:hidden!important}
+#main-content .inspector-charts-grid .inspector-chart-card.wide .inspector-chart-wrap{height:245px!important;min-height:245px!important;max-height:280px!important}
+#main-content .inspector-charts-grid canvas[id^="chart-coord-"]{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important}
+</style>
+<script id="dgie-coord-dashboard-charts-estables-2026-07-02">
+(function(){
+  const RUBROS_COORD=['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
+  const chartStore=window.__dgieCoordDashboardCharts||(window.__dgieCoordDashboardCharts={});
+  const CHART_IDS_COORD=['chart-coord-prioridad','chart-coord-estado-reclamos','chart-coord-estado-os','chart-coord-modulos-presupuesto','chart-coord-rubro-reclamos','chart-coord-rubro-mantenimientos'];
+  let lastCoordSig='';
+
+  function norm(v){
+    return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+  function zonaDe(item){
+    const directa=Number(item?.zona);
+    if(Number.isFinite(directa)&&directa>0)return directa;
+    if(item?.estId&&typeof zonaEstablecimiento==='function')return Number(zonaEstablecimiento(item.estId))||null;
+    if(item?.establecimiento_id&&typeof zonaEstablecimiento==='function')return Number(zonaEstablecimiento(item.establecimiento_id))||null;
+    return null;
+  }
+  function estadoOSLocal(o){
+    if(typeof getEstadoOS==='function')return norm(getEstadoOS(o));
+    const e=norm(o?.estado);
+    if(e.includes('finaliz'))return 'finalizado';
+    if(e.includes('trabaj')||e.includes('ejec'))return 'trabajando';
+    if(e.includes('anul')||e.includes('cancel'))return 'anulado';
+    return 'pendiente';
+  }
+  function prioridadLocal(r){
+    const p=norm(r?.prio||r?.prioridad||r?.prioridadReclamo||'medio');
+    if(p.includes('critic'))return 'critico';
+    if(p.includes('alt'))return 'alto';
+    if(p.includes('baj'))return 'bajo';
+    return 'medio';
+  }
+  function rubroLocal(item){
+    const txt=String(item?.rubro||item?.titulo||item?.tipo||item?.tarea||'Otro').trim();
+    const k=norm(txt);
+    if(k.includes('sanit')||k.includes('ban')||k.includes('cloac'))return 'Sanitarios';
+    if(k.includes('electric')||k.includes('ilumin'))return 'Electricidad';
+    if(k.includes('gas'))return 'Gas';
+    if(k.includes('cubierta')||k.includes('techo'))return 'Cubierta';
+    if(k.includes('alban')||k.includes('mampost')||k.includes('revoq'))return 'Albañilería';
+    if(k.includes('herrer')||k.includes('porton')||k.includes('reja'))return 'Herrería';
+    if(k.includes('pint'))return 'Pintura';
+    if(k.includes('carpint')||k.includes('puerta')||k.includes('cerradura'))return 'Carpintería';
+    if(k.includes('pluvial')||k.includes('canaleta')||k.includes('desague'))return 'Pluviales';
+    return RUBROS_COORD.includes(txt)?txt:'Otro';
+  }
+  function datosCoord(){
+    try{
+      if(typeof coordDashboardData==='function')return coordDashboardData();
+    }catch(_e){}
+    const scope=Number(document.getElementById('coord-dashboard-zona')?.value||0);
+    const recs=(typeof RECLAMOS_ZONA!=='undefined'?RECLAMOS_ZONA:[]).filter(r=>!scope||zonaDe(r)===scope);
+    const oss=(typeof OS_ZONA!=='undefined'?OS_ZONA:[]).filter(o=>!scope||zonaDe(o)===scope);
+    return {zona:scope||null,label:scope?`Zona ${scope}`:'Todas las zonas',recs,oss,finalizadas:oss.filter(o=>estadoOSLocal(o)==='finalizado')};
+  }
+  function destruir(id){
+    const el=document.getElementById(id);
+    if(chartStore[id]&&typeof chartStore[id].destroy==='function')chartStore[id].destroy();
+    if(window.Chart&&el&&typeof Chart.getChart==='function'){
+      const prev=Chart.getChart(el);
+      if(prev&&typeof prev.destroy==='function')prev.destroy();
+    }
+    if(typeof chartInstances!=='undefined'&&chartInstances)chartInstances[id]=null;
+    chartStore[id]=null;
+  }
+  function chartsActivos(){
+    if(!window.Chart)return false;
+    return CHART_IDS_COORD.every(id=>{
+      const el=document.getElementById(id);
+      if(!el)return false;
+      if(typeof Chart.getChart==='function'&&Chart.getChart(el))return true;
+      return !!chartStore[id];
+    });
+  }
+  function donut(id,labels,data,colors){
+    const el=document.getElementById(id);
+    if(!el||!window.Chart)return;
+    destruir(id);
+    const clean=(data||[]).map(n=>Number(n)||0);
+    const has=clean.some(n=>n>0);
+    chartStore[id]=new Chart(el,{
+      type:'doughnut',
+      data:{labels:has?labels:['Sin datos'],datasets:[{data:has?clean:[1],backgroundColor:has?colors:['#e2e8f0'],borderWidth:0,hoverOffset:0}]},
+      options:{responsive:true,maintainAspectRatio:false,resizeDelay:120,animation:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:11,padding:10,color:'#64748b',font:{size:11,weight:'700'}}},tooltip:{enabled:has}}}
+    });
+  }
+  function hbar(id,labels,data){
+    const el=document.getElementById(id);
+    if(!el||!window.Chart)return;
+    destruir(id);
+    const cleanLabels=(labels||[]).length?labels:['Sin datos'];
+    const cleanData=(data||[]).length?data.map(n=>Number(n)||0):[0];
+    const has=cleanData.some(n=>n>0);
+    chartStore[id]=new Chart(el,{
+      type:'bar',
+      data:{labels:has?cleanLabels:['Sin datos'],datasets:[{data:has?cleanData:[1],backgroundColor:(has?cleanLabels:['Sin datos']).map(l=>typeof rubroColor==='function'?rubroColor(l):'#005aa9'),borderRadius:8,barThickness:18,maxBarThickness:22}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,resizeDelay:120,animation:false,plugins:{legend:{display:false},tooltip:{enabled:has}},scales:{x:{beginAtZero:true,ticks:{precision:0,color:'#64748b'},grid:{color:'rgba(15,23,42,.06)'}},y:{ticks:{color:'#334155',font:{weight:'700',size:11}},grid:{display:false}}}}
+    });
+  }
+  function contar(labels,items,getter){
+    const out=Object.fromEntries(labels.map(l=>[l,0]));
+    (items||[]).forEach(item=>{const k=getter(item);out[k]=Number(out[k]||0)+1});
+    return labels.map(l=>out[l]||0);
+  }
+  function osDeReclamo(r,oss){
+    if(typeof window.findOSForReclamo==='function'){
+      try{return window.findOSForReclamo(r,oss)||null}catch(_e){}
+    }
+    const n=String(r?.numero||'').trim();
+    const ref=String(r?.os||'').trim();
+    if(ref&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(ref)){
+      const byNum=(oss||[]).find(o=>String(o?.numero||'').trim()===ref);
+      if(byNum)return byNum;
+    }
+    return n?(oss||[]).find(o=>String(o?.reclamoNumero||o?.reclamo||'').split(',').map(x=>x.trim()).includes(n))||null:null;
+  }
+  function estadoReclamoLocal(r,oss){
+    if(typeof window.estadoReclamoCanon==='function'){
+      try{return window.estadoReclamoCanon(r,oss)||'pendiente'}catch(_e){}
+    }
+    const os=osDeReclamo(r,oss);
+    if(!os)return 'pendiente';
+    const st=estadoOSLocal(os);
+    return st==='pendiente'?'orden_servicio':st;
+  }
+  function certFinalizado(c,z){
+    if(!c?.medicion_numero)return false;
+    if(typeof esMedicionFinalizada==='function'){
+      try{return !!esMedicionFinalizada(c.medicion_numero,z)}catch(_e){}
+    }
+    const obs=String(c?.observaciones_inspector||'');
+    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(obs);
+  }
+  function modCert(c){
+    const parse=v=>Number(String(v??'').replace(',','.'))||0;
+    const final=parse(c?.modulos_final??c?.monto_final);
+    return final>0?final:parse(c?.modulos_inspector||c?.modulos_original);
+  }
+  function consumirModulos(zonaScope){
+    const certs=(typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[]);
+    return certs.filter(c=>{
+      if(norm(c?.estado)!=='medido')return false;
+      const z=Number(typeof zonaCertificado==='function'?zonaCertificado(c):zonaDe(c)||c?.zona||0);
+      if(zonaScope&&z!==zonaScope)return false;
+      return certFinalizado(c,z);
+    }).reduce((sum,c)=>sum+modCert(c),0);
+  }
+
+  window.renderChartCoordinadorDashboard=function(){
+    if(!document.getElementById('chart-coord-prioridad'))return;
+    if(!window.Chart){setTimeout(window.renderChartCoordinadorDashboard,120);return;}
+    const real=datosCoord();
+    const recs=real.recs||[];
+    const oss=real.oss||[];
+    const fin=real.finalizadas||oss.filter(o=>estadoOSLocal(o)==='finalizado');
+    const zonaScope=Number(real.zona||0);
+    const prioData=[
+      recs.filter(r=>prioridadLocal(r)==='critico').length,
+      recs.filter(r=>prioridadLocal(r)==='alto').length,
+      recs.filter(r=>prioridadLocal(r)==='medio').length,
+      recs.filter(r=>prioridadLocal(r)==='bajo').length
+    ];
+    const estadosReclamos=recs.map(r=>estadoReclamoLocal(r,oss));
+    const estadoReclamoData=[
+      estadosReclamos.filter(st=>st==='pendiente').length,
+      estadosReclamos.filter(st=>st==='orden_servicio').length,
+      estadosReclamos.filter(st=>st==='trabajando').length,
+      estadosReclamos.filter(st=>st==='finalizado').length,
+      estadosReclamos.filter(st=>st==='anulado').length
+    ];
+    const estadoOSData=[
+      oss.filter(o=>estadoOSLocal(o)==='finalizado').length,
+      oss.filter(o=>estadoOSLocal(o)==='trabajando').length,
+      oss.filter(o=>estadoOSLocal(o)==='pendiente').length,
+      oss.filter(o=>estadoOSLocal(o)==='anulado').length
+    ];
+    const consumidos=consumirModulos(zonaScope);
+    const presupuesto=(zonaScope?1:17)*11300;
+    const modulosData=[consumidos,Math.max(0,presupuesto-consumidos)];
+    const rubrosReclamosData=contar(RUBROS_COORD,recs,rubroLocal);
+    const rubrosMantData=contar(RUBROS_COORD,fin,rubroLocal);
+    const sig=JSON.stringify([zonaScope,prioData,estadoReclamoData,estadoOSData,modulosData,rubrosReclamosData,rubrosMantData]);
+    if(sig===lastCoordSig&&chartsActivos())return;
+    lastCoordSig=sig;
+    donut('chart-coord-prioridad',['Crítico','Alto','Medio','Bajo'],prioData,['#b91c1c','#ea580c','#2563eb','#16a34a']);
+    donut('chart-coord-estado-reclamos',['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'],estadoReclamoData,['#f59e0b','#7dd3fc','#2563eb','#16a34a','#dc2626']);
+    donut('chart-coord-estado-os',['Finalizado','Trabajando','Pendiente','Anulado'],estadoOSData,['#16a34a','#2563eb','#f59e0b','#dc2626']);
+    donut('chart-coord-modulos-presupuesto',['Consumidos','Restantes'],modulosData,['#005aa9','#dbe6f2']);
+    hbar('chart-coord-rubro-reclamos',RUBROS_COORD,rubrosReclamosData);
+    hbar('chart-coord-rubro-mantenimientos',RUBROS_COORD,rubrosMantData);
+  };
+  document.addEventListener('dgie:data-ready',()=>setTimeout(()=>{
+    if(document.getElementById('chart-coord-prioridad'))window.renderChartCoordinadorDashboard();
+  },120));
+})();
+</script>
+<script id="dgie-fix-charts-estables-2026-07-02">
+(function(){
+  'use strict';
+  /* FIX 2026-07-02: gráficos estables.
+     1) Guardia global del constructor de Chart.js: si el canvas ya tiene un chart
+        montado, se destruye antes de crear el nuevo. Elimina todos los errores
+        "Canvas is already in use" sin importar qué función/store lo creó.
+     2) El repintado disparado por la recarga periódica de datos ('data-ready')
+        sólo se ejecuta si los datos realmente cambiaron. Corta el bucle
+        renderOS* -> recargarOSReal -> cargarDatosPublicosDGIE -> repintar -> renderOS*
+        que recreaba todos los gráficos cada ~3,6 segundos. */
+  function patchChart(){
+    const Orig = window.Chart;
+    if(!Orig) return false;
+    if(Orig.__dgieCanvasGuard) return true;
+    function ChartGuard(item, config){
+      try{
+        if(typeof Orig.getChart === 'function'){
+          const el = (item && item.canvas) ? item.canvas : item;
+          const prev = Orig.getChart(el || item);
+          if(prev && typeof prev.destroy === 'function') prev.destroy();
+        }
+      }catch(_e){}
+      return new Orig(item, config);
+    }
+    ChartGuard.prototype = Orig.prototype;
+    try{ Object.setPrototypeOf(ChartGuard, Orig); }
+    catch(_e){ Object.keys(Orig).forEach(k => { try{ ChartGuard[k] = Orig[k]; }catch(_e2){} }); }
+    ChartGuard.__dgieCanvasGuard = true;
+    window.Chart = ChartGuard;
+    return true;
+  }
+  if(!patchChart()){
+    let intentos = 0;
+    const t = setInterval(() => { if(patchChart() || ++intentos > 200) clearInterval(t); }, 100);
+  }
+
+  function firmaDatos(){
+    try{
+      const recs = (typeof RECLAMOS_ZONA !== 'undefined' && Array.isArray(RECLAMOS_ZONA)) ? RECLAMOS_ZONA : [];
+      const oss = (typeof OS_ZONA !== 'undefined' && Array.isArray(OS_ZONA)) ? OS_ZONA : [];
+      const coms = (typeof COMUNICACIONES !== 'undefined' && Array.isArray(COMUNICACIONES)) ? COMUNICACIONES : [];
+      const certs = (typeof CERTIFICADOS_MEDICION !== 'undefined' && Array.isArray(CERTIFICADOS_MEDICION)) ? CERTIFICADOS_MEDICION : [];
+      let h = 0;
+      const mix = s => { s = String(s || ''); for(let i = 0; i < s.length; i++){ h = (h * 31 + s.charCodeAt(i)) | 0; } };
+      recs.forEach(r => mix(r && (String(r.numero||'') + (r.estado||'') + (r.prio||r.prioridad||'') + (r.os||''))));
+      oss.forEach(o => mix(o && (String(o.numero||'') + (o.estado||'') + (o.prioridad||'') + (o.fechaFinalizacion||''))));
+      certs.forEach(c => mix(c && (String(c.id||'') + (c.estado||'') + (c.medicion_numero||'') + (c.modulos_final||''))));
+      return recs.length + ':' + oss.length + ':' + coms.length + ':' + certs.length + ':' + h;
+    }catch(_e){ return 'err:' + Date.now(); }
+  }
+  let ultimaFirma = null;
+  function instalarGate(){
+    const prev = window.dgieRequestVisibleRender;
+    if(typeof prev !== 'function' || prev.__dgieSoloSiCambia) return;
+    const wrapped = function(reason, delay){
+      if(reason === 'data-ready'){
+        const f = firmaDatos();
+        if(f === ultimaFirma) return; // nada cambió: no repintar la vista
+        ultimaFirma = f;
+      }
+      return prev.call(this, reason, delay);
+    };
+    wrapped.__dgieSoloSiCambia = true;
+    window.dgieRequestVisibleRender = wrapped;
+  }
+  instalarGate();
+  document.addEventListener('DOMContentLoaded', instalarGate);
 })();
 </script>
 </body>
