@@ -2644,7 +2644,11 @@ function renderLandingChartZoneButtons(zona){
 function selectLandingChartZona(z){
   window._lcZonaGraficosActiva=z||null;
   renderLandingChartZoneButtons(window._lcZonaGraficosActiva);
+  const mapZona=document.getElementById('landing-map-zona');
+  if(mapZona) mapZona.value=window._lcZonaGraficosActiva?String(window._lcZonaGraficosActiva):'';
+  selectedLandingEstabId=null;
   (typeof window.renderLcGraficos==='function'?window.renderLcGraficos:renderLcGraficos)(window._lcZonaGraficosActiva);
+  renderLcMapa(false);
   renderLmRubroReclamos(window._lcZonaGraficosActiva);
   const t=window._lcZonaGraficosActiva?' · Zona '+window._lcZonaGraficosActiva:' · Global 17 zonas';
   if(document.getElementById('lm-rec-title')) document.getElementById('lm-rec-title').textContent='Reclamos por prioridad'+t;
@@ -3184,7 +3188,7 @@ function estadoOSCanon(estado){
 function estadoOSLabel(estado){return {pendiente:'Pendiente',trabajando:'Trabajando',finalizado:'Finalizado',anulado:'Anulado'}[estadoOSCanon(estado)]||'Pendiente'}
 function getEstadoOS(o){return estadoOSCanon(o?.estado)}
 const RECLAMO_ESTADO_LABELS=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'];
-const RECLAMO_ESTADO_COLORS=['#f59e0b','#64748b','#2563eb','#16a34a','#991b1b'];
+const RECLAMO_ESTADO_COLORS=['#f59e0b','#7dd3fc','#2563eb','#16a34a','#dc2626'];
 function findOSForReclamo(r,ordenes=OS_ZONA){
   if(!r)return null;
   const recNum=String(r.numero||'').trim();
@@ -3201,12 +3205,14 @@ function findOSForReclamo(r,ordenes=OS_ZONA){
 }
 function estadoReclamoCanon(r,ordenes=OS_ZONA){
   const os=findOSForReclamo(r,ordenes);
-  return os?estadoOSCanon(os.estado):'pendiente';
+  if(!os)return 'pendiente';
+  const estado=estadoOSCanon(os.estado);
+  return estado==='pendiente'?'orden_servicio':estado;
 }
 function reclamoEstadoCounts(arr,ordenes=OS_ZONA){
-  const counts={pendiente:0,trabajando:0,finalizado:0,anulado:0};
+  const counts={pendiente:0,orden_servicio:0,trabajando:0,finalizado:0,anulado:0};
   (arr||[]).forEach(r=>{counts[estadoReclamoCanon(r,ordenes)]++});
-  return [counts.pendiente,counts.trabajando,counts.finalizado,counts.anulado];
+  return [counts.pendiente,counts.orden_servicio,counts.trabajando,counts.finalizado,counts.anulado];
 }
 function getZonaCargaOS(){
   if(currentUser?.role==='inspector') return Number(currentUser.zona||1);
@@ -3790,6 +3796,14 @@ function renderDashboardCoordinador(){
           <div class="inspector-chart-head"><div><div class="inspector-chart-title">Estado de reclamos</div><div class="inspector-chart-sub">Pendiente si no tiene OS; si tiene OS, toma el estado de la orden.</div></div></div>
           <div class="inspector-chart-wrap"><canvas id="chart-coord-estado-reclamos"></canvas></div>
         </div>
+        <div class="inspector-chart-card">
+          <div class="inspector-chart-head"><div><div class="inspector-chart-title">Estado de órdenes de servicio</div><div class="inspector-chart-sub">Distribución de OS por estado en el alcance seleccionado.</div></div></div>
+          <div class="inspector-chart-wrap"><canvas id="chart-coord-estado-os"></canvas></div>
+        </div>
+        <div class="inspector-chart-card">
+          <div class="inspector-chart-head"><div><div class="inspector-chart-title">Consumo de módulos</div><div class="inspector-chart-sub">Sólo mediciones marcadas como finalizadas.</div></div></div>
+          <div class="inspector-chart-wrap"><canvas id="chart-coord-modulos-presupuesto"></canvas></div>
+        </div>
         <div class="inspector-chart-card wide">
           <div class="inspector-chart-head"><div><div class="inspector-chart-title">Reclamos realizados según rubro</div><div class="inspector-chart-sub">Rubros reclamados en el alcance seleccionado.</div></div></div>
           <div class="inspector-chart-wrap"><canvas id="chart-coord-rubro-reclamos"></canvas></div>
@@ -3806,6 +3820,24 @@ function renderChartCoordinadorDashboard(){
   const real=coordDashboardData(),recs=real.recs,oss=real.oss,fin=real.finalizadas;
   drawDonutSafe('chart-coord-prioridad',prioCounts(recs),['Crítico','Alto','Medio','Bajo'],['#b91c1c','#ea580c','#2563eb','#16a34a']);
   drawDonutSafe('chart-coord-estado-reclamos',reclamoEstadoCounts(recs,oss),RECLAMO_ESTADO_LABELS,RECLAMO_ESTADO_COLORS);
+  const osEstados=[
+    oss.filter(o=>getEstadoOS(o)==='finalizado').length,
+    oss.filter(o=>getEstadoOS(o)==='trabajando').length,
+    oss.filter(o=>getEstadoOS(o)==='pendiente'||!getEstadoOS(o)).length,
+    oss.filter(o=>getEstadoOS(o)==='anulado').length
+  ];
+  drawDonutSafe('chart-coord-estado-os',osEstados,['Finalizado','Trabajando','Pendiente','Anulado'],['#16a34a','#2563eb','#f59e0b','#dc2626']);
+  const zonaScope=Number(real.zona||0);
+  const presupuestoBaseModulos=11300;
+  const presupuestoModulos=zonaScope?presupuestoBaseModulos:(presupuestoBaseModulos*17);
+  const certificadosMedidos=(typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[]).filter(c=>{
+    if(String(c?.estado||'').toLowerCase()!=='medido')return false;
+    const z=Number(typeof zonaCertificado==='function'?zonaCertificado(c):c?.zona||0);
+    if(zonaScope&&z!==zonaScope)return false;
+    return typeof esMedicionFinalizada==='function'?esMedicionFinalizada(c?.medicion_numero,z):true;
+  });
+  const consumidos=certificadosMedidos.reduce((a,c)=>a+(typeof modPresupuestoCert==='function'?modPresupuestoCert(c):(Number(String(c?.modulos_final??c?.monto_final??c?.modulos_inspector??c?.modulos_original??0).replace(',','.'))||0)),0);
+  drawDonutSafe('chart-coord-modulos-presupuesto',[consumidos,Math.max(0,presupuestoModulos-consumidos)],['Consumidos','Restantes'],['#005aa9','#dbe6f2']);
   const rr=rubroLabelsAndData(recs,r=>r.rubro||'Otro');
   const rm=rubroLabelsAndData(fin,o=>getRubroOS(o));
   drawHBarCustom('chart-coord-rubro-reclamos',rr.labels,rr.data);
@@ -8579,7 +8611,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 <script id="dgie-fix-estado-reclamos-os-pendiente-2026-05-13">
 (function(){
   const RECLAMO_LABELS_5=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'];
-  const RECLAMO_COLORS_5=['#f59e0b','#64748b','#2563eb','#16a34a','#991b1b'];
+  const RECLAMO_COLORS_5=['#f59e0b','#7dd3fc','#2563eb','#16a34a','#dc2626'];
   function norm(v){
     return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
   }
@@ -18857,7 +18889,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 <script id="dgie-graficos-publico-inspector-misma-logica-2026-07-01">
 (function(){
   const LABELS_5=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'];
-  const COLORS_5=['#f59e0b','#64748b','#2563eb','#16a34a','#991b1b'];
+  const COLORS_5=['#f59e0b','#7dd3fc','#2563eb','#16a34a','#dc2626'];
   const LABELS_4=['Pendiente','Trabajando','Finalizado','Anulado'];
   const COLORS_4=['#f59e0b','#2563eb','#16a34a','#991b1b'];
   function zonaItemDGIE(item){
