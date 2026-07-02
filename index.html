@@ -18040,7 +18040,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       head:'<tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>O.S.</th></tr>',
       body:rows.map(r=>{
         const st=callcenter?estadoCallcenter(r).label:(typeof estadoOSLabel==='function'?estadoOSLabel(estadoReclamo(r)):estadoReclamo(r));
-        return `<tr>${td(reclamoNumero(r)||r?.numero)}${td(zonaEst(r)||'')}${td(r?.est||r?.establecimiento)}${td(r?.titulo||r?.descripcion)}${td(rubroRec(r))}${td(r?.fecha)}${td(r?.prio||r?.prioridad)}${td(st)}${td(r?.os)}</tr>`;
+        return `<tr>${td(reclamoNumero(r)||r?.numero)}${td(zonaEst(r)||'')}${td(r?.est||r?.establecimiento)}${td(r?.titulo||r?.descripcion)}${td(rubroRec(r))}${td(r?.fecha)}${td(r?.prio||r?.prioridad)}${td(st)}${td(osReclamoLabel(r)||'—')}</tr>`;
       }).join('')
     };
   }
@@ -18170,25 +18170,45 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function prioOptions(){return [opt('critico','Crítico'),opt('alto','Alto'),opt('medio','Medio'),opt('bajo','Bajo')]}
   function zonaOptions(){return Array.from({length:17},(_,i)=>opt(i+1,`Zona ${i+1}`))}
   function reclamoNumero(r){return typeof reclamoNumeroVisible==='function'?String(reclamoNumeroVisible(r)||r?.numero||''):String(r?.numero||'')}
+  function reclamoOSVinculada(r){
+    try{
+      if(typeof findOSForReclamo==='function'){
+        const found=findOSForReclamo(r,OS_ZONA);
+        if(found)return found;
+      }
+    }catch(_e){}
+    const ref=String(r?.os||'').trim();
+    if(!ref||['Sin OS','Pendiente','En trámite','En tramite'].includes(ref))return null;
+    return (OS_ZONA||[]).find(o=>String(o?.numero||'').trim()===ref)||{numero:ref,estado:'pendiente'};
+  }
   function reclamoTieneOS(r){
-    if(typeof findOSForReclamo==='function'&&findOSForReclamo(r,OS_ZONA))return true;
-    const os=String(r?.os||'').trim();
-    return !!os&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(os);
+    return !!reclamoOSVinculada(r);
+  }
+  function estadoOSReclamo(r){
+    const os=reclamoOSVinculada(r);
+    if(!os)return 'sin_os';
+    const st=typeof getEstadoOS==='function'?getEstadoOS(os):norm(os?.estado||'pendiente');
+    if(['trabajando','finalizado','anulado'].includes(st))return st;
+    return 'pendiente';
+  }
+  function osReclamoLabel(r){
+    const os=reclamoOSVinculada(r);
+    return os?.numero?String(os.numero):'';
   }
   function estadoReclamo(r){
     const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
     if(manual)return manual;
     if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return 'anulado';
-    const os=typeof findOSForReclamo==='function'?findOSForReclamo(r,OS_ZONA):OS_ZONA.find(o=>String(o.numero)===String(r.os));
-    if(!os&&!reclamoTieneOS(r))return 'pendiente';
-    const st=os&&typeof getEstadoOS==='function'?getEstadoOS(os):'orden_servicio';
+    const os=reclamoOSVinculada(r);
+    if(!os)return 'pendiente';
+    const st=typeof getEstadoOS==='function'?getEstadoOS(os):'orden_servicio';
     return st==='pendiente'?'orden_servicio':(st||'orden_servicio');
   }
   function rubroRec(r){
     return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,r?.titulo||r?.descripcion||''):String(r?.rubro||'');
   }
   function textoRec(r){
-    return `${reclamoNumero(r)} ${r?.numero||''} ${r?.est||r?.establecimiento||''} ${r?.titulo||''} ${r?.descripcion||''} ${r?.rubro||''} ${r?.os||''}`.toLowerCase();
+    return `${reclamoNumero(r)} ${r?.numero||''} ${r?.est||r?.establecimiento||''} ${r?.titulo||''} ${r?.descripcion||''} ${r?.rubro||''} ${r?.os||''} ${osReclamoLabel(r)||''}`.toLowerCase();
   }
   function tituloRecVisible(r){
     const raw=String(r?.titulo||r?.descripcion||'—');
@@ -18198,9 +18218,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const fields=[];
     if(zona)fields.push({key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)});
     fields.push(
-      {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('orden_servicio','Orden de servicio'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
+      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('orden_servicio','Orden de servicio'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
-      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con OS asignada'),opt('sin','Sin OS')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
+      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con O.S.'),opt('sin','Sin O.S.')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
+      {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
     );
     return fields;
@@ -18219,7 +18240,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const zona=zonaEst(r)||'—';
     const estado=estadoReclamo(r);
     const cls=estado==='finalizado'?'b-ok':estado==='trabajando'?'b-info':estado==='anulado'?'b-danger':'b-warn';
-    const os=String(r?.os||'').trim();
+    const osObj=reclamoOSVinculada(r);
+    const os=osReclamoLabel(r);
     const tiene=reclamoTieneOS(r);
     const comentario=String(r?.anuladoComentario||r?.anulado_comentario||'').trim();
     const reiterado=typeof reclamoReiteradoDe==='function'?reclamoReiteradoDe(r):'';
@@ -18231,7 +18253,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <td>${esc(rubroRec(r)||'—')}</td>
       <td>${esc(r?.fecha||'—')}</td>
       <td>${typeof prioBadgeFecha==='function'?prioBadgeFecha(r?.prio||r?.prioridad):esc(r?.prio||r?.prioridad||'medio')}</td>
-      <td>${tiene?`<span class="badge ${cls}">${esc(os||'Con OS')}</span>`:'<span class="badge b-neutral">Sin OS</span>'}</td>
+      <td>${tiene?`<span class="badge ${cls}">${esc(os||'Con O.S.')}</span>${osObj?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${esc(typeof estadoOSLabel==='function'?estadoOSLabel(osObj.estado):osObj.estado||'Pendiente')}</div>`:''}`:'<span class="badge b-neutral">Sin O.S.</span>'}</td>
       <td>${fotosReclamo(r)}</td>
     </tr>`;
   }
@@ -18586,28 +18608,19 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(list)list.innerHTML=renderCertSeguimientoSmart(data);
   };
   function estadoCallcenter(r){
-    const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
-    if(manual){
-      if(manual==='finalizado')return {key:'finalizado',label:'Finalizado',cls:'b-ok'};
-      if(manual==='trabajando')return {key:'trabajando',label:'Trabajando',cls:'b-info'};
-      if(manual==='anulado')return {key:'anulado',label:'Reclamo / OS anulada',cls:'b-danger'};
-      return {key:'pendiente',label:'Pendiente',cls:'b-warn'};
-    }
-    if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return {key:'anulado',label:'Reclamo / OS anulada',cls:'b-danger'};
-    const os=String(r?.os||'').trim();
-    if(!os||['Sin OS','Pendiente'].includes(os))return {key:'sin_os',label:'Sin OS',cls:'b-neutral'};
-    if(['En trámite','En tramite'].includes(os))return {key:'en_tramite',label:'En trámite',cls:'b-warn'};
-    const obj=(OS_ZONA||[]).find(o=>String(o.numero)===os);
-    const st=obj?estadoOS(obj):'con_os';
+    const st=estadoReclamo(r);
     if(st==='finalizado')return {key:'finalizado',label:'Finalizado',cls:'b-ok'};
     if(st==='trabajando')return {key:'trabajando',label:'Trabajando',cls:'b-info'};
-    if(st==='anulado')return {key:'anulado',label:'Reclamo / OS anulada',cls:'b-danger'};
-    return {key:'con_os',label:'Con OS pendiente',cls:'b-warn'};
+    if(st==='anulado')return {key:'anulado',label:'Anulado',cls:'b-danger'};
+    if(st==='orden_servicio')return {key:'orden_servicio',label:'Orden de servicio',cls:'b-warn'};
+    return {key:'pendiente',label:'Pendiente',cls:'b-neutral'};
   }
   function callcenterFields(base){
     return [
       {key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)},
-      {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('sin_os','Sin OS'),opt('con_os','Con OS pendiente'),opt('trabajando','Con OS trabajando'),opt('finalizado','Finalizado'),opt('anulado','Reclamo / OS anulada'),opt('en_tramite','En trámite')],test:(r,v)=>estadoCallcenter(r).key===v},
+      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('orden_servicio','Orden de servicio'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoCallcenter(r).key===v},
+      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con O.S.'),opt('sin','Sin O.S.')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
+      {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
     ];
@@ -18675,7 +18688,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         'Fecha':r?.fecha||'—',
         'Prioridad':r?.prio||r?.prioridad||'medio',
         'Estado':st.label,
-        'OS':r?.os&&r.os!=='Sin OS'?r.os:'—',
+        'OS':osReclamoLabel(r)||'—',
         'Fotos':Array.isArray(r?.fotos)?r.fotos.length:Number(r?.fotos||0),
         'Cargado':creado?new Date(creado).toLocaleString('es-AR'):'—',
         'Editado':editado?new Date(editado).toLocaleString('es-AR'):''
@@ -18815,6 +18828,38 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(typeof filtrarReclamosCallcenter==='function')filtrarReclamosCallcenter();
     if(typeof renderChartInsp==='function'&&document.getElementById('dashboard-zona-body'))renderChartInsp('principal');
   }
+})();
+</script>
+<script id="dgie-reclamos-os-filtros-coherentes-2026-07-02">
+(function(){
+  'use strict';
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v==null?'':v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function osReal(r){
+    try{
+      if(typeof findOSForReclamo==='function'){
+        const found=findOSForReclamo(r,OS_ZONA||[]);
+        if(found)return found;
+      }
+    }catch(_e){}
+    const ref=String(r?.os||'').trim();
+    if(!ref||['Sin OS','Pendiente','En trámite','En tramite'].includes(ref))return null;
+    return (OS_ZONA||[]).find(o=>String(o?.numero||'').trim()===ref)||{numero:ref,estado:'pendiente'};
+  }
+  window.rowReclamo=function(r,showEst){
+    const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']};
+    const [lbl,bdg,ps]=pm[r?.prio]||['Sin prioridad','b-neutral',''];
+    const reiterado=typeof reclamoReiteradoDe==='function'?reclamoReiteradoDe(r):'';
+    const numeroVisible=typeof reclamoNumeroVisible==='function'?reclamoNumeroVisible(r):(r?.numero||'');
+    const extra=[numeroVisible,r?.rubro].filter(Boolean).join(' · ');
+    const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';
+    const os=osReal(r);
+    const osEst=os&&typeof getEstadoOS==='function'?getEstadoOS(os):'';
+    const osLbl=os&&typeof estadoOSLabel==='function'?estadoOSLabel(os.estado):'';
+    const osDisplay=os?`${esc(os.numero||r?.os||'Con O.S.')}${osLbl?' · '+esc(osLbl):''}`:'Sin O.S.';
+    const osClr=osEst==='finalizado'?'#2e7d32':osEst==='trabajando'?'#0072ce':osEst==='anulado'?'#dc2626':osEst==='pendiente'?'#d97706':'var(--muted)';
+    const titulo=typeof limpiarMetaReiterado==='function'?limpiarMetaReiterado(r?.titulo||'Reclamo'):(r?.titulo||'Reclamo');
+    return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${esc(titulo)}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?esc(r?.est||r?.establecimiento||'')+' · ':''}${esc(r?.fecha||'')}${extra?' · '+esc(extra):''}${reiterado?' · Reclamo original '+esc(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:${osClr};font-weight:${osEst?'700':'400'}">${osDisplay}</span>${typeof botonGenerarOSReclamo==='function'?botonGenerarOSReclamo(r):''}</div></div>`;
+  };
 })();
 </script>
 <script id="dgie-restaurar-comentarios-certificados-2026-07-01">
