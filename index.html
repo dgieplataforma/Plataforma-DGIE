@@ -10869,7 +10869,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     if(res?.error){
       const msg=String(res.error.message||res.error);
-      alert('No se pudo guardar la vinculación de O.S. en Supabase. Ejecutá el SQL que te dejo para agregar la columna datos en intervenciones. Detalle: '+msg);
+      const rls=/row-level security|violates row-level security/i.test(msg);
+      alert((rls
+        ? 'No se pudo guardar la intervención en Supabase por políticas RLS de la tabla intervenciones. Ejecutá el SQL de fix RLS que te dejo para permitir guardar intervenciones desde la app.'
+        : 'No se pudo guardar la intervención en Supabase. Revisá que esté aplicada la columna datos en intervenciones.')
+        +' Detalle: '+msg);
       return {ok:false,error:res.error};
     }
     if(res?.data?.id){it.remoteId=res.data.id;it._remoteSaved=true;}
