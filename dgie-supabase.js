@@ -144,6 +144,12 @@
     async actualizarOrden(id, row){
       return updateOne('ordenes_servicio', id, row, 'esa orden de servicio');
     },
+    async listarComentariosOrdenes(){
+      return selectAll('ordenes_servicio_comentarios', { orderBy:'created_at', ascending:true });
+    },
+    async crearComentarioOrden(row){
+      return client.from('ordenes_servicio_comentarios').insert(row).select('*').single();
+    },
     async actualizarEmpresaFinalizo(ordenId, valor){
       const rpc = await client.rpc('marcar_empresa_finalizo', { p_orden_id: String(ordenId), p_valor: !!valor });
       if(!rpc.error) return rpc;

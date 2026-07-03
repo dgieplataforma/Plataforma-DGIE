@@ -5208,7 +5208,7 @@ function renderChartInsp(){
   async function cargarDatosOperativosSupabase(){
     if(!window.DGIE_DB?.isConfigured)return;
     try{
-      const [recRes,osRes,intRes,relRes,commRes,fotoRes,insRes,empRes]=await Promise.all([
+      const [recRes,osRes,intRes,relRes,commRes,fotoRes,insRes,empRes,osCommRes]=await Promise.all([
         window.DGIE_DB.listarReclamos?.(),
         window.DGIE_DB.listarOrdenes?.(),
         window.DGIE_DB.listarIntervenciones?.(),
@@ -5216,7 +5216,8 @@ function renderChartInsp(){
         window.DGIE_DB.listarComunicaciones?.(),
         window.DGIE_DB.listarFotos?.(),
         window.DGIE_DB.listarInspectores?.(),
-        window.DGIE_DB.listarEmpresas?.()
+        window.DGIE_DB.listarEmpresas?.(),
+        window.DGIE_DB.listarComentariosOrdenes?.()
       ]);
       if(typeof window.cargarAnalisisPreciosSupabase==='function'){
         await window.cargarAnalisisPreciosSupabase(true);
@@ -5226,6 +5227,9 @@ function renderChartInsp(){
       }
       if(osRes&&!osRes.error&&Array.isArray(osRes.data)){
         OS_ZONA.splice(0,OS_ZONA.length,...osRes.data.map(mapRemoteOrden));
+      }
+      if(osCommRes&&!osCommRes.error&&Array.isArray(osCommRes.data)&&typeof window.aplicarComentariosOSRemotos==='function'){
+        window.aplicarComentariosOSRemotos(osCommRes.data);
       }
       if(intRes&&!intRes.error&&Array.isArray(intRes.data)){
         INTERVENCIONES.splice(0,INTERVENCIONES.length,...intRes.data.map(mapRemoteIntervencion));
@@ -20094,6 +20098,251 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.addEventListener('DOMContentLoaded',schedule);
   document.addEventListener('dgie:data-ready',()=>setTimeout(schedule,120));
   window.addEventListener('load',schedule);
+})();
+</script>
+<script id="dgie-chat-comentarios-os-2026-07-03">
+(function(){
+  'use strict';
+  const STORE_KEY='dgie_os_comentarios_v1';
+  let chatOSKey='';
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v==null?'':v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function js(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ')}
+  function roleLabel(){
+    const u=typeof currentUser!=='undefined'?currentUser:window.currentUser;
+    const r=String(u?.role||'').toLowerCase();
+    if(r==='empresa')return 'Empresa';
+    if(r==='inspector')return 'Inspector';
+    if(r==='coordinador')return 'Coordinación';
+    return u?.name||'Usuario';
+  }
+  function osKey(o){
+    return String(o?.remoteId?`remote:${o.remoteId}`:o?.numero?`numero:${o.numero}`:`local:${o?.id||''}`).replace(/[^a-zA-Z0-9:_-]/g,'_');
+  }
+  function findOSByKey(key){
+    const arr=Array.isArray(window.OS_ZONA)?window.OS_ZONA:(typeof OS_ZONA!=='undefined'?OS_ZONA:[]);
+    return (arr||[]).find(o=>osKey(o)===key)||null;
+  }
+  function readStore(){
+    try{return JSON.parse(localStorage.getItem(STORE_KEY)||'{}')||{}}catch(_){return {}}
+  }
+  function writeStore(store){
+    try{localStorage.setItem(STORE_KEY,JSON.stringify(store||{}))}catch(_){}
+  }
+  function mensajesOS(o){
+    if(!o)return [];
+    const direct=Array.isArray(o.comentariosOS)?o.comentariosOS:Array.isArray(o.comentarios_os)?o.comentarios_os:Array.isArray(o.comentarios)?o.comentarios:null;
+    const stored=readStore()[osKey(o)]||[];
+    const msgs=direct&&direct.length?direct:stored;
+    return Array.isArray(msgs)?msgs:[];
+  }
+  function mapRemoteMsg(row){
+    return {
+      remoteId:row?.id||'',
+      texto:row?.mensaje||row?.texto||'',
+      rol:row?.autor_role||row?.rol||'usuario',
+      autor:row?.autor_nombre||row?.autor||row?.autor_role||'Usuario',
+      fecha:row?.created_at||row?.fecha||new Date().toISOString()
+    };
+  }
+  function setMensajesOS(o,msgs){
+    if(!o)return;
+    o.comentariosOS=msgs;
+    o.comentarios_os=msgs;
+    const store=readStore();
+    store[osKey(o)]=msgs;
+    writeStore(store);
+    try{if(typeof saveAppState==='function')saveAppState()}catch(_){}
+  }
+  function mergeMensajes(actuales,nuevos){
+    const out=[];
+    const seen=new Set();
+    [...(actuales||[]),...(nuevos||[])].forEach(m=>{
+      const key=m?.remoteId?`r:${m.remoteId}`:`l:${m?.fecha||''}:${m?.autor||''}:${m?.texto||''}`;
+      if(seen.has(key))return;
+      seen.add(key);
+      out.push(m);
+    });
+    return out.sort((a,b)=>String(a?.fecha||'').localeCompare(String(b?.fecha||'')));
+  }
+  function comentariosParaOrden(rows,o){
+    const remote=String(o?.remoteId||'');
+    const numero=String(o?.numero||'');
+    return (rows||[]).filter(r=>
+      (remote&&String(r?.orden_id||'')===remote)||
+      (numero&&String(r?.orden_numero||'')===numero)
+    ).map(mapRemoteMsg);
+  }
+  window.aplicarComentariosOSRemotos=function(rows){
+    const arr=Array.isArray(window.OS_ZONA)?window.OS_ZONA:(typeof OS_ZONA!=='undefined'?OS_ZONA:[]);
+    (arr||[]).forEach(o=>{
+      const remotos=comentariosParaOrden(rows,o);
+      if(remotos.length)setMensajesOS(o,mergeMensajes(mensajesOS(o),remotos));
+    });
+    refrescarBotonesComentariosOS();
+  };
+  async function cargarComentariosRemotosOS(o){
+    if(!o||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.listarComentariosOrdenes!=='function')return;
+    try{
+      const {data,error}=await window.DGIE_DB.listarComentariosOrdenes();
+      if(error){console.warn('No se pudieron cargar comentarios de O.S.',error);return}
+      const remotos=comentariosParaOrden(data||[],o);
+      if(remotos.length)setMensajesOS(o,mergeMensajes(mensajesOS(o),remotos));
+    }catch(error){
+      console.warn('No se pudieron cargar comentarios de O.S.',error);
+    }
+  }
+  function fechaMsg(v){
+    try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}
+  }
+  function ensureStyle(){
+    if(byId('dgie-os-chat-style'))return;
+    const st=document.createElement('style');
+    st.id='dgie-os-chat-style';
+    st.textContent=`
+      .os-chat-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#123c69;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}
+      .os-chat-btn:hover{border-color:var(--blue);background:var(--blue-soft);color:var(--blue)}
+      .os-chat-count{min-width:18px;height:18px;border-radius:999px;background:#e0f2fe;color:#075985;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:900}
+      .os-chat-float{position:fixed;right:18px;bottom:18px;width:min(430px,calc(100vw - 28px));max-height:min(680px,calc(100vh - 36px));background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.24);z-index:9998;display:none;overflow:hidden}
+      .os-chat-float.visible{display:flex;flex-direction:column}
+      .os-chat-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid var(--border);background:#f8fafc}
+      .os-chat-title{font-size:15px;font-weight:900;color:#123c69}
+      .os-chat-sub{font-size:12px;color:#64748b;margin-top:3px;line-height:1.35}
+      .os-chat-close{border:0;background:transparent;color:#64748b;font-size:22px;line-height:1;cursor:pointer}
+      .os-chat-body{padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:9px;min-height:180px}
+      .os-chat-empty{font-size:13px;color:var(--muted);text-align:center;padding:28px 10px}
+      .os-chat-msg{border:1px solid #e2e8f0;border-left:4px solid #94a3b8;background:#f8fafc;border-radius:10px;padding:9px 10px}
+      .os-chat-msg.inspector{border-left-color:var(--blue);background:#eef6ff}
+      .os-chat-msg.empresa{border-left-color:#16a34a;background:#f0fdf4}
+      .os-chat-meta{font-size:11px;font-weight:900;color:#475569;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}
+      .os-chat-text{font-size:13px;color:#1f2937;white-space:pre-wrap;line-height:1.35}
+      .os-chat-form{display:grid;grid-template-columns:1fr auto;gap:8px;padding:12px 14px;border-top:1px solid var(--border);background:#fff}
+      .os-chat-form textarea{min-height:64px;resize:vertical}
+      @media(max-width:640px){.os-chat-float{right:8px;bottom:8px;width:calc(100vw - 16px)}.os-chat-form{grid-template-columns:1fr}.os-chat-form button{width:100%}}
+    `;
+    document.head.appendChild(st);
+  }
+  function ensureBox(){
+    ensureStyle();
+    if(byId('dgie-os-chat'))return;
+    document.body.insertAdjacentHTML('beforeend',`<div class="os-chat-float" id="dgie-os-chat">
+      <div class="os-chat-head"><div><div class="os-chat-title" id="os-chat-title">Comentarios de O.S.</div><div class="os-chat-sub" id="os-chat-sub"></div></div><button class="os-chat-close" type="button" onclick="cerrarChatOSComentarios()">×</button></div>
+      <div class="os-chat-body" id="os-chat-body"></div>
+      <div class="os-chat-form"><textarea class="form-textarea" id="os-chat-text" placeholder="Escribí un comentario sobre esta orden de servicio..."></textarea><button class="primary-btn" type="button" onclick="enviarComentarioOS()">Enviar</button></div>
+    </div>`);
+  }
+  function renderChat(){
+    const o=findOSByKey(chatOSKey);
+    if(!o)return;
+    byId('os-chat-title').textContent=`Comentarios · ${o.numero||'O.S.'}`;
+    byId('os-chat-sub').textContent=`${o.establecimiento||''}${o.tarea?' · '+o.tarea:''}`;
+    const msgs=mensajesOS(o);
+    const body=byId('os-chat-body');
+    body.innerHTML=msgs.length?msgs.map(m=>{
+      const rol=String(m.rol||'').toLowerCase();
+      return `<div class="os-chat-msg ${esc(rol)}"><div class="os-chat-meta"><span>${esc(m.autor||m.rol||'Usuario')}</span><span>${esc(fechaMsg(m.fecha))}</span></div><div class="os-chat-text">${esc(m.texto||'')}</div></div>`;
+    }).join(''):'<div class="os-chat-empty">Todavía no hay comentarios para esta orden.</div>';
+    body.scrollTop=body.scrollHeight;
+  }
+  window.abrirChatOSComentarios=function(key){
+    chatOSKey=String(key||'');
+    const o=findOSByKey(chatOSKey);
+    if(!o){alert('No se encontró la orden de servicio.');return}
+    ensureBox();
+    byId('dgie-os-chat').classList.add('visible');
+    renderChat();
+    cargarComentariosRemotosOS(o).then(()=>{renderChat();refrescarBotonesComentariosOS();});
+    setTimeout(()=>byId('os-chat-text')?.focus(),80);
+  };
+  window.cerrarChatOSComentarios=function(){
+    byId('dgie-os-chat')?.classList.remove('visible');
+  };
+  window.enviarComentarioOS=async function(){
+    const o=findOSByKey(chatOSKey);
+    const txt=(byId('os-chat-text')?.value||'').trim();
+    if(!o||!txt)return;
+    const u=typeof currentUser!=='undefined'?currentUser:window.currentUser;
+    const msgs=mensajesOS(o).slice();
+    const msg={texto:txt,rol:String(u?.role||'usuario'),autor:u?.name||roleLabel(),fecha:new Date().toISOString()};
+    msgs.push(msg);
+    setMensajesOS(o,msgs);
+    byId('os-chat-text').value='';
+    renderChat();
+    refrescarBotonesComentariosOS();
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearComentarioOrden==='function'){
+      try{
+        const {data,error}=await window.DGIE_DB.crearComentarioOrden({
+          orden_id:o.remoteId?String(o.remoteId):null,
+          orden_numero:o.numero||null,
+          autor_role:msg.rol,
+          autor_nombre:msg.autor,
+          mensaje:msg.texto
+        });
+        if(error)throw error;
+        if(data?.id){
+          msg.remoteId=data.id;
+          msg.fecha=data.created_at||msg.fecha;
+          setMensajesOS(o,mergeMensajes(mensajesOS(o),[msg]));
+          renderChat();
+          refrescarBotonesComentariosOS();
+        }
+      }catch(error){
+        console.warn('No se pudo guardar el comentario de O.S. en Supabase',error);
+      }
+    }
+  };
+  function boton(o){
+    const key=osKey(o);
+    const count=mensajesOS(o).length;
+    return `<button class="os-chat-btn" type="button" onclick="abrirChatOSComentarios('${js(key)}')">Comentarios <span class="os-chat-count">${count}</span></button>`;
+  }
+  function enhanceTable(tbodyId,data){
+    const body=byId(tbodyId);
+    if(!body||!Array.isArray(data))return;
+    [...body.querySelectorAll('tr')].forEach((tr,idx)=>{
+      if(tr.querySelector('.os-empty'))return;
+      const o=data[idx];
+      if(!o||tr.querySelector('[data-os-chat-cell]'))return;
+      const actions=tr.querySelector('.os-download-actions');
+      if(actions){
+        actions.insertAdjacentHTML('beforeend',`<span data-os-chat-cell>${boton(o)}</span>`);
+      }
+    });
+  }
+  window.refrescarBotonesComentariosOS=function(){
+    document.querySelectorAll('[data-os-chat-cell]').forEach(td=>{
+      const tr=td.closest('tr');
+      const body=tr?.parentElement;
+      const rows=[...body?.querySelectorAll('tr')||[]];
+      const idx=rows.indexOf(tr);
+      const data=body?.id==='empresa-os-body'?window.dgieOSVisibleEmpresa:body?.id==='os-table-body'?window.dgieOSVisibleInspector:null;
+      const o=Array.isArray(data)?data[idx]:null;
+      if(o)td.innerHTML=boton(o);
+    });
+  };
+  function wrap(){
+    const prevRender=window.renderOSTable;
+    if(typeof prevRender==='function'&&!prevRender.__osChatWrapped){
+      window.renderOSTable=function(data){
+        const res=prevRender.apply(this,arguments);
+        setTimeout(()=>enhanceTable('os-table-body',Array.isArray(data)?data:[]),0);
+        return res;
+      };
+      window.renderOSTable.__osChatWrapped=true;
+    }
+    const prevEmpresa=window.filterOSEmpresa;
+    if(typeof prevEmpresa==='function'&&!prevEmpresa.__osChatWrapped){
+      window.filterOSEmpresa=function(){
+        const res=prevEmpresa.apply(this,arguments);
+        setTimeout(()=>enhanceTable('empresa-os-body',Array.isArray(window.dgieOSVisibleEmpresa)?window.dgieOSVisibleEmpresa:[]),0);
+        return res;
+      };
+      window.filterOSEmpresa.__osChatWrapped=true;
+    }
+  }
+  ensureStyle();
+  wrap();
+  setTimeout(wrap,500);
 })();
 </script>
 </body>
