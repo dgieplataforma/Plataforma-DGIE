@@ -3176,6 +3176,16 @@ function borrarDatosLocalesPlataforma(){if(confirm('Esto borra reclamos y órden
 
 document.addEventListener('DOMContentLoaded',()=>{loadAppState();actualizarZoneDataReal();showLanding();$('zona-pass')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLoginZona()});document.getElementById('dir-zona-pass')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLoginDir()});document.getElementById('empresa-pass')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLoginEmpresa()});runSmokeTests()});
 
+document.addEventListener('DOMContentLoaded',()=>{
+  ['lm-email','lm-password','lm-rol','lm-zona-select'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('keydown',e=>{
+      if(e.key!=='Enter')return;
+      e.preventDefault();
+      document.getElementById('lm-submit-btn')?.click();
+    });
+  });
+});
+
 
 /* === AJUSTES CHATGPT 02-05-2026: OS POR ZONA, NOMENCLATURA Y ESTADOS === */
 function estadoOSCanon(estado){
@@ -16250,7 +16260,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 <script id="dgie-argentina-countdown-2026-06-22">
 (function(){
   const PARTIDOS=[
-    {code:'ARG-CPV',titulo:'ARG vs CPV',rival:'Cabo Verde',cuando:'2026-07-03T19:00:00-03:00',detalle:'03/07 19:00'}
+    {code:'ARG-EGY',titulo:'ARG vs EGY',rival:'Egipto',cuando:'2026-07-07T13:00:00-03:00',detalle:'07/07 13:00'}
   ];
   const MSG_KEY='dgie_argentina_mensaje_2026_06_24';
   const AVISO_ID='argentina-2026-06-24';
@@ -18210,7 +18220,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const os=reclamoOSVinculada(r);
     if(!os)return 'pendiente';
     const st=typeof getEstadoOS==='function'?getEstadoOS(os):'orden_servicio';
-    return st==='pendiente'?'orden_servicio':(st||'orden_servicio');
+    return st==='pendiente'?'pendiente':(st||'pendiente');
   }
   function rubroRec(r){
     return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,r?.titulo||r?.descripcion||''):String(r?.rubro||'');
@@ -18226,9 +18236,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const fields=[];
     if(zona)fields.push({key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)});
     fields.push(
-      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('orden_servicio','Orden de servicio'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
+      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
-      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con O.S.'),opt('sin','Sin O.S.')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
+      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
     );
@@ -18626,8 +18636,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function callcenterFields(base){
     return [
       {key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)},
-      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('orden_servicio','Orden de servicio'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoCallcenter(r).key===v},
-      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con O.S.'),opt('sin','Sin O.S.')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
+      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoCallcenter(r).key===v},
+      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
