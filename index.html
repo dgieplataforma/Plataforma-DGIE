@@ -16783,9 +16783,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function empresaFinalizada(o){
     if(o?.empresaFinalizo)return true;
+    if(o?.remoteId)return false;
     try{
       const store=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}')||{};
-      return !!(store[`remote:${o?.remoteId}`]||store[`numero:${o?.numero}`]||store[`local:${o?.id}`]);
+      return !!(store[`numero:${o?.numero}`]||store[`local:${o?.id}`]);
     }catch(e){return false}
   }
   function empresaBadge(o){
@@ -17246,9 +17247,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function osEmpresaFinalizada(o){
     if(o?.empresaFinalizo)return true;
+    if(o?.remoteId)return false;
     try{
       const store=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}')||{};
-      return !!(store[`remote:${o?.remoteId}`]||store[`numero:${o?.numero}`]||store[`local:${o?.id}`]);
+      return !!(store[`numero:${o?.numero}`]||store[`local:${o?.id}`]);
     }catch(_){return false}
   }
   function osEmpresaBadge(o){
@@ -18350,9 +18352,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function osCertificado(o){return osMediciones(o).length>0}
   function empresaFin(o){
     if(o?.empresaFinalizo)return true;
+    if(o?.remoteId)return false;
     try{
       const store=JSON.parse(localStorage.getItem('dgie_empresa_finalizo_os')||'{}')||{};
-      return !!(store[`remote:${o?.remoteId}`]||store[`numero:${o?.numero}`]||store[`local:${o?.id}`]);
+      return !!(store[`numero:${o?.numero}`]||store[`local:${o?.id}`]);
     }catch(e){return false}
   }
   function textoOS(o){return `${o?.numero||''} ${o?.reclamoNumero||''} ${o?.establecimiento||''} ${o?.tarea||''} ${o?.rubro||''}`.toLowerCase()}
