@@ -6850,7 +6850,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 
   function dbNotice(){
-    return certsDbError?`<div class="form-error" style="display:block;margin-bottom:12px">Para guardar entre computadoras ejecutá <b>supabase-mediciones-certificados.sql</b>. Error actual: ${escapeHtml(certsDbError)}</div>`:'';
+    return certsDbError?`<div class="form-error" style="display:block;margin-bottom:12px">Para guardar certificados en Supabase ejecutá <b>_archivo_trabajo/sql/fix-rls-certificados-medicion-app-2026-07-07.sql</b>. Error actual: ${escapeHtml(certsDbError)}</div>`:'';
   }
 
   window.renderMedicionesEmpresa=async function(container,z){
@@ -6937,7 +6937,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       });
       renderMedicionesEmpresa($('main-content'),currentUser.zona);
     }catch(error){
-      alert('No se pudo guardar el certificado: '+(error.message||error));
+      const msg=String(error?.message||error||'');
+      const rls=/row-level security|violates row-level security/i.test(msg);
+      alert((rls
+        ? 'No se pudo guardar el certificado en Supabase por políticas RLS de certificados_medicion. Ejecutá el SQL _archivo_trabajo/sql/fix-rls-certificados-medicion-app-2026-07-07.sql para habilitar la carga desde la app.'
+        : 'No se pudo guardar el certificado.')
+        +' Detalle: '+msg);
     }
   };
   function fmtConvFecha(iso){try{return new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
@@ -15876,7 +15881,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(typeof window.cargarCertificadosMedicion==='function')await window.cargarCertificadosMedicion(true);
       window.renderMedicionesEmpresa($('main-content'),currentUser.zona);
     }catch(error){
-      alert('No se pudo guardar el certificado: '+(error.message||error));
+      const msg=String(error?.message||error||'');
+      const rls=/row-level security|violates row-level security/i.test(msg);
+      alert((rls
+        ? 'No se pudo guardar el certificado en Supabase por políticas RLS de certificados_medicion. Ejecutá el SQL _archivo_trabajo/sql/fix-rls-certificados-medicion-app-2026-07-07.sql para habilitar la carga desde la app.'
+        : 'No se pudo guardar el certificado.')
+        +' Detalle: '+msg);
     }
   };
 
