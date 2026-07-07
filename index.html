@@ -18099,7 +18099,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const field=(cfg.fields||[]).find(f=>f.key===fieldKey);
     const sel=byId(`${ctx}-sf-value`);
     if(!sel)return;
-    const options=typeof field?.options==='function'?field.options():(field?.options||[]);
+    let options=typeof field?.options==='function'?field.options():(field?.options||[]);
+    if(field?.key==='establecimiento'&&options.length){
+      options=[{value:'__todos_establecimientos__',label:'Todos los establecimientos'},...options];
+    }
     sel.innerHTML=`<option value="">Agregar ${esc((field?.label||'filtro').toLowerCase())}...</option>${options.map(o=>`<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}`;
   };
   window.dgieSmartRenderChips=function(ctx){
@@ -18123,6 +18126,19 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const field=(cfg.fields||[]).find(f=>f.key===fieldKey);
     if(!field||!value)return;
     const opts=typeof field.options==='function'?field.options():(field.options||[]);
+    if(field.key==='establecimiento'&&value==='__todos_establecimientos__'){
+      STORE[ctx]=STORE[ctx]||[];
+      opts.forEach(o=>{
+        if(!STORE[ctx].some(f=>f.field===fieldKey&&String(f.value)===String(o.value))){
+          STORE[ctx].push({field:fieldKey,value:o.value,label:o.label});
+        }
+      });
+      const sel=byId(`${ctx}-sf-value`);
+      if(sel)sel.value='';
+      window.dgieSmartRenderChips(ctx);
+      if(typeof window[cfg.refresh]==='function')window[cfg.refresh]();
+      return;
+    }
     const label=opts.find(o=>String(o.value)===String(value))?.label||value;
     STORE[ctx]=STORE[ctx]||[];
     if(!STORE[ctx].some(f=>f.field===fieldKey&&String(f.value)===String(value))){
@@ -18379,10 +18395,37 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const el=byId(id);
     if(el)el.innerHTML=resumenEstadosOSVisible(data,total);
   }
+  function osEstablecimientoId(o){
+    const id=Number(o?.estId||o?.establecimiento_id||o?.establecimientoId||0);
+    if(id)return id;
+    const nombre=norm(o?.establecimiento||o?.est||'');
+    const est=(ESTABS||[]).find(e=>norm(e?.n||e?.nombre||e?.establecimiento||'')===nombre);
+    return Number(est?.id||0)||0;
+  }
+  function osEstablecimientoNombre(o){
+    const id=osEstablecimientoId(o);
+    const est=id?(ESTABS||[]).find(e=>Number(e?.id)===id):null;
+    return String(o?.establecimiento||est?.n||est?.nombre||est?.establecimiento||'').trim();
+  }
+  function osEstablecimientoKey(o){
+    const id=osEstablecimientoId(o);
+    return id?`id:${id}`:`nom:${norm(osEstablecimientoNombre(o))}`;
+  }
+  function osEstablecimientoOptions(base){
+    const map=new Map();
+    (base||[]).forEach(o=>{
+      const label=osEstablecimientoNombre(o);
+      if(!label)return;
+      const key=osEstablecimientoKey(o);
+      if(!map.has(key))map.set(key,opt(key,label));
+    });
+    return Array.from(map.values()).sort((a,b)=>String(a.label).localeCompare(String(b.label),'es'));
+  }
   function osFields(base,{zona=false}={}){
     const fields=[];
     if(zona)fields.push({key:'zona',label:'Zona',options:zonaOptions,test:(o,v)=>String(zonaOS(o))===String(v)});
     fields.push(
+      {key:'establecimiento',label:'Establecimiento',options:()=>osEstablecimientoOptions(base),test:(o,v)=>osEstablecimientoKey(o)===String(v)},
       {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(o,v)=>estadoOS(o)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(o,v)=>prioKey(o)===v},
       {key:'empresa',label:'Estado s/ empresa',options:()=>[opt('finalizada','Finalizada por empresa'),opt('sin','Sin informar')],test:(o,v)=>v==='finalizada'?empresaFin(o):!empresaFin(o)},
@@ -18423,7 +18466,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const ctx='os';
     resetSmartCtx(ctx);
     const toolbar=[typeof canCreateOS==='function'&&canCreateOS()?'<button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button>':''].filter(Boolean).join('');
-    return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por rubro, estado, prioridad, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>${toolbar?`<div class="os-visible-toolbar">${toolbar}</div>`:''}
+    return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por establecimiento, rubro, estado, prioridad, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>${toolbar?`<div class="os-visible-toolbar">${toolbar}</div>`:''}
       <div class="os-filters">
         <input class="estab-search" id="os-search" placeholder="Buscar por OS, reclamo, establecimiento o tarea..." oninput="filterOS()">
         ${smartHTML(ctx,osFields(base),'filterOS')}
@@ -18451,7 +18494,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=OS_ZONA||[];
     const ctx='coord-os';
     resetSmartCtx(ctx);
-    container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="coord-os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>
+    container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, establecimiento, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="coord-os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>
       <div class="os-filters">
         <input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, reclamo, establecimiento, rubro o tarea..." oninput="filterOSCoord()">
         ${smartHTML(ctx,osFields(base,{zona:true}),'filterOSCoord')}
@@ -20142,6 +20185,221 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.addEventListener('DOMContentLoaded',schedule);
   document.addEventListener('dgie:data-ready',()=>setTimeout(schedule,120));
   window.addEventListener('load',schedule);
+})();
+</script>
+<script id="dgie-dashboard-establecimientos-intervenidos-2026-07-07">
+(function(){
+  'use strict';
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v==null?'':v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function norm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+  function current(){try{return currentUser||window.currentUser||null}catch(_e){return window.currentUser||null}}
+  function selectedZ(){try{return selectedZona||window.selectedZona||1}catch(_e){return window.selectedZona||1}}
+  function estabs(){try{return Array.isArray(ESTABS)?ESTABS:(window.ESTABS||[])}catch(_e){return window.ESTABS||[]}}
+  function ordenes(){try{return Array.isArray(OS_ZONA)?OS_ZONA:(window.OS_ZONA||[])}catch(_e){return window.OS_ZONA||[]}}
+  function zonaDesdePantalla(){
+    const txt=[
+      document.querySelector('#main-content .section-label')?.textContent||'',
+      document.querySelector('#inspector-map-layer .inspector-map-hint')?.textContent||''
+    ].join(' ');
+    const m=txt.match(/Zona\s+(\d+)/i);
+    return m?Number(m[1])||0:0;
+  }
+  function zonaActual(){return Number(zonaDesdePantalla()||current()?.zona||selectedZ()||1)||1}
+  function alcanceDashboard(){
+    const coord=document.getElementById('coord-dashboard-zona');
+    if(coord&&typeof coordDashboardData==='function'){
+      try{
+        const real=coordDashboardData();
+        return {
+          tipo:'coord',
+          zona:Number(real?.zona||0)||null,
+          label:real?.label||'Todas las zonas',
+          estabs:Array.isArray(real?.estabs)?real.estabs:estabs(),
+          finalizadas:Array.isArray(real?.finalizadas)?real.finalizadas:ordenes().filter(estadoOSFinalizada)
+        };
+      }catch(_e){}
+    }
+    const z=zonaActual();
+    let scope=null;
+    try{scope=typeof zonaDataReal==='function'?zonaDataReal(z):null}catch(_e){scope=null}
+    return {
+      tipo:'inspector',
+      zona:z,
+      label:`Zona ${z}`,
+      estabs:Array.isArray(scope?.estabs)?scope.estabs:estabs().filter(e=>zonaDeItem(e)===z),
+      finalizadas:Array.isArray(scope?.finalizadas)?scope.finalizadas:ordenes().filter(o=>zonaDeItem(o)===z&&estadoOSFinalizada(o))
+    };
+  }
+  function estadoOSFinalizada(o){
+    try{return (typeof getEstadoOS==='function'?getEstadoOS(o):String(o?.estado||'')).toLowerCase()==='finalizado'}catch(_e){return false}
+  }
+  function zonaDeItem(item){
+    const z=Number(item?.zona||0);
+    if(z)return z;
+    const id=Number(item?.estId||item?.establecimiento_id||item?.establecimientoId||item?.id||0);
+    try{return id&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(id))||0:0}catch(_e){return 0}
+  }
+  function estNombre(e){
+    return String(e?.n||e?.nombre||e?.establecimiento||e?.institucion||'').trim();
+  }
+  function osEstId(o){
+    const id=Number(o?.estId||o?.establecimiento_id||o?.establecimientoId||0);
+    if(id)return id;
+    const nombre=norm(o?.establecimiento||'');
+    const est=estabs().find(e=>norm(estNombre(e))===nombre);
+    return Number(est?.id||0)||0;
+  }
+  function osEstNombre(o){
+    const id=osEstId(o);
+    const est=id?estabs().find(e=>Number(e?.id)===id):null;
+    return String(o?.establecimiento||estNombre(est)||'Sin establecimiento').trim();
+  }
+  function keyEst(id,nombre){
+    return id?`id:${id}`:`nom:${norm(nombre)}`;
+  }
+  function dataEstablecimientosIntervenidos(scope){
+    const baseEstabs=Array.isArray(scope?.estabs)?scope.estabs:[];
+    const baseFinalizadas=Array.isArray(scope?.finalizadas)?scope.finalizadas:[];
+    const rows=new Map();
+    baseEstabs.forEach(e=>{
+      const id=Number(e?.id||0);
+      const nombre=estNombre(e);
+      const label=scope?.tipo==='coord'&&!scope?.zona&&Number(e?.zona)?`${nombre} · Z${Number(e.zona)}`:nombre;
+      if(nombre)rows.set(keyEst(id,nombre),{id,nombre:label,cantidad:0});
+    });
+    baseFinalizadas.forEach(o=>{
+      const id=osEstId(o);
+      const nombre=osEstNombre(o);
+      const key=keyEst(id,nombre);
+      const zona=Number(o?.zona||0)||zonaDeItem(o);
+      const label=scope?.tipo==='coord'&&!scope?.zona&&zona?`${nombre} · Z${zona}`:nombre;
+      if(!rows.has(key))rows.set(key,{id,nombre:label,cantidad:0});
+      rows.get(key).cantidad++;
+    });
+    return Array.from(rows.values()).sort((a,b)=>b.cantidad-a.cantidad||a.nombre.localeCompare(b.nombre,'es'));
+  }
+  function ensureStyle(){
+    if(byId('dgie-est-intervenidos-style'))return;
+    const st=document.createElement('style');
+    st.id='dgie-est-intervenidos-style';
+    st.textContent=`
+      #dgie-est-intervenidos-card{margin-top:14px!important;min-height:0!important;border-radius:14px!important}
+      .dgie-est-intervenidos-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+      .dgie-est-intervenidos-sub{font-size:13px;color:var(--muted);margin-top:4px}
+      .dgie-est-intervenidos-badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+      .dgie-est-intervenidos-scroll{max-height:320px;overflow:auto;padding-right:8px}
+      .dgie-est-row{display:grid;grid-template-columns:minmax(150px,260px) 1fr 42px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #eef2f7}
+      .dgie-est-row:last-child{border-bottom:0}
+      .dgie-est-name{font-size:12px;font-weight:800;color:#334155;line-height:1.25;overflow-wrap:anywhere}
+      .dgie-est-track{height:14px;background:#e8eef5;border-radius:999px;overflow:hidden}
+      .dgie-est-bar{height:100%;background:#005aa9;border-radius:999px;min-width:0}
+      .dgie-est-count{text-align:right;font-size:12px;font-weight:900;color:#123c69}
+      .dgie-est-empty{color:var(--muted);font-size:13px;padding:14px 0}
+      @media(max-width:680px){.dgie-est-intervenidos-head{display:block}.dgie-est-intervenidos-badges{justify-content:flex-start;margin-top:8px}.dgie-est-row{grid-template-columns:1fr 72px}.dgie-est-track{grid-column:1/-1;grid-row:2}.dgie-est-count{grid-column:2;grid-row:1}}
+    `;
+    document.head.appendChild(st);
+  }
+  function cardHTML(scope,rows){
+    const max=Math.max(1,...rows.map(r=>r.cantidad));
+    const intervenidos=rows.filter(r=>r.cantidad>0).length;
+    const total=rows.reduce((a,r)=>a+r.cantidad,0);
+    const body=rows.length?rows.map(r=>{
+      const pct=r.cantidad>0?Math.max(5,Math.round((r.cantidad/max)*100)):0;
+      return `<div class="dgie-est-row"><div class="dgie-est-name">${esc(r.nombre)}</div><div class="dgie-est-track"><div class="dgie-est-bar" style="width:${pct}%"></div></div><div class="dgie-est-count">${r.cantidad}</div></div>`;
+    }).join(''):'<div class="dgie-est-empty">No hay establecimientos para mostrar.</div>';
+    return `<div class="inspector-chart-card" id="dgie-est-intervenidos-card">
+      <div class="dgie-est-intervenidos-head">
+        <div><div class="inspector-chart-title">Intervenciones por establecimiento</div><div class="dgie-est-intervenidos-sub">Cantidad de O.S. finalizadas por establecimiento · ${esc(scope?.label||'')}</div></div>
+        <div class="dgie-est-intervenidos-badges"><span class="badge b-ok">${intervenidos} establecimientos intervenidos</span><span class="badge b-info">${total} intervenciones</span></div>
+      </div>
+      <div class="dgie-est-intervenidos-scroll">${body}</div>
+    </div>`;
+  }
+  function render(){
+    const grid=document.querySelector('#main-content .inspector-pro-grid');
+    const map=grid?.querySelector(':scope > .inspector-map-card');
+    if(!grid||!map)return;
+    ensureStyle();
+    const scope=alcanceDashboard();
+    const rows=dataEstablecimientosIntervenidos(scope);
+    let card=byId('dgie-est-intervenidos-card');
+    if(card)card.remove();
+    const anchor=map.querySelector('#coord-map-estab-info')||map.querySelector('.inspector-selected-box');
+    if(anchor)anchor.insertAdjacentHTML('afterend',cardHTML(scope,rows));
+    else map.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
+  }
+  const prevRenderChart=window.renderChartInsp;
+  if(typeof prevRenderChart==='function'){
+    window.renderChartInsp=function(){
+      const out=prevRenderChart.apply(this,arguments);
+      setTimeout(render,0);
+      return out;
+    };
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(render,200));
+  document.addEventListener('dgie:data-ready',()=>setTimeout(render,250));
+  window.addEventListener('load',()=>setTimeout(render,300));
+  const prevCoordChart=window.renderChartCoordinadorDashboard;
+  if(typeof prevCoordChart==='function'){
+    window.renderChartCoordinadorDashboard=function(){
+      const out=prevCoordChart.apply(this,arguments);
+      setTimeout(render,0);
+      return out;
+    };
+  }
+  const prevCoordDash=window.renderDashboardCoordinador;
+  if(typeof prevCoordDash==='function'&&!prevCoordDash.__dgieEstIntervenidos){
+    window.renderDashboardCoordinador=function(){
+      const html=prevCoordDash.apply(this,arguments);
+      setTimeout(render,180);
+      setTimeout(verificarChartsCoord,260);
+      return html;
+    };
+    window.renderDashboardCoordinador.__dgieEstIntervenidos=true;
+  }
+  const COORD_CHART_IDS=['chart-coord-prioridad','chart-coord-estado-reclamos','chart-coord-estado-os','chart-coord-modulos-presupuesto','chart-coord-rubro-reclamos','chart-coord-rubro-mantenimientos'];
+  function prepararChartsCoord(){
+    COORD_CHART_IDS.forEach(id=>{
+      const el=byId(id);
+      const wrap=el&&el.closest('.inspector-chart-wrap');
+      if(wrap){
+        wrap.style.minHeight=wrap.closest('.wide')?'245px':'230px';
+        wrap.style.height=wrap.closest('.wide')?'245px':'230px';
+        wrap.style.position='relative';
+      }
+      if(el){
+        el.style.display='block';
+        el.style.width='100%';
+        el.style.height='100%';
+      }
+    });
+  }
+  function chartCoordOk(id){
+    const el=byId(id);
+    if(!el||!window.Chart||typeof Chart.getChart!=='function')return false;
+    const rect=el.getBoundingClientRect();
+    if(rect.width<80||rect.height<80)return false;
+    const chart=Chart.getChart(el);
+    if(chart&&typeof chart.resize==='function')try{chart.resize()}catch(_e){}
+    return !!chart;
+  }
+  function verificarChartsCoord(){
+    if(!byId('chart-coord-prioridad'))return;
+    prepararChartsCoord();
+    const faltan=COORD_CHART_IDS.some(id=>!chartCoordOk(id));
+    if(faltan&&typeof window.renderChartCoordinadorDashboard==='function'){
+      const store=window.__dgieCoordDashboardCharts;
+      if(store)COORD_CHART_IDS.forEach(id=>{store[id]=null;});
+      try{window.renderChartCoordinadorDashboard()}catch(_e){}
+    }
+  }
+  function programarChartsCoord(){
+    [120,420,1000,2200].forEach(ms=>setTimeout(verificarChartsCoord,ms));
+  }
+  document.addEventListener('DOMContentLoaded',programarChartsCoord);
+  document.addEventListener('dgie:data-ready',()=>setTimeout(programarChartsCoord,120));
+  window.addEventListener('load',programarChartsCoord);
 })();
 </script>
 <script id="dgie-chat-comentarios-os-2026-07-03">
