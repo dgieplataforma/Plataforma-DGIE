@@ -18074,6 +18074,19 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function setLast(ctx,title,type,rows,total=null){
     LAST[ctx]={title,type,rows:Array.isArray(rows)?rows.slice():[],total};
   }
+  function snapshotSmartCtx(ctx){
+    const qIds={'os':'os-search','coord-os':'coord-os-q','insp-rec':'insp-rec-q','coord-rec':'coord-rec-q','med':'med-q','cc-rec':'cc-rec-q'};
+    return {
+      filters:(STORE[ctx]||[]).map(f=>({...f})),
+      q:byId(qIds[ctx])?.value||'',
+      desde:byId(`${ctx}-desde`)?.value||'',
+      hasta:byId(`${ctx}-hasta`)?.value||''
+    };
+  }
+  function restoreSmartCtx(ctx,snap){
+    if(!snap)return;
+    STORE[ctx]=Array.isArray(snap.filters)?snap.filters.map(f=>({...f})):[];
+  }
   function resetSmartCtx(ctx){
     STORE[ctx]=[];
     delete LAST[ctx];
@@ -18237,8 +18250,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return true;
   }
   function smartChipsSlot(ctx){return `<div class="dgie-smart-chips" id="${esc(ctx)}-sf-chips"></div>`}
-  function dateInputs(prefix,fn){
-    return `<input class="filter-sel" id="${esc(prefix)}-desde" type="date" onchange="${esc(fn)}" title="Fecha desde"><input class="filter-sel" id="${esc(prefix)}-hasta" type="date" onchange="${esc(fn)}" title="Fecha hasta">`;
+  function dateInputs(prefix,fn,values={}){
+    return `<input class="filter-sel" id="${esc(prefix)}-desde" type="date" value="${esc(values.desde||'')}" onchange="${esc(fn)}" title="Fecha desde"><input class="filter-sel" id="${esc(prefix)}-hasta" type="date" value="${esc(values.hasta||'')}" onchange="${esc(fn)}" title="Fecha hasta">`;
   }
   function fechaISO(v){
     const s=String(v||'').trim();
@@ -18523,13 +18536,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=isZona?osPorZona(currentUser?.zona):OS_ZONA;
     const actions=typeof canManageOS==='function'&&canManageOS();
     const ctx='os';
+    const snap=snapshotSmartCtx(ctx);
     resetSmartCtx(ctx);
+    restoreSmartCtx(ctx,snap);
     const toolbar=[typeof canCreateOS==='function'&&canCreateOS()?'<button class="primary-btn" onclick="openNuevaOS()">+ Crear orden de servicio</button>':''].filter(Boolean).join('');
     return `<div class="card"><div class="card-header"><div><div class="card-title">${esc(title)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por establecimiento, rubro, estado, prioridad, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>${toolbar?`<div class="os-visible-toolbar">${toolbar}</div>`:''}
       <div class="os-filters">
-        <input class="estab-search" id="os-search" placeholder="Buscar por OS, reclamo, establecimiento o tarea..." oninput="filterOS()">
+        <input class="estab-search" id="os-search" placeholder="Buscar por OS, reclamo, establecimiento o tarea..." value="${esc(snap.q||'')}" oninput="filterOS()">
         ${smartHTML(ctx,osFields(base),'filterOS')}
-        ${dateInputs('os','filterOS()')}
+        ${dateInputs('os','filterOS()',snap)}
       </div>
       ${smartChipsSlot(ctx)}
       <div class="os-table-wrap"><table class="os-table"><thead>${headerOS(actions)}</thead><tbody id="os-table-body"></tbody></table></div></div>`;
@@ -18552,12 +18567,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.renderOSGeneral=function(container){
     const base=OS_ZONA||[];
     const ctx='coord-os';
+    const snap=snapshotSmartCtx(ctx);
     resetSmartCtx(ctx);
+    restoreSmartCtx(ctx,snap);
     container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, establecimiento, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="coord-os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>
       <div class="os-filters">
-        <input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, reclamo, establecimiento, rubro o tarea..." oninput="filterOSCoord()">
+        <input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, reclamo, establecimiento, rubro o tarea..." value="${esc(snap.q||'')}" oninput="filterOSCoord()">
         ${smartHTML(ctx,osFields(base,{zona:true}),'filterOSCoord')}
-        ${dateInputs('coord-os','filterOSCoord()')}
+        ${dateInputs('coord-os','filterOSCoord()',snap)}
       </div>
       ${smartChipsSlot(ctx)}
       <div class="os-table-wrap"><table class="os-table"><thead>${headerOS(true)}</thead><tbody id="coord-os-body"></tbody></table></div></div>`;
