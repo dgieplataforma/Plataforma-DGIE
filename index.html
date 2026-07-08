@@ -5897,7 +5897,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <td><span class="os-money">${escapeHtml(o.monto||'—')}</span></td>
       <td>${renderPrioridadOSControl(o)}</td>
       <td>${renderEstadoOSControl(o)}</td>
-      <td>${(()=>{const nc=window.numeroCertificacionOS&&window.numeroCertificacionOS(o.numero);return nc?`<span class="badge b-ok" style="font-size:11px;font-weight:700">C${nc}</span>`:'—';})()} </td>
+      <td>${(()=>{const nc=window.numeroCertificacionOS&&window.numeroCertificacionOS(o);return nc?`<span class="badge b-ok" style="font-size:11px;font-weight:700">C${nc}</span>`:'—';})()} </td>
       <td>${canManageOS()?`<button class="edit-btn" onclick="editarOS(${o.id})">Editar</button>`:''}</td>
       <td><button class="pdf-btn" onclick="descargarOSPDF(${o.id})">Descargar PDF</button></td>
     </tr>`).join('');
@@ -6523,7 +6523,35 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return final>0?final:modActual(c);
   }
   function readLocalCerts(){try{return JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')||[]}catch(e){return []}}
-  function writeLocalCerts(){localStorage.setItem(LOCAL_KEY,JSON.stringify(CERTIFICADOS_MEDICION))}
+  function certLocalLiviano(c){
+    const out={...c};
+    ['url_original','url_inspector','url_final','medicion_firmada_url'].forEach(k=>{
+      if(String(out[k]||'').startsWith('data:'))out[k]='';
+    });
+    if(Array.isArray(out.conversacion)&&out.conversacion.length>80)out.conversacion=out.conversacion.slice(-80);
+    return out;
+  }
+  function writeLocalCerts(){
+    try{
+      if(window.DGIE_DB?.isConfigured){
+        localStorage.removeItem(LOCAL_KEY);
+        return;
+      }
+      localStorage.setItem(LOCAL_KEY,JSON.stringify((CERTIFICADOS_MEDICION||[]).map(certLocalLiviano)));
+    }catch(e){
+      try{
+        const compact=(CERTIFICADOS_MEDICION||[]).slice(0,120).map(c=>{
+          const out=certLocalLiviano(c);
+          delete out.conversacion;
+          return out;
+        });
+        localStorage.setItem(LOCAL_KEY,JSON.stringify(compact));
+      }catch(_e){
+        console.warn('No se pudo guardar certificados en almacenamiento local; se evita bloquear la operación.', e);
+        try{localStorage.removeItem(LOCAL_KEY)}catch(__e){}
+      }
+    }
+  }
   const CERT_MAX_BYTES=5*1024*1024;
   const CERT_MAX_MB=5;
   const CERT_COMPRESS_HELP='assets/instructivo-comprimir-excel.png';
@@ -6792,7 +6820,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarCertificadosMedicion==='function'){
       const zonaConsulta=currentUser?.role==='director'||currentUser?.role==='coordinador'?null:currentUser?.zona;
       const {data,error}=await window.DGIE_DB.listarCertificadosMedicion(zonaConsulta);
-      if(!error){CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
+      if(!error){
+        CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));
+        try{localStorage.removeItem(LOCAL_KEY)}catch(_e){}
+        syncCertificadosGlobal();
+        return CERTIFICADOS_MEDICION;
+      }
       certsDbError=error.message||String(error);
     }
     CERTIFICADOS_MEDICION=readLocalCerts();
@@ -7387,7 +7420,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         const numero=numEl.textContent.trim();
         const certCell=tr.children[10];
         if(!certCell)return;
-        const nc=window.numeroCertificacionOS&&window.numeroCertificacionOS(numero);
+        const nc=window.numeroCertificacionOS&&window.numeroCertificacionOS({numero,zona:currentUser?.zona});
         if(nc){certCell.innerHTML=`<span class="badge b-ok" style="font-size:11px;font-weight:700">C${nc}</span>`}
       });
     },0);
@@ -7547,6 +7580,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const estado=String(c?.estado||'').toLowerCase();
       const med=c?.medicion_numero;
       if(!med||estado==='eliminado')return false;
+      if(typeof window.certificadoPerteneceAOS==='function')return window.certificadoPerteneceAOS(c,o);
       return typeof certOrdenes==='function'&&certOrdenes(c).some(x=>Number(x)===n);
     });
   }
@@ -7824,7 +7858,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const n=osNumEmpresa(o?.numero);
     const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
     if(!n||typeof window.certOrdenes!=='function')return [];
-    return certs.filter(c=>String(c?.estado||'')!=='eliminado'&&c?.medicion_numero&&window.certOrdenes(c).some(x=>Number(x)===n));
+    return certs.filter(c=>String(c?.estado||'')!=='eliminado'&&c?.medicion_numero&&(typeof window.certificadoPerteneceAOS==='function'?window.certificadoPerteneceAOS(c,o):window.certOrdenes(c).some(x=>Number(x)===n)));
   }
   function medsOS(o){
     return [...new Set(certsOS(o).map(c=>String(c.medicion_numero)).filter(Boolean))];
@@ -8046,7 +8080,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!data.length){el.innerHTML=`<tr><td colspan="15" class="os-empty">No se encontraron órdenes de servicio</td></tr>`;return;}
     const certBadge=(o)=>{
       if(typeof window.numeroCertificacionOS==='function'){
-        const n=window.numeroCertificacionOS(o.numero);
+        const n=window.numeroCertificacionOS(o);
         if(n)return `<span class="badge b-ok" style="font-size:11px;font-weight:800">M${n}</span>`;
       }
       return '—';
@@ -8115,7 +8149,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(!cert&&!med)return true;
       const n=osNumeroVal(o.numero);
       const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
-      const meds=[...new Set(certs.filter(c=>c?.medicion_numero&&typeof window.certOrdenes==='function'&&window.certOrdenes(c).some(x=>Number(x)===n)).map(c=>String(c.medicion_numero)))];
+      const meds=typeof window.medicionesOSCanonicas==='function'
+        ? window.medicionesOSCanonicas(o)
+        : [...new Set(certs.filter(c=>c?.medicion_numero&&typeof window.certOrdenes==='function'&&window.certOrdenes(c).some(x=>Number(x)===n)).map(c=>String(c.medicion_numero)))];
       if(cert==='certificado'&&!meds.length)return false;
       if(cert==='sin'&&meds.length)return false;
       return !med||meds.includes(String(med));
@@ -8284,6 +8320,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(mismo||String(c?.estado||'')==='eliminado')return false;
       const zonaCert=Number(c?.zona||0);
       if(zonaActual&&zonaCert&&zonaCert!==zonaActual)return false;
+      if(typeof window.certificadoPerteneceAOS==='function'){
+        return (ordenes||[]).some(o=>window.certificadoPerteneceAOS(c,{numero:String(o||'').trim(),zona:zonaActual}));
+      }
       return window.certOrdenes(c).some(o=>set.has(Number(o)));
     })||null;
   }
@@ -8744,9 +8783,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   // Bug: certBadgeOS() muestra badge aunque la medición NO esté finalizada.
   // numeroCertificacionOS() sí chequea finalizacion (via _readFinMap/localStorage).
   // Fix: envolver filterOSCoord para re-parchar las celdas cert tras renderizar.
-  function certBadgeCorregido(numero){
+  function certBadgeCorregido(target){
     if(typeof window.numeroCertificacionOS!=='function')return null;
-    return window.numeroCertificacionOS(numero);
+    return window.numeroCertificacionOS(target);
   }
   function parcheBadgesCertCoord(){
     const el=document.getElementById('coord-os-body');
@@ -8755,10 +8794,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const numEl=tr.querySelector('.os-num');
       if(!numEl)return;
       const numero=numEl.textContent.trim();
+      const zona=tr.children[1]?.textContent?.trim()||'';
       // columna Certificado = índice 11 en la tabla coord (14 cols: Orden,Zona,Nrec,Est,Tarea,Rubro,FEnv,FFin,Pres,Prio,Estado,Cert,Acc,PDF)
       const certTd=tr.children[11];
       if(!certTd)return;
-      const nc=certBadgeCorregido(numero);
+      const nc=certBadgeCorregido({numero,zona});
       certTd.innerHTML=nc?`<span class="badge b-ok" style="font-size:11px;font-weight:800">M${nc}</span>`:'—';
     });
   }
@@ -9033,13 +9073,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return String(c?.ordenes_servicio_certificado||c?.ordenes_certificado||m?.[1]||'').split(',').map(x=>x.trim()).filter(Boolean);
   }
   function medicionesFinalizadasNumero(numero){
+    if(typeof window.medicionesOSCanonicas==='function')return window.medicionesOSCanonicas(numero,null,{soloFinalizadas:true});
     const n=osValor(numero);
     if(!n)return [];
     const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
     return [...new Set(certs.filter(certVisibleFinal).filter(c=>certOrdenesFinal(c).some(x=>Number(x)===n)).map(c=>String(c.medicion_numero)).filter(Boolean))]
       .sort((a,b)=>Number(a)-Number(b));
   }
-  function medicionesFinalizadasOS(o){return medicionesFinalizadasNumero(o?.numero)}
+  function medicionesFinalizadasOS(o){
+    if(typeof window.medicionesOSCanonicas==='function')return window.medicionesOSCanonicas(o,null,{soloFinalizadas:true});
+    return medicionesFinalizadasNumero(o?.numero);
+  }
   window.numeroCertificacionOS=function(osNumero){
     const meds=medicionesFinalizadasNumero(osNumero);
     return meds[0]||null;
@@ -12456,6 +12500,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(mismo||String(c?.estado||'')==='eliminado')return false;
       const zonaCert=Number(c?.zona||0);
       if(zonaActual&&zonaCert&&zonaCert!==zonaActual)return false;
+      if(typeof window.certificadoPerteneceAOS==='function'){
+        return (ordenes||[]).some(o=>window.certificadoPerteneceAOS(c,{numero:String(o||'').trim(),zona:zonaActual}));
+      }
       return certOrdenesSeguro(c).some(o=>set.has(Number(o)));
     })||null;
   }
@@ -16270,7 +16317,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 <script id="dgie-argentina-countdown-2026-06-22">
 (function(){
   const PARTIDOS=[
-    {code:'ARG-EGY',titulo:'ARG vs EGY',rival:'Egipto',cuando:'2026-07-07T13:00:00-03:00',detalle:'07/07 13:00'}
+    {code:'ARG-SUI',titulo:'ARG vs SUI',rival:'Suiza',cuando:'2026-07-11T22:00:00-03:00',detalle:'11/07 22:00'}
   ];
   const MSG_KEY='dgie_argentina_mensaje_2026_06_24';
   const AVISO_ID='argentina-2026-06-24';
@@ -16814,6 +16861,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return certs.filter(c=>{
       if(!c?.medicion_numero)return false;
       const ordenes=typeof window.certOrdenes==='function'?window.certOrdenes(c):String(c?.orden_servicio||c?.os||'').split(/[,\s]+/);
+      if(typeof window.certificadoPerteneceAOS==='function')return window.certificadoPerteneceAOS(c,o);
       return ordenes.some(x=>String(x||'').trim()===raw||osNum(x)===n);
     });
   }
@@ -18371,6 +18419,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return certs.filter(c=>{
       if(!c?.medicion_numero)return false;
       const arr=typeof window.certOrdenes==='function'?window.certOrdenes(c):String(c?.orden_servicio||c?.os||'').split(/[,\s]+/);
+      if(typeof window.certificadoPerteneceAOS==='function')return window.certificadoPerteneceAOS(c,o);
       return arr.some(x=>String(x||'').trim()===raw||osNum(x)===n);
     });
   }
@@ -20410,6 +20459,119 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.addEventListener('DOMContentLoaded',programarChartsCoord);
   document.addEventListener('dgie:data-ready',()=>setTimeout(programarChartsCoord,120));
   window.addEventListener('load',programarChartsCoord);
+})();
+</script>
+<script id="dgie-certificados-os-match-canonico-2026-07-08">
+(function(){
+  'use strict';
+  function norm(v){return String(v||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v==null?'':v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function parseOSRef(v){
+    const raw=norm(v).replace(/\s+/g,'');
+    const zoneMatch=raw.match(/(?:^|[^A-Z0-9])Z(?:ONA)?\.?0*(\d{1,2})(?:[^0-9]|$)|^Z0*(\d{1,2})[-_\s]?/i);
+    const nums=raw.match(/\d+/g)||[];
+    const num=nums.length?Number(nums[nums.length-1])||0:0;
+    const zona=zoneMatch?Number(zoneMatch[1]||zoneMatch[2]||0)||0:0;
+    return {raw,zona,num,num3:num?String(num).padStart(3,'0'):''};
+  }
+  function zonaOS(o){
+    if(!o)return 0;
+    const directa=Number(o?.zona||0);
+    if(directa)return directa;
+    const porNumero=parseOSRef(o?.numero||o);
+    if(porNumero.zona)return porNumero.zona;
+    const est=Number(o?.estId||o?.establecimiento_id||o?.establecimientoId||0);
+    try{return est&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(est))||0:0}catch(_e){return 0}
+  }
+  function zonaCert(c){
+    const directa=Number(c?.zona||0);
+    if(directa)return directa;
+    try{return typeof zonaCertificado==='function'?Number(zonaCertificado(c))||0:0}catch(_e){return 0}
+  }
+  function rawOrdenesCert(c){
+    const out=[];
+    const push=v=>String(v||'').split(/[,\s;|/]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>out.push(x));
+    push(c?.ordenes_servicio_certificado);
+    push(c?.ordenes_certificado);
+    push(c?.orden_servicio);
+    push(c?.os);
+    const obs=String(c?.observaciones_inspector||'');
+    for(const m of obs.matchAll(/\[OS_CERT:([^\]]*)\]/g))push(m[1]);
+    if(!out.length&&typeof window.certOrdenes==='function'){
+      try{(window.certOrdenes(c)||[]).forEach(x=>out.push(x))}catch(_e){}
+    }
+    return [...new Set(out.map(x=>String(x||'').trim()).filter(Boolean))];
+  }
+  function certVisible(c){
+    if(!c||String(c?.estado||'').toLowerCase()==='eliminado')return false;
+    if(typeof window.certVisible==='function'){
+      try{if(!window.certVisible(c))return false}catch(_e){}
+    }
+    return !!c?.medicion_numero;
+  }
+  function osTarget(osOrNumero,zonaHint){
+    if(typeof osOrNumero==='object'&&osOrNumero){
+      const parsed=parseOSRef(osOrNumero.numero||'');
+      return {raw:parsed.raw,zona:zonaOS(osOrNumero)||parsed.zona||Number(zonaHint||0)||0,num:parsed.num};
+    }
+    const parsed=parseOSRef(osOrNumero);
+    return {raw:parsed.raw,zona:parsed.zona||Number(zonaHint||0)||0,num:parsed.num};
+  }
+  window.certificadoPerteneceAOS=function(cert,osOrNumero,zonaHint){
+    if(!certVisible(cert))return false;
+    const os=osTarget(osOrNumero,zonaHint);
+    if(!os.num&&!os.raw)return false;
+    const cz=zonaCert(cert);
+    return rawOrdenesCert(cert).some(ref=>{
+      const p=parseOSRef(ref);
+      if(p.raw&&os.raw&&p.raw===os.raw){
+        if(p.zona&&os.zona&&p.zona!==os.zona)return false;
+        if(p.zona&&cz)return p.zona===cz&&(!os.zona||cz===os.zona);
+        return !(cz&&os.zona)||cz===os.zona;
+      }
+      if(!p.num||!os.num||p.num!==os.num)return false;
+      if(p.zona&&os.zona)return p.zona===os.zona&&(!cz||cz===os.zona);
+      if(p.zona&&cz)return p.zona===cz&&(!os.zona||cz===os.zona);
+      return !!(cz&&os.zona&&cz===os.zona);
+    });
+  };
+  function certsDeOSCanon(osOrNumero,zonaHint,{soloFinalizadas=false}={}){
+    const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+    return certs.filter(c=>{
+      if(!window.certificadoPerteneceAOS(c,osOrNumero,zonaHint))return false;
+      if(!soloFinalizadas)return true;
+      if(typeof esMedicionFinalizada==='function'){
+        try{return !!esMedicionFinalizada(c.medicion_numero,zonaCert(c))}catch(_e){}
+      }
+      return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''));
+    });
+  }
+  window.certificadosDeOSCanonicos=function(osOrNumero,zonaHint){return certsDeOSCanon(osOrNumero,zonaHint)}
+  window.medicionesOSCanonicas=function(osOrNumero,zonaHint,opts){
+    return [...new Set(certsDeOSCanon(osOrNumero,zonaHint,opts).map(c=>String(c.medicion_numero)).filter(Boolean))]
+      .sort((a,b)=>Number(a)-Number(b));
+  };
+  window.numeroCertificacionOS=function(osNumero,zonaHint){
+    const meds=window.medicionesOSCanonicas(osNumero,zonaHint,{soloFinalizadas:true});
+    return meds[0]||null;
+  };
+  window.osEstaCertificada=function(osNumero,zonaHint){return !!window.numeroCertificacionOS(osNumero,zonaHint)};
+  window.filtroCertificadoPasa=function(o,certFiltro,medicionFiltro){
+    const meds=window.medicionesOSCanonicas(o);
+    if(certFiltro==='certificado'&&!meds.length)return false;
+    if(certFiltro==='sin'&&meds.length)return false;
+    if(medicionFiltro&&!meds.includes(String(medicionFiltro)))return false;
+    return true;
+  };
+  window.certBadgeOS=function(o){
+    const meds=window.medicionesOSCanonicas(o);
+    return meds.length?`<span class="badge b-ok" style="font-size:11px;font-weight:800">${meds.map(n=>'M'+esc(n)).join(', ')}</span>`:'—';
+  };
+  window.medicionOptionsOS=function(){
+    const certs=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+    const nums=[...new Set(certs.filter(certVisible).map(c=>String(c.medicion_numero)).filter(Boolean))].sort((a,b)=>Number(a)-Number(b));
+    return nums.map(n=>`<option value="${esc(n)}">Medición Nº ${esc(n)}</option>`).join('');
+  };
 })();
 </script>
 <script id="dgie-chat-comentarios-os-2026-07-03">
