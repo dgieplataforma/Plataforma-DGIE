@@ -1593,11 +1593,11 @@ function renderAcDropdown(q){
     dropdown.innerHTML = '';
     return;
   }
-  const ql = q.toLowerCase();
+  const ql = normalizarBusquedaEstablecimiento(q);
   const results = ESTABS.filter(e =>
-    e.n.toLowerCase().includes(ql) ||
-    (e.barrio||'').toLowerCase().includes(ql) ||
-    (e.dir||'').toLowerCase().includes(ql) ||
+    normalizarBusquedaEstablecimiento(e.n).includes(ql) ||
+    normalizarBusquedaEstablecimiento(e.barrio).includes(ql) ||
+    normalizarBusquedaEstablecimiento(e.dir).includes(ql) ||
     (e.cue||'').includes(q)
   ).slice(0, 15);
 
@@ -1657,6 +1657,9 @@ function clearAcEstab(){
 function closeAcDropdown(){
   const dropdown = document.getElementById('ac-estab-dropdown');
   if(dropdown) dropdown.classList.remove('visible');
+}
+function normalizarBusquedaEstablecimiento(v){
+  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 }
 // ───────────────────────────────────────────────────────────────────
 
@@ -3279,8 +3282,8 @@ filterOS=function(){
 renderAcOsDropdown=function(q){
   const dropdown=document.getElementById('ac-os-dropdown'); if(!dropdown)return;
   if(!q||q.length<2){dropdown.classList.remove('visible');dropdown.innerHTML='';return;}
-  const ql=q.toLowerCase(),base=ESTABS.filter(e=>Number(e.zona)===Number(getZonaCargaOS()));
-  const results=base.filter(e=>e.n.toLowerCase().includes(ql)||(e.barrio||'').toLowerCase().includes(ql)||(e.dir||'').toLowerCase().includes(ql)).slice(0,15);
+  const ql=normalizarBusquedaEstablecimiento(q),base=ESTABS.filter(e=>Number(e.zona)===Number(getZonaCargaOS()));
+  const results=base.filter(e=>normalizarBusquedaEstablecimiento(e.n).includes(ql)||normalizarBusquedaEstablecimiento(e.barrio).includes(ql)||normalizarBusquedaEstablecimiento(e.dir).includes(ql)||String(e.cue||'').includes(q)).slice(0,15);
   if(!results.length){dropdown.innerHTML='<div class="ac-item"><span class="ac-item-name" style="color:#94a3b8">Sin resultados en esta zona</span></div>';dropdown.classList.add('visible');return;}
   const qEsc=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   dropdown.innerHTML=results.map(e=>{const nombre=e.n.replace(new RegExp('('+qEsc+')','gi'),'<mark class="ac-item-mark">$1</mark>');return `<div class="ac-item" onclick="selectAcOsEstab(${e.id},'${e.n.replace(/'/g,"\\'")}')"><span class="ac-item-name">${nombre}</span><span class="ac-item-meta">Zona ${e.zona} · ${e.nivel} · ${e.dir||''}</span></div>`}).join('');
