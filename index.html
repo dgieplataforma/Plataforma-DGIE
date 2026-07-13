@@ -5203,6 +5203,8 @@ function renderChartInsp(){
       inspector:datos.inspector||ZONE_DATA[Number(row.zona)]?.inspector||currentUser?.name||'Inspector',
       zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
       rubros:datos.rubros||{},
+      comparteEdificioCon:datos.comparteEdificioCon||datos.principal_establecimiento_id||0,
+      principal_establecimiento_id:datos.principal_establecimiento_id||datos.comparteEdificioCon||0,
       comentarios:datos.comentarios||'',
       comentariosCoordinacion:Array.isArray(datos.comentariosCoordinacion)?datos.comentariosCoordinacion:[],
       fotosArchivos:datos.fotosArchivos||[],
@@ -20876,14 +20878,39 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function tabEstado(){return byId('ftab-4')?.textContent?.includes('Estado')?4:3}
   function volverEstado(estId){if(typeof volverFichaTab==='function')volverFichaTab(tabEstado(),Number(estId));else if(byId('ficha-body'))byId('ficha-body').innerHTML=window.renderEstadoEdilicioFicha(estId)}
   window.volverEstadoEdilicioCompartido=volverEstado;
-  function opcionesPrincipales(estId){
+  function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim()}
+  function principalesDeZona(estId){
     const actual=Number(estId);
+    const zona=Number(estabs().find(e=>Number(e.id)===actual)?.zona||0);
     return estabs()
-      .filter(e=>Number(e.id)!==actual)
-      .sort((a,b)=>Number(a.zona||0)-Number(b.zona||0)||String(a.n||'').localeCompare(String(b.n||''),'es'))
-      .map(e=>`<option value="${Number(e.id)}">Zona ${esc(e.zona)} · ${esc(e.n||e.nombre||'')} ${e.cue?`· CUE ${esc(e.cue)}`:''}</option>`)
-      .join('');
+      .filter(e=>Number(e.id)!==actual&&Number(e.zona)===zona)
+      .sort((a,b)=>String(a.n||'').localeCompare(String(b.n||''),'es'));
   }
+  window.buscarPrincipalEstadoEdilicio=function(estId){
+    const input=byId('ee-comparte-search'), list=byId('ee-comparte-results'), hidden=byId('ee-comparte');
+    if(!input||!list||!hidden)return;
+    const q=norm(input.value);
+    hidden.value='';
+    window.toggleComparteEdificioEstado();
+    if(q.length<2){list.innerHTML='';list.style.display='none';return}
+    const rows=principalesDeZona(estId).filter(e=>norm(`${e.n||e.nombre||''} ${e.cue||''} ${e.dir||''} ${e.barrio||''}`).includes(q)).slice(0,12);
+    list.innerHTML=rows.length?rows.map(e=>`<button type="button" class="ac-item" style="width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid #e5edf6;cursor:pointer" onclick="seleccionarPrincipalEstadoEdilicio(${Number(e.id)})"><span class="ac-item-name">${esc(e.n||e.nombre||'')}</span><span class="ac-item-meta">Zona ${esc(e.zona)} · ${e.cue?`CUE ${esc(e.cue)} · `:''}${esc(e.dir||'')}</span></button>`).join(''):'<div class="ac-item"><span class="ac-item-name" style="color:#94a3b8">Sin resultados en esta zona</span></div>';
+    list.style.display='block';
+  };
+  window.seleccionarPrincipalEstadoEdilicio=function(id){
+    const e=estabs().find(x=>Number(x.id)===Number(id));
+    if(!e)return;
+    if(byId('ee-comparte'))byId('ee-comparte').value=String(id);
+    if(byId('ee-comparte-search'))byId('ee-comparte-search').value=e.n||e.nombre||'';
+    if(byId('ee-comparte-results')){byId('ee-comparte-results').innerHTML='';byId('ee-comparte-results').style.display='none'}
+    window.toggleComparteEdificioEstado();
+  };
+  window.limpiarPrincipalEstadoEdilicio=function(){
+    if(byId('ee-comparte'))byId('ee-comparte').value='';
+    if(byId('ee-comparte-search')){byId('ee-comparte-search').value='';byId('ee-comparte-search').focus()}
+    if(byId('ee-comparte-results')){byId('ee-comparte-results').innerHTML='';byId('ee-comparte-results').style.display='none'}
+    window.toggleComparteEdificioEstado();
+  };
   function promedio(rel){
     const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
     const vals=rubros.map(r=>Number(rel?.rubros?.[r.key]||0));
@@ -20914,8 +20941,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!fb)return;
     const principal=idPrincipalCompartido(estId);
     const rel=estadoActual(estId);
-    fb.innerHTML=`<button class="back-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div class="form-field full" style="margin-bottom:14px"><label class="form-label">Comparte edificio con</label><select class="form-select" id="ee-comparte" onchange="toggleComparteEdificioEstado()"><option value="">No comparte / usa datos propios</option>${opcionesPrincipales(estId)}</select><div id="ee-comparte-note" style="display:none;margin-top:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 10px">Al guardar, este establecimiento tomará automáticamente el estado edilicio del principal seleccionado.</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${esc(r.label)}</label><b id="ee-val-${esc(r.key)}" style="color:${r.color}">${v}%</b></div><input data-ee-rubro="1" type="range" id="ee-${esc(r.key)}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="document.getElementById('ee-val-${esc(r.key)}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${esc(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
-    if(principal)byId('ee-comparte').value=String(principal);
+    fb.innerHTML=`<button class="back-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div class="form-field full" style="margin-bottom:14px;position:relative"><label class="form-label">Comparte edificio con</label><input type="hidden" id="ee-comparte" value=""><div style="display:flex;gap:8px;align-items:center"><input class="form-input" id="ee-comparte-search" autocomplete="off" placeholder="Buscar establecimiento de la misma zona..." oninput="buscarPrincipalEstadoEdilicio(${Number(estId)})" onfocus="buscarPrincipalEstadoEdilicio(${Number(estId)})"><button type="button" class="secondary-btn" onclick="limpiarPrincipalEstadoEdilicio()">Limpiar</button></div><div id="ee-comparte-results" class="ac-dropdown" style="display:none;position:absolute;left:0;right:0;top:72px;z-index:30;background:#fff;border:1px solid #d9e2ef;border-radius:10px;box-shadow:0 10px 24px rgba(15,23,42,.12);max-height:260px;overflow:auto"></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Solo permite seleccionar establecimientos de la zona correspondiente.</div><div id="ee-comparte-note" style="display:none;margin-top:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 10px">Al guardar, este establecimiento tomará automáticamente el estado edilicio del principal seleccionado.</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${esc(r.label)}</label><b id="ee-val-${esc(r.key)}" style="color:${r.color}">${v}%</b></div><input data-ee-rubro="1" type="range" id="ee-${esc(r.key)}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="document.getElementById('ee-val-${esc(r.key)}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${esc(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
+    if(principal)window.seleccionarPrincipalEstadoEdilicio(principal);
     window.toggleComparteEdificioEstado();
   };
   window.guardarEstadoEdilicio=async function(estId){
@@ -20924,9 +20951,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rubros=principal?undefined:Object.fromEntries((RUBROS_RELEVAMIENTO||[]).map(r=>[r.key,Number(byId('ee-'+r.key)?.value||0)]));
     const rel={tipo:'estado_edilicio',fecha:new Date().toLocaleDateString('es-AR'),inspector:currentUser?.name||'',zona:typeof zonaEstablecimiento==='function'?zonaEstablecimiento(estId):'',comentarios:byId('ee-comentarios')?.value||'',ts:Date.now()};
     if(principal)rel.comparteEdificioCon=principal;else rel.rubros=rubros;
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){
+      const {data,error}=await window.DGIE_DB.crearRelevamiento({establecimiento_id:estId,zona:rel.zona,datos:rel});
+      if(error){alert('No se pudo guardar el estado edilicio en Supabase. Detalle: '+(error.message||error));return;}
+      const row=Array.isArray(data)?data[0]:data;
+      if(row?.id)rel.remoteId=row.id;
+    }
     RELEVAMIENTOS[estId]=(RELEVAMIENTOS[estId]||[]).filter(r=>r.tipo==='relevamiento'||r.tipo==='ficha_tecnica');
     RELEVAMIENTOS[estId].push(rel);
-    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function')await window.DGIE_DB.crearRelevamiento({establecimiento_id:estId,zona:rel.zona,datos:rel});
     if(typeof saveAppState==='function')saveAppState();
     if(typeof renderLcCharts==='function')setTimeout(renderLcCharts,80);
     volverEstado(estId);
@@ -20951,6 +20983,90 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const out=typeof prevCharts==='function'?prevCharts.apply(this,arguments):undefined;
     setTimeout(()=>window.renderRankingRealDGIE(window._lcZonaSituacionActiva||null),0);
     return out;
+  };
+})();
+</script>
+<script id="dgie-comentarios-coordinador-intervenciones-final-2026-07-13">
+(function(){
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+  function estOf(it){return (ESTABS||[]).find(e=>Number(e.id)===Number(it?.estId))}
+  function osList(it){
+    if(Array.isArray(it?.osVinculadas))return it.osVinculadas.map(String).filter(Boolean);
+    return String(it?.osVinculada||it?.ordenServicio||it?.orden_servicio||it?.os||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function keyOf(it){
+    if(it?.intervencionId||it?.paqueteId)return String(it.intervencionId||it.paqueteId);
+    const os=[...new Set(osList(it))].sort();
+    return `${Number(it?.estId||0)}|${os.length?os.join('+'):'sin-os'}`;
+  }
+  function paquetes(items){
+    const map=new Map();
+    (items||[]).forEach(it=>{
+      const key=keyOf(it);
+      if(!map.has(key))map.set(key,{key,visitas:[],os:[...new Set(osList(it))]});
+      const pkg=map.get(key);
+      pkg.visitas.push(it);
+      pkg.os=[...new Set([...pkg.os,...osList(it)])];
+    });
+    return [...map.values()].map(pkg=>{
+      pkg.visitas.sort((a,b)=>Number(b.id||0)-Number(a.id||0));
+      pkg.ultima=pkg.visitas[0];
+      return pkg;
+    }).sort((a,b)=>Number(b.ultima?.id||0)-Number(a.ultima?.id||0));
+  }
+  function puedeComentar(){return ['coordinador','director','direccion'].includes(String(currentUser?.role||''))}
+  function comentarioBox(it){
+    const id=String(it.id).replace(/[^a-zA-Z0-9_-]/g,'_');
+    const comentarios=Array.isArray(it.comentariosCoordinacion)?it.comentariosCoordinacion:[];
+    const lista=comentarios.length?comentarios.map(c=>`<div style="padding:7px 0;border-top:1px solid #e5edf6"><strong>${esc(c.autor||'')}</strong>: ${esc(c.texto||'')} <span style="color:var(--muted)">(${new Date(c.fecha||Date.now()).toLocaleString('es-AR')})</span></div>`).join(''):'';
+    if(!comentarios.length&&!puedeComentar())return '';
+    return `<div style="margin-top:10px;padding:10px;border-radius:10px;background:#f8fafc;border:1px solid #dbe7f5;font-size:12px;color:#334155" onclick="event.stopPropagation()">${lista}${puedeComentar()?`<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:${comentarios.length?'10px':'0'}"><textarea class="form-textarea" id="int-comment-final-${id}" placeholder="Comentario de coordinación para el inspector..." style="min-height:58px"></textarea><button class="secondary-btn" onclick="guardarComentarioIntervencionFinal('${id}')">Enviar comentario</button></div>`:''}</div>`;
+  }
+  function card(pkg){
+    const it=pkg.ultima||{}, est=estOf(it), os=pkg.os||[];
+    const avance=Number(it.avance||0);
+    return `<div class="intervencion-card" onclick="abrirPaqueteIntervencion&&abrirPaqueteIntervencion('${esc(pkg.key)}')">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div><div style="font-weight:900;color:#123c69">${esc(est?.n||'Establecimiento')}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Zona ${esc(it.zona||est?.zona||'—')} · ${pkg.visitas.length} visita${pkg.visitas.length!==1?'s':''}</div>${os.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">${os.map(o=>`<span class="badge b-info">${esc(o)}</span>`).join('')}</div>`:''}</div>
+        <span class="badge b-info">${avance}%</span>
+      </div>
+      <div style="font-size:14px;margin-top:10px;color:#334155">${esc(it.descripcion||'Última visita registrada')}</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${avance}%"></div></div>
+      ${comentarioBox(it)}
+    </div>`;
+  }
+  window.guardarComentarioIntervencionFinal=async function(domId){
+    const it=(INTERVENCIONES||[]).find(x=>String(x.id).replace(/[^a-zA-Z0-9_-]/g,'_')===String(domId));
+    const txt=String(byId(`int-comment-final-${domId}`)?.value||'').trim();
+    if(!it||!txt)return;
+    if(!Array.isArray(it.comentariosCoordinacion))it.comentariosCoordinacion=[];
+    it.comentariosCoordinacion.unshift({texto:txt,autor:currentUser?.name||'Coordinación',fecha:new Date().toISOString(),respuestas:[]});
+    if(window.DGIE_DB?.isConfigured){
+      if(!it.remoteId){alert('El comentario quedó en memoria, pero la intervención no tiene ID de Supabase. Al salir puede perderse.');return;}
+      if(typeof window.DGIE_DB.actualizarIntervencion==='function'){
+        const {error}=await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion});
+        if(error){alert('No se pudo guardar el comentario en Supabase. Detalle: '+(error.message||error));return;}
+      }
+    }
+    if(typeof saveAppState==='function')saveAppState();
+    if(typeof filterIntervencionesDireccion==='function')filterIntervencionesDireccion();
+  };
+  function renderIntervenciones(c){
+    const data=paquetes(INTERVENCIONES||[]);
+    c.innerHTML=`<div class="section-label">Intervenciones · Todas las zonas</div><div class="card"><div class="card-header"><div><div class="card-title">Paquetes de intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La intervención madre agrupa visitas y puede estar vinculada a una o varias O.S.</div></div>${currentUser?.role==='inspector'?'<button class="primary-btn" onclick="openNuevaIntervencionMadre()">+ Nueva intervención</button>':''}</div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector, O.S. o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list">${data.length?data.map(card).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">Sin intervenciones cargadas</div>'}</div></div>`;
+  }
+  window.renderIntervencionesDireccion=renderIntervenciones;
+  window.renderIntervencionesInspector=renderIntervenciones;
+  window.filterIntervencionesDireccion=function(){
+    const z=byId('int-dir-zona')?.value||'', q=norm(byId('int-dir-search')?.value||'');
+    const data=(INTERVENCIONES||[]).filter(it=>{
+      const est=estOf(it);
+      return (!z||String(it.zona||est?.zona)===z)&&norm(`${est?.n||''} ${it.inspector||''} ${it.descripcion||''} ${osList(it).join(' ')}`).includes(q);
+    });
+    const el=byId('intervenciones-dir-list');
+    if(el)el.innerHTML=paquetes(data).length?paquetes(data).map(card).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron intervenciones</div>';
   };
 })();
 </script>
