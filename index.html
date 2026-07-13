@@ -20839,5 +20839,120 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   setTimeout(wrap,500);
 })();
 </script>
+<script id="dgie-estado-edilicio-comparte-edificio-2026-07-13">
+(function(){
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function estabs(){return Array.isArray(window.ESTABS)?window.ESTABS:(typeof ESTABS!=='undefined'?ESTABS:[])}
+  function relevamientos(){return typeof RELEVAMIENTOS!=='undefined'?RELEVAMIENTOS:(window.RELEVAMIENTOS||{})}
+  function rels(estId){return (relevamientos()?.[estId]||[]).filter(r=>r&&r.tipo==='estado_edilicio'&&!r.eliminado)}
+  function relTs(r){return Number(r?.ts||Date.parse(r?.fecha)||0)||0}
+  function ultimoEstadoDirecto(estId){
+    return rels(estId)
+      .filter(r=>r.rubros&&typeof r.rubros==='object')
+      .sort((a,b)=>relTs(b)-relTs(a))[0]||null;
+  }
+  function ultimaConfigEstado(estId){
+    return rels(estId).sort((a,b)=>relTs(b)-relTs(a))[0]||null;
+  }
+  function idPrincipalCompartido(estId){
+    const rel=ultimaConfigEstado(estId);
+    const id=Number(rel?.comparteEdificioCon||rel?.principal_establecimiento_id||0);
+    return id&&id!==Number(estId)?id:0;
+  }
+  function estadoEdilicioEfectivo(estId,visitados=new Set()){
+    estId=Number(estId);
+    if(!estId||visitados.has(estId))return null;
+    visitados.add(estId);
+    const principal=idPrincipalCompartido(estId);
+    if(principal)return estadoEdilicioEfectivo(principal,visitados);
+    return ultimoEstadoDirecto(estId);
+  }
+  function estadoVacio(estId){
+    return {tipo:'estado_edilicio',fecha:'Sin cargar',inspector:'',zona:typeof zonaEstablecimiento==='function'?zonaEstablecimiento(estId):'',rubros:Object.fromEntries((RUBROS_RELEVAMIENTO||[]).map(r=>[r.key,0])),comentarios:''};
+  }
+  function estadoActual(estId){return estadoEdilicioEfectivo(estId)||estadoVacio(estId)}
+  function nombreEst(id){const e=estabs().find(x=>Number(x.id)===Number(id));return e?.n||e?.nombre||'Establecimiento'}
+  function tabEstado(){return byId('ftab-4')?.textContent?.includes('Estado')?4:3}
+  function volverEstado(estId){if(typeof volverFichaTab==='function')volverFichaTab(tabEstado(),Number(estId));else if(byId('ficha-body'))byId('ficha-body').innerHTML=window.renderEstadoEdilicioFicha(estId)}
+  window.volverEstadoEdilicioCompartido=volverEstado;
+  function opcionesPrincipales(estId){
+    const actual=Number(estId);
+    return estabs()
+      .filter(e=>Number(e.id)!==actual)
+      .sort((a,b)=>Number(a.zona||0)-Number(b.zona||0)||String(a.n||'').localeCompare(String(b.n||''),'es'))
+      .map(e=>`<option value="${Number(e.id)}">Zona ${esc(e.zona)} · ${esc(e.n||e.nombre||'')} ${e.cue?`· CUE ${esc(e.cue)}`:''}</option>`)
+      .join('');
+  }
+  function promedio(rel){
+    const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
+    const vals=rubros.map(r=>Number(rel?.rubros?.[r.key]||0));
+    return Math.round(vals.reduce((a,b)=>a+b,0)/Math.max(vals.length,1));
+  }
+  function promedioEfectivo(estId){
+    const rel=estadoEdilicioEfectivo(estId);
+    if(!rel)return null;
+    return promedio(rel);
+  }
+  window.getUltimoRelevamiento=function(estId){return estadoActual(estId)};
+  window.renderEstadoEdilicioFicha=function(estId){
+    const principal=idPrincipalCompartido(estId);
+    const rel=estadoActual(estId);
+    const prom=promedio(rel);
+    const can=currentUser?.role==='inspector';
+    const source=principal?`<div style="margin-bottom:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;font-size:13px;color:#1e3a8a"><b>Comparte edificio con:</b> ${esc(nombreEst(principal))}. Los porcentajes se toman del establecimiento principal.</div>`:'';
+    return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes por rubro. Última actualización: ${esc(rel.fecha||'Sin cargar')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div>${source}<div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento${principal?' principal':''}</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${esc(r.label)}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${esc(rel.comentarios)}</div>`:''}`;
+  };
+  window.toggleComparteEdificioEstado=function(){
+    const shared=!!Number(byId('ee-comparte')?.value||0);
+    document.querySelectorAll('[data-ee-rubro]').forEach(el=>{el.disabled=shared});
+    const note=byId('ee-comparte-note');
+    if(note)note.style.display=shared?'block':'none';
+  };
+  window.openEditarEstadoEdilicio=function(estId){
+    const fb=byId('ficha-body')||byId('map-ficha-body');
+    if(!fb)return;
+    const principal=idPrincipalCompartido(estId);
+    const rel=estadoActual(estId);
+    fb.innerHTML=`<button class="back-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div class="form-field full" style="margin-bottom:14px"><label class="form-label">Comparte edificio con</label><select class="form-select" id="ee-comparte" onchange="toggleComparteEdificioEstado()"><option value="">No comparte / usa datos propios</option>${opcionesPrincipales(estId)}</select><div id="ee-comparte-note" style="display:none;margin-top:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 10px">Al guardar, este establecimiento tomará automáticamente el estado edilicio del principal seleccionado.</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${esc(r.label)}</label><b id="ee-val-${esc(r.key)}" style="color:${r.color}">${v}%</b></div><input data-ee-rubro="1" type="range" id="ee-${esc(r.key)}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="document.getElementById('ee-val-${esc(r.key)}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${esc(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
+    if(principal)byId('ee-comparte').value=String(principal);
+    window.toggleComparteEdificioEstado();
+  };
+  window.guardarEstadoEdilicio=async function(estId){
+    estId=Number(estId);
+    const principal=Number(byId('ee-comparte')?.value||0);
+    const rubros=principal?undefined:Object.fromEntries((RUBROS_RELEVAMIENTO||[]).map(r=>[r.key,Number(byId('ee-'+r.key)?.value||0)]));
+    const rel={tipo:'estado_edilicio',fecha:new Date().toLocaleDateString('es-AR'),inspector:currentUser?.name||'',zona:typeof zonaEstablecimiento==='function'?zonaEstablecimiento(estId):'',comentarios:byId('ee-comentarios')?.value||'',ts:Date.now()};
+    if(principal)rel.comparteEdificioCon=principal;else rel.rubros=rubros;
+    RELEVAMIENTOS[estId]=(RELEVAMIENTOS[estId]||[]).filter(r=>r.tipo==='relevamiento'||r.tipo==='ficha_tecnica');
+    RELEVAMIENTOS[estId].push(rel);
+    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function')await window.DGIE_DB.crearRelevamiento({establecimiento_id:estId,zona:rel.zona,datos:rel});
+    if(typeof saveAppState==='function')saveAppState();
+    if(typeof renderLcCharts==='function')setTimeout(renderLcCharts,80);
+    volverEstado(estId);
+  };
+  window.renderRankingRealDGIE=function(zona){
+    const rankEl=byId('lm-ranking-list');
+    if(!rankEl)return;
+    const base=estabs().filter(e=>!zona||Number(e.zona)===Number(zona));
+    const ranked=base.map(e=>({...e,promReal:promedioEfectivo(e.id)})).sort((a,b)=>{
+      const ar=a.promReal!==null, br=b.promReal!==null;
+      if(ar!==br)return ar?-1:1;
+      if(ar&&br&&b.promReal!==a.promReal)return b.promReal-a.promReal;
+      return String(a.n||'').localeCompare(String(b.n||''),'es');
+    });
+    rankEl.innerHTML=ranked.length?ranked.map((e,i)=>{
+      const has=e.promReal!==null,pct=has?Math.max(0,Math.min(100,Number(e.promReal))):0,principal=idPrincipalCompartido(e.id);
+      return `<div class="ranking-row"><span class="ranking-num">${i+1}</span><span class="ranking-name" title="${esc(e.n)}">${esc(e.n)}${principal?' -> '+esc(nombreEst(principal)):''}</span><div class="ranking-bar-mini"><div class="ranking-bar-fill" style="width:${pct}%;${has?'':'background:#e5e7eb'}"></div></div><span style="font-size:10px;color:${has?'#005aa9':'#9ca3af'};width:38px;text-align:right;font-weight:${has?'800':'600'}">${has?pct+'%':'—'}</span></div>`;
+    }).join(''):'<div style="font-size:12px;color:#9ca3af;padding:12px 0">Sin datos</div>';
+  };
+  const prevCharts=window.renderLcCharts;
+  window.renderLcCharts=function(){
+    const out=typeof prevCharts==='function'?prevCharts.apply(this,arguments):undefined;
+    setTimeout(()=>window.renderRankingRealDGIE(window._lcZonaSituacionActiva||null),0);
+    return out;
+  };
+})();
+</script>
 </body>
 </html>
