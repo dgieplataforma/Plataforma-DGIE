@@ -21220,13 +21220,32 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return pkg;
     }).sort((a,b)=>b.actividadMs-a.actividadMs||String(a.key).localeCompare(String(b.key),'es'));
   }
+  let paqueteAbierto=null;
   function puedeComentar(){return ['coordinador','director','direccion'].includes(String(currentUser?.role||''))}
+  function puedeResponder(it){return currentUser?.role==='inspector'&&Number(currentUser?.zona)===Number(it?.zona)}
+  function puedeEliminar(mensaje){
+    const autor=norm(mensaje?.autor),usuario=norm(currentUser?.name);
+    return !!autor&&!!usuario&&autor===usuario;
+  }
+  function domId(it){return String(it?.id).replace(/[^a-zA-Z0-9_-]/g,'_')}
+  function intervencionPorDomId(id){return (INTERVENCIONES||[]).find(it=>domId(it)===String(id))}
+  function fechaComentario(value){
+    const date=new Date(value||Date.now());
+    return Number.isNaN(date.getTime())?'':date.toLocaleString('es-AR');
+  }
   function comentarioBox(it){
-    const id=String(it.id).replace(/[^a-zA-Z0-9_-]/g,'_');
+    const id=domId(it);
     const comentarios=Array.isArray(it.comentariosCoordinacion)?it.comentariosCoordinacion:[];
-    const lista=comentarios.length?comentarios.map(c=>`<div style="padding:7px 0;border-top:1px solid #e5edf6"><strong>${esc(c.autor||'')}</strong>: ${esc(c.texto||'')} <span style="color:var(--muted)">(${new Date(c.fecha||Date.now()).toLocaleString('es-AR')})</span></div>`).join(''):'';
     if(!comentarios.length&&!puedeComentar())return '';
-    return `<div style="margin-top:10px;padding:10px;border-radius:10px;background:#f8fafc;border:1px solid #dbe7f5;font-size:12px;color:#334155" onclick="event.stopPropagation()">${lista}${puedeComentar()?`<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:${comentarios.length?'10px':'0'}"><textarea class="form-textarea" id="int-comment-final-${id}" placeholder="Comentario de coordinación para el inspector..." style="min-height:58px"></textarea><button class="secondary-btn" onclick="guardarComentarioIntervencionFinal('${id}')">Enviar comentario</button></div>`:''}</div>`;
+    const lista=comentarios.map((comentario,idx)=>{
+      const respuestas=Array.isArray(comentario?.respuestas)?comentario.respuestas:[];
+      return `<div style="padding:${idx?'10px 0 0':'0'};border-top:${idx?'1px solid #e5edf6':'0'}">
+        <div><strong>${esc(comentario?.autor||'Usuario')}</strong>: ${esc(comentario?.texto||'')} <span style="color:var(--muted)">(${fechaComentario(comentario?.fecha)})</span>${puedeEliminar(comentario)?` <button class="secondary-btn" type="button" style="padding:3px 7px;margin-left:6px;color:var(--danger)" onclick="eliminarComentarioIntervencionFinal('${id}',${idx})">Eliminar</button>`:''}</div>
+        ${respuestas.map((respuesta,ridx)=>`<div style="margin:7px 0 0 12px;padding:7px 9px;border-left:3px solid var(--blue);background:#fff;border-radius:8px"><strong>${esc(respuesta?.autor||'Inspector')}</strong>: ${esc(respuesta?.texto||'')} <span style="color:var(--muted)">(${fechaComentario(respuesta?.fecha)})</span>${puedeEliminar(respuesta)?` <button class="secondary-btn" type="button" style="padding:3px 7px;margin-left:6px;color:var(--danger)" onclick="eliminarRespuestaIntervencionFinal('${id}',${idx},${ridx})">Eliminar</button>`:''}</div>`).join('')}
+        ${puedeResponder(it)?`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:8px"><input class="form-input" id="int-resp-final-${id}-${idx}" placeholder="Responder comentario..."><button class="secondary-btn" type="button" onclick="responderComentarioIntervencionFinal('${id}',${idx})">Responder</button></div>`:''}
+      </div>`;
+    }).join('');
+    return `<div data-int-comentarios="${id}" style="margin-top:10px;padding:10px;border-radius:8px;background:#f8fafc;border:1px solid #dbe7f5;font-size:12px;color:#334155" onclick="event.stopPropagation()">${lista}${puedeComentar()?`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:${comentarios.length?'10px':'0'}"><textarea class="form-textarea" id="int-comment-final-${id}" placeholder="Comentario de coordinación para el inspector..." style="min-height:58px"></textarea><button class="secondary-btn" type="button" onclick="guardarComentarioIntervencionFinal('${id}')">Enviar comentario</button></div>`:''}</div>`;
   }
   function card(pkg){
     const it=pkg.ultima||{}, est=estOf(it), os=pkg.os||[];
@@ -21241,9 +21260,22 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       ${comentarioBox(it)}
     </div>`;
   }
-  window.guardarComentarioIntervencionFinal=async function(domId){
-    const it=(INTERVENCIONES||[]).find(x=>String(x.id).replace(/[^a-zA-Z0-9_-]/g,'_')===String(domId));
-    const txt=String(byId(`int-comment-final-${domId}`)?.value||'').trim();
+  async function persistirComentarios(it){
+    if(!window.DGIE_DB?.isConfigured)return;
+    if(!it?.remoteId)throw new Error('La intervención no tiene ID de Supabase.');
+    if(typeof window.DGIE_DB.actualizarIntervencion!=='function')throw new Error('El servicio de Intervenciones no está disponible.');
+    const {error}=await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion||[]});
+    if(error)throw error;
+  }
+  function refrescarComentarios(){
+    if(byId('intervenciones-dir-list'))window.filterIntervencionesDireccion?.();
+    else if(paqueteAbierto)window.abrirPaqueteIntervencion?.(paqueteAbierto);
+  }
+  function guardarLocal(){if(typeof saveAppState==='function')saveAppState()}
+  function informarError(accion,error){alert(`No se pudo ${accion} en Supabase. Detalle: ${error?.message||error}`)}
+  window.guardarComentarioIntervencionFinal=async function(id){
+    const it=intervencionPorDomId(id);
+    const txt=String(byId(`int-comment-final-${id}`)?.value||'').trim();
     if(!it||!txt)return;
     if(!Array.isArray(it.comentariosCoordinacion))it.comentariosCoordinacion=[];
     const ahora=new Date().toISOString();
@@ -21256,14 +21288,43 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
     it.updatedAt=ahora;
     it.comentariosCoordinacion.unshift(comentario);
-    if(window.DGIE_DB?.isConfigured){
-      if(!it.remoteId){deshacerComentario();alert('No se guardó el comentario porque la intervención no tiene ID de Supabase.');return;}
-      if(typeof window.DGIE_DB.actualizarIntervencion!=='function'){deshacerComentario();alert('No se guardó el comentario porque el servicio de Intervenciones no está disponible.');return;}
-      const {error}=await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion});
-      if(error){deshacerComentario();alert('No se pudo guardar el comentario en Supabase. Detalle: '+(error.message||error));return;}
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    catch(error){deshacerComentario();informarError('guardar el comentario',error)}
+  };
+  window.responderComentarioIntervencionFinal=async function(id,idx){
+    const it=intervencionPorDomId(id),comentario=it?.comentariosCoordinacion?.[idx];
+    const txt=String(byId(`int-resp-final-${id}-${idx}`)?.value||'').trim();
+    if(!it||!comentario||!txt||!puedeResponder(it))return;
+    if(!Array.isArray(comentario.respuestas))comentario.respuestas=[];
+    const updatedAtAnterior=it.updatedAt,ahora=new Date().toISOString();
+    const respuesta={texto:txt,autor:currentUser?.name||'Inspector',fecha:ahora};
+    comentario.respuestas.push(respuesta);
+    it.updatedAt=ahora;
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    catch(error){
+      const index=comentario.respuestas.indexOf(respuesta);
+      if(index>=0)comentario.respuestas.splice(index,1);
+      it.updatedAt=updatedAtAnterior;
+      informarError('guardar la respuesta',error);
     }
-    if(typeof saveAppState==='function')saveAppState();
-    if(typeof filterIntervencionesDireccion==='function')filterIntervencionesDireccion();
+  };
+  window.eliminarComentarioIntervencionFinal=async function(id,idx){
+    const it=intervencionPorDomId(id),comentario=it?.comentariosCoordinacion?.[idx];
+    if(!it||!comentario||!puedeEliminar(comentario)||!confirm('¿Eliminar este comentario?'))return;
+    const updatedAtAnterior=it.updatedAt;
+    it.comentariosCoordinacion.splice(idx,1);
+    it.updatedAt=new Date().toISOString();
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    catch(error){it.comentariosCoordinacion.splice(idx,0,comentario);it.updatedAt=updatedAtAnterior;informarError('eliminar el comentario',error)}
+  };
+  window.eliminarRespuestaIntervencionFinal=async function(id,idx,ridx){
+    const it=intervencionPorDomId(id),comentario=it?.comentariosCoordinacion?.[idx],respuesta=comentario?.respuestas?.[ridx];
+    if(!it||!comentario||!respuesta||!puedeEliminar(respuesta)||!confirm('¿Eliminar esta respuesta?'))return;
+    const updatedAtAnterior=it.updatedAt;
+    comentario.respuestas.splice(ridx,1);
+    it.updatedAt=new Date().toISOString();
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    catch(error){comentario.respuestas.splice(ridx,0,respuesta);it.updatedAt=updatedAtAnterior;informarError('eliminar la respuesta',error)}
   };
   function renderIntervenciones(c){
     const data=paquetes(INTERVENCIONES||[]);
@@ -21281,6 +21342,24 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const agrupadas=paquetes(data);
     if(el)el.innerHTML=agrupadas.length?agrupadas.map(card).join(''):'<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron intervenciones</div>';
   };
+  const abrirPaqueteAnterior=window.abrirPaqueteIntervencion;
+  if(typeof abrirPaqueteAnterior==='function'){
+    window.abrirPaqueteIntervencion=function(key){
+      paqueteAbierto=String(key||'');
+      const result=abrirPaqueteAnterior.apply(this,arguments);
+      const visitas=(INTERVENCIONES||[]).filter(it=>keyOf(it)===paqueteAbierto).sort((a,b)=>{
+        const fechaB=temporalMs(b?.fechaHora||b?.fecha)||Number(b?.id||0);
+        const fechaA=temporalMs(a?.fechaHora||a?.fecha)||Number(a?.id||0);
+        return fechaB-fechaA;
+      });
+      const cards=[...document.querySelectorAll('#main-content > .card > .intervencion-card')];
+      cards.forEach((element,index)=>{
+        const it=visitas[index];
+        if(it&&!element.querySelector('[data-int-comentarios]'))element.insertAdjacentHTML('beforeend',comentarioBox(it));
+      });
+      return result;
+    };
+  }
 })();
 </script>
 <script id="dgie-fix-ranking-estado-edilicio-real-2026-07-13">
