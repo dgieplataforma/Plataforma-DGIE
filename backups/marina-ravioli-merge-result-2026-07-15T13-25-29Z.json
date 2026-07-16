@@ -1,0 +1,71 @@
+{
+  "completedAt": "2026-07-15T13:25:29Z",
+  "executedBy": "Rocio Peralta",
+  "role": "coordinador",
+  "source": {
+    "id": 496,
+    "name": "MARINA MARGARITA RAVIOLI",
+    "deleted": true
+  },
+  "target": {
+    "id": 835,
+    "name": "Jardin de inf MARINA MARGARITA RAVIOLI",
+    "zone": 11,
+    "cue": "140538700",
+    "lat": -31.4639,
+    "lng": -64.1602
+  },
+  "duplicateAudit": {
+    "exactDuplicatesDetected": 0,
+    "notes": "All distinct source and target records were preserved. Original certificate filenames were not changed."
+  },
+  "finalCounts": {
+    "reclamos": 2,
+    "ordenes_servicio": 11,
+    "intervenciones": 4,
+    "relevamientos": 2,
+    "fotos": 15,
+    "planos": 1,
+    "certificados_medicion": 2,
+    "analisis_precios": 0
+  },
+  "transferredIds": {
+    "ordenes_servicio": [
+      "7ced050b-abe2-4f94-b76d-adbb5fbbba6f",
+      "e59dcb0e-1806-47d0-a071-a12525b1eb5e",
+      "a1d3c542-292f-4e91-ae60-b025e6e3ea9d",
+      "911abc3c-54be-4cef-a3ee-0da8a4606590",
+      "0ef7fff8-41c2-4525-b045-3adeeb2cccab",
+      "30621fd2-514c-4b85-8b9a-e49c3198cd99",
+      "c37cc893-7371-47b8-bfd0-d69a08052cb9",
+      "0a0d9b09-f508-411a-b282-683bc3723d88",
+      "dec44a8f-0c83-492b-b571-872ee67e4e5f"
+    ],
+    "intervenciones": [
+      "7309dd29-7ca6-4219-ad0d-b9010dd5c8e8",
+      "4c028c85-a6b0-48a2-969e-0faf89f918f6",
+      "03d99be7-ff58-41af-8ade-56d707251d5e",
+      "ae7e107c-7997-4b6d-83a9-3cdb279c987d"
+    ],
+    "relevamientos": [
+      "fd13deb1-72cd-438d-82a1-65ed4ed42a5c"
+    ],
+    "fotos": [
+      "425fae04-2748-4920-a61b-531599bf8441",
+      "a856fbcf-6a48-4092-9990-0a25d498c437",
+      "90b0aea5-8b90-42c5-bc0e-056d3f4651cb",
+      "49682862-4065-41d9-b62f-ebf3ef59771e",
+      "3899d17c-2adc-48d2-b301-b6297bb26e5b",
+      "2e21af6b-758e-487c-94de-d87360c3a93c",
+      "a9394205-ef83-4d77-bc66-8206b4e6c51f",
+      "2b7cd5c0-ee07-42d7-8c37-f7ea22814b82",
+      "8688db42-d3a8-4a97-b607-efc979b0772e",
+      "f119a43b-dc95-4a3f-853b-5fe8da189d82",
+      "52ec04aa-73e4-402b-9dc6-1b55fd9f601e"
+    ],
+    "planos": [
+      "fd4ca538-42a8-43a1-a2bd-d4da7a3556b0"
+    ],
+    "certificados_medicion": [205, 173]
+  }
+}
