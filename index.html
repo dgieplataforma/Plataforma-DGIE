@@ -21236,7 +21236,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function comentarioBox(it){
     const id=domId(it);
     const comentarios=Array.isArray(it.comentariosCoordinacion)?it.comentariosCoordinacion:[];
-    if(!comentarios.length&&!puedeComentar())return '';
+    const puedeVer=puedeComentar()||currentUser?.role==='inspector';
+    if(!puedeVer)return '';
     const lista=comentarios.map((comentario,idx)=>{
       const respuestas=Array.isArray(comentario?.respuestas)?comentario.respuestas:[];
       return `<div style="padding:${idx?'10px 0 0':'0'};border-top:${idx?'1px solid #e5edf6':'0'}">
@@ -21245,8 +21246,37 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${puedeResponder(it)?`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:8px"><input class="form-input" id="int-resp-final-${id}-${idx}" placeholder="Responder comentario..."><button class="secondary-btn" type="button" onclick="responderComentarioIntervencionFinal('${id}',${idx})">Responder</button></div>`:''}
       </div>`;
     }).join('');
-    return `<div data-int-comentarios="${id}" style="margin-top:10px;padding:10px;border-radius:8px;background:#f8fafc;border:1px solid #dbe7f5;font-size:12px;color:#334155" onclick="event.stopPropagation()">${lista}${puedeComentar()?`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:${comentarios.length?'10px':'0'}"><textarea class="form-textarea" id="int-comment-final-${id}" placeholder="Comentario de coordinación para el inspector..." style="min-height:58px"></textarea><button class="secondary-btn" type="button" onclick="guardarComentarioIntervencionFinal('${id}')">Enviar comentario</button></div>`:''}</div>`;
+    return `<div data-int-comentarios="${id}" style="margin-top:10px;padding:10px;border-radius:8px;background:#f8fafc;border:1px solid #dbe7f5;font-size:12px;color:#334155" onclick="event.stopPropagation()"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:${comentarios.length||puedeComentar()?'8px':'0'}"><strong style="color:#123c69">Comentarios</strong><span class="badge b-neutral">${comentarios.length}</span></div>${lista||'<div style="color:var(--muted)">Sin comentarios</div>'}${puedeComentar()?`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px"><textarea class="form-textarea" id="int-comment-final-${id}" placeholder="Comentario de coordinación para el inspector..." style="min-height:58px"></textarea><button class="secondary-btn" type="button" onclick="guardarComentarioIntervencionFinal('${id}')">Enviar comentario</button></div>`:''}</div>`;
   }
+  function comentariosPaqueteBox(pkg){
+    const destino=pkg.ultima||pkg.visitas?.[0];
+    if(!destino)return '';
+    const puedeVer=puedeComentar()||currentUser?.role==='inspector';
+    if(!puedeVer)return '';
+    const entradas=(pkg.visitas||[]).flatMap(visita=>{
+      const comentarios=Array.isArray(visita?.comentariosCoordinacion)?visita.comentariosCoordinacion:[];
+      return comentarios.map((comentario,idx)=>({visita,comentario,idx}));
+    }).sort((a,b)=>temporalMs(b.comentario?.fecha)-temporalMs(a.comentario?.fecha));
+    const lista=entradas.map(({visita,comentario,idx},pos)=>{
+      const id=domId(visita);
+      const respuestas=Array.isArray(comentario?.respuestas)?comentario.respuestas:[];
+      return `<div style="padding:${pos?'10px 0 0':'0'};border-top:${pos?'1px solid #e5edf6':'0'}">
+        <div><strong>${esc(comentario?.autor||'Usuario')}</strong>: ${esc(comentario?.texto||'')} <span style="color:var(--muted)">(${fechaComentario(comentario?.fecha)})</span>${puedeEliminar(comentario)?` <button class="secondary-btn" type="button" style="padding:3px 7px;margin-left:6px;color:var(--danger)" onclick="eliminarComentarioIntervencionFinal('${id}',${idx})">Eliminar</button>`:''}</div>
+        ${respuestas.map((respuesta,ridx)=>`<div style="margin:7px 0 0 12px;padding:7px 9px;border-left:3px solid var(--blue);background:#fff;border-radius:8px"><strong>${esc(respuesta?.autor||'Inspector')}</strong>: ${esc(respuesta?.texto||'')} <span style="color:var(--muted)">(${fechaComentario(respuesta?.fecha)})</span>${puedeEliminar(respuesta)?` <button class="secondary-btn" type="button" style="padding:3px 7px;margin-left:6px;color:var(--danger)" onclick="eliminarRespuestaIntervencionFinal('${id}',${idx},${ridx})">Eliminar</button>`:''}</div>`).join('')}
+        ${puedeResponder(visita)?`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:8px"><input class="form-input" id="int-resp-final-${id}-${idx}" placeholder="Responder comentario..."><button class="secondary-btn" type="button" onclick="responderComentarioIntervencionFinal('${id}',${idx})">Responder</button></div>`:''}
+      </div>`;
+    }).join('');
+    const destinoId=domId(destino);
+    return `<div data-int-comentarios-paquete="${esc(pkg.key)}" style="margin-top:10px;padding:10px;border-radius:8px;background:#f8fafc;border:1px solid #dbe7f5;font-size:12px;color:#334155" onclick="event.stopPropagation()"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:${entradas.length||puedeComentar()?'8px':'0'}"><strong style="color:#123c69">Comentarios</strong><span class="badge b-neutral">${entradas.length}</span></div>${lista||'<div style="color:var(--muted)">Sin comentarios</div>'}${puedeComentar()?`<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px"><textarea class="form-textarea" id="int-comment-final-${destinoId}" placeholder="Comentario de coordinación para el inspector..." style="min-height:58px"></textarea><button class="secondary-btn" type="button" onclick="guardarComentarioIntervencionFinal('${destinoId}')">Enviar comentario</button></div>`:''}</div>`;
+  }
+  const comentariosHTMLAnterior=window.comentariosHTMLFinal;
+  window.comentariosHTMLFinal=function(comentarios,tipo,id,zona){
+    if(tipo==='int'){
+      const it=(INTERVENCIONES||[]).find(item=>String(item?.id)===String(id)||domId(item)===String(id));
+      if(it)return comentarioBox(it);
+    }
+    return typeof comentariosHTMLAnterior==='function'?comentariosHTMLAnterior.apply(this,arguments):'';
+  };
   function card(pkg){
     const it=pkg.ultima||{}, est=estOf(it), os=pkg.os||[];
     const avance=Number(it.avance||0);
@@ -21257,7 +21287,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       </div>
       <div style="font-size:14px;margin-top:10px;color:#334155">${esc(it.descripcion||'Última visita registrada')}</div>
       <div class="progress-bar"><div class="progress-fill" style="width:${avance}%"></div></div>
-      ${comentarioBox(it)}
+      ${comentariosPaqueteBox(pkg)}
     </div>`;
   }
   async function persistirComentarios(it){
@@ -21267,7 +21297,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const {error}=await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion||[]});
     if(error)throw error;
   }
-  function refrescarComentarios(){
+  function refrescarComentarios(it){
+    if(byId('intervencion-detalle-activo')&&it){
+      window.verDetalleIntervencion?.(it.id);
+      return;
+    }
     if(byId('intervenciones-dir-list'))window.filterIntervencionesDireccion?.();
     else if(paqueteAbierto)window.abrirPaqueteIntervencion?.(paqueteAbierto);
   }
@@ -21288,7 +21322,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
     it.updatedAt=ahora;
     it.comentariosCoordinacion.unshift(comentario);
-    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios(it)}
     catch(error){deshacerComentario();informarError('guardar el comentario',error)}
   };
   window.responderComentarioIntervencionFinal=async function(id,idx){
@@ -21300,7 +21334,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const respuesta={texto:txt,autor:currentUser?.name||'Inspector',fecha:ahora};
     comentario.respuestas.push(respuesta);
     it.updatedAt=ahora;
-    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios(it)}
     catch(error){
       const index=comentario.respuestas.indexOf(respuesta);
       if(index>=0)comentario.respuestas.splice(index,1);
@@ -21314,7 +21348,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const updatedAtAnterior=it.updatedAt;
     it.comentariosCoordinacion.splice(idx,1);
     it.updatedAt=new Date().toISOString();
-    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios(it)}
     catch(error){it.comentariosCoordinacion.splice(idx,0,comentario);it.updatedAt=updatedAtAnterior;informarError('eliminar el comentario',error)}
   };
   window.eliminarRespuestaIntervencionFinal=async function(id,idx,ridx){
@@ -21323,7 +21357,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const updatedAtAnterior=it.updatedAt;
     comentario.respuestas.splice(ridx,1);
     it.updatedAt=new Date().toISOString();
-    try{await persistirComentarios(it);guardarLocal();refrescarComentarios()}
+    try{await persistirComentarios(it);guardarLocal();refrescarComentarios(it)}
     catch(error){comentario.respuestas.splice(ridx,0,respuesta);it.updatedAt=updatedAtAnterior;informarError('eliminar la respuesta',error)}
   };
   function renderIntervenciones(c){
