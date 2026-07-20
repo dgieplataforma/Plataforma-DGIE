@@ -20,7 +20,16 @@
     return;
   }
 
-  const client = supabaseLib.createClient(cfg.url, cfg.anonKey);
+  let authStorage;
+  try{ authStorage = window.sessionStorage; }catch(_){ authStorage = undefined; }
+  const client = supabaseLib.createClient(cfg.url, cfg.anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      ...(authStorage ? { storage:authStorage } : {})
+    }
+  });
   function cloudinaryConfig(){
     const cc = window.DGIE_CLOUDINARY || {};
     return {
@@ -230,7 +239,22 @@
       return upsertOne('avisos_globales', row, { onConflict:'id' }, 'ese aviso');
     },
     async crearComunicacion(row){
-      return client.from('comunicaciones').insert(row).select('*').single();
+      const payload = { ...row };
+      if(!payload.creado_por){
+        const { data:sessionData } = await client.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if(userId) payload.creado_por = userId;
+      }
+      return client.from('comunicaciones').insert(payload).select('*').single();
+    },
+    async eliminarComunicacion(id){
+      const { data, error } = await client.from('comunicaciones').delete().eq('id', id).select('id').limit(1);
+      if(error) return { data:null, error };
+      const row = Array.isArray(data) ? data[0] || null : data;
+      if(!row){
+        return { data:null, error:{ message:'La comunicación no se eliminó. Revisá los permisos de Coordinación.' } };
+      }
+      return { data:row, error:null };
     },
     async actualizarComunicacion(id, row){
       const { error } = await client.from('comunicaciones').update(row).eq('id', id);

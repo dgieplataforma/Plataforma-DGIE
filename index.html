@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./dgie-supabase.js"></script>
+<script src="./dgie-supabase.js?v=20260720-2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./dgie-comunicaciones.css?v=20260717-2">
@@ -12063,7 +12063,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const nombre=perfil?.nombre||'Usuario';
     const parts=String(nombre).trim().split(/\s+/).filter(Boolean);
     const initials=((parts[0]?.[0]||'U')+(parts[1]?.[0]||parts[0]?.[1]||'')).toUpperCase();
-    const user={name:nombre,initials,role:rolMap[perfil?.rol]||perfil?.rol||'inspector'};
+    const user={id:perfil?.id||null,name:nombre,initials,role:rolMap[perfil?.rol]||perfil?.rol||'inspector'};
     if(perfil?.zona)user.zona=Number(perfil.zona);
     return user;
   }
@@ -12072,6 +12072,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     safeRemove(KEY_LOGOUT);
     safeSet(KEY_OPEN,'1');
     safeSet(KEY_USER,JSON.stringify({
+      id:user.id||null,
       name:user.name,
       initials:user.initials,
       role:user.role,
@@ -12130,13 +12131,22 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return;
     }
     let user=null;
+    let remoteError=null;
+    let remoteChecked=false;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.currentProfile==='function'){
+      remoteChecked=true;
       try{
         const {data,error}=await window.DGIE_DB.currentProfile();
         if(!error&&data)user=perfilToSessionUser(data);
-      }catch(_){}
+        else remoteError=error||null;
+      }catch(error){remoteError=error;}
     }
-    if(!user)user=usuarioGuardado();
+    if(!user&&(!remoteChecked||remoteError))user=usuarioGuardado();
+    if(remoteChecked&&!user&&!remoteError){
+      safeRemove(KEY_USER);
+      safeRemove(KEY_TAB);
+      safeRemove(KEY_OPEN);
+    }
     if(!user||currentUser){
       mostrarPagina();
       return;
@@ -21948,6 +21958,110 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 })();
 </script>
-<script src="./dgie-comunicaciones.js?v=20260717-2"></script>
+<style id="dgie-actualizacion-global-2026-07-20">
+.dgie-global-sync{display:flex;align-items:center;gap:8px;min-width:188px;justify-content:flex-end}
+.dgie-global-sync-status{display:inline-flex;align-items:center;gap:6px;color:#64748b;font-size:12px;font-weight:700;white-space:nowrap}
+.dgie-global-sync-status::before{content:"";width:7px;height:7px;border-radius:50%;background:#16a34a;flex:0 0 auto}
+.dgie-global-sync-status.is-working::before{background:#d97706}
+.dgie-global-sync-status.is-error{color:#b42318}
+.dgie-global-sync-status.is-error::before{background:#dc2626}
+.dgie-global-refresh{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:102px;height:38px}
+.dgie-global-refresh:disabled{cursor:wait;opacity:.72}
+.dgie-global-refresh-icon{display:inline-block;font-size:17px;line-height:1}
+.dgie-global-refresh.is-loading .dgie-global-refresh-icon{animation:dgie-global-spin .8s linear infinite}
+@keyframes dgie-global-spin{to{transform:rotate(360deg)}}
+@media(max-width:820px){
+  .dgie-global-sync{min-width:38px}
+  .dgie-global-sync-status,.dgie-global-refresh-label{display:none}
+  .dgie-global-refresh{min-width:38px;width:38px;padding:0}
+}
+</style>
+<script id="dgie-actualizacion-global-2026-07-20">
+(function(){
+  'use strict';
+  let actualizacionEnCurso=null;
+
+  function control(){
+    return {
+      wrap:document.getElementById('dgie-global-sync'),
+      status:document.getElementById('dgie-global-sync-status'),
+      button:document.getElementById('dgie-global-refresh')
+    };
+  }
+  function setEstado(tipo,texto){
+    const ui=control();
+    if(!ui.status||!ui.button)return;
+    ui.status.textContent=texto;
+    ui.status.classList.toggle('is-working',tipo==='working');
+    ui.status.classList.toggle('is-error',tipo==='error');
+    ui.button.classList.toggle('is-loading',tipo==='working');
+    ui.button.disabled=tipo==='working';
+    ui.button.setAttribute('aria-busy',tipo==='working'?'true':'false');
+    if(tipo==='ok'){
+      const hora=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+      ui.status.title=`Última actualización: ${hora}`;
+    }else if(tipo==='error'){
+      ui.status.title='No se pudieron actualizar todos los datos.';
+    }else ui.status.removeAttribute('title');
+  }
+  function instalar(){
+    const right=document.querySelector('#app-wrapper .topbar-right');
+    if(!right||document.getElementById('dgie-global-sync'))return;
+    const wrap=document.createElement('div');
+    wrap.id='dgie-global-sync';
+    wrap.className='dgie-global-sync';
+    wrap.innerHTML=`<span id="dgie-global-sync-status" class="dgie-global-sync-status" role="status" aria-live="polite">${window.DGIE_DATA_READY?'Actualizado':'Actualizando...'}</span><button type="button" id="dgie-global-refresh" class="logout-btn dgie-global-refresh" aria-label="Actualizar todos los datos" title="Actualizar todos los datos"><span class="dgie-global-refresh-icon" aria-hidden="true">↻</span><span class="dgie-global-refresh-label">Actualizar</span></button>`;
+    right.insertBefore(wrap,right.querySelector('.user-chip'));
+    wrap.querySelector('button').addEventListener('click',()=>window.actualizarTodoDGIE());
+    if(!window.DGIE_DATA_READY)setEstado('working','Actualizando...');
+  }
+  window.actualizarTodoDGIE=function(){
+    if(actualizacionEnCurso)return actualizacionEnCurso;
+    instalar();
+    if(!window.DGIE_DB?.isConfigured||typeof window.cargarDatosPublicosDGIE!=='function'){
+      setEstado('error','No actualizado');
+      return Promise.resolve(null);
+    }
+    setEstado('working','Actualizando...');
+    actualizacionEnCurso=(async()=>{
+      try{
+        const tareas=[window.cargarDatosPublicosDGIE()];
+        if(typeof window.cargarCertificadosMedicion==='function'){
+          tareas.push(window.cargarCertificadosMedicion(true));
+        }
+        const [resultado]=await Promise.all(tareas);
+        if(document.getElementById('planos-list')&&typeof window.cargarPlanos==='function'){
+          try{
+            const estId=typeof currentFichaId!=='undefined'?currentFichaId:null;
+            if(estId)await window.cargarPlanos(estId);
+          }catch(error){console.warn('No se pudieron actualizar los planos visibles',error);}
+        }
+        const estado=window.DGIE_DATASETS_READY||resultado||{};
+        const fallidos=Object.entries(estado).filter(([,ok])=>ok===false);
+        if(!resultado||fallidos.length)throw new Error('La actualización quedó incompleta.');
+        window.dgieRequestVisibleRender?.('actualizacion-global',80);
+        setEstado('ok','Actualizado');
+        return resultado;
+      }catch(error){
+        console.warn('No se pudieron actualizar todos los datos',error);
+        setEstado('error','No actualizado');
+        return null;
+      }finally{
+        actualizacionEnCurso=null;
+      }
+    })();
+    return actualizacionEnCurso;
+  };
+  document.addEventListener('dgie:data-ready',()=>{
+    instalar();
+    if(actualizacionEnCurso)return;
+    const estado=window.DGIE_DATASETS_READY||{};
+    const incompleto=Object.values(estado).some(ok=>ok===false);
+    setEstado(incompleto?'error':'ok',incompleto?'No actualizado':'Actualizado');
+  });
+  instalar();
+})();
+</script>
+<script src="./dgie-comunicaciones.js?v=20260720-3"></script>
 </body>
 </html>

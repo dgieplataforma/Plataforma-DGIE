@@ -66,6 +66,26 @@
   function isManager(){return MANAGER_ROLES.has(role());}
   function isCompany(){return role()==='empresa';}
   function isInspector(){return role()==='inspector';}
+  async function verifiedManagerProfile(){
+    if(!isManager())throw new Error('Solo Dirección o Coordinación puede crear pedidos.');
+    if(typeof window.DGIE_DB?.currentProfile!=='function'){
+      throw new Error('No se pudo verificar la sesión de Supabase. Volvé a ingresar.');
+    }
+    const result=await window.DGIE_DB.currentProfile();
+    if(result?.error||!result?.data){
+      throw new Error('La sesión venció o no está disponible. Cerrá sesión y volvé a ingresar.');
+    }
+    const profile=result.data;
+    const dbRole=String(profile.rol||'').toLowerCase();
+    if(!['director','coordinador'].includes(dbRole)){
+      throw new Error('La sesión cambió en otra pestaña. Volvé a ingresar como Dirección o Coordinación en esta pestaña.');
+    }
+    const visibleUser=user();
+    if(visibleUser?.id&&String(visibleUser.id)!==String(profile.id)){
+      throw new Error('La cuenta activa cambió en otra pestaña. Recargá esta página e ingresá nuevamente.');
+    }
+    return profile;
+  }
   function communications(){
     try{return Array.isArray(COMUNICACIONES)?COMUNICACIONES:[];}catch(_){return [];}
   }
@@ -400,7 +420,10 @@
           <h2 class="dgc-detail-title">${esc(c?.titulo||'Sin título')}</h2>
           <div class="dgc-detail-meta">${esc(formatDate(c?.createdAt||c?.created_at))} · Por ${esc(c?.creadoPor||c?.creado_por_nombre||'Coordinación')} · ${esc(destinationScope(c))}</div>
         </div>
-        <div class="dgc-inline-actions">${statusBadge(overallStatus(c))}${priorityBadge(c)}${deadline(c)?`<span class="dgc-badge">${esc(formatShortDate(deadline(c)))}</span>`:''}</div>
+        <div class="dgc-inline-actions">
+          ${statusBadge(overallStatus(c))}${priorityBadge(c)}${deadline(c)?`<span class="dgc-badge">${esc(formatShortDate(deadline(c)))}</span>`:''}
+          ${isManager()?`<button type="button" class="dgc-btn dgc-btn-danger" data-dgc-action="delete-communication" data-comm-id="${esc(commId(c))}" ${state.busy?'disabled':''}>${state.busy?'Eliminando…':'Eliminar'}</button>`:''}
+        </div>
       </div>
       <div class="dgc-message">${esc(c?.mensaje||'')}</div>
       ${renderAttachments(c?.archivos,'Adjunto')}
@@ -797,8 +820,8 @@
             <label class="dgc-form-field"><span class="dgc-label">Archivos adjuntos</span><input class="dgc-input" type="file" multiple accept="image/*,.pdf,.xls,.xlsx,.doc,.docx" data-dgc-compose-files><span class="dgc-help">${state.composeFiles.length?`${state.composeFiles.length} archivo(s) seleccionado(s)`:'Opcional. Los destinatarios podrán descargarlos.'}</span></label>
           </div>
         </div>
-        <div class="dgc-dialog-foot">
-          <div class="dgc-sync"><span class="dgc-sync-dot ${window.DGIE_DB?.isConfigured?'':'is-warn'}"></span>${window.DGIE_DB?.isConfigured?'Se guardará en Supabase':'Supabase no disponible'}</div>
+          <div class="dgc-dialog-foot">
+            <div class="dgc-sync"><span class="dgc-sync-dot ${window.DGIE_DB?.isConfigured?'':'is-warn'}"></span>${window.DGIE_DB?.isConfigured?'Listo para enviar':'Sin conexión'}</div>
           <div class="dgc-inline-actions"><button type="button" class="dgc-btn" data-dgc-action="close-compose">Cancelar</button><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="save-communication" ${state.busy?'disabled':''}>${state.busy?'Guardando…':'Enviar'}</button></div>
         </div>
       </div>
@@ -813,11 +836,7 @@
     state.container.innerHTML=`<div class="dgc-page" id="dgc-root">
       <div class="dgc-header">
         <div><h1>${isManager()?'Comunicaciones y pedidos':'Comunicaciones'}</h1><p>${isManager()?'Creá pedidos estructurados, seguí cada respuesta y exportá resultados consolidados.':'Respondé pedidos de Coordinación y consultá tus comunicaciones.'}</p></div>
-        <div class="dgc-header-actions">
-          <div class="dgc-sync">${state.syncing?'<span class="dgc-spinner"></span>Actualizando':`<span class="dgc-sync-dot ${window.DGIE_DB?.isConfigured?'':'is-warn'}"></span>${window.DGIE_DB?.isConfigured?'Sincronizado con Supabase':'Sin conexión a Supabase'}`}</div>
-          <button type="button" class="dgc-btn" data-dgc-action="refresh" ${state.syncing?'disabled':''}>Actualizar</button>
-          ${isManager()?`<button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button>`:''}
-        </div>
+        ${isManager()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button></div>`:''}
       </div>
       ${state.toast?`<div class="dgc-alert ${state.toast.type==='error'?'is-error':state.toast.type==='success'?'is-success':''}">${esc(state.toast.message)}</div>`:''}
       ${renderGlobalKpis(list)}
@@ -954,6 +973,7 @@
     renderPage();
     try{
       const data=state.compose;
+      const profile=await verifiedManagerProfile();
       const files=await readFiles(state.composeFiles,'comunicaciones');
       const config={
         version:3,
@@ -966,7 +986,8 @@
         mensaje:data.mensaje.trim(),
         alcance:data.alcance,
         zonas:['zona','empresa_zona'].includes(data.alcance)?data.zonas.slice().sort((a,b)=>a-b):[],
-        creado_por_nombre:user()?.name||'Coordinación',
+        creado_por:profile.id,
+        creado_por_nombre:profile.nombre||user()?.name||'Coordinación',
         estados:{},
         validaciones:{},
         encuesta:config,
@@ -987,6 +1008,43 @@
       showToast('Pedido enviado y guardado en Supabase.','success');
     }catch(error){
       showToast(`No se pudo enviar el pedido: ${error?.message||error}`,'error');
+    }finally{
+      state.busy=false;
+      renderPage();
+    }
+  }
+  async function deleteCommunication(c){
+    if(!c||!isManager())return;
+    const title=String(c?.titulo||'esta comunicación').trim();
+    const accepted=window.confirm(`¿Eliminar “${title}”?\n\nSe eliminarán la comunicación y todas sus respuestas. Esta acción no se puede deshacer.`);
+    if(!accepted)return;
+    state.busy=true;
+    renderPage();
+    try{
+      await verifiedManagerProfile();
+      const id=c?.remoteId||c?.id;
+      if(c?._remoteSaved){
+        if(!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.eliminarComunicacion!=='function'){
+          throw new Error('No se pudo conectar con el servicio de eliminación.');
+        }
+        const result=await window.DGIE_DB.eliminarComunicacion(id);
+        if(result?.error)throw result.error;
+      }
+      const list=communications();
+      const index=list.findIndex(item=>item===c||commId(item)===String(id));
+      if(index>=0)list.splice(index,1);
+      delete state.responseDrafts[String(id)];
+      delete state.dirtyResponses[String(id)];
+      delete state.responseFiles[String(id)];
+      delete state.editingResponses[String(id)];
+      const visible=visibleCommunications();
+      state.selectedId=visible[0]?commId(visible[0]):null;
+      state.detailView='resumen';
+      state.table={q:'',zone:'',status:''};
+      state.lastSync=Date.now();
+      showToast('Comunicación eliminada.','success');
+    }catch(error){
+      showToast(`No se pudo eliminar la comunicación: ${error?.message||error}`,'error');
     }finally{
       state.busy=false;
       renderPage();
@@ -1271,7 +1329,7 @@
 
   async function handleAction(button){
     const action=button.dataset.dgcAction;
-    if(state.busy&&['save-communication','save-draft','submit-response','mark-read'].includes(action))return;
+    if(state.busy&&['save-communication','delete-communication','save-draft','submit-response','mark-read'].includes(action))return;
     const c=findComm(button.dataset.commId||state.selectedId);
     if(action==='select'){
       state.selectedId=button.dataset.commId;
@@ -1303,6 +1361,7 @@
       return;
     }
     if(action==='save-communication'){await saveCommunication();return;}
+    if(action==='delete-communication'){await deleteCommunication(c);return;}
     if(action==='edit-response'){state.editingResponses[commId(c)]=true;renderPage();return;}
     if(action==='save-draft'){await saveResponse(c,false);return;}
     if(action==='submit-response'){await saveResponse(c,true);return;}
