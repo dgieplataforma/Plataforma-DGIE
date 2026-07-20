@@ -101,6 +101,73 @@
 .dgie-cert-action-return:hover{
   background:#fff2f1!important;
 }
+.dgie-cert-versions{
+  margin-top:10px;
+  border:1px solid #d7e2ed;
+  border-radius:6px;
+  background:#f8fafc;
+}
+.dgie-cert-versions summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-height:38px;
+  padding:8px 11px;
+  color:#31516f;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  list-style-position:inside;
+}
+.dgie-cert-versions summary span{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#e5eef8;
+  color:#075696;
+  font-size:11px;
+}
+.dgie-cert-versions-list{
+  border-top:1px solid #d7e2ed;
+}
+.dgie-cert-version-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 11px;
+}
+.dgie-cert-version-row+.dgie-cert-version-row{
+  border-top:1px solid #e2e8f0;
+}
+.dgie-cert-version-file{
+  display:flex;
+  min-width:0;
+  align-items:baseline;
+  gap:8px;
+  font-size:12px;
+}
+.dgie-cert-version-file strong{
+  flex:0 0 auto;
+  color:#475569;
+}
+.dgie-cert-version-file a,
+.dgie-cert-version-file span{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.dgie-cert-version-meta{
+  flex:0 0 auto;
+  color:#64748b;
+  font-size:11px;
+  line-height:1.4;
+  text-align:right;
+}
 .dgie-cert-flow-summary{
   display:grid;
   grid-template-columns:minmax(0,1.4fr) minmax(170px,.6fr);
@@ -166,6 +233,14 @@
   }
   .dgie-cert-flow-summary{
     grid-template-columns:1fr;
+  }
+  .dgie-cert-version-row{
+    flex-direction:column;
+    gap:4px;
+  }
+  .dgie-cert-version-meta{
+    flex:auto;
+    text-align:left;
   }
   .dgie-cert-queue-panel{
     max-height:none;

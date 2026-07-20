@@ -4,6 +4,7 @@
   const ESTADO_PENDIENTE='pendiente';
   const ESTADO_DEVUELTO='devuelto';
   const ESTADO_MEDIDO='medido';
+  const META_VERSIONES_EMPRESA='VERSIONES_EMPRESA';
   const tabsActivas={inspector:ESTADO_PENDIENTE,empresa:ESTADO_PENDIENTE};
 
   function usuario(){
@@ -65,6 +66,69 @@
       String(certificado?.estado||'')!=='eliminado'&&
       Number(zonaCertificado(certificado))===Number(zona)
     );
+  }
+  function versionActualDesdeCertificado(certificado){
+    if(!certificado?.archivo_original&&!certificado?.url_original)return null;
+    return {
+      numero:1,
+      archivo:String(certificado?.archivo_original||'Archivo certificado'),
+      url:String(certificado?.url_original||''),
+      public_id:certificado?.public_id_original||null,
+      modulos_empresa:numero(certificado?.modulos_original),
+      monto_empresa:numero(certificado?.monto_empresa??certificado?.modulos_original),
+      fecha:String(certificado?.created_at||certificado?.updated_at||''),
+      autor:String(certificado?.creado_por||'Empresa'),
+      vigente:true
+    };
+  }
+  function versionesEmpresa(certificado){
+    const patron=new RegExp(`\\[${META_VERSIONES_EMPRESA}:([^\\]]*)\\]`);
+    const coincidencia=String(certificado?.observaciones_empresa||'').match(patron);
+    let versiones=[];
+    if(coincidencia){
+      try{
+        const parsed=JSON.parse(decodeURIComponent(coincidencia[1]));
+        if(Array.isArray(parsed))versiones=parsed.filter(item=>item&&typeof item==='object');
+      }catch(_){
+        versiones=[];
+      }
+    }
+    if(!versiones.length){
+      const actual=versionActualDesdeCertificado(certificado);
+      return actual?[actual]:[];
+    }
+    let vigente=versiones.findIndex(item=>item.vigente===true);
+    if(vigente<0)vigente=versiones.length-1;
+    return versiones.map((item,index)=>({
+      numero:Number(item.numero)||index+1,
+      archivo:String(item.archivo||'Archivo certificado'),
+      url:String(item.url||''),
+      public_id:item.public_id||null,
+      modulos_empresa:numero(item.modulos_empresa),
+      monto_empresa:numero(item.monto_empresa??item.modulos_empresa),
+      fecha:String(item.fecha||''),
+      autor:String(item.autor||'Empresa'),
+      vigente:index===vigente
+    }));
+  }
+  function observacionesConVersionesEmpresa(observaciones,versiones){
+    const patron=new RegExp(`\\s*\\[${META_VERSIONES_EMPRESA}:[^\\]]*\\]`,'g');
+    const base=String(observaciones||'').replace(patron,'').trim();
+    const meta=`[${META_VERSIONES_EMPRESA}:${encodeURIComponent(JSON.stringify(versiones||[]))}]`;
+    return [base,meta].filter(Boolean).join('\n');
+  }
+  function historialVersionesHTML(certificado){
+    const anteriores=versionesEmpresa(certificado).filter(item=>!item.vigente).reverse();
+    if(!anteriores.length)return '';
+    return `<details class="dgie-cert-versions" data-cert-versiones>
+      <summary>Versiones anteriores <span>${anteriores.length}</span></summary>
+      <div class="dgie-cert-versions-list">
+        ${anteriores.map(version=>`<div class="dgie-cert-version-row">
+          <div class="dgie-cert-version-file"><strong>Versión ${esc(version.numero)}</strong>${version.url?`<a href="${esc(version.url)}" target="_blank" rel="noopener">${esc(version.archivo)}</a>`:`<span>${esc(version.archivo)}</span>`}</div>
+          <div class="dgie-cert-version-meta">${modulos(version.modulos_empresa)} módulos empresa${version.fecha?` · Cargada ${esc(fecha(version.fecha))}`:''}</div>
+        </div>`).join('')}
+      </div>
+    </details>`;
   }
   function fecha(value){
     if(!value)return '';
@@ -155,6 +219,10 @@
     tarjeta.dataset.certEstado=estado;
 
     tarjeta.querySelectorAll('[data-cert-workflow-action]').forEach(elemento=>elemento.remove());
+    tarjeta.querySelectorAll('[data-cert-versiones]').forEach(elemento=>elemento.remove());
+    const meta=hijoDirectoClase(tarjeta,'med-card-meta');
+    const historial=historialVersionesHTML(certificado);
+    if(meta&&historial)meta.insertAdjacentHTML('afterend',historial);
     const acciones=hijoDirectoClase(tarjeta,'med-actions');
     if(!acciones)return;
 
@@ -404,10 +472,11 @@
       <div class="card">
         <button type="button" class="back-btn" id="dgie-cert-resubmit-back">‹ Volver a certificación</button>
         <div class="card-header">
-          <div><div class="card-title">Corregir y reenviar</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El archivo corregido reemplazará la versión vigente y volverá a Pendientes.</div></div>
+          <div><div class="card-title">Corregir y reenviar</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La nueva versión quedará vigente y la anterior se conservará en el historial.</div></div>
           <span class="badge b-danger">Requiere corrección</span>
         </div>
         ${resumenCertificado(certificado)}
+        ${historialVersionesHTML(certificado)}
         <div class="form-grid">
           <div class="form-field full">
             <label class="form-label" for="dgie-cert-resubmit-file">Certificado Excel corregido *</label>
@@ -462,12 +531,26 @@
       const subida=typeof window.subirCertFile==='function'
         ? await window.subirCertFile(archivo)
         : {url:'',publicId:null};
+      const ahora=new Date().toISOString();
+      const anteriores=versionesEmpresa(certificado).map(version=>({...version,vigente:false}));
+      const versiones=[...anteriores,{
+        numero:anteriores.length+1,
+        archivo:archivo.name,
+        url:subida?.url||'',
+        public_id:subida?.publicId||null,
+        modulos_empresa:modulosCorregidos,
+        monto_empresa:modulosCorregidos,
+        fecha:ahora,
+        autor:usuario()?.name||'Empresa',
+        vigente:true
+      }];
       const patch={
         archivo_original:archivo.name,
         url_original:subida?.url||'',
         public_id_original:subida?.publicId||null,
         modulos_original:modulosCorregidos,
         monto_empresa:modulosCorregidos,
+        observaciones_empresa:observacionesConVersionesEmpresa(certificado?.observaciones_empresa,versiones),
         archivo_inspector:null,
         url_inspector:null,
         public_id_inspector:null,
@@ -489,6 +572,25 @@
       if(enviar)enviar.disabled=false;
     }
   };
+
+  function mejorarGestionInspector(id){
+    const certificado=certificadoPorId(id);
+    const tarjeta=document.getElementById('insp-cert-file')?.closest('.card');
+    if(!certificado||!tarjeta)return;
+    tarjeta.querySelectorAll('[data-cert-versiones]').forEach(elemento=>elemento.remove());
+    const historial=historialVersionesHTML(certificado);
+    if(!historial)return;
+    hijoDirectoClase(tarjeta,'card-header')?.insertAdjacentHTML('afterend',historial);
+  }
+
+  const revisarAnterior=window.revisarCertificadoInspector;
+  if(typeof revisarAnterior==='function'){
+    window.revisarCertificadoInspector=function(id){
+      const resultado=revisarAnterior.apply(this,arguments);
+      setTimeout(()=>mejorarGestionInspector(id),0);
+      return resultado;
+    };
+  }
 
   const filtrarInspectorAnterior=window.filtrarMedicionesInspector;
   if(typeof filtrarInspectorAnterior==='function'){
@@ -517,6 +619,8 @@
 
   window.DGIE_CERTIFICACION_FLUJO={
     estadoFlujo,
+    versionesEmpresa,
+    historialVersionesHTML,
     mejorarVistaInspector,
     mejorarVistaEmpresa
   };
