@@ -66,43 +66,6 @@
       Number(zonaCertificado(certificado))===Number(zona)
     );
   }
-  function limpiarObservacion(value){
-    if(typeof window.limpiarObsCert==='function')return window.limpiarObsCert(value);
-    return String(value||'').replace(/\s*\[[A-Z_]+:[^\]]*\]/g,'').trim();
-  }
-  function conversaciones(certificado){
-    if(typeof window.conversacionCert==='function'){
-      const items=window.conversacionCert(certificado);
-      return Array.isArray(items)?items:[];
-    }
-    return Array.isArray(certificado?.conversacion)?certificado.conversacion:[];
-  }
-  function etiquetasTecnicas(value,opciones={}){
-    const permitidas=opciones.empresa
-      ? ['RUBRO_CERT','RUBROS_CERT']
-      : ['OS_CERT','RUBRO_CERT','RUBROS_CERT','ARCHIVO_RENOMBRE'];
-    const patron=new RegExp(`\\[(?:${permitidas.join('|')}):[^\\]]*\\]`,'g');
-    return [...new Set(String(value||'').match(patron)||[])];
-  }
-  function observacionConConversacion(texto,etiquetas,mensajes){
-    const base=[String(texto||'').trim(),...(etiquetas||[])].filter(Boolean).join('\n');
-    if(typeof window.obsConConversacion==='function'){
-      return window.obsConConversacion(base,mensajes);
-    }
-    return [base,`[CONV_CERT:${encodeURIComponent(JSON.stringify(mensajes||[]))}]`]
-      .filter(Boolean)
-      .join('\n');
-  }
-  function motivoDevolucion(certificado){
-    const mensajes=conversaciones(certificado);
-    for(let index=mensajes.length-1;index>=0;index--){
-      const mensaje=mensajes[index]||{};
-      if(String(mensaje.tipo||'')==='devolucion'){
-        return String(mensaje.motivo||mensaje.texto||'').replace(/^Devoluci[oó]n:\s*/i,'').trim();
-      }
-    }
-    return limpiarObservacion(certificado?.observaciones_inspector)||'No se registró un motivo.';
-  }
   function fecha(value){
     if(!value)return '';
     try{
@@ -192,33 +155,17 @@
     tarjeta.dataset.certEstado=estado;
 
     tarjeta.querySelectorAll('[data-cert-workflow-action]').forEach(elemento=>elemento.remove());
-    tarjeta.querySelectorAll('.dgie-cert-return-banner').forEach(elemento=>elemento.remove());
     const acciones=hijoDirectoClase(tarjeta,'med-actions');
     if(!acciones)return;
 
-    [...acciones.querySelectorAll('button')].forEach(elemento=>{
-      if(elemento.textContent.trim()==='Gestionar')elemento.remove();
-    });
     actualizarBadgeEstado(acciones,estado);
 
     if(estado===ESTADO_DEVUELTO){
-      const meta=hijoDirectoClase(tarjeta,'med-card-meta');
-      const aviso=document.createElement('div');
-      aviso.className='dgie-cert-return-banner';
-      aviso.innerHTML=`<strong>Motivo de devolución</strong><span>${esc(motivoDevolucion(certificado))}</span>`;
-      if(meta)meta.insertAdjacentElement('afterend',aviso);
-
       if(rol==='empresa'){
         insertarAntesDeEliminar(
           acciones,
           boton('Corregir y reenviar','primary-btn',()=>window.abrirReenvioCertificado(idCertificado(certificado)))
         );
-      }else{
-        const espera=document.createElement('span');
-        espera.className='dgie-cert-waiting';
-        espera.dataset.certWorkflowAction='1';
-        espera.textContent='Esperando corrección de la empresa';
-        insertarAntesDeEliminar(acciones,espera);
       }
       return;
     }
@@ -229,15 +176,7 @@
         boton(
           'Devolver',
           'secondary-btn dgie-cert-action-return',
-          ()=>window.abrirDevolucionCertificado(idCertificado(certificado))
-        )
-      );
-      insertarAntesDeEliminar(
-        acciones,
-        boton(
-          'Pasar a medición',
-          'primary-btn',
-          ()=>window.revisarCertificadoInspector(idCertificado(certificado))
+          evento=>window.devolverCertificado(idCertificado(certificado),evento.currentTarget)
         )
       );
     }
@@ -397,33 +336,6 @@
       if(subtitulo)subtitulo.textContent='Consultá el estado y corregí los certificados que fueron devueltos.';
     });
   }
-  function mejorarFormularioMedicion(){
-    const archivo=document.getElementById('insp-cert-file');
-    const tarjeta=archivo?.closest('.card');
-    if(!tarjeta)return;
-    const etiqueta=document.querySelector('#main-content > .section-label');
-    if(etiqueta)etiqueta.textContent='Inspector · Pasar certificado a medición';
-    if(!tarjeta.querySelector('.dgie-cert-flow-intro')){
-      const cabecera=hijoDirectoClase(tarjeta,'card-header');
-      const aviso=document.createElement('div');
-      aviso.className='dgie-cert-flow-intro';
-      aviso.textContent='Completá la versión corregida, la orden de servicio y el número de medición. Para solicitar una corrección a la empresa, usá “Devolver a empresa”.';
-      cabecera?.insertAdjacentElement('afterend',aviso);
-    }
-    const observaciones=document.getElementById('insp-cert-obs');
-    const label=observaciones?.closest('.form-field')?.querySelector('.form-label');
-    if(label)label.textContent='Observaciones de la medición';
-    const acciones=hijoDirectoClase(tarjeta,'modal-actions');
-    [...(acciones?.querySelectorAll('button')||[])].forEach(control=>{
-      if(/guardar revisión/i.test(control.textContent)){
-        control.textContent='Devolver a empresa';
-        control.classList.add('dgie-cert-action-return');
-      }
-      if(/guardar y pasar a medición/i.test(control.textContent)){
-        control.textContent='Pasar a medición';
-      }
-    });
-  }
   async function volverAListado(rol,tab){
     guardarTab(rol,tab);
     const principal=document.getElementById('main-content');
@@ -442,89 +354,41 @@
       <div><span class="dgie-cert-flow-kicker">Última actualización</span><div class="dgie-cert-flow-value">${esc(fecha(certificado?.updated_at||certificado?.created_at)||'Sin fecha')}</div></div>
     </div>`;
   }
-  window.abrirDevolucionCertificado=function(id){
+  window.devolverCertificado=async function(id,control){
     const certificado=certificadoPorId(id);
-    const principal=document.getElementById('main-content');
-    if(!certificado||!principal||usuario()?.role!=='inspector')return;
+    if(!certificado||usuario()?.role!=='inspector')return;
     if(Number(zonaCertificado(certificado))!==Number(usuario()?.zona||0))return;
     if(estadoFlujo(certificado)===ESTADO_MEDIDO){
       alert('El certificado ya pertenece a una medición.');
       return;
     }
-    principal.innerHTML=`<div class="section-label">Inspector · Devolver certificado</div>
-      <div class="card">
-        <button type="button" class="back-btn" id="dgie-cert-return-back">‹ Volver a certificación</button>
-        <div class="card-header">
-          <div><div class="card-title">Solicitar corrección a la empresa</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El certificado pasará a Devueltos y la empresa deberá reemplazar el archivo para reenviarlo.</div></div>
-          <span class="badge b-danger">Devuelto</span>
-        </div>
-        ${resumenCertificado(certificado)}
-        <div class="form-field">
-          <label class="form-label" for="dgie-cert-return-reason">Motivo de devolución *</label>
-          <textarea class="form-textarea" id="dgie-cert-return-reason" rows="5" maxlength="1500" placeholder="Indicá con precisión qué debe corregir la empresa."></textarea>
-          <div class="dgie-cert-required-note">Este motivo quedará visible en el historial del certificado.</div>
-          <div class="dgie-cert-inline-error" id="dgie-cert-return-error">Escribí un motivo de al menos 5 caracteres.</div>
-        </div>
-        <div class="modal-actions">
-          <span class="dgie-cert-submit-status" id="dgie-cert-return-status" role="status" aria-live="polite"></span>
-          <button type="button" class="secondary-btn" id="dgie-cert-return-cancel">Cancelar</button>
-          <button type="button" class="primary-btn dgie-cert-action-return" id="dgie-cert-return-submit">Confirmar devolución</button>
-        </div>
-      </div>`;
-    const volver=()=>volverAListado('inspector',ESTADO_PENDIENTE);
-    document.getElementById('dgie-cert-return-back')?.addEventListener('click',volver);
-    document.getElementById('dgie-cert-return-cancel')?.addEventListener('click',volver);
-    document.getElementById('dgie-cert-return-submit')?.addEventListener('click',()=>window.confirmarDevolucionCertificado(id));
-    document.getElementById('dgie-cert-return-reason')?.focus();
-  };
-  window.confirmarDevolucionCertificado=async function(id){
-    const certificado=certificadoPorId(id);
-    const motivo=(document.getElementById('dgie-cert-return-reason')?.value||'').trim();
-    const error=document.getElementById('dgie-cert-return-error');
-    const estado=document.getElementById('dgie-cert-return-status');
-    const enviar=document.getElementById('dgie-cert-return-submit');
-    if(!certificado||usuario()?.role!=='inspector')return;
-    if(Number(zonaCertificado(certificado))!==Number(usuario()?.zona||0))return;
-    if(motivo.length<5){
-      error?.classList.add('is-visible');
-      document.getElementById('dgie-cert-return-reason')?.focus();
+    if(estadoFlujo(certificado)===ESTADO_DEVUELTO){
+      await volverAListado('inspector',ESTADO_DEVUELTO);
       return;
     }
-    error?.classList.remove('is-visible');
-    if(enviar)enviar.disabled=true;
-    if(estado)estado.textContent='Guardando devolución...';
-
-    const mensajes=conversaciones(certificado).slice();
-    mensajes.push({
-      tipo:'devolucion',
-      motivo,
-      texto:`Devolución: ${motivo}`,
-      autor:usuario()?.name||'Inspector',
-      rol:'inspector',
-      fecha:new Date().toISOString()
-    });
-    const observaciones=observacionConConversacion(
-      motivo,
-      etiquetasTecnicas(certificado?.observaciones_inspector),
-      mensajes
-    );
+    const textoAnterior=control?.textContent||'Devolver';
+    if(control){
+      control.disabled=true;
+      control.setAttribute('aria-busy','true');
+      control.textContent='Devolviendo...';
+    }
     const patch={
       estado:ESTADO_DEVUELTO,
       medicion_numero:null,
       periodo:null,
       grupo_finalizado:false,
-      observaciones_inspector:observaciones,
-      conversacion:mensajes,
       actualizado_por:usuario()?.name||'Inspector'
     };
     try{
       await actualizarConCompatibilidad(id,patch);
-      if(estado)estado.textContent='Devuelto correctamente.';
       await volverAListado('inspector',ESTADO_DEVUELTO);
     }catch(excepcion){
-      if(estado)estado.textContent='';
       alert(mensajeError(excepcion,'devolver el certificado'));
-      if(enviar)enviar.disabled=false;
+      if(control){
+        control.disabled=false;
+        control.removeAttribute('aria-busy');
+        control.textContent=textoAnterior;
+      }
     }
   };
   window.abrirReenvioCertificado=function(id){
@@ -544,7 +408,6 @@
           <span class="badge b-danger">Requiere corrección</span>
         </div>
         ${resumenCertificado(certificado)}
-        <div class="dgie-cert-return-reason"><strong>Motivo indicado por el inspector</strong><p>${esc(motivoDevolucion(certificado))}</p></div>
         <div class="form-grid">
           <div class="form-field full">
             <label class="form-label" for="dgie-cert-resubmit-file">Certificado Excel corregido *</label>
@@ -555,11 +418,7 @@
             <label class="form-label" for="dgie-cert-resubmit-modules">Módulos</label>
             <input class="form-input" id="dgie-cert-resubmit-modules" type="number" step="0.001" readonly placeholder="Se completa al seleccionar el archivo">
           </div>
-          <div class="form-field full">
-            <label class="form-label" for="dgie-cert-resubmit-detail">Corrección realizada *</label>
-            <textarea class="form-textarea" id="dgie-cert-resubmit-detail" rows="4" maxlength="1500" placeholder="Explicá brevemente qué se corrigió."></textarea>
-            <div class="dgie-cert-inline-error" id="dgie-cert-resubmit-error">Seleccioná el archivo corregido y explicá la corrección realizada.</div>
-          </div>
+          <div class="form-field full"><div class="dgie-cert-inline-error" id="dgie-cert-resubmit-error">Seleccioná un archivo corregido válido.</div></div>
         </div>
         <div class="modal-actions">
           <span class="dgie-cert-submit-status" id="dgie-cert-resubmit-status" role="status" aria-live="polite"></span>
@@ -581,7 +440,6 @@
     const certificado=certificadoPorId(id);
     const archivo=document.getElementById('dgie-cert-resubmit-file')?.files?.[0];
     const modulosCorregidos=numero(document.getElementById('dgie-cert-resubmit-modules')?.value);
-    const detalle=(document.getElementById('dgie-cert-resubmit-detail')?.value||'').trim();
     const error=document.getElementById('dgie-cert-resubmit-error');
     const estado=document.getElementById('dgie-cert-resubmit-status');
     const enviar=document.getElementById('dgie-cert-resubmit-submit');
@@ -591,7 +449,7 @@
       alert('Este certificado ya fue actualizado. Volvé al listado para ver su estado.');
       return;
     }
-    if(!archivo||!modulosCorregidos||detalle.length<5){
+    if(!archivo||!modulosCorregidos){
       error?.classList.add('is-visible');
       return;
     }
@@ -604,54 +462,21 @@
       const subida=typeof window.subirCertFile==='function'
         ? await window.subirCertFile(archivo)
         : {url:'',publicId:null};
-      const mensajes=conversaciones(certificado).slice();
-      const observacionInicial=limpiarObservacion(certificado?.observaciones_empresa);
-      if(observacionInicial&&!mensajes.some(mensaje=>String(mensaje?.tipo||'')==='presentacion_inicial')){
-        mensajes.unshift({
-          tipo:'presentacion_inicial',
-          texto:`Presentación inicial: ${observacionInicial}`,
-          autor:certificado?.creado_por||'Empresa',
-          rol:'empresa',
-          fecha:certificado?.created_at||new Date().toISOString()
-        });
-      }
-      mensajes.push({
-        tipo:'reenvio',
-        texto:`Certificado corregido y reenviado (${archivo.name}). ${detalle}`,
-        detalle,
-        archivo_anterior:certificado?.archivo_original||'',
-        archivo_nuevo:archivo.name,
-        autor:usuario()?.name||'Empresa',
-        rol:'empresa',
-        fecha:new Date().toISOString()
-      });
-      const observacionesEmpresa=[
-        detalle,
-        ...etiquetasTecnicas(certificado?.observaciones_empresa,{empresa:true})
-      ].filter(Boolean).join('\n');
-      const observacionesInspector=observacionConConversacion(
-        '',
-        etiquetasTecnicas(certificado?.observaciones_inspector),
-        mensajes
-      );
       const patch={
         archivo_original:archivo.name,
         url_original:subida?.url||'',
         public_id_original:subida?.publicId||null,
         modulos_original:modulosCorregidos,
         monto_empresa:modulosCorregidos,
-        observaciones_empresa:observacionesEmpresa,
         archivo_inspector:null,
         url_inspector:null,
         public_id_inspector:null,
         modulos_inspector:0,
         monto_inspeccion:0,
-        observaciones_inspector:observacionesInspector,
         medicion_numero:null,
         periodo:null,
         grupo_finalizado:false,
         estado:ESTADO_PENDIENTE,
-        conversacion:mensajes,
         actualizado_por:usuario()?.name||'Empresa'
       };
       if(estado)estado.textContent='Guardando reenvío...';
@@ -665,24 +490,6 @@
     }
   };
 
-  const guardarRevisionAnterior=window.guardarRevisionCertificado;
-  if(typeof guardarRevisionAnterior==='function'){
-    window.guardarRevisionCertificado=function(id,medir){
-      if(medir!==true){
-        window.abrirDevolucionCertificado(id);
-        return Promise.resolve();
-      }
-      return guardarRevisionAnterior.apply(this,arguments);
-    };
-  }
-  const revisarAnterior=window.revisarCertificadoInspector;
-  if(typeof revisarAnterior==='function'){
-    window.revisarCertificadoInspector=function(){
-      const resultado=revisarAnterior.apply(this,arguments);
-      setTimeout(mejorarFormularioMedicion,0);
-      return resultado;
-    };
-  }
   const filtrarInspectorAnterior=window.filtrarMedicionesInspector;
   if(typeof filtrarInspectorAnterior==='function'){
     window.filtrarMedicionesInspector=function(){
@@ -710,7 +517,6 @@
 
   window.DGIE_CERTIFICACION_FLUJO={
     estadoFlujo,
-    motivoDevolucion,
     mejorarVistaInspector,
     mejorarVistaEmpresa
   };

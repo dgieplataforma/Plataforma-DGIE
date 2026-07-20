@@ -94,54 +94,12 @@
   font-size:13px;
   line-height:1.45;
 }
-.dgie-cert-return-banner{
-  margin-top:10px;
-  padding:10px 12px;
-  border:1px solid #efc3bf;
-  border-left:4px solid #c43830;
-  border-radius:6px;
-  background:#fff7f6;
-  color:#7f1d1d;
-}
-.dgie-cert-return-banner strong{
-  display:block;
-  margin-bottom:3px;
-  color:#991b1b;
-  font-size:12px;
-}
-.dgie-cert-return-banner span{
-  display:block;
-  overflow-wrap:anywhere;
-  font-size:13px;
-  line-height:1.45;
-}
-.dgie-cert-waiting{
-  display:inline-flex;
-  align-items:center;
-  min-height:34px;
-  padding:6px 9px;
-  border-left:3px solid #c43830;
-  color:#7f1d1d;
-  font-size:12px;
-  font-weight:800;
-}
 .dgie-cert-action-return{
   border-color:#e9b4b0!important;
   color:#a5231d!important;
 }
 .dgie-cert-action-return:hover{
   background:#fff2f1!important;
-}
-.dgie-cert-flow-intro{
-  margin:0 0 16px;
-  padding:12px 14px;
-  border:1px solid #cddceb;
-  border-left:4px solid #0b67b2;
-  border-radius:6px;
-  background:#f5f9fd;
-  color:#334155;
-  font-size:13px;
-  line-height:1.5;
 }
 .dgie-cert-flow-summary{
   display:grid;
@@ -169,28 +127,6 @@
   font-size:14px;
   font-weight:800;
   line-height:1.4;
-  overflow-wrap:anywhere;
-}
-.dgie-cert-return-reason{
-  margin-bottom:16px;
-  padding:12px 14px;
-  border:1px solid #efc3bf;
-  border-left:4px solid #c43830;
-  border-radius:6px;
-  background:#fff7f6;
-}
-.dgie-cert-return-reason strong{
-  display:block;
-  margin-bottom:4px;
-  color:#991b1b;
-  font-size:12px;
-}
-.dgie-cert-return-reason p{
-  margin:0;
-  color:#5f2120;
-  font-size:14px;
-  line-height:1.5;
-  white-space:pre-wrap;
   overflow-wrap:anywhere;
 }
 .dgie-cert-required-note{
