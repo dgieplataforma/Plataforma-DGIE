@@ -14,7 +14,6 @@
 <script src="./dgie-supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./dgie-comunicaciones.css?v=20260717-2">
 
 <style>
 :root{--bg:#f3f6fb;--panel:#fff;--panel2:#f7f9fc;--text:#1f2937;--muted:#64748b;--border:#d9e2ef;--blue:#005aa9;--blue2:#0072ce;--blue-soft:#e6f1fb;--danger:#c62828;--warn:#d97706;--ok:#2e7d32;--shadow:0 10px 30px rgba(15,23,42,.08)}
@@ -16117,12 +16116,22 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return '<span class="arg-mini-badge" title="Argentina"><span class="arg-stars"><i class="arg-star"></i><i class="arg-star"></i><i class="arg-star"></i></span><span class="arg-flag"></span></span>';
   }
   function aplicarArgDecoracion(){
-    document.querySelectorAll('.arg-mini-badge').forEach(x=>x.remove());
+    const name=document.getElementById('topbar-name');
+    if(!name||document.querySelector('.arg-mini-badge'))return;
+    name.insertAdjacentHTML('beforebegin',argentinaBadgeHTML());
   }
   function confettiHTML(){
     return Array.from({length:9},(_,i)=>`<i class="arg-confetti c${i%3+1}" style="left:${58+i*29%230}px;bottom:${18+i%4*8}px;animation-delay:${i*.055}s"></i>`).join('');
   }
-  window.mostrarOrdenGuardadaArgentina=function(){};
+  window.mostrarOrdenGuardadaArgentina=function(){
+    document.querySelectorAll('.arg-save-toast').forEach(x=>x.remove());
+    const box=document.createElement('div');
+    box.className='arg-save-toast';
+    box.innerHTML=`${confettiHTML()}<div class="arg-player-wrap" aria-hidden="true"><div class="arg-player"><div class="arg-head"></div><div class="arg-shirt"></div><div class="arg-arm left"></div><div class="arg-arm right"></div><div class="arg-shorts"></div><div class="arg-leg left"></div><div class="arg-leg right"></div></div><div class="arg-cup"><div class="bowl"></div><div class="stem"></div><div class="base"></div></div></div><div class="arg-toast-text"><div class="arg-toast-kicker">Argentina</div><div class="arg-toast-title">Orden de servicio guardada</div><div class="arg-toast-sub">Leo levanta la copa, la orden ya quedó registrada.</div></div>`;
+    document.body.appendChild(box);
+    requestAnimationFrame(()=>box.classList.add('show'));
+    setTimeout(()=>{box.classList.remove('show');box.classList.add('hide');setTimeout(()=>box.remove(),430);},3300);
+  };
   function envolverGuardadoOS(nombre){
     const previo=window[nombre];
     if(typeof previo!=='function'||previo.__argentinaWorldcup)return;
@@ -16148,6 +16157,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     wrapped.__argentinaWorldcup=true;
     window.loadUser=wrapped;
   }
+  envolverGuardadoOS('guardarNuevaOS');
+  envolverGuardadoOS('guardarEdicionOS');
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aplicarArgDecoracion);else aplicarArgDecoracion();
 })();
 </script>
@@ -16177,12 +16188,25 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return '<span class="arg-mini-badge" title="Argentina"><span class="arg-stars"><i class="arg-star"></i><i class="arg-star"></i><i class="arg-star"></i></span><span class="arg-flag"></span></span>';
   }
   function aplicarArgDecoracionFuera(){
+    const topbar=document.querySelector('.topbar-right');
+    const chip=topbar?.querySelector('.user-chip');
+    if(!topbar||!chip)return;
     document.querySelectorAll('.arg-mini-badge').forEach(x=>x.remove());
+    chip.insertAdjacentHTML('beforebegin',argentinaBadgeHTML());
   }
   function confettiHTML(){
     return Array.from({length:22},(_,i)=>`<i class="arg-confetti c${i%3+1}" style="left:${6+(i*43)%88}vw;top:${-10-(i%5)*8}px;animation-delay:${i*.045}s"></i>`).join('');
   }
-  window.mostrarOrdenGuardadaArgentina=function(){};
+  window.mostrarOrdenGuardadaArgentina=function(){
+    document.querySelectorAll('.arg-save-toast').forEach(x=>x.remove());
+    const box=document.createElement('div');
+    box.className='arg-save-toast';
+    box.setAttribute('role','status');
+    box.innerHTML=`${confettiHTML()}<div class="arg-save-stage"><img class="arg-messi-photo" src="assets/messi-copa-bgless.png" alt="Leo Messi con la copa"><div class="arg-toast-panel"><div class="arg-toast-kicker">Argentina</div><div class="arg-toast-title">Orden de servicio guardada</div><div class="arg-toast-sub">La orden quedo registrada correctamente.</div></div></div>`;
+    document.body.appendChild(box);
+    requestAnimationFrame(()=>box.classList.add('show'));
+    setTimeout(()=>{box.classList.remove('show');box.classList.add('hide');setTimeout(()=>box.remove(),420);},3400);
+  };
   const prevLoadUser=window.loadUser;
   if(typeof prevLoadUser==='function'&&!prevLoadUser.__argentinaWorldcupOutsideBadge){
     const wrapped=function(){
@@ -16382,7 +16406,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function pad(v){return String(Math.max(0,Math.floor(v))).padStart(2,'0')}
   function esHoyMensaje(){return true}
   function rolUsuarioActual(){const user=typeof currentUser!=='undefined'?currentUser:window.currentUser;return (user?.role||user?.rol||'').toLowerCase()}
-  function usuarioVeCountdown(){return false}
+  function usuarioVeCountdown(){return rolUsuarioActual()!=='empresa'}
   function usuarioVeAviso(){const rol=rolUsuarioActual();return rol==='inspector'||rol==='coordinador'}
   function esCoordinador(){const rol=rolUsuarioActual();return rol==='coordinador'}
   function countdownHTML(){return '<span class="arg-match-stack" id="arg-match-stack"><span class="arg-match-line"><span class="arg-match-countdown" id="arg-match-countdown" title="Cuenta regresiva selección argentina"><span class="arg-match-dot"></span><span class="arg-match-info"><span class="arg-match-title" data-arg-match-title>Próximo partido</span><span class="arg-match-sub" data-arg-match-sub>Argentina</span></span><span class="arg-match-time" aria-live="polite"><span data-arg-dd>00</span><small>d</small><b class="arg-match-sep">:</b><span data-arg-hh>00</span><small>h</small><b class="arg-match-sep">:</b><span data-arg-mm>00</span><small>m</small><b class="arg-match-sep">:</b><span data-arg-ss>00</span><small>s</small></span></span></span><span class="arg-topbar-msg" id="arg-topbar-msg" onclick="editarMensajeArgentinaHoy()" title="Editar mensaje"></span></span>'}
@@ -21948,6 +21972,394 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 })();
 </script>
-<script src="./dgie-comunicaciones.js?v=20260717-2"></script>
+<style id="dgie-comunicaciones-prototipo-2026-07-17">
+.commx-page{display:grid;gap:14px}
+.commx-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.commx-top-title{font-size:18px;font-weight:900;color:#123c69}
+.commx-top-sub{font-size:13px;color:#64748b;margin-top:3px}
+.commx-view-controls{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end}
+.commx-main{display:grid;grid-template-columns:minmax(340px,430px) minmax(0,1fr);gap:14px;align-items:start}
+.commx-panel{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.commx-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.commx-metric{border:1px solid #e5edf7;border-radius:10px;background:#f8fafc;padding:10px}
+.commx-metric span{display:block;font-size:11px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
+.commx-metric strong{display:block;margin-top:4px;font-size:24px;line-height:1;color:#123c69}
+.commx-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.commx-list{display:grid;gap:8px}
+.commx-item{width:100%;text-align:left;border:1px solid #d9e2ef;border-radius:10px;background:#fff;padding:12px;cursor:pointer}
+.commx-item:hover,.commx-item.is-active{border-color:var(--blue);background:#f4f9ff}
+.commx-item-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.commx-title{font-size:14px;font-weight:900;color:#123c69;line-height:1.25}
+.commx-meta{font-size:12px;color:#64748b;line-height:1.35;margin-top:4px}
+.commx-preview{font-size:13px;color:#334155;line-height:1.35;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.commx-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.commx-detail-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.commx-detail-title{font-size:18px;font-weight:900;color:#123c69}
+.commx-message{font-size:14px;line-height:1.55;color:#334155;white-space:pre-wrap;border:1px solid #e5edf7;background:#fbfdff;border-radius:10px;padding:12px;margin:10px 0}
+.commx-state-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px}
+.commx-state{border:1px solid #e5edf7;border-radius:10px;background:#f8fafc;padding:10px;font-size:12px;color:#475569}
+.commx-state strong{display:block;color:#123c69;margin-bottom:4px}
+.commx-compose-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.commx-compose-grid .full{grid-column:1/-1}
+.commx-param-box{border:1px solid #d9e2ef;border-radius:10px;background:#f8fafc;padding:10px}
+.commx-param-check{display:flex;gap:9px;align-items:flex-start;font-size:13px;font-weight:900;color:#334155}
+.commx-param-check input{width:18px;height:18px;accent-color:#005aa9;margin-top:1px}
+.commx-est-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:8px}
+.commx-est-list{display:grid;gap:8px;margin-top:10px}
+.commx-est-row{border:1px solid #d9e2ef;border-radius:10px;background:#fff;padding:10px}
+.commx-est-row-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px}
+.commx-est-name{font-size:13px;font-weight:900;color:#123c69}
+.commx-est-comment{font-size:12px;color:#334155;line-height:1.4;margin-top:4px;white-space:pre-wrap}
+@media(max-width:1000px){.commx-top{align-items:stretch;flex-direction:column}.commx-view-controls{justify-content:flex-start}.commx-main{grid-template-columns:1fr}.commx-toolbar{grid-template-columns:1fr 1fr}.commx-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<script id="dgie-comunicaciones-prototipo-2026-07-17">
+(function(){
+  const STATE={pendiente:['Pendiente','b-neutral'],visto:['Leida','b-info'],en_proceso:['En proceso','b-warn'],completado:['Respondida','b-ok'],cerrada:['Cerrada','b-ok']};
+  let protoViewMode=null;
+  let protoViewZona=null;
+  let selectedCommId=null;
+  const filters={q:'',estado:'',tipo:'',prio:''};
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v==null?'':v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+  function fecha(v){try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}}
+  function ts(v){const n=new Date(v||0).getTime();return Number.isFinite(n)?n:0}
+  function idSafe(v){return String(v??'').replace(/[^a-zA-Z0-9_-]/g,'_')}
+  function protoMode(){
+    if(protoViewMode)return protoViewMode;
+    const r=String(currentUser?.role||'').toLowerCase();
+    if(r==='empresa')return 'empresa';
+    if(r==='inspector')return 'inspector';
+    return 'coordinador';
+  }
+  function protoZona(){return Number(protoViewZona||currentUser?.zona||1)||1}
+  function protoUser(){
+    const mode=protoMode();
+    if(mode==='coordinador')return {role:'coordinador',name:'Coordinacion'};
+    if(mode==='empresa')return {role:'empresa',zona:protoZona(),name:`Empresa Zona ${protoZona()}`};
+    if(mode==='inspector')return {role:'inspector',zona:protoZona(),name:`Inspector Zona ${protoZona()}`};
+    return currentUser||{role:'coordinador',name:'Coordinacion'};
+  }
+  function role(){return String(protoUser()?.role||'').toLowerCase()}
+  function esGestion(){return ['coordinador','direccion','director'].includes(role())}
+  function esEmpresa(){return role()==='empresa'}
+  function zonas(){return Array.from({length:17},(_,i)=>i+1)}
+  function keyInspector(z){return `inspector:${Number(z)}`}
+  function keyEmpresa(z){return `empresa:${Number(z)}`}
+  function targetKey(){const u=protoUser();return esEmpresa()?keyEmpresa(u?.zona):keyInspector(u?.zona)}
+  function tipoLabel(c){
+    const t=String(c?.tipo||'notificacion');
+    return {tarea:'Solicitud',notificacion:'Aviso',comunicado:'Comunicado',consulta:'Consulta',requerimiento:'Requerimiento'}[t]||t;
+  }
+  function pideEstablecimientos(c){return !!(c?.parametros?.establecimientos?.habilitado||c?.solicitaEstablecimientos)}
+  function establecimientosZona(z){
+    return (Array.isArray(window.ESTABS)?window.ESTABS:(typeof ESTABS!=='undefined'?ESTABS:[]))
+      .filter(e=>Number(e?.zona)===Number(z))
+      .sort((a,b)=>String(a.n||'').localeCompare(String(b.n||''),'es'));
+  }
+  function estById(id){
+    return (Array.isArray(window.ESTABS)?window.ESTABS:(typeof ESTABS!=='undefined'?ESTABS:[]))
+      .find(e=>Number(e.id)===Number(id));
+  }
+  function establecimientosRespuesta(st){return Array.isArray(st?.establecimientos)?st.establecimientos:[]}
+  function guardarLocalPrototipo(){
+    try{localStorage.setItem('dgie_comunicaciones_prototipo_v1',JSON.stringify(COMUNICACIONES||[]))}catch(_){}
+  }
+  function mezclarLocalesPrototipo(){
+    try{
+    const guardadas=JSON.parse(localStorage.getItem('dgie_comunicaciones_prototipo_v1')||'[]');
+    if(Array.isArray(guardadas)&&Array.isArray(COMUNICACIONES)){
+      const ids=new Set(COMUNICACIONES.map(c=>String(c.id||c.remoteId)));
+      guardadas.slice().reverse().forEach(c=>{const id=String(c?.id||c?.remoteId);if(id&&!ids.has(id)){COMUNICACIONES.unshift(c);ids.add(id)}});
+    }
+    }catch(_){}
+  }
+  mezclarLocalesPrototipo();
+  function prioridad(c){return String(c?.prioridad||c?.priority||'normal').toLowerCase()}
+  function prioridadBadge(c){
+    const p=prioridad(c);
+    const map={urgente:['Urgente','b-danger'],alta:['Alta','b-warn'],normal:['Normal','b-info'],baja:['Baja','b-neutral']};
+    const it=map[p]||map.normal;
+    return `<span class="badge ${it[1]}">${it[0]}</span>`;
+  }
+  function destinos(c){
+    if(c?.alcance==='general')return zonas().map(z=>({key:keyInspector(z),label:`Zona ${z}`,tipo:'inspector',zona:z}));
+    if(c?.alcance==='zona')return (c.zonas||[]).map(Number).map(z=>({key:keyInspector(z),label:`Zona ${z}`,tipo:'inspector',zona:z}));
+    if(c?.alcance==='empresas')return zonas().map(z=>({key:keyEmpresa(z),label:`Empresa Z${z}`,tipo:'empresa',zona:z}));
+    if(c?.alcance==='empresa_zona')return (c.zonas||[]).map(Number).map(z=>({key:keyEmpresa(z),label:`Empresa Z${z}`,tipo:'empresa',zona:z}));
+    if(c?.alcance==='coordinador')return [{key:'coordinador',label:'Coordinacion',tipo:'coordinador'}];
+    return [];
+  }
+  function estado(c,key){return (c.estados||{})[String(key)]||{estado:'pendiente'}}
+  function estadoFinal(c){
+    const ds=destinos(c);
+    if(!ds.length)return 'pendiente';
+    const states=ds.map(d=>estado(c,d.key).estado||'pendiente');
+    if(states.every(s=>s==='completado'||s==='visto'||s==='cerrada'))return 'completado';
+    if(states.some(s=>s==='en_proceso'||s==='visto'))return 'en_proceso';
+    return 'pendiente';
+  }
+  function estadoBadge(s){
+    const it=STATE[s]||STATE.pendiente;
+    return `<span class="badge ${it[1]}">${it[0]}</span>`;
+  }
+  function ultimaActividad(c){
+    const stateDates=Object.values(c.estados||{}).map(s=>ts(s?.fecha||s?.completadoFecha));
+    return Math.max(ts(c.updatedAt||c.updated_at||c.createdAt||c.created_at),0,...stateDates);
+  }
+  function vencida(c){
+    const v=c.fechaLimite||c.vencimiento||c.deadline;
+    return !!v&&new Date(v).getTime()<Date.now()&&estadoFinal(c)!=='completado';
+  }
+  function visibles(){
+    mezclarLocalesPrototipo();
+    const q=norm(filters.q), fEstado=filters.estado, fTipo=filters.tipo, fPrio=filters.prio;
+    let data=(COMUNICACIONES||[]).slice();
+    if(!esGestion()){
+      const k=targetKey();
+      data=data.filter(c=>destinos(c).some(d=>d.key===k));
+    }
+    return data.filter(c=>{
+      const e=estadoFinal(c), text=norm(`${c.titulo||''} ${c.mensaje||''} ${tipoLabel(c)} ${destinos(c).map(d=>d.label).join(' ')}`);
+      return (!q||text.includes(q))&&(!fEstado||e===fEstado||fEstado==='vencida'&&vencida(c))&&(!fTipo||String(c.tipo||'')===fTipo)&&(!fPrio||prioridad(c)===fPrio);
+    }).sort((a,b)=>ultimaActividad(b)-ultimaActividad(a));
+  }
+  function metricas(data){
+    const pendientes=data.filter(c=>estadoFinal(c)==='pendiente').length;
+    const proceso=data.filter(c=>estadoFinal(c)==='en_proceso').length;
+    const respondidas=data.filter(c=>estadoFinal(c)==='completado').length;
+    const vencidas=data.filter(vencida).length;
+    return `<div class="commx-metrics"><div class="commx-metric"><span>Pendientes</span><strong>${pendientes}</strong></div><div class="commx-metric"><span>En curso</span><strong>${proceso}</strong></div><div class="commx-metric"><span>Respondidas</span><strong>${respondidas}</strong></div><div class="commx-metric"><span>Vencidas</span><strong>${vencidas}</strong></div></div>`;
+  }
+  function alcance(c){
+    const ds=destinos(c);
+    if(c.alcance==='general')return 'Todos los inspectores';
+    if(c.alcance==='empresas')return 'Todas las empresas';
+    return ds.map(d=>d.label).join(', ')||'Sin destino';
+  }
+  function card(c){
+    const active=String(selectedCommId||'')===String(c.id||c.remoteId), st=estadoFinal(c);
+    const pendientes=destinos(c).filter(d=>['pendiente','en_proceso'].includes(estado(c,d.key).estado||'pendiente')).length;
+    return `<button class="commx-item ${active?'is-active':''}" type="button" data-comm-select="${esc(c.id||c.remoteId)}"><div class="commx-item-top"><div><div class="commx-title">${esc(c.titulo||'Sin titulo')}</div><div class="commx-meta">${fecha(c.createdAt||c.created_at)} · ${esc(alcance(c))}</div></div>${estadoBadge(st)}</div><div class="commx-preview">${esc(c.mensaje||'')}</div><div class="commx-badges"><span class="badge b-info">${esc(tipoLabel(c))}</span>${prioridadBadge(c)}${vencida(c)?'<span class="badge b-danger">Vencida</span>':''}<span class="badge b-neutral">${pendientes} pendientes</span></div></button>`;
+  }
+  function detalle(c){
+    if(!c)return `<div class="commx-panel" style="text-align:center;color:#64748b">Selecciona una comunicacion para ver el detalle.</div>`;
+    return `<div class="commx-panel"><div class="commx-detail-head"><div><div class="commx-detail-title">${esc(c.titulo||'Sin titulo')}</div><div class="commx-meta">${fecha(c.createdAt||c.created_at)} · ${esc(c.creadoPor||c.creado_por_nombre||'Usuario')} · ${esc(alcance(c))}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${estadoBadge(estadoFinal(c))}${prioridadBadge(c)}${pideEstablecimientos(c)?'<span class="badge b-info">Solicita establecimientos</span>':''}</div></div><div class="commx-message">${esc(c.mensaje||'')}</div>${archivos(c)}${accionesUsuario(c)}<div class="commx-state-grid">${destinos(c).map(d=>estadoDestino(c,d)).join('')}</div></div>`;
+  }
+  function archivos(c){
+    const arr=Array.isArray(c.archivos)?c.archivos:[];
+    if(!arr.length)return '';
+    return `<div class="commx-badges">${arr.map((f,i)=>`<span class="badge b-neutral">Archivo ${i+1}: ${esc(f.nombre||f.name||'archivo')}</span>`).join('')}</div>`;
+  }
+  function accionesUsuario(c){
+    if(esGestion())return '';
+    const k=targetKey(), st=estado(c,k);
+    if(['completado','visto'].includes(st.estado))return `<div class="commx-panel" style="box-shadow:none;margin:10px 0;background:#f8fafc"><strong>Respuesta registrada</strong>${st.respuestaTexto?`<div class="commx-meta">${esc(st.respuestaTexto)}</div>`:''}${respuestaEstablecimientosLectura(st)}</div>`;
+    return `<div class="commx-panel" style="box-shadow:none;margin:10px 0;background:#f8fafc"><label class="form-label">Respuesta</label><textarea class="form-textarea" id="commx-respuesta" style="min-height:78px" placeholder="Escribir respuesta...">${esc(st.respuestaTexto||'')}</textarea>${pideEstablecimientos(c)?selectorEstablecimientos(c,st):''}<div class="modal-actions"><button class="secondary-btn" type="button" data-comm-status="en_proceso" data-comm-id="${esc(c.id||c.remoteId)}">Guardar avance</button><button class="primary-btn" type="button" data-comm-status="${String(c.tipo)==='notificacion'?'visto':'completado'}" data-comm-id="${esc(c.id||c.remoteId)}">${String(c.tipo)==='notificacion'?'Marcar leida':'Responder y cerrar'}</button></div></div>`;
+  }
+  function selectorEstablecimientos(c,st){
+    const id=idSafe(c.id||c.remoteId), seleccion=establecimientosRespuesta(st), usados=new Set(seleccion.map(x=>Number(x.estId)));
+    const opts=establecimientosZona(protoUser()?.zona).filter(e=>!usados.has(Number(e.id))).map(e=>`<option value="${Number(e.id)}">${esc(e.n||'Establecimiento')}</option>`).join('');
+    return `<div class="commx-param-box" style="margin-top:10px"><div class="form-label">Establecimientos a informar</div><div class="commx-est-toolbar"><select class="form-select" id="commx-est-select-${id}">${opts||'<option value="">Sin establecimientos disponibles</option>'}</select><button class="secondary-btn" type="button" data-add-est="${esc(c.id||c.remoteId)}">Agregar</button></div>${respuestaEstablecimientosEditable(st)}</div>`;
+  }
+  function respuestaEstablecimientosEditable(st){
+    const arr=establecimientosRespuesta(st);
+    if(!arr.length)return '<div class="commx-meta" style="margin-top:8px">Todavía no seleccionaste establecimientos.</div>';
+    return `<div class="commx-est-list">${arr.map(item=>`<div class="commx-est-row"><div class="commx-est-row-head"><div class="commx-est-name">${esc(item.nombre||estById(item.estId)?.n||'Establecimiento')}</div><button class="secondary-btn" type="button" style="padding:4px 8px;color:var(--danger)" data-remove-est="${Number(item.estId)}" data-comm-id="${esc(selectedCommId||'')}">Quitar</button></div><textarea class="form-textarea commx-est-comment-input" data-est-id="${Number(item.estId)}" style="min-height:58px" placeholder="Comentario para este establecimiento...">${esc(item.comentario||'')}</textarea></div>`).join('')}</div>`;
+  }
+  function respuestaEstablecimientosLectura(st){
+    const arr=establecimientosRespuesta(st);
+    if(!arr.length)return '';
+    return `<div class="commx-est-list">${arr.map(item=>`<div class="commx-est-row"><div class="commx-est-name">${esc(item.nombre||estById(item.estId)?.n||'Establecimiento')}</div>${item.comentario?`<div class="commx-est-comment">${esc(item.comentario)}</div>`:''}</div>`).join('')}</div>`;
+  }
+  function estadoDestino(c,d){
+    const st=estado(c,d.key), s=st.estado||'pendiente';
+    const ests=establecimientosRespuesta(st);
+    return `<div class="commx-state"><strong>${esc(d.label)}</strong>${estadoBadge(s)}<div class="commx-meta">${st.fecha?fecha(st.fecha):'Sin actividad'}${st.completadoPor?`<br>${esc(st.completadoPor)}`:''}${st.respuestaTexto?`<br>Respuesta: ${esc(st.respuestaTexto)}`:''}${st.observacion?`<br>Obs.: ${esc(st.observacion)}`:''}${ests.length?`<br>${ests.length} establecimiento${ests.length!==1?'s':''} informado${ests.length!==1?'s':''}`:''}</div>${respuestaEstablecimientosLectura(st)}</div>`;
+  }
+  function compose(){
+    if(!esGestion())return '';
+    return `<div class="commx-panel"><div class="card-title" style="margin-bottom:10px">Nueva comunicacion</div><div class="commx-compose-grid"><label class="form-field"><span class="form-label">Tipo</span><select class="form-select" id="comm-tipo"><option value="tarea">Solicitud</option><option value="notificacion">Aviso</option><option value="comunicado">Comunicado</option></select></label><label class="form-field"><span class="form-label">Prioridad</span><select class="form-select" id="commx-prioridad"><option value="normal">Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select></label><label class="form-field"><span class="form-label">Destino</span><select class="form-select" id="comm-alcance"><option value="general">Todos los inspectores</option><option value="zona">Inspectores por zona</option><option value="empresas">Todas las empresas</option><option value="empresa_zona">Empresas por zona</option></select></label><label class="form-field"><span class="form-label">Fecha limite</span><input class="form-input" id="commx-vencimiento" type="date"></label><div class="form-field full" id="comm-destino-box"></div><label class="form-field full"><span class="form-label">Titulo</span><input class="form-input" id="comm-titulo" placeholder="Ej: Informar escuelas con problemas de calefaccion"></label><label class="form-field full"><span class="form-label">Mensaje</span><textarea class="form-textarea" id="comm-mensaje" placeholder="Detalle claro de lo que se comunica o solicita"></textarea></label><div class="form-field full"><div class="commx-param-box"><label class="commx-param-check"><input type="checkbox" id="commx-pedir-establecimientos"><span>Solicitar seleccion de establecimientos<br><small style="font-weight:700;color:#64748b">El destinatario podra elegir escuelas de su zona y agregar un comentario por cada una.</small></span></label></div></div><div class="form-field full" id="comm-survey-wrapper"><div class="comm-survey-builder"><div class="comm-survey-builder-title">Encuesta opcional</div><input class="form-input" id="comm-encuesta-pregunta" placeholder="Pregunta opcional"><textarea class="form-textarea" id="comm-encuesta-opciones" placeholder="Una opcion por linea"></textarea></div></div><label class="form-field full"><span class="form-label">Adjuntos</span><input type="file" id="comm-archivos" multiple accept="image/*,.pdf,application/pdf" class="form-input"></label></div><div class="form-error" id="comm-error" style="display:none"></div><div class="modal-actions"><button class="primary-btn" type="button" data-comm-send="1">Enviar</button></div></div>`;
+  }
+  function toolbar(){
+    return `<div class="commx-toolbar"><input class="form-input" id="commx-q" placeholder="Buscar..." value="${esc(filters.q)}"><select class="form-select" id="commx-estado"><option value="" ${!filters.estado?'selected':''}>Todos los estados</option><option value="pendiente" ${filters.estado==='pendiente'?'selected':''}>Pendientes</option><option value="en_proceso" ${filters.estado==='en_proceso'?'selected':''}>En curso</option><option value="completado" ${filters.estado==='completado'?'selected':''}>Respondidas</option><option value="vencida" ${filters.estado==='vencida'?'selected':''}>Vencidas</option></select><select class="form-select" id="commx-tipo"><option value="" ${!filters.tipo?'selected':''}>Todos los tipos</option><option value="tarea" ${filters.tipo==='tarea'?'selected':''}>Solicitudes</option><option value="notificacion" ${filters.tipo==='notificacion'?'selected':''}>Avisos</option><option value="comunicado" ${filters.tipo==='comunicado'?'selected':''}>Comunicados</option></select><select class="form-select" id="commx-prio"><option value="" ${!filters.prio?'selected':''}>Prioridad</option><option value="urgente" ${filters.prio==='urgente'?'selected':''}>Urgente</option><option value="alta" ${filters.prio==='alta'?'selected':''}>Alta</option><option value="normal" ${filters.prio==='normal'?'selected':''}>Normal</option></select></div>`;
+  }
+  function headerPrototipo(){
+    return `<div class="commx-top"><div><div class="commx-top-title">Comunicaciones</div><div class="commx-top-sub">Prototipo con bandeja, respuestas estructuradas y vista simulada por rol.</div></div><div class="commx-view-controls"><label><div class="form-label">Ver como</div><select class="form-select" id="commx-view-mode"><option value="coordinador" ${protoMode()==='coordinador'?'selected':''}>Coordinacion</option><option value="inspector" ${protoMode()==='inspector'?'selected':''}>Inspector</option><option value="empresa" ${protoMode()==='empresa'?'selected':''}>Empresa</option></select></label><label><div class="form-label">Zona</div><select class="form-select" id="commx-view-zona">${zonas().map(z=>`<option value="${z}" ${protoZona()===z?'selected':''}>Zona ${z}</option>`).join('')}</select></label></div></div>`;
+  }
+  window.cambiarVistaComunicacionesPrototipo=function(){
+    protoViewMode=byId('commx-view-mode')?.value||'coordinador';
+    protoViewZona=Number(byId('commx-view-zona')?.value||1);
+    selectedCommId=null;
+    renderComunicacionesPrototipo(byId('main-content'));
+  };
+  window.seleccionarComunicacionPrototipo=function(id){selectedCommId=id;renderComunicacionesPrototipo(byId('main-content'))};
+  function findComm(id){return (COMUNICACIONES||[]).find(x=>String(x.id)===String(id)||String(x.remoteId)===String(id))}
+  function collectEstablecimientos(c){
+    const k=targetKey(), st=estado(c,k), prev=establecimientosRespuesta(st);
+    const byEst=new Map(prev.map(item=>[Number(item.estId),{...item}]));
+    document.querySelectorAll('.commx-est-comment-input').forEach(input=>{
+      const estId=Number(input.dataset.estId);
+      if(!estId)return;
+      const est=estById(estId);
+      byEst.set(estId,{...(byEst.get(estId)||{}),estId,nombre:est?.n||byEst.get(estId)?.nombre||'',comentario:String(input.value||'').trim()});
+    });
+    return [...byEst.values()];
+  }
+  function agregarEstablecimientoRespuestaPrototipo(id){
+    const c=findComm(id); if(!c)return;
+    const k=targetKey(), safe=idSafe(id), sel=byId(`commx-est-select-${safe}`), estId=Number(sel?.value||0), est=estById(estId);
+    if(!estId||!est)return;
+    c.estados=c.estados||{};
+    const st={...(c.estados[k]||{})};
+    const arr=collectEstablecimientos(c);
+    if(!arr.some(x=>Number(x.estId)===estId))arr.push({estId,nombre:est.n||'',comentario:''});
+    c.estados[k]={...st,establecimientos:arr,estado:st.estado==='pendiente'?'en_proceso':st.estado,fecha:new Date().toISOString(),usuario:protoUser()?.name||protoUser()?.role};
+    guardarLocalPrototipo();
+    renderComunicacionesPrototipo(byId('main-content'));
+  }
+  try{window.agregarEstablecimientoRespuesta=agregarEstablecimientoRespuestaPrototipo}catch(_){}
+  function quitarEstablecimientoRespuestaPrototipo(id,estId){
+    const c=findComm(id); if(!c)return;
+    const k=targetKey();
+    c.estados=c.estados||{};
+    const st={...(c.estados[k]||{})};
+    c.estados[k]={...st,establecimientos:collectEstablecimientos(c).filter(x=>Number(x.estId)!==Number(estId)),fecha:new Date().toISOString(),usuario:protoUser()?.name||protoUser()?.role};
+    guardarLocalPrototipo();
+    renderComunicacionesPrototipo(byId('main-content'));
+  }
+  try{window.quitarEstablecimientoRespuesta=quitarEstablecimientoRespuestaPrototipo}catch(_){}
+  async function leerArchivosPrototipo(input){
+    const files=[...(input?.files||[])];
+    return Promise.all(files.map(file=>{
+      if(typeof leerArchivoDGIE==='function')return leerArchivoDGIE(file,'comunicaciones');
+      return Promise.resolve({nombre:file.name,name:file.name,url:''});
+    })).then(arr=>arr.filter(Boolean));
+  }
+  async function guardarComunicacionPrototipo(){
+    const tipo=byId('comm-tipo')?.value||'notificacion';
+    const alcance=byId('comm-alcance')?.value||'general';
+    const titulo=String(byId('comm-titulo')?.value||'').trim();
+    const mensaje=String(byId('comm-mensaje')?.value||'').trim();
+    const prioridad=byId('commx-prioridad')?.value||'normal';
+    const vencimiento=byId('commx-vencimiento')?.value||'';
+    const pedirEst=!!byId('commx-pedir-establecimientos')?.checked;
+    const checked=[...document.querySelectorAll('.comm-zona-check:checked')].map(x=>Number(x.value));
+    const pregunta=String(byId('comm-encuesta-pregunta')?.value||'').trim();
+    const opciones=String(byId('comm-encuesta-opciones')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    const err=byId('comm-error');
+    if(err){err.textContent='';err.style.display='none'}
+    if(!titulo||!mensaje){if(err){err.textContent='Completa titulo y mensaje.';err.style.display='block'}return}
+    if(tipo==='tarea'&&pregunta&&!opciones.length){if(err){err.textContent='Agrega al menos una opcion para la encuesta.';err.style.display='block'}return}
+    if((alcance==='zona'||alcance==='empresa_zona')&&!checked.length){if(err){err.textContent='Selecciona al menos una zona.';err.style.display='block'}return}
+    const c={
+      id:Date.now(),
+      tipo,
+      titulo,
+      mensaje,
+      alcance,
+      zonas:(alcance==='zona'||alcance==='empresa_zona')?checked:[],
+      creadoPor:protoUser()?.name||'Coordinacion',
+      createdAt:new Date().toISOString(),
+      estados:{},
+      validaciones:{},
+      encuesta:tipo==='tarea'&&pregunta&&opciones.length?{pregunta,opciones}:[],
+      archivos:await leerArchivosPrototipo(byId('comm-archivos')),
+      prioridad,
+      parametros:{establecimientos:{habilitado:pedirEst,comentario:true}}
+    };
+    if(vencimiento)c.fechaLimite=vencimiento;
+    COMUNICACIONES.unshift(c);
+    selectedCommId=c.id;
+    guardarLocalPrototipo();
+    renderComunicacionesPrototipo(byId('main-content'));
+  }
+  try{window.guardarComunicacion=guardarComunicacionPrototipo}catch(_){}
+  async function cambiarEstadoComunicacionPrototipo(id,estado){
+    const c=findComm(id);
+    if(!c)return;
+    const k=targetKey();
+    const ahora=new Date().toISOString();
+    const txt=String(byId('commx-respuesta')?.value||'').trim();
+    const previo=(c.estados&&c.estados[k])||{};
+    const nuevo={
+      ...previo,
+      estado,
+      usuario:protoUser()?.name||protoUser()?.role||'Usuario',
+      fecha:ahora,
+      respuestaTexto:txt||previo.respuestaTexto||''
+    };
+    if(pideEstablecimientos(c))nuevo.establecimientos=collectEstablecimientos(c);
+    if(['completado','visto','cerrada'].includes(String(estado))){
+      nuevo.completadoPor=protoUser()?.name||protoUser()?.role||'Usuario';
+      nuevo.completadoFecha=ahora;
+    }
+    c.estados={...(c.estados||{}),[k]:nuevo};
+    c.updatedAt=ahora;
+    guardarLocalPrototipo();
+    renderComunicacionesPrototipo(byId('main-content'));
+  }
+  try{window.cambiarEstadoComunicacion=cambiarEstadoComunicacionPrototipo}catch(_){}
+  const renderDestinoPrev=window.renderCommDestino;
+  window.renderCommDestino=function(){
+    if(typeof renderDestinoPrev==='function')return renderDestinoPrev.apply(this,arguments);
+  };
+  function cambiarVistaDesdeControles(){
+    protoViewMode=byId('commx-view-mode')?.value||'coordinador';
+    protoViewZona=Number(byId('commx-view-zona')?.value||1);
+    selectedCommId=null;
+    renderComunicacionesPrototipo(byId('main-content'));
+  }
+  function bindComunicaciones(container){
+    container.onclick=ev=>{
+      const selectBtn=ev.target.closest('[data-comm-select]');
+      if(selectBtn){selectedCommId=selectBtn.dataset.commSelect;renderComunicacionesPrototipo(container);return}
+      const sendBtn=ev.target.closest('[data-comm-send]');
+      if(sendBtn){guardarComunicacionPrototipo();return}
+      const statusBtn=ev.target.closest('[data-comm-status]');
+      if(statusBtn){cambiarEstadoComunicacionPrototipo(statusBtn.dataset.commId,statusBtn.dataset.commStatus);return}
+      const addBtn=ev.target.closest('[data-add-est]');
+      if(addBtn){agregarEstablecimientoRespuestaPrototipo(addBtn.dataset.addEst);return}
+      const removeBtn=ev.target.closest('[data-remove-est]');
+      if(removeBtn){quitarEstablecimientoRespuestaPrototipo(removeBtn.dataset.commId,removeBtn.dataset.removeEst);return}
+    };
+    container.onchange=ev=>{
+      const id=ev.target?.id;
+      if(id==='commx-view-mode'||id==='commx-view-zona'){cambiarVistaDesdeControles();return}
+      if(id==='commx-estado'||id==='commx-tipo'||id==='commx-prio'){
+        filters.estado=byId('commx-estado')?.value||'';
+        filters.tipo=byId('commx-tipo')?.value||'';
+        filters.prio=byId('commx-prio')?.value||'';
+        renderComunicacionesPrototipo(container);
+        return;
+      }
+      if(id==='comm-alcance')window.renderCommDestino?.();
+      if(id==='comm-tipo')window.toggleCommSurveyBuilder?.();
+    };
+    container.oninput=ev=>{
+      if(ev.target?.id!=='commx-q')return;
+      filters.q=ev.target.value||'';
+      renderComunicacionesPrototipo(container);
+      setTimeout(()=>byId('commx-q')?.focus(),0);
+    };
+  }
+  function renderComunicacionesPrototipo(container){
+    if(!container)return;
+    const data=visibles();
+    if(!selectedCommId&&data[0])selectedCommId=data[0].id||data[0].remoteId;
+    const selected=data.find(c=>String(c.id||c.remoteId)===String(selectedCommId))||data[0]||null;
+    container.innerHTML=`<div class="section-label">Comunicaciones · Prototipo</div><div class="commx-page">${headerPrototipo()}${compose()}<div class="commx-main"><div class="commx-panel">${metricas(data)}${toolbar()}<div class="commx-list">${data.length?data.map(card).join(''):'<div style="text-align:center;color:#64748b;padding:24px">No hay comunicaciones para esta vista o filtros.</div>'}</div></div>${detalle(selected)}</div></div>`;
+    bindComunicaciones(container);
+    setTimeout(()=>{window.renderCommDestino?.();window.toggleCommSurveyBuilder?.();},0);
+  }
+  try{window.renderComunicaciones=renderComunicacionesPrototipo}catch(_){}
+  window.addEventListener('storage',ev=>{
+    if(ev.key!=='dgie_comunicaciones_prototipo_v1')return;
+    mezclarLocalesPrototipo();
+    const active=document.querySelector('.tab-btn.active,.nav-tab.active,.tab.active');
+    if(active&&String(active.textContent||'').includes('Comunicaciones'))renderComunicacionesPrototipo(byId('main-content'));
+  });
+})();
+</script>
 </body>
 </html>

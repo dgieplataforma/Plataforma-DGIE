@@ -84,6 +84,36 @@
     if(error) return { data:null, error };
     return oneOrError(data, label);
   }
+  let comunicacionesRpcDisponibles = true;
+  function rpcNoDisponible(error){
+    const code = String(error?.code || '');
+    const message = String(error?.message || error || '');
+    return code === 'PGRST202' || /could not find.*function|schema cache/i.test(message);
+  }
+  async function actualizarJsonComunicacion(id, clave, valor, options){
+    if(comunicacionesRpcDisponibles){
+      const args = {
+        p_comunicacion_id: String(id),
+        p_clave: String(clave),
+        [options.rpcValueParam]: valor
+      };
+      const result = await client.rpc(options.rpcName, args).maybeSingle();
+      if(!result.error && result.data) return result;
+      if(result.error && !rpcNoDisponible(result.error)) return result;
+      if(result.error) comunicacionesRpcDisponibles = false;
+    }
+
+    // Compatibilidad temporal para proyectos donde la migracion atomica aun no fue aplicada.
+    const { data:actual, error:readError } = await client
+      .from('comunicaciones')
+      .select(options.column)
+      .eq('id', id)
+      .maybeSingle();
+    if(readError) return { data:null, error:readError };
+    if(!actual) return { data:null, error:{ message:'La comunicación ya no está disponible.' } };
+    const merged = { ...(actual[options.column] || {}), [String(clave)]: valor };
+    return updateOne('comunicaciones', id, { [options.column]:merged }, options.label);
+  }
 
   window.DGIE_DB = {
     isConfigured: true,
@@ -207,6 +237,25 @@
       if(error) return { data:null, error };
       const { data, error:selectError } = await client.from('comunicaciones').select('*').eq('id', id).limit(1);
       return { data:Array.isArray(data) ? data[0] || null : data, error:selectError };
+    },
+    async obtenerComunicacion(id){
+      return client.from('comunicaciones').select('*').eq('id', id).maybeSingle();
+    },
+    async actualizarRespuestaComunicacion(id, clave, respuesta){
+      return actualizarJsonComunicacion(id, clave, respuesta, {
+        rpcName:'dgie_actualizar_respuesta_comunicacion',
+        rpcValueParam:'p_respuesta',
+        column:'estados',
+        label:'esa respuesta'
+      });
+    },
+    async actualizarValidacionComunicacion(id, clave, validacion){
+      return actualizarJsonComunicacion(id, clave, validacion, {
+        rpcName:'dgie_actualizar_validacion_comunicacion',
+        rpcValueParam:'p_validacion',
+        column:'validaciones',
+        label:'esa validación'
+      });
     },
     async listarFotos(){
       return selectAll('fotos', { orderBy:'created_at', ascending:false });
