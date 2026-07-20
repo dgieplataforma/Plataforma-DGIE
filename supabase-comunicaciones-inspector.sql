@@ -49,6 +49,7 @@ for insert with check (
   public.mi_rol() in ('director','coordinador')
   or (
     public.mi_rol() = 'inspector'
+    and creado_por = auth.uid()
     and alcance in ('empresa_zona','coordinador')
     and public.mi_zona() = any(zonas)
   )

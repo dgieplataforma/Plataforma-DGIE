@@ -11,10 +11,11 @@
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
-<script src="./dgie-supabase.js?v=20260720-2"></script>
+<script src="./dgie-supabase.js?v=20260720-3"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./dgie-comunicaciones.css?v=20260720-1">
+<link rel="stylesheet" href="./dgie-comunicaciones.css?v=20260720-2">
+<link rel="stylesheet" href="./dgie-certificacion-flujo.css?v=20260720-1">
 
 <style>
 :root{--bg:#f3f6fb;--panel:#fff;--panel2:#f7f9fc;--text:#1f2937;--muted:#64748b;--border:#d9e2ef;--blue:#005aa9;--blue2:#0072ce;--blue-soft:#e6f1fb;--danger:#c62828;--warn:#d97706;--ok:#2e7d32;--shadow:0 10px 30px rgba(15,23,42,.08)}
@@ -701,7 +702,7 @@ async function guardarRelevamiento(estId){
     });
     if(error){
       const err=document.getElementById('rel-error');
-      if(err){err.textContent='No se pudo guardar en Supabase: '+error.message;err.style.display='block';}
+      if(err){err.textContent='No se pudo guardar: '+error.message;err.style.display='block';}
       return;
     }
   }
@@ -990,7 +991,7 @@ async function guardarEmpresa(z){
       email:EMPRESAS_DATA[z].email,
       representante:EMPRESAS_DATA[z].representante
     });
-    if(error)console.warn('No se pudo guardar empresa en Supabase:',error.message);
+    if(error)console.warn('No se pudo guardar la empresa en el servicio remoto:',error.message);
   }
   try{localStorage.setItem('dgie_empresas_data',JSON.stringify(EMPRESAS_DATA));}catch(e){}
   renderAdmEmpresas(document.getElementById('adm-body'));
@@ -1045,7 +1046,7 @@ function openEditInspector(idx){
         <div class="form-field"><label class="form-label">CUIT</label>
           <input class="form-input" id="ins-cuit" value="${ins.cuit||''}"/></div>
         <div class="form-field"><label class="form-label">Contraseña de acceso</label>
-          <input class="form-input" id="ins-pass" type="text" placeholder="Gestionar desde Supabase Auth"/></div>
+          <input class="form-input" id="ins-pass" type="text" placeholder="Gestionar desde el panel de usuarios"/></div>
       </div>
       <div class="modal-actions">
         <button class="secondary-btn" onclick="renderAdmInspectores(document.getElementById('adm-body'))">Cancelar</button>
@@ -1071,7 +1072,7 @@ async function guardarInspector(idx){
       telefono:INSPECTORS_DATA[idx].telefono,
       cuit:INSPECTORS_DATA[idx].cuit
     });
-    if(error)console.warn('No se pudo guardar inspector en Supabase:',error.message);
+    if(error)console.warn('No se pudo guardar el inspector en el servicio remoto:',error.message);
   }
   try{localStorage.setItem('dgie_inspectors_data',JSON.stringify(INSPECTORS_DATA));}catch(e){}
   renderAdmInspectores(document.getElementById('adm-body'));
@@ -1137,7 +1138,7 @@ function actualizarEstadoEstab(id, estado){
     e.est=estado;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarEstablecimiento==='function'){
       window.DGIE_DB.actualizarEstablecimiento(id,{estado}).then(({error})=>{
-        if(error)alert('No se pudo actualizar en Supabase: '+error.message);
+        if(error)alert('No se pudo actualizar: '+error.message);
       });
     }
     filterAdmEstabs();
@@ -1250,7 +1251,7 @@ async function guardarNuevoEstab(){
     };
     const {data,error}=await window.DGIE_DB.crearEstablecimiento(payload);
     if(error){
-      if(err){err.textContent='No se pudo guardar en Supabase: '+error.message;err.style.display='block';}
+      if(err){err.textContent='No se pudo guardar: '+error.message;err.style.display='block';}
       return;
     }
     if(data&&data.id) nuevo.id=Number(data.id);
@@ -1358,7 +1359,7 @@ async function guardarEstab(id){
       lat:draft.lat,
       lng:draft.lng
     });
-    if(error){alert('No se pudo guardar en Supabase: '+error.message);return;}
+    if(error){alert('No se pudo guardar: '+error.message);return;}
     if(data){
       draft.zona=Number(data.zona)||draft.zona;
       draft.n=data.nombre||draft.n;
@@ -1389,7 +1390,7 @@ async function eliminarEstab(id){
   if(!e||!confirm('¿Eliminar este establecimiento de la plataforma?'))return;
   if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarEstablecimiento==='function'){
     const {error}=await window.DGIE_DB.eliminarEstablecimiento(id);
-    if(error){alert('No se pudo eliminar en Supabase: '+error.message);return;}
+    if(error){alert('No se pudo eliminar: '+error.message);return;}
   }
   const idx=ESTABS.findIndex(x=>x.id===id);
   if(idx>=0)ESTABS.splice(idx,1);
@@ -1682,7 +1683,7 @@ async function numeroReclamoYaExiste(numero){
   if(RECLAMOS_ZONA.some(r=>normalizarNumeroReclamo(r?.numero)===normalizado))return true;
   if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.buscarReclamoPorNumero==='function'){
     const {data,error}=await window.DGIE_DB.buscarReclamoPorNumero(String(numero).trim());
-    if(error)console.warn('No se pudo verificar el número de reclamo en Supabase',error);
+    if(error)console.warn('No se pudo verificar el número de reclamo en el servicio remoto',error);
     else if(Array.isArray(data)&&data.length)return true;
   }
   return false;
@@ -1747,7 +1748,7 @@ async function subirArchivoCloudinary(file,carpeta='archivos'){
   if(!res.ok){
     let detail='';
     try{detail=(await res.json())?.error?.message||'';}catch(e){}
-    throw new Error(`Cloudinary ${res.status}${detail?': '+detail:''}`);
+    throw new Error(`No se pudo subir el archivo (${res.status})${detail?': '+detail:''}`);
   }
   const data=await res.json();
   return {provider:'cloudinary',nombre:original.name,name:original.name,tipo:original.type,type:original.type,size:original.size,storedSize:file.size,url:data.secure_url,publicId:data.public_id,resourceType:data.resource_type};
@@ -1763,7 +1764,7 @@ function leerArchivoDataUrl(file){
 async function leerArchivoDGIE(file,carpeta){
   if(cloudinaryHabilitado()){
     try{return await subirArchivoCloudinary(file,carpeta);}
-    catch(err){console.warn('No se pudo subir a Cloudinary; se usa vista local.',err);}
+    catch(err){console.warn('No se pudo subir el archivo; se usa la vista local.',err);}
   }
   return leerArchivoDataUrl(file);
 }
@@ -2145,8 +2146,8 @@ function renderFotosIntervencion(it){
   return Array.from({length:Number(it.fotos)||0},(_,i)=>`<div class="intervencion-photo">Foto ${i+1}</div>`).join('');
 }
 function renderIntervencionCard(it){const est=ESTABS.find(e=>e.id===it.estId);return `<div class="intervencion-card" onclick="verDetalleIntervencion(${it.id})"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><div style="font-weight:900;color:#123c69">${est?.n||'Establecimiento'}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${it.fecha} · Zona ${it.zona} · ${it.inspector}</div></div><span class="badge b-info">${it.avance}%</span></div><div style="font-size:14px;margin-top:10px;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${renderFotosIntervencion(it)}</div></div>`}
-function openNuevaIntervencion(){const e=ESTABS.find(x=>x.id===currentFichaId);const fb=$('ficha-body');if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="switchFichaTab(3)">‹ Volver a intervenciones</button><div class="card-header"><div><div class="card-title">Nueva intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${e.n}</div></div></div><div class="form-grid"><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="int-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-field"><label class="form-label">Porcentaje de avance</label><input class="form-input" id="int-avance" type="number" min="0" max="100" value="50"></div><div class="form-field full"><label class="form-label">Intervención realizada / en curso</label><textarea class="form-textarea" id="int-desc" placeholder="Describir brevemente la intervención que se está realizando..."></textarea></div><div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="int-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">Las imágenes se optimizan y se guardan en Cloudinary cuando está configurado.</div></div></div><div class="form-error" id="int-error">Completá descripción y porcentaje de avance.</div><div class="modal-actions"><button class="secondary-btn" onclick="switchFichaTab(3)">Cancelar</button><button class="primary-btn" onclick="guardarIntervencion()">Guardar intervención</button></div>`}
-async function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=normalizarFechaCorta(fechaISO);const fotosFiles=[...($('int-fotos')?.files||[])];const fotosArchivos=await Promise.all(fotosFiles.map(file=>leerArchivoDGIE(file,'intervenciones'))).then(arr=>arr.filter(Boolean));const fotos=fotosArchivos.length||fotosFiles.length||0;const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);let remoteId=null;if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10)});if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar en Supabase: '+error.message;$('int-error').style.display='block';}return}remoteId=data?.id||null;await persistirFotosSupabase('intervencion',remoteId,fotosArchivos,currentFichaId,z)}INTERVENCIONES.unshift({id:Date.now(),remoteId,_remoteSaved:!!remoteId,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos,fotosArchivos});saveAppState&&saveAppState();switchFichaTab(3)}
+function openNuevaIntervencion(){const e=ESTABS.find(x=>x.id===currentFichaId);const fb=$('ficha-body');if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="switchFichaTab(3)">‹ Volver a intervenciones</button><div class="card-header"><div><div class="card-title">Nueva intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${e.n}</div></div></div><div class="form-grid"><div class="form-field"><label class="form-label">Fecha</label><input class="form-input" id="int-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="form-field"><label class="form-label">Porcentaje de avance</label><input class="form-input" id="int-avance" type="number" min="0" max="100" value="50"></div><div class="form-field full"><label class="form-label">Intervención realizada / en curso</label><textarea class="form-textarea" id="int-desc" placeholder="Describir brevemente la intervención que se está realizando..."></textarea></div><div class="form-field full"><label class="form-label">Fotos</label><input class="form-input" id="int-fotos" type="file" multiple accept="image/*"><div style="font-size:12px;color:var(--muted);margin-top:4px">Las imágenes se optimizan antes de guardarse.</div></div></div><div class="form-error" id="int-error">Completá descripción y porcentaje de avance.</div><div class="modal-actions"><button class="secondary-btn" onclick="switchFichaTab(3)">Cancelar</button><button class="primary-btn" onclick="guardarIntervencion()">Guardar intervención</button></div>`}
+async function guardarIntervencion(){const desc=$('int-desc')?.value.trim(),avance=Math.max(0,Math.min(100,Number($('int-avance')?.value||0))),fechaISO=$('int-fecha')?.value;if(!desc&&avance!==0){if($('int-error'))$('int-error').style.display='block';return}const fecha=normalizarFechaCorta(fechaISO);const fotosFiles=[...($('int-fotos')?.files||[])];const fotosArchivos=await Promise.all(fotosFiles.map(file=>leerArchivoDGIE(file,'intervenciones'))).then(arr=>arr.filter(Boolean));const fotos=fotosArchivos.length||fotosFiles.length||0;const z=Number(currentUser?.zona||zonaEstablecimiento(currentFichaId)||1);let remoteId=null;if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10)});if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar: '+error.message;$('int-error').style.display='block';}return}remoteId=data?.id||null;await persistirFotosSupabase('intervencion',remoteId,fotosArchivos,currentFichaId,z)}INTERVENCIONES.unshift({id:Date.now(),remoteId,_remoteSaved:!!remoteId,estId:currentFichaId,zona:z,fecha,inspector:ZONE_DATA[z]?.inspector||currentUser?.name||'Inspector',descripcion:desc,avance,fotos,fotosArchivos});saveAppState&&saveAppState();switchFichaTab(3)}
 function verDetalleIntervencion(id){const it=INTERVENCIONES.find(x=>x.id===id);const est=ESTABS.find(e=>e.id===it?.estId);const fb=$('ficha-body')||$('main-content');if(!it||!fb)return;fb.innerHTML=`<button class="back-btn" onclick="${currentUser?.role==='inspector'?'switchFichaTab(3)':'renderIntervencionesDireccion($(\'main-content\'))'}">‹ Volver</button><div class="card-header"><div><div class="card-title">Detalle de intervención</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${est?.n||'Establecimiento'} · Zona ${it.zona}</div></div><span class="badge b-info">${it.avance}% avance</span></div><div class="ficha-datos"><div class="ficha-dato"><div class="ficha-dato-lbl">Fecha</div><div class="ficha-dato-val">${it.fecha}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Inspector</div><div class="ficha-dato-val">${it.inspector}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Establecimiento</div><div class="ficha-dato-val">${est?.n||'—'}</div></div><div class="ficha-dato"><div class="ficha-dato-lbl">Avance</div><div class="ficha-dato-val">${it.avance}%</div></div></div><div style="margin-top:14px;font-size:15px;line-height:1.5;color:#334155">${it.descripcion}</div><div class="progress-bar"><div class="progress-fill" style="width:${it.avance}%"></div></div><div class="intervencion-photo-row">${renderFotosIntervencion(it)||'<div style="font-size:13px;color:var(--muted)">Sin fotos cargadas</div>'}</div>`}
 function renderIntervencionesDireccion(container){const data=[...INTERVENCIONES].sort((a,b)=>b.id-a.id);container.innerHTML=`<div class="section-label">Dirección · Intervenciones por inspector</div><div class="card"><div class="card-header"><div><div class="card-title">Intervenciones actualizadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Listado de avances cargados por los inspectores en las fichas de establecimientos.</div></div><span class="badge b-info" id="int-dir-count-badge">${data.length} intervenciones</span></div><div class="os-filters"><select class="filter-sel" id="int-dir-zona" onchange="filterIntervencionesDireccion()"><option value="">Todas las zonas</option>${Array.from({length:17},(_,i)=>`<option value="${i+1}">Zona ${i+1}</option>`).join('')}</select><input class="estab-search" id="int-dir-search" placeholder="Buscar por establecimiento, inspector o intervención..." oninput="filterIntervencionesDireccion()"></div><div id="intervenciones-dir-list"></div></div>`;renderIntervencionesDireccionList(data)}
 function filterIntervencionesDireccion(){const z=$('int-dir-zona')?.value||'',q=($('int-dir-search')?.value||'').toLowerCase();const data=INTERVENCIONES.filter(it=>{const est=ESTABS.find(e=>e.id===it.estId);return (!z||String(it.zona)===z)&&(`${est?.n||''} ${it.inspector} ${it.descripcion}`.toLowerCase().includes(q))}).sort((a,b)=>b.id-a.id);const badge=$('int-dir-count-badge');if(badge)badge.textContent=data.length+' intervenciones';renderIntervencionesDireccionList(data)}
@@ -2284,7 +2285,7 @@ function fotosAlbum(albumId){return FOTO_ALBUMES.filter(f=>String(f.albumId)===S
 function renderAlbumesFotos(){const estId=currentFichaId,albumes=albumesPorEstablecimiento(estId);return `<div class="card-header"><div><div class="card-title">Álbumes fotográficos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Fotos propias del establecimiento, separadas de reclamos e intervenciones.</div></div>${puedeGestionarAlbumes()?'<button class="primary-btn" onclick="openNuevoAlbumFotos()">+ Nuevo álbum</button>':''}</div>${albumes.length?`<div class="album-grid">${albumes.map(a=>{const fotos=fotosAlbum(a.id),cover=fotos[0]?fotoUrlDGIE(fotos[0]):'';return `<div class="album-card" onclick="openAlbumFotos('${a.id}')"><div class="album-thumb" style="${cover?`background-image:url('${cover}');background-size:cover;background-position:center`:''}"><div style="position:absolute;right:10px;bottom:10px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;color:var(--blue)">${fotos.length} fotos</div></div><div class="album-title">${escapeHtml(a.titulo)}</div><div class="album-meta">${escapeHtml(a.fecha||'')}<br>${escapeHtml(a.detalle||'Sin descripción')}</div></div>`}).join('')}</div>`:'<div style="text-align:center;padding:30px;color:var(--muted)">Sin álbumes cargados para este establecimiento</div>'}`}
 function openNuevoAlbumFotos(){const fb=albumBodyEl(),e=ESTABS.find(x=>Number(x.id)===Number(currentFichaId));if(!fb||!e)return;fb.innerHTML=`<button class="back-btn" onclick="volverAlbumesFotos()">‹ Volver a álbumes</button><div class="card-header"><div><div class="card-title">Nuevo álbum</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${escapeHtml(e.n)}</div></div></div><div class="form-grid"><div class="form-field full"><label class="form-label">Nombre del álbum</label><input class="form-input" id="album-titulo" placeholder="Ej: Fachada, instalación eléctrica, patios..."></div><div class="form-field full"><label class="form-label">Descripción <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input class="form-input" id="album-detalle" placeholder="Detalle breve del contenido"></div><div class="form-field full"><label class="form-label">Fotos iniciales <span style="font-weight:400;color:var(--muted)">(opcional)</span></label><input class="form-input" id="album-fotos" type="file" multiple accept="image/*" onchange="previsualizarFotosAlbum(this,'album-fotos-preview')"><div id="album-fotos-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div></div></div><div class="form-error" id="album-error">Ingresá un nombre para el álbum.</div><div class="modal-actions"><button class="secondary-btn" onclick="volverAlbumesFotos()">Cancelar</button><button class="primary-btn" id="album-guardar-btn" onclick="guardarAlbumFotos()">Guardar álbum</button></div>`}
 function previsualizarFotosAlbum(input,previewId){const preview=document.getElementById(previewId);if(!preview)return;preview.innerHTML='';Array.from(input.files||[]).forEach(file=>{const reader=new FileReader();reader.onload=e=>{const div=document.createElement('div');div.style.cssText='position:relative;width:72px;height:56px;border-radius:8px;overflow:hidden;border:1px solid var(--border)';const img=document.createElement('img');img.src=e.target.result;img.style.cssText='width:100%;height:100%;object-fit:cover';div.appendChild(img);preview.appendChild(div)};reader.readAsDataURL(file);})}
-async function guardarAlbumFotos(){const titulo=($('album-titulo')?.value||'').trim(),detalle=($('album-detalle')?.value||'').trim(),err=$('album-error'),btn=$('album-guardar-btn');if(!titulo){if(err)err.style.display='block';return}if(err)err.style.display='none';const est=ESTABS.find(x=>Number(x.id)===Number(currentFichaId));const zona=Number(est?.zona||currentUser?.zona||1),id='alb_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),fechaISO=new Date().toISOString(),fecha=new Date().toLocaleDateString('es-AR');const album={id,estId:currentFichaId,zona,titulo,detalle,fecha,fechaISO};if(btn){btn.disabled=true;btn.textContent='Guardando...'}if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearFoto==='function'){const meta={tipo:'album',titulo,detalle,fechaISO};const res=await window.DGIE_DB.crearFoto({entidad_tipo:'album',entidad_id:id,establecimiento_id:Number(currentFichaId),zona,bucket:'meta',path:'__album__',descripcion:JSON.stringify(meta)});if(res?.error){if(err){err.textContent='No se pudo guardar el álbum en Supabase: '+res.error.message;err.style.display='block';}if(btn){btn.disabled=false;btn.textContent='Guardar álbum'}return}}ALBUMES_ESTABLECIMIENTO.unshift(album);const files=[...($('album-fotos')?.files||[])];if(files.length)await subirFotosAAlbum(id,files);saveAppState&&saveAppState();openAlbumFotos(id)}
+async function guardarAlbumFotos(){const titulo=($('album-titulo')?.value||'').trim(),detalle=($('album-detalle')?.value||'').trim(),err=$('album-error'),btn=$('album-guardar-btn');if(!titulo){if(err)err.style.display='block';return}if(err)err.style.display='none';const est=ESTABS.find(x=>Number(x.id)===Number(currentFichaId));const zona=Number(est?.zona||currentUser?.zona||1),id='alb_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),fechaISO=new Date().toISOString(),fecha=new Date().toLocaleDateString('es-AR');const album={id,estId:currentFichaId,zona,titulo,detalle,fecha,fechaISO};if(btn){btn.disabled=true;btn.textContent='Guardando...'}if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearFoto==='function'){const meta={tipo:'album',titulo,detalle,fechaISO};const res=await window.DGIE_DB.crearFoto({entidad_tipo:'album',entidad_id:id,establecimiento_id:Number(currentFichaId),zona,bucket:'meta',path:'__album__',descripcion:JSON.stringify(meta)});if(res?.error){if(err){err.textContent='No se pudo guardar el álbum: '+res.error.message;err.style.display='block';}if(btn){btn.disabled=false;btn.textContent='Guardar álbum'}return}}ALBUMES_ESTABLECIMIENTO.unshift(album);const files=[...($('album-fotos')?.files||[])];if(files.length)await subirFotosAAlbum(id,files);saveAppState&&saveAppState();openAlbumFotos(id)}
 async function subirFotosAAlbum(albumId,files){const album=ALBUMES_ESTABLECIMIENTO.find(a=>String(a.id)===String(albumId));if(!album||!files?.length)return;for(const file of files){const subida=await leerArchivoDGIE(file,'albumes');if(!subida)continue;const foto={id:'foto_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),albumId,estId:album.estId,zona:album.zona,fechaISO:new Date().toISOString(),fecha:new Date().toLocaleDateString('es-AR'),...subida};if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearFoto==='function'&&subida.provider==='cloudinary'&&subida.url){const desc={tipo:'album_foto',nombre:subida.nombre||subida.name||file.name,fechaISO:foto.fechaISO};const res=await window.DGIE_DB.crearFoto({entidad_tipo:'album_foto',entidad_id:String(albumId),establecimiento_id:Number(album.estId),zona:Number(album.zona),bucket:'cloudinary',path:subida.url,descripcion:JSON.stringify(desc)});if(res?.error){console.warn('No se pudo guardar foto de álbum',res.error);continue}}FOTO_ALBUMES.unshift(foto)}}
 function openAlbumFotos(id){const a=ALBUMES_ESTABLECIMIENTO.find(x=>String(x.id)===String(id)),fb=albumBodyEl();if(!fb||!a)return;currentFichaId=a.estId;const fotos=fotosAlbum(id);fb.innerHTML=`<button class="back-btn" onclick="volverAlbumesFotos()">‹ Volver a álbumes</button><div class="card-header"><div><div class="card-title">${escapeHtml(a.titulo)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${escapeHtml(a.fecha||'')} · ${escapeHtml(a.detalle||'Sin descripción')}</div></div>${puedeGestionarAlbumes()?`<button class="primary-btn" onclick="openSubirFotosAlbum('${a.id}')">+ Subir fotos</button>`:''}</div><div class="foto-grid">${fotos.map((f,i)=>{const src=fotoUrlDGIE(f);return src?`<div class="foto-item"><img src="${src}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="window.open(this.src,'_blank')"><div class="foto-label">${escapeHtml(fotoNombreDGIE(f,'Foto '+(i+1)))}</div></div>`:''}).join('')}${!fotos.length?'<div style="font-size:13px;color:var(--muted);padding:20px">Sin fotos cargadas en este álbum</div>':''}</div>`}
 function openSubirFotosAlbum(albumId){const a=ALBUMES_ESTABLECIMIENTO.find(x=>String(x.id)===String(albumId)),fb=albumBodyEl();if(!a||!fb)return;currentFichaId=a.estId;fb.innerHTML=`<button class="back-btn" onclick="openAlbumFotos('${a.id}')">‹ Volver al álbum</button><div class="card-header"><div><div class="card-title">Subir fotos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${escapeHtml(a.titulo)}</div></div></div><div class="form-field full"><label class="form-label">Seleccionar fotos</label><input class="form-input" id="album-upload-fotos" type="file" multiple accept="image/*" onchange="previsualizarFotosAlbum(this,'album-upload-preview')"><div id="album-upload-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div></div><div class="form-error" id="album-upload-error">Seleccioná al menos una foto.</div><div class="modal-actions"><button class="secondary-btn" onclick="openAlbumFotos('${a.id}')">Cancelar</button><button class="primary-btn" id="album-upload-btn" onclick="guardarFotosAlbum('${a.id}')">Subir fotos</button></div>`}
@@ -2501,7 +2502,7 @@ async function doLmLogin(){
   const mode='real';
   if(mode==='real'){
     if(!window.DGIE_DB||!window.DGIE_DB.isConfigured){
-      errEl.textContent='Supabase no está configurado.';errEl.style.display='block';return;
+      errEl.textContent='El servicio de acceso no está disponible.';errEl.style.display='block';return;
     }
     const usuario=document.getElementById('lm-email')?.value.trim();
     const password=document.getElementById('lm-password')?.value;
@@ -3028,7 +3029,7 @@ async function persistirReclamoSupabase(r){
   const userId=String(currentUser?.id||'');
   if(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId))payload.creado_por=userId;
   const {data,error}=await window.DGIE_DB.crearReclamo(payload);
-  if(error){console.warn('No se pudo guardar reclamo en Supabase',error);return{ok:false,error};}
+  if(error){console.warn('No se pudo guardar el reclamo en el servicio remoto',error);return{ok:false,error};}
   r.remoteId=data?.id||r.remoteId;
   r._remoteSaved=true;
   r.createdAt=data?.created_at||r.createdAt||r.creadoEn||null;
@@ -3044,7 +3045,7 @@ async function persistirReclamoSupabase(r){
     if(slimFotos.length){
       const upd=await window.DGIE_DB.actualizarReclamo(r.remoteId,{fotos:slimFotos});
       if(!upd?.error)r.fotos=slimFotos;
-      else console.warn('No se pudo guardar fotos dentro del reclamo. Ejecutá supabase-reclamos-fotos-json.sql.',upd.error);
+      else console.warn('No se pudieron asociar las fotos al reclamo.',upd.error);
     }
   }
   await persistirFotosSupabase('reclamo',r.remoteId,r.fotos,r.estId,r.zona);
@@ -3081,7 +3082,7 @@ async function persistirOrdenSupabase(o){
     presupuesto:presupuestoOSParaDB(o)
   });
   if(error){
-    console.warn('No se pudo guardar orden en Supabase',error);
+    console.warn('No se pudo guardar la orden en el servicio remoto',error);
     const msg=String(error.message||'').toLowerCase();
     if(String(error.code)==='23505'||msg.includes('duplicate')||msg.includes('unique')){
       alert('Ese número de orden ya existe en la base. Elegí otro.');
@@ -3110,7 +3111,7 @@ async function actualizarOrdenSupabase(o){
     presupuesto:presupuestoOSParaDB(o),
     updated_at:new Date().toISOString()
   });
-  if(error)console.warn('No se pudo actualizar orden en Supabase',error);
+  if(error)console.warn('No se pudo actualizar la orden en el servicio remoto',error);
 }
 function getRubroOS(o){return o?.rubro||o?.titulo||'Otro'}
 function getPrioLabel(p){return ({critico:'Crítico',alto:'Alto',medio:'Medio',bajo:'Bajo'}[p]||p||'Sin prioridad')}
@@ -4432,7 +4433,7 @@ function renderChartInsp(){
   async function persistirComunicacion(c){
     if(!c||c._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearComunicacion!=='function')return;
     const {data,error}=await window.DGIE_DB.crearComunicacion(toRemoteComm(c));
-    if(error){alert('No se pudo guardar la comunicación en Supabase: '+error.message);return;}
+    if(error){alert('No se pudo guardar la comunicación: '+error.message);return;}
     c.remoteId=data?.id||c.remoteId;
     c._remoteSaved=true;
   }
@@ -4442,7 +4443,7 @@ function renderChartInsp(){
       estados:c.estados||{},
       validaciones:c.validaciones||{}
     });
-    if(error)alert('No se pudo actualizar la comunicación en Supabase: '+error.message);
+    if(error)alert('No se pudo actualizar la comunicación: '+error.message);
   }
   window.mapRemoteComunicacion=function(row,idx){
     return {
@@ -4953,7 +4954,7 @@ function renderChartInsp(){
           lng:patch.lng
         });
         if(error)throw error;
-        if(!data)throw new Error('Supabase no devolvió el establecimiento actualizado.');
+        if(!data)throw new Error('El sistema no devolvió el establecimiento actualizado.');
         updateLocalEstabLocation(data);
         savedRemote=true;
       }else if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarUbicacionEstablecimiento==='function'&&lat!==null&&lng!==null){
@@ -4966,10 +4967,10 @@ function renderChartInsp(){
         saveStoredLocation(saved||local);
       }
       refreshLocationViews(id);
-      modalMsg(savedRemote?'Datos guardados en Supabase.':'Datos guardados localmente en este navegador. Para que los vean todos, entrá con Acceso real.', '#15803d');
+      modalMsg(savedRemote?'Datos guardados correctamente.':'Datos guardados localmente en este navegador. Para que los vean todos, entrá con Acceso real.', '#15803d');
       setTimeout(window.closeUbicacionModal,900);
     }catch(err){
-      modalMsg(`No se pudo guardar en Supabase: ${err?.message||err}`, '#b91c1c');
+      modalMsg(`No se pudo guardar: ${err?.message||err}`, '#b91c1c');
     }
   };
   function renderPendingLocationList(scope){
@@ -4996,7 +4997,7 @@ function renderChartInsp(){
     return `<div class="dgie-map-popup">
       <div class="dgie-map-popup-title">Zona ${zona} · ${items.length} establecimientos</div>
       <div class="dgie-map-popup-meta">Estos establecimientos todavía no tienen coordenadas exactas cargadas.</div>
-      <div class="dgie-map-popup-meta">Para mostrarlos como puntos reales hay que completar las columnas lat/lng en Supabase.</div>
+      <div class="dgie-map-popup-meta">Todavía no se cargaron las coordenadas de estos establecimientos.</div>
     </div>`;
   }
   function ensureMap(hostId,scope){
@@ -5664,7 +5665,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     let remoteId=null;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearIntervencion==='function'){
       const {data,error}=await window.DGIE_DB.crearIntervencion({establecimiento_id:currentFichaId,zona:z,descripcion:desc||'Avance registrado',avance,fecha:fechaISO||new Date().toISOString().slice(0,10),comentarios_coordinacion:[]});
-      if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar en Supabase: '+error.message;$('int-error').style.display='block';}return}
+      if(error){if($('int-error')){$('int-error').textContent='No se pudo guardar: '+error.message;$('int-error').style.display='block';}return}
       remoteId=data?.id||null;
       await persistirFotosSupabase('intervencion',remoteId,fotosArchivos,currentFichaId,z);
     }
@@ -5875,7 +5876,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     setEmpresaFinalizoReal(o,val);
     if(o.remoteId&&window.DGIE_DB?.actualizarOrden){
       const {error}=await window.DGIE_DB.actualizarOrden(o.remoteId,{empresa_finalizo:!!val,empresa_finalizo_fecha:o.empresaFinalizoFecha});
-      if(error)console.warn('No se pudo guardar empresa_finalizo en Supabase:',error.message);
+      if(error)console.warn('No se pudo guardar el estado informado por la empresa:',error.message);
     }
     if(currentUser?.role==='empresa')renderOSEmpresa($('main-content'),currentUser.zona);
     if(currentUser?.role==='inspector')renderOSZona($('main-content'));
@@ -6387,7 +6388,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     saveAppState&&saveAppState();
     if(o.remoteId&&window.DGIE_DB?.actualizarOrden){
       const {error}=await window.DGIE_DB.actualizarOrden(o.remoteId,{empresa_finalizo:!!val,empresa_finalizo_fecha:now});
-      if(error)console.warn('No se pudo guardar empresa_finalizo en Supabase:',error.message);
+      if(error)console.warn('No se pudo guardar el estado informado por la empresa:',error.message);
     }
     if(currentUser?.role==='empresa')filterOSEmpresa();
   };
@@ -6566,10 +6567,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     catch(e){return'';}
   }
   function certEstadoLabel(e){
-    return {pendiente:'Pendiente de revisión',revision:'En revisión',medido:'En medición'}[e]||'Pendiente de revisión';
+    return {pendiente:'Pendiente',revision:'Pendiente',devuelto:'Devuelto',medido:'En medición'}[e]||'Pendiente';
   }
   function certEstadoClass(e){
-    return e==='medido'?'b-ok':e==='revision'?'b-warn':'b-info';
+    return e==='medido'?'b-ok':e==='devuelto'?'b-danger':'b-info';
   }
   function estById(id){return ESTABS.find(e=>Number(e.id)===Number(id))}
   function certVisible(c){return c&&c.estado!=='eliminado'}
@@ -6951,7 +6952,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 
   function dbNotice(){
-    return certsDbError?`<div class="form-error" style="display:block;margin-bottom:12px">Para guardar certificados en Supabase ejecutá <b>_archivo_trabajo/sql/fix-rls-certificados-medicion-app-2026-07-07.sql</b>. Error actual: ${escapeHtml(certsDbError)}</div>`:'';
+    return certsDbError?`<div class="form-error" style="display:block;margin-bottom:12px">No se pueden guardar certificados en este momento. Contactá al administrador del sistema.</div>`:'';
   }
 
   window.renderMedicionesEmpresa=async function(container,z){
@@ -7041,7 +7042,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const msg=String(error?.message||error||'');
       const rls=/row-level security|violates row-level security/i.test(msg);
       alert((rls
-        ? 'No se pudo guardar el certificado en Supabase por políticas RLS de certificados_medicion. Ejecutá el SQL _archivo_trabajo/sql/fix-rls-certificados-medicion-app-2026-07-07.sql para habilitar la carga desde la app.'
+        ? 'No se pudo guardar el certificado por una restricción de permisos. Contactá al administrador del sistema.'
         : 'No se pudo guardar el certificado.')
         +' Detalle: '+msg);
     }
@@ -7546,7 +7547,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     it.comentariosCoordinacion=normalizarComentarios(it.comentariosCoordinacion);
     it.comentariosCoordinacion.unshift({texto:txt,autor:currentUser?.name||'Coordinación',fecha:new Date().toISOString(),respuestas:[]});
     try{await guardarIntervencionRemota(it);saveAppState&&saveAppState();refrescarIntervenciones();}
-    catch(error){it.comentariosCoordinacion.shift();alert('No se pudo guardar el comentario. Ejecutá supabase-comentarios-intervenciones-relevamientos.sql en Supabase. Detalle: '+(error.message||error));}
+    catch(error){it.comentariosCoordinacion.shift();alert('No se pudo guardar el comentario. Contactá al administrador si el problema continúa. Detalle: '+(error.message||error));}
   };
   window.responderComentarioIntervencion=async function(id,idx){
     const it=INTERVENCIONES.find(x=>String(x.id)===String(id));
@@ -7558,7 +7559,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     c.respuestas=normalizarComentarios(c.respuestas);
     c.respuestas.push({texto:txt,autor:currentUser?.name||'Inspector',fecha:new Date().toISOString()});
     try{await guardarIntervencionRemota(it);saveAppState&&saveAppState();refrescarIntervenciones();}
-    catch(error){c.respuestas.pop();alert('No se pudo guardar la respuesta. Ejecutá supabase-comentarios-intervenciones-relevamientos.sql en Supabase. Detalle: '+(error.message||error));}
+    catch(error){c.respuestas.pop();alert('No se pudo guardar la respuesta. Contactá al administrador si el problema continúa. Detalle: '+(error.message||error));}
   };
   function relKey(r,estId){if(!r._relId)r._relId=`${estId}-${r.remoteId||r.ts||Date.now()}`;return r._relId}
   function buscarRel(id){
@@ -7736,7 +7737,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!confirm(`¿Eliminar la orden de servicio ${o.numero || ''}?`))return;
     if(o.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarOrden==='function'){
       const {error}=await window.DGIE_DB.eliminarOrden(o.remoteId);
-      if(error){alert('No se pudo eliminar en Supabase: '+(error.message||error));return;}
+      if(error){alert('No se pudo eliminar: '+(error.message||error));return;}
     }
     OS_ZONA.splice(idx,1);
     RECLAMOS_ZONA.forEach(r=>{if(String(r.os||'')===String(o.numero||''))r.os='Sin OS';});
@@ -8994,7 +8995,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const now=val?new Date().toISOString():null;
     let error=null;
     if(!o.remoteId||!window.DGIE_DB?.isConfigured){
-      error=new Error('Orden sin vínculo remoto o Supabase no configurado');
+      error=new Error('La orden todavía no está sincronizada');
     }else if(typeof window.DGIE_DB.actualizarEmpresaFinalizo==='function'){
       const res=await window.DGIE_DB.actualizarEmpresaFinalizo(o.remoteId,val);
       error=res?.error||null;
@@ -9008,8 +9009,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       o.empresaFinalizo=anterior;
       o.empresaFinalizoFecha=fechaAnterior;
       limpiarEmpresaFinalizoLocal(o);
-      console.warn('empresa_finalizo Supabase error:',error.message||error);
-      toastDGIE('No se guardó en Supabase. No se cambió el estado. '+(error.message||error),'error');
+      console.warn('No se pudo guardar el estado informado por la empresa:',error.message||error);
+      toastDGIE('No se pudo guardar. No se cambió el estado. '+(error.message||error),'error');
     }else{
       o.empresaFinalizo=!!val;
       o.empresaFinalizoFecha=now;
@@ -10646,7 +10647,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(rel?.remoteId&&window.DGIE_DB?.actualizarRelevamiento){
       const {error}=await window.DGIE_DB.actualizarRelevamiento(rel.remoteId,{datos:rel});
       if(error){
-        console.warn('Comentario de relevamiento guardado localmente, pendiente de Supabase:',error.message||error);
+        console.warn('Comentario de relevamiento guardado localmente, pendiente de sincronización:',error.message||error);
         return {ok:false,error};
       }
     }
@@ -10855,7 +10856,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     persistir();
     if(rel?.remoteId&&window.DGIE_DB?.actualizarRelevamiento){
       const {error}=await window.DGIE_DB.actualizarRelevamiento(rel.remoteId,{datos:rel});
-      if(error)console.warn('No se pudo sincronizar comentario de relevamiento en Supabase:',error.message||error);
+      if(error)console.warn('No se pudo sincronizar el comentario de relevamiento:',error.message||error);
     }
   }
   function refrescar(estId){
@@ -11003,8 +11004,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const msg=String(res.error.message||res.error);
       const rls=/row-level security|violates row-level security/i.test(msg);
       alert((rls
-        ? 'No se pudo guardar la intervención en Supabase por políticas RLS de la tabla intervenciones. Ejecutá el SQL de fix RLS que te dejo para permitir guardar intervenciones desde la app.'
-        : 'No se pudo guardar la intervención en Supabase. Revisá que esté aplicada la columna datos en intervenciones.')
+        ? 'No se pudo guardar la intervención por una restricción de permisos. Contactá al administrador del sistema.'
+        : 'No se pudo guardar la intervención. Volvé a intentarlo.')
         +' Detalle: '+msg);
       return {ok:false,error:res.error};
     }
@@ -11234,13 +11235,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   async function guardarRelSeguro(rel){
     saveAppState&&saveAppState();
     if(!rel?.remoteId){
-      alert('El comentario quedó local, pero este relevamiento no tiene ID de Supabase. Recargá datos o revisá que el relevamiento esté sincronizado.');
+      alert('El comentario quedó local porque el relevamiento todavía no está sincronizado. Actualizá los datos y volvé a intentarlo.');
       return false;
     }
     if(window.DGIE_DB?.actualizarRelevamiento){
       const {error}=await window.DGIE_DB.actualizarRelevamiento(rel.remoteId,{datos:rel});
       if(error){
-        alert('No se pudo guardar el comentario en Supabase. Al actualizar se perderá. Detalle: '+(error.message||error));
+        alert('No se pudo guardar el comentario. Al actualizar se perderá. Detalle: '+(error.message||error));
         return false;
       }
     }
@@ -11414,7 +11415,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!confirm('¿Eliminar este relevamiento?'))return;
     const remoto=await borrarRelRemoto(found.rel);
     if(!remoto.ok){
-      alert('No se pudo eliminar el relevamiento en Supabase. Detalle: '+(remoto.error?.message||remoto.error));
+      alert('No se pudo eliminar el relevamiento. Detalle: '+(remoto.error?.message||remoto.error));
       return;
     }
     const idx=found.arr.indexOf(found.rel);
@@ -11922,7 +11923,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     let remoteId=null;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){
       const res=await window.DGIE_DB.crearRelevamiento({establecimiento_id:Number(estId),zona:rel.zona,datos:rel});
-      if(res?.error){alert('No se pudo guardar el relevamiento en Supabase: '+res.error.message);return;}
+      if(res?.error){alert('No se pudo guardar el relevamiento: '+res.error.message);return;}
       remoteId=res?.data?.id||null;
       if(remoteId&&typeof persistirFotosSupabase==='function')await persistirFotosSupabase('relevamiento',remoteId,fotosArchivos,estId,rel.zona);
     }
@@ -11955,7 +11956,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     };
     if(actualizado.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarRelevamiento==='function'){
       const res=await window.DGIE_DB.actualizarRelevamiento(actualizado.remoteId,{datos:actualizado});
-      if(res?.error){alert('No se pudo actualizar el relevamiento en Supabase: '+res.error.message);return;}
+      if(res?.error){alert('No se pudo actualizar el relevamiento: '+res.error.message);return;}
       if(nuevasFotos.length&&typeof persistirFotosSupabase==='function')await persistirFotosSupabase('relevamiento',actualizado.remoteId,nuevasFotos,found.estId,actualizado.zona);
     }
     Object.assign(found.rel,actualizado);
@@ -12422,7 +12423,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearComunicacion==='function'){
       const row={tipo:c.tipo,titulo:c.titulo,mensaje:c.mensaje,alcance:c.alcance,zonas:c.zonas,creado_por_nombre:c.creadoPor,estados:c.estados,validaciones:c.validaciones,encuesta:c.encuesta||[],archivos:c.archivos||[]};
       const {data,error}=await window.DGIE_DB.crearComunicacion(row);
-      if(error){alert('No se pudo guardar la comunicación en Supabase: '+error.message);return}
+      if(error){alert('No se pudo guardar la comunicación: '+error.message);return}
       c.remoteId=data?.id;c._remoteSaved=true;
     }
     saveAppState&&saveAppState();
@@ -12437,7 +12438,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   async function actualizarRemote(c){
     if(!c?._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.actualizarComunicacion!=='function')return;
     const {error}=await window.DGIE_DB.actualizarComunicacion(c.remoteId||c.id,{estados:c.estados||{},validaciones:c.validaciones||{}});
-    if(error)alert('No se pudo actualizar la comunicación en Supabase: '+error.message);
+    if(error)alert('No se pudo actualizar la comunicación: '+error.message);
   }
   function claveComunicacionActual(){
     return esEmpresa()?keyEmpresa(currentUser.zona):keyInspector(currentUser.zona);
@@ -13624,8 +13625,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(r.remoteId && window.DGIE_DB?.isConfigured && typeof window.DGIE_DB.actualizarReclamo === 'function'){
       const {data, error} = await window.DGIE_DB.actualizarReclamo(r.remoteId, patch);
       if(error){
-        console.warn('No se pudo actualizar reclamo en Supabase', error);
-        alert('No se pudo guardar la edición en Supabase. Revisá la conexión y volvé a intentar.');
+        console.warn('No se pudo actualizar el reclamo en el servicio remoto', error);
+        alert('No se pudo guardar la edición. Revisá la conexión y volvé a intentar.');
         return;
       }
       r.updatedAt = data?.updated_at || now;
@@ -14453,7 +14454,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearComunicacion==='function'){
       const row={tipo:c.tipo,titulo:c.titulo,mensaje:c.mensaje,alcance:c.alcance,zonas:c.zonas,creado_por_nombre:c.creadoPor,estados:{},validaciones:{},encuesta:[],archivos:c.archivos||[]};
       const {data,error}=await window.DGIE_DB.crearComunicacion(row);
-      if(error){if(err){err.textContent='No se pudo guardar en Supabase: '+error.message;err.style.display='block'}else alert('No se pudo guardar en Supabase: '+error.message);return}
+      if(error){if(err){err.textContent='No se pudo guardar: '+error.message;err.style.display='block'}else alert('No se pudo guardar: '+error.message);return}
       c.remoteId=data?.id;c._remoteSaved=true;
     }
     COMUNICACIONES.unshift(c);
@@ -14581,7 +14582,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         const base=String(r.descripcion||r.titulo||'').replace(/\s*\[RECLAMO_ANULADO:[A-Za-z0-9+/=]+\]\s*/g,'').trim();
         const fallback={descripcion:`${base}\n[RECLAMO_ANULADO:${encoded}]`,updated_at:now};
         const retry=await window.DGIE_DB.actualizarReclamo(r.remoteId,fallback);
-        if(retry.error){alert('No se pudo guardar la anulación en Supabase: '+retry.error.message);return}
+        if(retry.error){alert('No se pudo guardar la anulación: '+retry.error.message);return}
         data=retry.data;
       }
       r.updatedAt=data?.updated_at||now;
@@ -14613,7 +14614,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const {data,error}=await window.DGIE_DB.actualizarReclamo(r.remoteId,patch);
       if(error){
         const retry=await window.DGIE_DB.actualizarReclamo(r.remoteId,{descripcion:descripcionLimpia,updated_at:now});
-        if(retry.error){alert('No se pudo revertir la anulación en Supabase: '+retry.error.message);return}
+        if(retry.error){alert('No se pudo revertir la anulación: '+retry.error.message);return}
         r.updatedAt=retry.data?.updated_at||now;
       }else{
         r.updatedAt=data?.updated_at||now;
@@ -14714,7 +14715,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!confirm('¿Eliminar este relevamiento?'))return;
     const remoto=await sincronizarEliminacionRel(found.rel);
     if(!remoto.ok){
-      alert('No se pudo eliminar el relevamiento en Supabase. Detalle: '+(remoto.error?.message||remoto.error));
+      alert('No se pudo eliminar el relevamiento. Detalle: '+(remoto.error?.message||remoto.error));
       return;
     }
     found.rel.eliminado=true;
@@ -14934,7 +14935,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function msgSupabaseMedicion(error){
     const msg=String(error?.message||error||'');
-    return msg+(msg.includes('medicion_firmada')||msg.includes('modulos_final')?' Ejecutá supabase-certificado-final-medicion.sql en Supabase.':'');
+    return msg+(msg.includes('medicion_firmada')||msg.includes('modulos_final')?' Contactá al administrador del sistema.':'');
   }
   window.modulosCertificadoFinal=modFinal;
   window.certTieneModulosFinal=tieneModulosFinal;
@@ -15291,8 +15292,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function dbMsg(error){
     const msg=String(error?.message||error||'');
-    if(String(error?.code)==='42P01'||msg.toLowerCase().includes('analisis_precios'))return 'Falta ejecutar supabase-analisis-precios.sql en Supabase.';
-    return msg||'No se pudo conectar con Supabase.';
+    if(String(error?.code)==='42P01'||msg.toLowerCase().includes('analisis_precios'))return 'El módulo todavía no está habilitado. Contactá al administrador del sistema.';
+    return msg||'No se pudo conectar con el servicio.';
   }
   async function loadStore(force=false){
     if(AP_LOAD_PROMISE&&!force)return AP_LOAD_PROMISE;
@@ -15358,7 +15359,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
   }
   function storageBadge(){
-    if(AP_REMOTE_OK)return 'Guardado en Supabase.';
+    if(AP_REMOTE_OK)return 'Guardado.';
     return AP_REMOTE_ERROR?`Modo local de respaldo. ${esc(AP_REMOTE_ERROR)}`:'Cargando datos compartidos...';
   }
   function zonaActual(z){return Number(z||currentUser?.zona||selectedZona||selectedEmpresa||1)||1}
@@ -15507,7 +15508,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     ap.establecimientoId=estIdCert(cert)||ap.establecimientoId||'';
     ap.establecimiento=cert.establecimiento_nombre||ap.establecimiento||'';
     ap.updatedAt=new Date().toISOString();
-    try{await persistAnalisisItem(ap)}catch(error){alert('El análisis quedó como respaldo local, pero no se pudo guardar en Supabase: '+dbMsg(error));return}
+    try{await persistAnalisisItem(ap)}catch(error){alert('El análisis quedó como respaldo local, pero no se pudo sincronizar: '+dbMsg(error));return}
     volverDesdeAnalisisCertificado();
   };
   window.desanexarAnalisisPrecioCertificado=async function(certId){
@@ -15518,7 +15519,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     ap.certId='';
     ap.osNumero='';
     ap.updatedAt=new Date().toISOString();
-    try{await persistAnalisisItem(ap)}catch(error){alert('El análisis quedó como respaldo local, pero no se pudo guardar en Supabase: '+dbMsg(error));return}
+    try{await persistAnalisisItem(ap)}catch(error){alert('El análisis quedó como respaldo local, pero no se pudo sincronizar: '+dbMsg(error));return}
     volverDesdeAnalisisCertificado();
   };
   window.abrirAnalisisPrecioCertificado=async function(id){
@@ -15712,7 +15713,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     try{
       await persistAnalisisItem(item);
     }catch(error){
-      if(err){err.textContent='Quedó guardado como respaldo local, pero falta sincronizar Supabase: '+dbMsg(error);err.style.display='block'}
+      if(err){err.textContent='Quedó guardado como respaldo local, pero falta sincronizar: '+dbMsg(error);err.style.display='block'}
       if(btn){btn.disabled=false;btn.textContent='Guardar análisis'}
       return;
     }
@@ -15722,7 +15723,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!confirm('¿Eliminar este análisis de precios?'))return;
     await loadStore();
     try{await deleteAnalisisItem(id)}
-    catch(error){alert('No se pudo eliminar en Supabase: '+dbMsg(error));return}
+    catch(error){alert('No se pudo eliminar: '+dbMsg(error));return}
     if(tipo==='cert-list')abrirAnalisisPreciosCertificacion(z,currentUser?.role||'inspector');
     else abrirAnalisisPrecios(z,tipo);
   };
@@ -16019,7 +16020,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const msg=String(error?.message||error||'');
       const rls=/row-level security|violates row-level security/i.test(msg);
       alert((rls
-        ? 'No se pudo guardar el certificado en Supabase por políticas RLS de certificados_medicion. Ejecutá el SQL _archivo_trabajo/sql/fix-rls-certificados-medicion-app-2026-07-07.sql para habilitar la carga desde la app.'
+        ? 'No se pudo guardar el certificado por una restricción de permisos. Contactá al administrador del sistema.'
         : 'No se pudo guardar el certificado.')
         +' Detalle: '+msg);
     }
@@ -16508,7 +16509,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         cargarMensajeArgentinaHoy(true);
       }catch(err){
         console.warn('No se pudo guardar el aviso de Argentina',err);
-        alert('No se pudo guardar el mensaje en Supabase: '+(err?.message||err));
+        alert('No se pudo guardar el mensaje: '+(err?.message||err));
         if(limpio)localStorage.setItem(MSG_KEY,limpio);else localStorage.removeItem(MSG_KEY);
       }
     })();
@@ -16578,7 +16579,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const nuevo={id:nextId(),zona,n:nombre,cue:val('new-est-cue'),dir:val('new-est-dir'),barrio:val('new-est-barrio'),nivel:val('new-est-nivel')||'Primario',tipo:val('new-est-tipo')||'Escuela',est:val('new-est-estado')||'Bueno',lat,lng};
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearEstablecimiento==='function'){
       const {data,error}=await window.DGIE_DB.crearEstablecimiento({id:nuevo.id,zona:nuevo.zona,nombre:nuevo.n,cue:nuevo.cue||null,direccion:nuevo.dir||null,barrio:nuevo.barrio||null,nivel:nuevo.nivel,tipo:nuevo.tipo,estado:nuevo.est,lat:nuevo.lat,lng:nuevo.lng});
-      if(error){if(err){err.textContent='No se pudo guardar en Supabase: '+error.message;err.style.display='block';}return;}
+      if(error){if(err){err.textContent='No se pudo guardar: '+error.message;err.style.display='block';}return;}
       if(data?.id)nuevo.id=Number(data.id);
     }
     ESTABS.push(nuevo);saveAppState&&saveAppState();renderEstablecimientos(document.getElementById('main-content'));
@@ -16592,7 +16593,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!confirm('¿Eliminar este establecimiento de la zona?'))return;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.eliminarEstablecimiento==='function'){
       const {error}=await window.DGIE_DB.eliminarEstablecimiento(id);
-      if(error){alert('No se pudo eliminar en Supabase: '+error.message);return;}
+      if(error){alert('No se pudo eliminar: '+error.message);return;}
     }
     const idx=ESTABS.findIndex(x=>Number(x.id)===Number(id));
     if(idx>=0)ESTABS.splice(idx,1);
@@ -17739,7 +17740,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const body=btn?.closest('.ficha-body')||byId('ficha-body')||byId('map-ficha-body');
       if(body)body.innerHTML=renderFichaTecnica(estId,'Ficha técnica guardada.');
     }catch(e){
-      if(err){err.textContent='No se pudo guardar en Supabase: '+(e.message||e);err.style.display='block'}
+      if(err){err.textContent='No se pudo guardar: '+(e.message||e);err.style.display='block'}
       if(btn){btn.disabled=false;btn.textContent='Guardar ficha técnica'}
     }
   };
@@ -18746,7 +18747,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function modCert(c){return typeof window.modulosCertificadoFinal==='function'?window.modulosCertificadoFinal(c):num(c?.modulos_final||c?.modulos_inspector||c?.modulos_original)}
   function certFields(base){
     return [
-      {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('revision','En revisión'),opt('medido','En medición')],test:(c,v)=>String(c?.estado||'pendiente')===v},
+      {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('devuelto','Devuelto'),opt('medido','En medición')],test:(c,v)=>v==='pendiente'?['pendiente','revision'].includes(String(c?.estado||'pendiente')):String(c?.estado||'pendiente')===v},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(certRubros)),test:(c,v)=>norm(certRubros(c))===norm(v)},
       {key:'medicion',label:'Medición',options:()=>uniqOptions((base||[]).map(c=>c?.medicion_numero).filter(Boolean).map(n=>`Medición Nº ${n}`)).map(o=>opt(o.value.replace(/\D+/g,''),o.label)),test:(c,v)=>String(c?.medicion_numero||'')===String(v)},
       {key:'orden',label:'Orden de servicio',options:()=>uniqOptions((base||[]).flatMap(certOrdenesSmart).map(o=>`O.S. ${o}`)).map(o=>opt(o.value.replace(/[^\dA-Za-z-]/g,''),o.label)),test:(c,v)=>certOrdenesSmart(c).some(o=>String(o)===String(v)||String(o).endsWith(String(v)))}
@@ -18755,7 +18756,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function certTexto(c){return `${c?.establecimiento_nombre||''} ${c?.archivo_original||''} ${c?.archivo_inspector||''} ${certRubros(c)} ${certOrdenesSmart(c).join(' ')} ${c?.medicion_numero||''}`.toLowerCase()}
   function certEstadoBadge(c){
     const st=String(c?.estado||'pendiente');
-    const map={pendiente:['Pendiente de revisión','b-info'],revision:['En revisión','b-warn'],medido:['En medición','b-ok']};
+    const map={pendiente:['Pendiente','b-info'],revision:['Pendiente','b-info'],devuelto:['Devuelto','b-danger'],medido:['En medición','b-ok']};
     const it=map[st]||map.pendiente;
     return `<span class="badge ${it[1]}">${it[0]}</span>`;
   }
@@ -19096,7 +19097,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       r.estadoInspector=prevEstado;
       r.estado_inspector=prevEstado;
       r.descripcion=prevDesc;
-      alert('No se pudo sincronizar el estado del reclamo con Supabase. Revisá conexión y volvé a intentar. Detalle: '+(error.message||error));
+      alert('No se pudo sincronizar el estado del reclamo. Revisá la conexión y volvé a intentar. Detalle: '+(error.message||error));
       refrescarEstadoReclamos();
     }
   };
@@ -19470,7 +19471,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           const app=document.getElementById('app-wrapper');
           if(app)app.style.display='';
           const main=document.getElementById('main-content');
-          if(main)main.innerHTML='<div class="card"><div class="card-title">Cargando datos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Sincronizando informacion de Supabase...</div></div>';
+          if(main)main.innerHTML='<div class="card"><div class="card-title">Cargando datos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Sincronizando información del sistema...</div></div>';
         }catch(e){}
         return Promise.resolve(window.cargarDatosPublicosDGIE())
           .catch(err=>log('No se pudo precargar DGIE antes del ingreso',err))
@@ -20941,7 +20942,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           refrescarBotonesComentariosOS();
         }
       }catch(error){
-        console.warn('No se pudo guardar el comentario de O.S. en Supabase',error);
+        console.warn('No se pudo guardar el comentario de O.S. en el servicio remoto',error);
       }
     }
   };
@@ -21115,7 +21116,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(principal)rel.comparteEdificioCon=principal;else rel.rubros=rubros;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){
       const {data,error}=await window.DGIE_DB.crearRelevamiento({establecimiento_id:estId,zona:rel.zona,datos:rel});
-      if(error){alert('No se pudo guardar el estado edilicio en Supabase. Detalle: '+(error.message||error));return;}
+      if(error){alert('No se pudo guardar el estado edilicio. Detalle: '+(error.message||error));return;}
       const row=Array.isArray(data)?data[0]:data;
       if(row?.id)rel.remoteId=row.id;
     }
@@ -21280,7 +21281,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   async function persistirComentarios(it){
     if(!window.DGIE_DB?.isConfigured)return;
-    if(!it?.remoteId)throw new Error('La intervención no tiene ID de Supabase.');
+    if(!it?.remoteId)throw new Error('La intervención todavía no está sincronizada.');
     if(typeof window.DGIE_DB.actualizarIntervencion!=='function')throw new Error('El servicio de Intervenciones no está disponible.');
     const {error}=await window.DGIE_DB.actualizarIntervencion(it.remoteId,{comentarios_coordinacion:it.comentariosCoordinacion||[]});
     if(error)throw error;
@@ -21294,7 +21295,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     else if(paqueteAbierto)window.abrirPaqueteIntervencion?.(paqueteAbierto);
   }
   function guardarLocal(){if(typeof saveAppState==='function')saveAppState()}
-  function informarError(accion,error){alert(`No se pudo ${accion} en Supabase. Detalle: ${error?.message||error}`)}
+  function informarError(accion,error){alert(`No se pudo ${accion}. Detalle: ${error?.message||error}`)}
   function actualizarAnalisisIntervenciones(){setTimeout(()=>window.actualizarGraficoIntervencionesDGIE?.(),0)}
   window.guardarComentarioIntervencionFinal=async function(id){
     const it=intervencionPorDomId(id);
@@ -22062,6 +22063,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   instalar();
 })();
 </script>
-<script src="./dgie-comunicaciones.js?v=20260720-4"></script>
+<script src="./dgie-certificacion-flujo.js?v=20260720-1"></script>
+<script src="./dgie-comunicaciones.js?v=20260720-6"></script>
 </body>
 </html>

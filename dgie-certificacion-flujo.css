@@ -1,0 +1,237 @@
+.dgie-cert-queue-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:12px;
+}
+.dgie-cert-queue-copy{
+  min-width:0;
+}
+.dgie-cert-queue-copy .card-title{
+  margin-bottom:3px;
+}
+.dgie-cert-queue-copy p{
+  margin:0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.45;
+}
+.dgie-cert-queue-tabs{
+  display:inline-grid;
+  grid-template-columns:repeat(2,minmax(126px,1fr));
+  gap:4px;
+  padding:4px;
+  border:1px solid #d8e2ee;
+  border-radius:8px;
+  background:#f4f7fa;
+}
+.dgie-cert-queue-tab{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:36px;
+  padding:7px 11px;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  color:#526174;
+  font:inherit;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.dgie-cert-queue-tab:hover{
+  background:#fff;
+  color:#123c69;
+}
+.dgie-cert-queue-tab[aria-selected="true"]{
+  border-color:#bfd2e5;
+  background:#fff;
+  color:#074f91;
+  box-shadow:0 1px 2px rgba(20,53,84,.08);
+}
+.dgie-cert-queue-tab[data-tab="devuelto"][aria-selected="true"]{
+  border-color:#f0b9b5;
+  color:#a5231d;
+}
+.dgie-cert-tab-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:23px;
+  height:23px;
+  padding:0 7px;
+  border-radius:999px;
+  background:#e5eef8;
+  color:#074f91;
+  font-size:12px;
+  line-height:1;
+}
+.dgie-cert-queue-tab[data-tab="devuelto"] .dgie-cert-tab-count{
+  background:#fbe9e7;
+  color:#a5231d;
+}
+.dgie-cert-queue-panel{
+  max-height:520px;
+  overflow-y:auto;
+  padding-right:3px;
+}
+.dgie-cert-queue-panel[hidden]{
+  display:none;
+}
+.dgie-cert-empty{
+  display:grid;
+  place-items:center;
+  min-height:126px;
+  padding:24px;
+  border:1px dashed #cbd7e4;
+  border-radius:8px;
+  color:#64748b;
+  text-align:center;
+  font-size:13px;
+  line-height:1.45;
+}
+.dgie-cert-return-banner{
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #efc3bf;
+  border-left:4px solid #c43830;
+  border-radius:6px;
+  background:#fff7f6;
+  color:#7f1d1d;
+}
+.dgie-cert-return-banner strong{
+  display:block;
+  margin-bottom:3px;
+  color:#991b1b;
+  font-size:12px;
+}
+.dgie-cert-return-banner span{
+  display:block;
+  overflow-wrap:anywhere;
+  font-size:13px;
+  line-height:1.45;
+}
+.dgie-cert-waiting{
+  display:inline-flex;
+  align-items:center;
+  min-height:34px;
+  padding:6px 9px;
+  border-left:3px solid #c43830;
+  color:#7f1d1d;
+  font-size:12px;
+  font-weight:800;
+}
+.dgie-cert-action-return{
+  border-color:#e9b4b0!important;
+  color:#a5231d!important;
+}
+.dgie-cert-action-return:hover{
+  background:#fff2f1!important;
+}
+.dgie-cert-flow-intro{
+  margin:0 0 16px;
+  padding:12px 14px;
+  border:1px solid #cddceb;
+  border-left:4px solid #0b67b2;
+  border-radius:6px;
+  background:#f5f9fd;
+  color:#334155;
+  font-size:13px;
+  line-height:1.5;
+}
+.dgie-cert-flow-summary{
+  display:grid;
+  grid-template-columns:minmax(0,1.4fr) minmax(170px,.6fr);
+  gap:12px;
+  margin-bottom:16px;
+}
+.dgie-cert-flow-summary > div{
+  min-width:0;
+  padding:12px 14px;
+  border:1px solid #dbe4ee;
+  border-radius:8px;
+  background:#f8fafc;
+}
+.dgie-cert-flow-kicker{
+  display:block;
+  margin-bottom:4px;
+  color:#64748b;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.dgie-cert-flow-value{
+  color:#183b5b;
+  font-size:14px;
+  font-weight:800;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.dgie-cert-return-reason{
+  margin-bottom:16px;
+  padding:12px 14px;
+  border:1px solid #efc3bf;
+  border-left:4px solid #c43830;
+  border-radius:6px;
+  background:#fff7f6;
+}
+.dgie-cert-return-reason strong{
+  display:block;
+  margin-bottom:4px;
+  color:#991b1b;
+  font-size:12px;
+}
+.dgie-cert-return-reason p{
+  margin:0;
+  color:#5f2120;
+  font-size:14px;
+  line-height:1.5;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+.dgie-cert-required-note{
+  margin-top:5px;
+  color:#64748b;
+  font-size:12px;
+  line-height:1.4;
+}
+.dgie-cert-inline-error{
+  display:none;
+  margin-top:8px;
+  color:#b42318;
+  font-size:12px;
+  font-weight:800;
+}
+.dgie-cert-inline-error.is-visible{
+  display:block;
+}
+.dgie-cert-submit-status{
+  min-height:18px;
+  margin-right:auto;
+  color:#526174;
+  font-size:12px;
+  font-weight:700;
+}
+@media(max-width:760px){
+  .dgie-cert-queue-header{
+    flex-direction:column;
+  }
+  .dgie-cert-queue-tabs{
+    width:100%;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .dgie-cert-queue-tab{
+    min-width:0;
+    white-space:normal;
+  }
+  .dgie-cert-flow-summary{
+    grid-template-columns:1fr;
+  }
+  .dgie-cert-queue-panel{
+    max-height:none;
+  }
+}

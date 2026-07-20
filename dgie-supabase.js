@@ -11,12 +11,12 @@
   }
 
   if(!cfg.url || !cfg.anonKey){
-    notReady('Falta configurar Supabase.');
+    notReady('Falta configurar el servicio de datos.');
     return;
   }
 
   if(!supabaseLib || typeof supabaseLib.createClient !== 'function'){
-    notReady('No se pudo cargar supabase-js.');
+    notReady('No se pudo iniciar el servicio de datos.');
     return;
   }
 
@@ -53,7 +53,7 @@
       method: 'POST',
       body: form
     });
-    if(!res.ok) throw new Error(`Cloudinary ${res.status}`);
+    if(!res.ok) throw new Error(`No se pudo subir el archivo (${res.status})`);
     return res.json();
   }
   async function selectAll(table, options = {}){
@@ -81,7 +81,7 @@
   function oneOrError(data, label){
     const row = Array.isArray(data) ? data[0] || null : data;
     if(row) return { data:row, error:null };
-    return { data:null, error:{ message:`Supabase no devolvió datos al guardar ${label}. Revisá permisos o filtros de la tabla.` } };
+    return { data:null, error:{ message:`El servicio no confirmó el guardado de ${label}. Volvé a intentarlo.` } };
   }
   async function updateOne(table, id, row, label){
     const { data, error } = await client.from(table).update(row).eq('id', id).select('*').limit(1);
@@ -327,7 +327,7 @@
     },
     async eliminarPlano(id, path){
       if(path && !String(path).includes('/')) {
-        // Los archivos nuevos pueden estar en Cloudinary; con preset unsigned no se borran desde el navegador.
+        // Algunos archivos remotos no se pueden borrar directamente desde el navegador.
       } else {
         await client.storage.from('dgie-planos').remove([path]);
       }
