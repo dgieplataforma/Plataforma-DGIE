@@ -670,6 +670,23 @@
     return completedForCurrent(c)&&!state.editingResponses[commId(c)];
   }
   function renderReadValue(field,value){
+    if(field.tipo==='establecimientos'){
+      const items=Array.isArray(value)?value:[];
+      if(!items.length)return `<div class="dgc-read-value">Sin establecimientos informados</div>`;
+      return `<div class="dgc-read-establishments">
+        <div class="dgc-read-est-count">${items.length} establecimiento${items.length===1?'':'s'} informado${items.length===1?'':'s'}</div>
+        <div class="dgc-read-est-table" role="table" aria-label="${esc(field.etiqueta||'Establecimientos informados')}">
+          <div class="dgc-read-est-row is-head" role="row">
+            <div role="columnheader">Establecimiento</div>
+            <div role="columnheader">Comentario</div>
+          </div>
+          ${items.map(item=>`<div class="dgc-read-est-row" role="row">
+            <div class="dgc-read-est-school" role="cell">${esc(item?.nombre||'Establecimiento')}</div>
+            <div class="dgc-read-est-comment ${item?.comentario?'':'is-empty'}" role="cell">${esc(item?.comentario||'Sin comentario')}</div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
     const display=displayAnswer(field,value);
     return `<div class="dgc-read-value">${esc(display||'Sin respuesta')}</div>`;
   }
