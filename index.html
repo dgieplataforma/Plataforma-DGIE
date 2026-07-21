@@ -18460,11 +18460,38 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const raw=String(r?.titulo||r?.descripcion||'—');
     return typeof window.limpiarMetaEstadoInspectorReclamo==='function'?window.limpiarMetaEstadoInspectorReclamo(raw):raw;
   }
+  function reclamoEstablecimientoId(r){
+    const id=Number(r?.estId||r?.establecimiento_id||r?.establecimientoId||0);
+    if(id)return id;
+    const nombre=norm(r?.est||r?.establecimiento||'');
+    const establecimiento=(ESTABS||[]).find(e=>norm(e?.n||e?.nombre||e?.establecimiento||'')===nombre);
+    return Number(establecimiento?.id||0)||0;
+  }
+  function reclamoEstablecimientoNombre(r){
+    const id=reclamoEstablecimientoId(r);
+    const establecimiento=id?(ESTABS||[]).find(e=>Number(e?.id)===id):null;
+    return String(establecimiento?.n||establecimiento?.nombre||establecimiento?.establecimiento||r?.est||r?.establecimiento||'').trim();
+  }
+  function reclamoEstablecimientoKey(r){
+    const id=reclamoEstablecimientoId(r);
+    return id?`id:${id}`:`nom:${norm(reclamoEstablecimientoNombre(r))}`;
+  }
+  function reclamoEstablecimientoOptions(base){
+    const opciones=new Map();
+    (base||[]).forEach(r=>{
+      const label=reclamoEstablecimientoNombre(r);
+      if(!label)return;
+      const key=reclamoEstablecimientoKey(r);
+      if(!opciones.has(key))opciones.set(key,opt(key,label));
+    });
+    return Array.from(opciones.values()).sort((a,b)=>a.label.localeCompare(b.label,'es'));
+  }
   function reclamoFields(base,{zona=false}={}){
     const fields=[];
     if(zona)fields.push({key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)});
     fields.push(
       {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
+      {key:'establecimiento',label:'Establecimiento',options:()=>reclamoEstablecimientoOptions(base),test:(r,v)=>reclamoEstablecimientoKey(r)===String(v)},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
@@ -18508,7 +18535,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=(RECLAMOS_ZONA||[]).filter(r=>zonaEst(r)===z);
     const ctx='insp-rec';
     resetSmartCtx(ctx);
-    container.innerHTML=`<div class="card"><div class="card-header"><div><div class="card-title">Reclamos Zona ${esc(z)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por estado, prioridad, O.S. y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="insp-rec-count">${base.length} reclamos</span>${pdfButton(ctx,'PDF filtrado')}</div></div>
+    container.innerHTML=`<div class="card"><div class="card-header"><div><div class="card-title">Reclamos Zona ${esc(z)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por establecimiento, estado, prioridad, O.S. y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="insp-rec-count">${base.length} reclamos</span>${pdfButton(ctx,'PDF filtrado')}</div></div>
       <div class="os-filters">
         <input class="estab-search" id="insp-rec-q" placeholder="Buscar por establecimiento, título, número o rubro..." oninput="filterReclamosInspector()">
         ${smartHTML(ctx,reclamoFields(base),'filterReclamosInspector')}
@@ -18536,7 +18563,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=RECLAMOS_ZONA||[];
     const ctx='coord-rec';
     resetSmartCtx(ctx);
-    container.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, estado, prioridad, O.S. y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="coord-reclamos-count">— reclamos</span>${pdfButton(ctx,'PDF filtrado')}<button class="secondary-btn" style="padding:6px 13px;font-size:12px;font-weight:700" onclick="exportarReclamosExcel()">Excel</button></div></div>
+    container.innerHTML=`<div class="section-label">Coordinación · Reclamos</div><div class="card"><div class="card-header"><div><div class="card-title">Todos los reclamos</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, establecimiento, estado, prioridad, O.S. y rubro.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="coord-reclamos-count">— reclamos</span>${pdfButton(ctx,'PDF filtrado')}<button class="secondary-btn" style="padding:6px 13px;font-size:12px;font-weight:700" onclick="exportarReclamosExcel()">Excel</button></div></div>
       <div class="os-filters">
         <input class="estab-search" id="coord-rec-q" placeholder="Buscar por establecimiento, título, número o rubro..." oninput="filterReclamosCoord()">
         ${smartHTML(ctx,reclamoFields(base,{zona:true}),'filterReclamosCoord')}
