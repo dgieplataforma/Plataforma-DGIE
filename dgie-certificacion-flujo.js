@@ -481,7 +481,7 @@
           <div class="form-field full">
             <label class="form-label" for="dgie-cert-resubmit-file">Certificado Excel corregido *</label>
             <input class="form-input" id="dgie-cert-resubmit-file" type="file" accept=".xls,.xlsx">
-            <div class="dgie-cert-required-note">Tamaño máximo: 5 MB.</div>
+            <div class="dgie-cert-required-note">Tamaño máximo: 10 MB.</div>
           </div>
           <div class="form-field">
             <label class="form-label" for="dgie-cert-resubmit-modules">Módulos</label>
