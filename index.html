@@ -6575,16 +6575,27 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function estById(id){return ESTABS.find(e=>Number(e.id)===Number(id))}
   function certVisible(c){return c&&c.estado!=='eliminado'}
   function zonaCertificado(c){
+    const estId=Number(c?.establecimiento_id||c?.estId||0);
+    const zonaEstablecimientoActual=estId?Number(estById(estId)?.zona||0):0;
+    if(zonaEstablecimientoActual>0)return zonaEstablecimientoActual;
     const directa=Number(c?.zona);
     if(Number.isFinite(directa)&&directa>0)return directa;
     const txt=String(c?.zona||'');
     const m=txt.match(/\d+/);
     if(m)return Number(m[0]);
-    const estId=Number(c?.establecimiento_id||c?.estId||0);
-    return estId?Number(zonaEstablecimiento(estId)||0):0;
+    return 0;
   }
+  window.zonaCertificado=zonaCertificado;
   function certsZona(z){return CERTIFICADOS_MEDICION.filter(c=>certVisible(c)&&zonaCertificado(c)===Number(z))}
   function certsMedidos(data=CERTIFICADOS_MEDICION){return data.filter(c=>certVisible(c)&&c.estado==='medido'&&c.medicion_numero)}
+  function certificadosMedicionZona(numero,zona){
+    const zonaNumero=Number(zona);
+    if(!zonaNumero||numero===null||numero===undefined||String(numero).trim()==='')return [];
+    return certsMedidos(CERTIFICADOS_MEDICION).filter(c=>
+      String(c.medicion_numero)===String(numero)&&zonaCertificado(c)===zonaNumero
+    );
+  }
+  window.certificadosMedicionZona=certificadosMedicionZona;
   function modActual(c){return n(c.modulos_inspector||c.modulos_original)}
   function modFinalCert(c){
     if(typeof window.modulosCertificadoFinal==='function')return window.modulosCertificadoFinal(c);
@@ -7230,7 +7241,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`;
   }
   window.abrirMedicionInspector=function(numero){
-    const data=certsMedidos(certsZona(currentUser.zona)).filter(c=>String(c.medicion_numero)===String(numero));
+    const data=certificadosMedicionZona(numero,currentUser?.zona);
     const total=data.reduce((a,c)=>a+modFinalCert(c),0);
     const el=$('med-detalle');
     if(!el)return;
@@ -7263,12 +7274,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`;const diff=modActual(c)-n(c.modulos_original);const ordenes=certOrdenes(c).map(o=>escapeHtml(o)).join('<br>');return `<tr><td style="${td}">${escapeHtml(c.establecimiento_nombre||'')}</td><td style="${td}">${ordenes}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(modActual(c))}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="2">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}"></td></tr></tfoot></table>`;
   }
   window.exportarMedicionExcel=function(numero){
-    const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
+    const zona=Number(currentUser?.zona||0);
+    const data=certificadosMedicionZona(numero,zona);
     if(!data.length){alert('No hay certificados en esta medición.');return;}
     const blob=new Blob([`\ufeff${tablaMedicion(data)}`],{type:'application/vnd.ms-excel;charset=utf-8;'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=`medicion-${numero}.xls`;
+    a.download=`zona-${zona}-medicion-${numero}.xls`;
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
@@ -7285,7 +7297,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
   }
   window.descargarZipMedicion=async function(numero){
-    const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
+    const zona=Number(currentUser?.zona||0);
+    const data=certificadosMedicionZona(numero,zona);
     if(!data.length){alert('No hay certificados en esta medición.');return;}
     if(!window.JSZip){alert('No se pudo cargar JSZip.');return;}
     const zip=new JSZip();
@@ -7295,7 +7308,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const blob=await zip.generateAsync({type:'blob'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=`medicion-${numero}-certificados.zip`;
+    a.download=`zona-${zona}-medicion-${numero}-certificados.zip`;
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
@@ -9109,6 +9122,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const CERT_FIN_KEY='dgie_cert_finalizada_medicion_zona_v1';
   function finMap(){try{return JSON.parse(localStorage.getItem(CERT_FIN_KEY)||'{}')||{}}catch(_){return {}}}
   function zonaCertFinal(c){
+    if(typeof window.zonaCertificado==='function')return Number(window.zonaCertificado(c)||0);
     const directa=Number(c?.zona);
     if(Number.isFinite(directa)&&directa>0)return directa;
     const txt=String(c?.zona||'');
@@ -13793,6 +13807,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 
   function zonaCertCoord(c){
+    if(typeof window.zonaCertificado==='function')return Number(window.zonaCertificado(c)||0);
     const directa = Number(c?.zona);
     if(Number.isFinite(directa) && directa > 0) return directa;
     const estId = Number(c?.establecimiento_id || c?.estId || 0);
@@ -14946,8 +14961,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(m)return `${m[3]}/${m[2]}/${m[1]}`;
     try{return new Date(v).toLocaleDateString('es-AR')}catch(_){return s}
   }
-  function dataMedicion(numero){
-    return certs().filter(c=>String(c.estado||'')==='medido'&&String(c.medicion_numero)===String(numero)&&(currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona)));
+  function dataMedicion(numero,zona=currentUser?.zona){
+    if(typeof window.certificadosMedicionZona==='function')return window.certificadosMedicionZona(numero,zona);
+    const zonaNumero=Number(zona);
+    if(!zonaNumero)return [];
+    return certs().filter(c=>
+      String(c.estado||'')==='medido'&&
+      String(c.medicion_numero)===String(numero)&&
+      Number(c.zona)===zonaNumero
+    );
   }
   function medicionFechaGrupo(data){
     const fechas=data.map(fechaMedicion).filter(Boolean).sort();
@@ -15952,10 +15974,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const base=typeof window.limpiarObsCert==='function'?window.limpiarObsCert(v):String(v||'');
     return String(base||'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').trim();
   }
-  function certsMedidosNumero(numero){
-    return (window.CERTIFICADOS_MEDICION||[])
-      .filter(c=>String(c?.estado||'').toLowerCase()==='medido'&&String(c?.medicion_numero)===String(numero))
-      .filter(c=>currentUser?.role!=='inspector'||Number(c.zona)===Number(currentUser.zona));
+  function certsMedidosNumero(numero,zona=currentUser?.zona){
+    if(typeof window.certificadosMedicionZona==='function')return window.certificadosMedicionZona(numero,zona);
+    const zonaNumero=Number(zona);
+    if(!zonaNumero)return [];
+    return (window.CERTIFICADOS_MEDICION||[]).filter(c=>
+      String(c?.estado||'').toLowerCase()==='medido'&&
+      String(c?.medicion_numero)===String(numero)&&
+      Number(c?.zona)===zonaNumero
+    );
   }
 
   const renderEmpresaBase=window.renderMedicionesEmpresa;
@@ -16049,12 +16076,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return res;
   };
   window.exportarMedicionExcel=function(numero){
-    const data=certsMedidosNumero(numero);
+    const zona=Number(currentUser?.zona||0);
+    const data=certsMedidosNumero(numero,zona);
     if(!data.length){alert('No hay certificados en esta medición.');return;}
     const blob=new Blob([`\ufeff${tablaMedicionRubro(data)}`],{type:'application/vnd.ms-excel;charset=utf-8;'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=`medicion-${numero}.xls`;
+    a.download=`zona-${zona}-medicion-${numero}.xls`;
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
@@ -17358,6 +17386,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function estById(id){return estabs().find(e=>Number(e.id)===Number(id))}
   function normal(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim()}
   function zonaCert(c){
+    if(typeof window.zonaCertificado==='function')return Number(window.zonaCertificado(c)||0);
     const directa=Number(c?.zona);
     if(Number.isFinite(directa)&&directa>0)return directa;
     const estId=Number(c?.establecimiento_id||c?.estId||0);
@@ -18761,6 +18790,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     el.innerHTML=data.length?data.map(o=>rowOS(o,{actions:true,editable:false})).join(''):`<tr><td colspan="13" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
   };
   function zonaCert(c){
+    if(typeof window.zonaCertificado==='function')return Number(window.zonaCertificado(c)||0);
     const z=Number(c?.zona);
     if(z)return z;
     const est=Number(c?.establecimiento_id||c?.estId||0);
@@ -20692,9 +20722,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     try{return est&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(est))||0:0}catch(_e){return 0}
   }
   function zonaCert(c){
-    const directa=Number(c?.zona||0);
-    if(directa)return directa;
-    try{return typeof zonaCertificado==='function'?Number(zonaCertificado(c))||0:0}catch(_e){return 0}
+    try{
+      if(typeof window.zonaCertificado==='function')return Number(window.zonaCertificado(c))||0;
+    }catch(_e){}
+    return Number(c?.zona||0)||0;
   }
   function rawOrdenesCert(c){
     const out=[];
@@ -21528,6 +21559,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function estabs(){return Array.isArray(window.ESTABS)?window.ESTABS:(typeof ESTABS!=='undefined'?ESTABS:[])}
   function estById(id){return estabs().find(e=>Number(e.id)===Number(id))}
   function zonaCert(c){
+    if(typeof window.zonaCertificado==='function')return Number(window.zonaCertificado(c)||0);
     const z=Number(c?.zona);
     if(Number.isFinite(z)&&z>0)return z;
     const estId=Number(c?.establecimiento_id||c?.estId||0);
