@@ -18518,6 +18518,30 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const st=typeof getEstadoOS==='function'?getEstadoOS(os):'orden_servicio';
     return st==='pendiente'?'pendiente':(st||'pendiente');
   }
+  function diasTranscurridosReclamo(raw){
+    const iso=fechaISO(raw);
+    if(!iso)return null;
+    const partes=iso.split('-').map(Number);
+    if(partes.length!==3||partes.some(v=>!Number.isFinite(v)))return null;
+    const hoy=new Date();
+    const inicio=Date.UTC(partes[0],partes[1]-1,partes[2]);
+    const fin=Date.UTC(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
+    return Math.max(0,Math.floor((fin-inicio)/86400000));
+  }
+  function reclamoCumpleDemora(r,tipo){
+    const estado=estadoReclamo(r);
+    if(estado==='finalizado'||estado==='anulado')return false;
+    if(tipo==='reclamo_mas_15'){
+      return Number(diasTranscurridosReclamo(r?.fecha||r?.created_at||r?.createdAt||r?.fechaHora||r?.fecha_hora))>15;
+    }
+    if(tipo==='os_mas_15'){
+      const os=reclamoOSVinculada(r);
+      if(!os||!['pendiente','trabajando'].includes(estadoOSReclamo(r)))return false;
+      return Number(diasTranscurridosReclamo(os?.fecha||os?.created_at||os?.createdAt))>15;
+    }
+    return false;
+  }
+  window.dgieReclamoCumpleDemora=reclamoCumpleDemora;
   function rubroRec(r){
     return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,r?.titulo||r?.descripcion||''):String(r?.rubro||'');
   }
@@ -18563,6 +18587,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
+      {key:'antiguedad',label:'Demora',options:()=>[opt('reclamo_mas_15','Reclamo pendiente hace más de 15 días'),opt('os_mas_15','O.S. activa enviada hace más de 15 días')],test:reclamoCumpleDemora},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
     );
     return fields;
@@ -20672,6 +20697,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     try{if(typeof window.estadoInspectorReclamoKey==='function')manual=norm(window.estadoInspectorReclamoKey(r)||manual)}catch(_e){}
     return manual==='anulado'||(o&&estadoOrden(o)==='anulado');
   }
+  function reclamoDemorado(r,tipo,o){
+    try{
+      if(typeof window.dgieReclamoCumpleDemora==='function')return window.dgieReclamoCumpleDemora(r,tipo);
+    }catch(_e){}
+    if(tipo==='reclamo_mas_15')return Number(diasDesde(r?.fecha||r?.created_at||r?.createdAt||r?.fechaHora||r?.fecha_hora))>15;
+    return !!o&&['pendiente','trabajando'].includes(estadoOrden(o))&&Number(diasDesde(o?.fecha||o?.created_at||o?.createdAt))>15;
+  }
   function metricasRanking(scope){
     const z=Number(scope?.zona||zonaActual());
     const baseEstabs=(Array.isArray(scope?.estabs)?scope.estabs:estabs().filter(e=>Number(e?.zona)===z));
@@ -20680,11 +20712,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rows=new Map();
     baseEstabs.forEach(e=>{
       const id=Number(e?.id||0),nombre=estNombre(e);
-      if(nombre)rows.set(keyEst(id,nombre),{id,nombre,pendientes:0,sin_os:0,demora_pendientes:null,demora_os:null,finalizados:0,detalle:{pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0}});
+      if(nombre)rows.set(keyEst(id,nombre),{id,nombre,pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0,detalle:{pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0}});
     });
     baseReclamos.forEach(r=>{
       const id=reclamoEstId(r),nombre=reclamoEstNombre(r),key=keyEst(id,nombre);
-      if(!rows.has(key))rows.set(key,{id,nombre,pendientes:0,sin_os:0,demora_pendientes:null,demora_os:null,finalizados:0,detalle:{pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0}});
+      if(!rows.has(key))rows.set(key,{id,nombre,pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0,detalle:{pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0}});
       const row=rows.get(key),os=ordenReclamo(r,baseOrdenes);
       if(reclamoAnulado(r,os))return;
       if(os&&estadoOrden(os)==='finalizado'){
@@ -20694,15 +20726,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       }
       row.pendientes++;
       row.detalle.pendientes++;
-      const demoraPendiente=diasDesde(r?.fecha||r?.created_at||r?.createdAt||r?.fechaHora||r?.fecha_hora);
-      if(demoraPendiente!==null)row.demora_pendientes=Math.max(row.demora_pendientes??0,demoraPendiente);
-      row.detalle.demora_pendientes++;
+      if(reclamoDemorado(r,'reclamo_mas_15',os)){
+        row.demora_pendientes++;
+        row.detalle.demora_pendientes++;
+      }
       if(!os){
         row.sin_os++;
         row.detalle.sin_os++;
-      }else if(['pendiente','trabajando'].includes(estadoOrden(os))){
-        const demoraOrden=diasDesde(os?.fecha||os?.created_at||os?.createdAt);
-        if(demoraOrden!==null)row.demora_os=Math.max(row.demora_os??0,demoraOrden);
+      }else if(reclamoDemorado(r,'os_mas_15',os)){
+        row.demora_os++;
         row.detalle.demora_os++;
       }
     });
@@ -20711,8 +20743,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const RANKING_COLUMNS={
     pendientes:{label:'Pendientes',header:'Pendientes',short:'Pendientes'},
     sin_os:{label:'Sin O.S.',header:'Sin O.S.',short:'Sin O.S.'},
-    demora_pendientes:{label:'Demora de pendientes',header:'Demora pend.',short:'Demora de pendientes'},
-    demora_os:{label:'Demora de O.S.',header:'Demora O.S.',short:'Demora de O.S.'},
+    demora_pendientes:{label:'Pendientes con más de 15 días',header:'Pend. +15 d',short:'Pendientes con más de 15 días'},
+    demora_os:{label:'Reclamos con O.S. activa hace más de 15 días',header:'O.S. +15 d',short:'Reclamos con O.S. activa hace más de 15 días'},
     finalizados:{label:'Finalizados',header:'Finalizados',short:'Finalizados'}
   };
   function valorRanking(row,key){return row?.[key]??null}
@@ -20726,7 +20758,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return a.nombre.localeCompare(b.nombre,'es');
     });
   }
-  function diasLabel(value){return value===null?'—':`${Number(value)} d`}
   function headerRanking(key){
     const active=rankingSort.key===key,dir=rankingSort.direction;
     return `<th class="dgie-ranking-metric ${active?'is-active':'is-muted'}" aria-sort="${active?(dir==='desc'?'descending':'ascending'):'none'}"><button type="button" title="Ordenar por ${esc(RANKING_COLUMNS[key].label.toLowerCase())}" onclick="ordenarRankingReclamos('${key}')"><span>${esc(RANKING_COLUMNS[key].header)}</span><span class="dgie-ranking-arrow" aria-hidden="true">${active?(dir==='desc'?'↓':'↑'):'↕'}</span></button></th>`;
@@ -20746,7 +20777,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     body.innerHTML=rows.map((row,index)=>{
       const detailCount=Number(row.detalle?.[active]||0),id=Number(row.id||0);
       const cell=(key,value)=>`<td class="dgie-ranking-value ${active===key?'is-active':'is-muted'}" data-ranking-key="${key}">${value}</td>`;
-      return `<tr><td class="dgie-ranking-position">${index+1}</td><td class="dgie-ranking-school" title="${esc(row.nombre)}">${esc(row.nombre)}</td>${cell('pendientes',row.pendientes)}${cell('sin_os',row.sin_os)}${cell('demora_pendientes',diasLabel(row.demora_pendientes))}${cell('demora_os',diasLabel(row.demora_os))}${cell('finalizados',row.finalizados)}<td class="dgie-ranking-action"><button type="button" class="dgie-ranking-view" ${detailCount?'':'disabled'} onclick="verReclamosRanking(${id},'${active}')">Ver</button></td></tr>`;
+      return `<tr><td class="dgie-ranking-position">${index+1}</td><td class="dgie-ranking-school" title="${esc(row.nombre)}">${esc(row.nombre)}</td>${cell('pendientes',row.pendientes)}${cell('sin_os',row.sin_os)}${cell('demora_pendientes',row.demora_pendientes)}${cell('demora_os',row.demora_os)}${cell('finalizados',row.finalizados)}<td class="dgie-ranking-action"><button type="button" class="dgie-ranking-view" ${detailCount?'':'disabled'} onclick="verReclamosRanking(${id},'${active}')">Ver</button></td></tr>`;
     }).join('')||'<tr><td colspan="8" class="dgie-est-empty">No hay establecimientos para mostrar.</td></tr>';
     document.querySelectorAll('#dgie-ranking-reclamos th.dgie-ranking-metric').forEach(th=>{
       const button=th.querySelector('button'),key=button?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
@@ -20783,9 +20814,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(key==='sin_os'){
       addSmartFilter('os','sin');
       addSmartFilter('estado','pendiente');
+    }else if(key==='demora_pendientes'){
+      addSmartFilter('antiguedad','reclamo_mas_15');
     }else if(key==='demora_os'){
-      addSmartFilter('os_estado','pendiente');
-      addSmartFilter('os_estado','trabajando');
+      addSmartFilter('antiguedad','os_mas_15');
     }else if(key==='finalizados'){
       addSmartFilter('estado','finalizado');
     }else{
@@ -20824,8 +20856,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       .dgie-est-bar{height:100%;background:#005aa9;border-radius:999px;min-width:0}
       .dgie-est-count{text-align:right;font-size:12px;font-weight:900;color:#123c69}
       .dgie-est-empty{color:var(--muted);font-size:13px;padding:14px 0}
-      #dgie-est-intervenidos-card.dgie-est-intervenidos-below{margin-top:0!important;width:100%}
-      .inspector-map-card:has(#dgie-ranking-reclamos){min-width:0}
+      .dgie-dashboard-left-column{display:flex;flex-direction:column;gap:16px;min-width:0}
+      .dgie-dashboard-left-column>.inspector-map-card{width:100%;min-width:0;box-sizing:border-box}
+      #dgie-est-intervenidos-card.dgie-est-intervenidos-below{margin-top:0!important;width:100%;box-sizing:border-box}
       .dgie-ranking-panel{width:100%;max-width:100%;box-sizing:border-box;margin-top:18px;padding-top:16px;border-top:1px solid #dbe5f0;min-width:0}
       .dgie-ranking-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
       .dgie-ranking-sub{font-size:12px;color:#64748b;margin-top:4px;line-height:1.35}
@@ -20882,7 +20915,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function render(){
     const grid=document.querySelector('#main-content .inspector-pro-grid');
-    const map=grid?.querySelector(':scope > .inspector-map-card');
+    const left=grid?.querySelector(':scope > .dgie-dashboard-left-column');
+    const map=left?.querySelector(':scope > .inspector-map-card')||grid?.querySelector(':scope > .inspector-map-card');
     if(!grid||!map)return;
     ensureStyle();
     const scope=alcanceDashboard();
@@ -20892,10 +20926,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const anchor=map.querySelector('#coord-map-estab-info')||map.querySelector('.inspector-selected-box');
     byId('dgie-ranking-reclamos')?.remove();
     if(current()?.role==='inspector'){
+      let column=left;
+      if(!column){
+        column=document.createElement('div');
+        column.className='dgie-dashboard-left-column';
+        grid.insertBefore(column,map);
+        column.appendChild(map);
+      }
       if(anchor)anchor.insertAdjacentHTML('afterend',rankingHTML(scope));
       else map.insertAdjacentHTML('beforeend',rankingHTML(scope));
       renderRankingBody(scope);
-      grid.insertAdjacentHTML('afterend',cardHTML(scope,rows));
+      column.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
       byId('dgie-est-intervenidos-card')?.classList.add('dgie-est-intervenidos-below');
     }else if(anchor)anchor.insertAdjacentHTML('afterend',cardHTML(scope,rows));
     else map.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
