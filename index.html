@@ -21875,12 +21875,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           });
         }
       }
-      const max=Math.max(...RUBROS_RELEVAMIENTO.map(r=>vals[r.key]||0))||100;
       rubroEl.innerHTML=RUBROS_RELEVAMIENTO.map(r=>`
         <div class="rubro-bar-row">
           <span class="rubro-bar-lbl">${esc(r.label)}</span>
           <div class="rubro-bar-track">
-            <div class="rubro-bar-fill" style="width:${Math.round((vals[r.key]||0)/max*100)}%;background:${r.color}"></div>
+            <div class="rubro-bar-fill" style="width:${Math.max(0,Math.min(100,Number(vals[r.key])||0))}%;background:${r.color}"></div>
           </div>
           <span class="rubro-bar-pct">${vals[r.key]||0}%</span>
         </div>`).join('');
@@ -22192,6 +22191,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 .os-attachments-modal-close{width:30px;height:30px;border:1px solid #d8e1ec;border-radius:6px;background:#fff;color:#475569;font-size:18px;cursor:pointer}
 .os-attachments-modal-body{display:grid;gap:8px;padding:14px 16px 16px}
 .os-attachments-download{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid #dbe5f0;border-radius:7px;background:#f8fafc}
+.os-print-attachment-page{width:297mm;height:210mm;margin:12px auto 0;background:#fff;position:relative;overflow:hidden;page-break-before:always;break-before:page;color:#0f172a}
+.os-print-attachment-head{position:absolute;left:12mm;right:12mm;top:8mm;height:14mm;border-bottom:1px solid #94a3b8;display:flex;align-items:flex-start;justify-content:space-between;gap:12mm}
+.os-print-attachment-title{font-size:12pt;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.os-print-attachment-meta{font-size:9pt;color:#475569;white-space:nowrap}
+.os-print-attachment-media{position:absolute;left:12mm;right:12mm;top:27mm;bottom:13mm;display:flex;align-items:center;justify-content:center}
+.os-print-attachment-media img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+.os-print-attachment-foot{position:absolute;left:12mm;right:12mm;bottom:5mm;border-top:1px solid #cbd5e1;padding-top:2mm;font-size:8.5pt;color:#64748b;display:flex;justify-content:space-between;gap:8mm}
+.os-print-attachment-error{max-width:180mm;padding:12mm;border:1px solid #fecaca;background:#fff7f7;text-align:center;font-size:11pt;line-height:1.5}
+.os-print-preparing{width:297mm;min-height:65mm;margin:12px auto 0;border:1px dashed #94a3b8;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#475569;font-size:12pt;font-weight:700}
+@media print{.os-print-attachment-page{margin:0!important}.os-print-preparing{display:none!important}}
 @media(max-width:720px){.os-download-actions{grid-template-columns:1fr!important;min-width:128px!important}.os-table th:nth-child(12),.os-table td:nth-child(12){min-width:145px!important;width:145px!important}.os-attachments-download{grid-template-columns:36px minmax(0,1fr)}.os-attachments-download .secondary-btn{grid-column:1/-1;width:100%}}
 </style>
 <script id="dgie-os-adjuntos-2026-07-21">
@@ -22410,6 +22419,181 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const label=files.length===1?'Descargar adjunto':`Adjuntos (${files.length})`;
     return `<button class="pdf-btn os-attachment-action" type="button" title="Descargar archivos adjuntos" onclick="abrirDescargaAdjuntosOS('${js(key)}')">${esc(label)}</button>`;
   }
+  let pdfJsPromise=null;
+  let printBuildBusy=false;
+  let printBuildToken=0;
+  let combinedPrintOrder=null;
+
+  function isPdf(file){
+    return extension(file)==='pdf'||String(file?.tipo||file?.type||'').toLowerCase().includes('pdf');
+  }
+  function blobAsDataUrl(blob){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(reader.error||new Error('No se pudo leer el archivo.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  function dataUrlBytes(source){
+    const base64=String(source).split(',')[1]||'';
+    const binary=atob(base64);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return bytes;
+  }
+  async function fetchFileBytes(file){
+    const source=url(file);
+    if(source.startsWith('data:'))return dataUrlBytes(source);
+    const response=await fetch(source,{mode:'cors',credentials:'omit'});
+    if(!response.ok)throw new Error(`no se pudo descargar el archivo (${response.status})`);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+  async function printableImageSource(file){
+    const source=url(file);
+    if(source.startsWith('data:'))return source;
+    const response=await fetch(source,{mode:'cors',credentials:'omit'});
+    if(!response.ok)throw new Error(`no se pudo descargar la imagen (${response.status})`);
+    return blobAsDataUrl(await response.blob());
+  }
+  function ensurePdfJs(){
+    if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
+    if(pdfJsPromise)return pdfJsPromise;
+    pdfJsPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.async=true;
+      script.onload=()=>{
+        if(!window.pdfjsLib){reject(new Error('no se pudo iniciar el lector de PDF'));return}
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      script.onerror=()=>reject(new Error('no se pudo cargar el lector de PDF'));
+      document.head.appendChild(script);
+    });
+    return pdfJsPromise;
+  }
+  function attachmentPage(file,source,attachmentIndex,attachmentTotal,pageIndex=1,pageTotal=1,error=''){
+    const fileName=nombre(file);
+    const position=pageTotal>1
+      ?`Adjunto ${attachmentIndex} de ${attachmentTotal} · Página ${pageIndex} de ${pageTotal}`
+      :`Adjunto ${attachmentIndex} de ${attachmentTotal}`;
+    const media=error
+      ?`<div class="os-print-attachment-error"><strong>No se pudo incorporar este adjunto.</strong><br>${esc(error)}<br>El archivo continúa disponible desde el botón de adjuntos de la orden.</div>`
+      :`<img src="${esc(source)}" alt="${esc(fileName)}">`;
+    return `<section class="os-print-attachment-page"><div class="os-print-attachment-head"><div class="os-print-attachment-title">${esc(fileName)}</div><div class="os-print-attachment-meta">${esc(position)}</div></div><div class="os-print-attachment-media">${media}</div><div class="os-print-attachment-foot"><span>Adjunto de la orden ${esc(combinedPrintOrder?.numero||'')}</span><span>${isPdf(file)?'Documento PDF':'Imagen JPG'}</span></div></section>`;
+  }
+  async function renderPdfAttachment(file,attachmentIndex,attachmentTotal){
+    const pdfjs=await ensurePdfJs();
+    const pdf=await pdfjs.getDocument({data:await fetchFileBytes(file)}).promise;
+    const pages=[];
+    try{
+      for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
+        const page=await pdf.getPage(pageNumber);
+        const initial=page.getViewport({scale:1});
+        const scale=Math.min(2,1800/Math.max(initial.width,initial.height));
+        const viewport=page.getViewport({scale});
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.ceil(viewport.width);
+        canvas.height=Math.ceil(viewport.height);
+        const context=canvas.getContext('2d',{alpha:false});
+        context.fillStyle='#fff';
+        context.fillRect(0,0,canvas.width,canvas.height);
+        await page.render({canvasContext:context,viewport}).promise;
+        pages.push(attachmentPage(file,canvas.toDataURL('image/jpeg',.94),attachmentIndex,attachmentTotal,pageNumber,pdf.numPages));
+        page.cleanup();
+        canvas.width=1;
+        canvas.height=1;
+      }
+    }finally{
+      await pdf.destroy();
+    }
+    return pages.join('');
+  }
+  async function buildAttachmentsPrintHtml(files){
+    const pages=[];
+    const errors=[];
+    for(let index=0;index<files.length;index++){
+      const file=files[index];
+      try{
+        if(isPdf(file))pages.push(await renderPdfAttachment(file,index+1,files.length));
+        else pages.push(attachmentPage(file,await printableImageSource(file),index+1,files.length));
+      }catch(error){
+        const message=error?.message||String(error);
+        errors.push(`${nombre(file)}: ${message}`);
+        pages.push(attachmentPage(file,'',index+1,files.length,1,1,message));
+      }
+    }
+    return {html:pages.join(''),errors};
+  }
+  function setPrintPreparing(value,fileCount){
+    const preview=byId('os-print-preview');
+    const toolbar=preview?.querySelector('.print-preview-toolbar');
+    const title=toolbar?.firstElementChild;
+    const printButton=toolbar?.querySelector('.primary-btn');
+    if(title)title.textContent=value?`Preparando ${fileCount} adjunto${fileCount===1?'':'s'}...`:'Vista previa de Orden de Servicio con adjuntos';
+    if(printButton){
+      printButton.disabled=value;
+      printButton.textContent=value?'Preparando adjuntos...':'Imprimir / Guardar PDF';
+    }
+  }
+  function waitForPrintImages(container){
+    return Promise.all([...container.querySelectorAll('img')].map(img=>{
+      if(img.complete)return Promise.resolve();
+      return new Promise(resolve=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true})});
+    }));
+  }
+  const printOrderPrev=window.descargarOSPDF;
+  window.descargarOSPDF=async function(id){
+    const order=findOrder(id);
+    const files=adjuntos(order);
+    if(!order||!files.length){
+      printBuildToken++;
+      printBuildBusy=false;
+      combinedPrintOrder=null;
+      return typeof printOrderPrev==='function'?printOrderPrev.apply(this,arguments):undefined;
+    }
+    if(printBuildBusy)return;
+    const token=++printBuildToken;
+    const preview=byId('os-print-preview');
+    const content=byId('os-print-content');
+    if(!preview||!content)return typeof printOrderPrev==='function'?printOrderPrev.apply(this,arguments):undefined;
+    printBuildBusy=true;
+    combinedPrintOrder=order;
+    const base=typeof window.buildOSPrintHTML==='function'?window.buildOSPrintHTML(order.id):'';
+    content.innerHTML=`${base}<div class="os-print-preparing">Preparando archivos adjuntos...</div>`;
+    preview.classList.add('visible');
+    setPrintPreparing(true,files.length);
+    try{
+      const result=await buildAttachmentsPrintHtml(files);
+      if(token!==printBuildToken)return;
+      content.innerHTML=base+result.html;
+      await waitForPrintImages(content);
+      if(token!==printBuildToken)return;
+      setPrintPreparing(false,files.length);
+      if(result.errors.length)alert(`La orden está lista, pero no se pudo incorporar ${result.errors.length===1?'un adjunto':'algunos adjuntos'}. Revisá la hoja de aviso incluida al final.`);
+    }catch(error){
+      if(token!==printBuildToken)return;
+      content.innerHTML=base+attachmentPage({nombre:'Adjuntos'},'',1,1,1,1,error?.message||String(error));
+      setPrintPreparing(false,files.length);
+      alert('La orden está lista, pero ocurrió un problema al preparar los adjuntos.');
+    }finally{
+      if(token===printBuildToken)printBuildBusy=false;
+    }
+  };
+  const downloadHtmlPrev=window.descargarOSHTMLActual;
+  window.descargarOSHTMLActual=function(){
+    if(!combinedPrintOrder||!byId('os-print-content'))return typeof downloadHtmlPrev==='function'?downloadHtmlPrev.apply(this,arguments):undefined;
+    const styles=[...document.querySelectorAll('style')].map(style=>style.textContent||'').join('\n');
+    const doc=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(getOSFileBaseName(combinedPrintOrder))}</title><style>${styles}</style></head><body>${byId('os-print-content').innerHTML}</body></html>`;
+    const blob=new Blob([doc],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`${getOSFileBaseName(combinedPrintOrder)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},0);
+  };
   function orderFromRow(tr){
     const number=String(tr.querySelector('.os-num')?.textContent||'').trim();
     const cells=tr.querySelectorAll('td');
