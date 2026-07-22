@@ -137,6 +137,31 @@
     async signOut(){
       return client.auth.signOut();
     },
+    async tokenAccesoPush(){
+      const { data, error } = await client.auth.getSession();
+      return { data:data?.session?.access_token || null, error };
+    },
+    async registrarSuscripcionPush(row){
+      return client.rpc('dgie_registrar_push_subscription', {
+        p_endpoint:String(row?.endpoint || ''),
+        p_p256dh:String(row?.p256dh || ''),
+        p_auth:String(row?.auth || ''),
+        p_user_agent:String(row?.userAgent || '') || null
+      });
+    },
+    async eliminarSuscripcionPush(endpoint){
+      return client.rpc('dgie_eliminar_push_subscription', { p_endpoint:String(endpoint || '') });
+    },
+    async contarNotificacionesPushPendientes(){
+      const { count, error } = await client
+        .from('push_notifications')
+        .select('id', { count:'exact', head:true })
+        .is('read_at', null);
+      return { data:Number(count || 0), error };
+    },
+    async marcarNotificacionesPushLeidas(kind){
+      return client.rpc('dgie_marcar_notificaciones_push_leidas', { p_kind:kind || null });
+    },
     async currentProfile(){
       const { data: sessionData, error: sessionError } = await client.auth.getSession();
       if(sessionError || !sessionData.session) return { data:null, error:sessionError };
@@ -165,7 +190,9 @@
       return client.from('reclamos').select('id,numero').eq('numero', numero).limit(1);
     },
     async crearReclamo(row){
-      return client.from('reclamos').insert(row).select('*').single();
+      const result = await client.from('reclamos').insert(row).select('*').single();
+      if(!result.error && result.data?.id) window.DGIE_PUSH?.dispatch('reclamo', result.data.id);
+      return result;
     },
     async actualizarReclamo(id, row){
       return updateOne('reclamos', id, row, 'ese reclamo');
@@ -245,7 +272,9 @@
         const userId = sessionData?.session?.user?.id;
         if(userId) payload.creado_por = userId;
       }
-      return client.from('comunicaciones').insert(payload).select('*').single();
+      const result = await client.from('comunicaciones').insert(payload).select('*').single();
+      if(!result.error && result.data?.id) window.DGIE_PUSH?.dispatch('comunicado', result.data.id);
+      return result;
     },
     async eliminarComunicacion(id){
       const { data, error } = await client.from('comunicaciones').delete().eq('id', id).select('id').limit(1);

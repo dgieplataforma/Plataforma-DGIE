@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">DGIE</title>
+  <desc id="desc">Icono de la Plataforma de Gestion de Infraestructura Educativa</desc>
+  <rect width="1024" height="1024" fill="#005aa9"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M236 360 512 190l276 170" stroke-width="52"/>
+    <path d="M292 378h440v230H292z" stroke-width="42"/>
+    <path d="M374 388v210M512 388v210M650 388v210" stroke-width="38"/>
+    <path d="M248 636h528" stroke-width="48"/>
+  </g>
+  <text x="512" y="830" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="174" font-weight="800" text-anchor="middle">DGIE</text>
+  <rect x="332" y="878" width="360" height="26" rx="13" fill="#5bc5e8"/>
+</svg>

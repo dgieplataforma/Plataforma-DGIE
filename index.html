@@ -7,7 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="DGIE" />
 <meta name="format-detection" content="telephone=no" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" sizes="180x180" href="./assets/dgie-app-icon-180.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="./assets/dgie-app-icon-192.png" />
 <title>Plataforma de Gestión de Infraestructura Educativa – Córdoba</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -21,6 +25,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./dgie-comunicaciones.css?v=20260720-2">
 <link rel="stylesheet" href="./dgie-certificacion-flujo.css?v=20260721-1">
+<link rel="stylesheet" href="./dgie-notificaciones.css?v=20260722-1">
 
 <style>
 :root{--bg:#f3f6fb;--panel:#fff;--panel2:#f7f9fc;--text:#1f2937;--muted:#64748b;--border:#d9e2ef;--blue:#005aa9;--blue2:#0072ce;--blue-soft:#e6f1fb;--danger:#c62828;--warn:#d97706;--ok:#2e7d32;--shadow:0 10px 30px rgba(15,23,42,.08)}
@@ -23555,5 +23560,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   setTimeout(queueEnhancements,600);
 })();
 </script>
+<script src="./dgie-notificaciones.js?v=20260722-1"></script>
 </body>
 </html>

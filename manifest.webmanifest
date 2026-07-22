@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Plataforma de Gestion de Infraestructura Educativa",
+  "short_name": "DGIE",
+  "description": "Gestion de infraestructura educativa de Cordoba",
+  "lang": "es-AR",
+  "start_url": "/?source=homescreen",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f9fc",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/assets/dgie-app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/dgie-app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
