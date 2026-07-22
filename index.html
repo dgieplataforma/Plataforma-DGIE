@@ -20533,6 +20533,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function selectedZ(){try{return selectedZona||window.selectedZona||1}catch(_e){return window.selectedZona||1}}
   function estabs(){try{return Array.isArray(ESTABS)?ESTABS:(window.ESTABS||[])}catch(_e){return window.ESTABS||[]}}
   function ordenes(){try{return Array.isArray(OS_ZONA)?OS_ZONA:(window.OS_ZONA||[])}catch(_e){return window.OS_ZONA||[]}}
+  function reclamos(){try{return Array.isArray(RECLAMOS_ZONA)?RECLAMOS_ZONA:(window.RECLAMOS_ZONA||[])}catch(_e){return window.RECLAMOS_ZONA||[]}}
+  let rankingSort={key:'pendientes',direction:'desc'};
   function zonaDesdePantalla(){
     const txt=[
       document.querySelector('#main-content .section-label')?.textContent||'',
@@ -20615,6 +20617,196 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     });
     return Array.from(rows.values()).sort((a,b)=>b.cantidad-a.cantidad||a.nombre.localeCompare(b.nombre,'es'));
   }
+  function reclamoEstId(r){
+    const id=Number(r?.estId||r?.establecimiento_id||r?.establecimientoId||0);
+    if(id)return id;
+    const nombre=norm(r?.est||r?.establecimiento||'');
+    const est=estabs().find(e=>norm(estNombre(e))===nombre);
+    return Number(est?.id||0)||0;
+  }
+  function reclamoEstNombre(r){
+    const id=reclamoEstId(r);
+    const est=id?estabs().find(e=>Number(e?.id)===id):null;
+    return String(estNombre(est)||r?.est||r?.establecimiento||'Sin establecimiento').trim();
+  }
+  function zonaReclamo(r){
+    const z=Number(r?.zona||0);
+    if(z)return z;
+    const id=reclamoEstId(r);
+    try{return id&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(id))||0:0}catch(_e){return 0}
+  }
+  function estadoOrden(o){
+    try{return typeof getEstadoOS==='function'?String(getEstadoOS(o)||'pendiente').toLowerCase():norm(o?.estado||'pendiente')}
+    catch(_e){return 'pendiente'}
+  }
+  function ordenReclamo(r,baseOrdenes){
+    try{
+      if(typeof window.findOSForReclamo==='function')return window.findOSForReclamo(r,baseOrdenes)||null;
+      if(typeof findOSForReclamo==='function')return findOSForReclamo(r,baseOrdenes)||null;
+    }catch(_e){}
+    const numero=String(r?.numero||'').trim(),ref=String(r?.os||'').trim();
+    if(ref&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(ref)){
+      const directa=baseOrdenes.find(o=>String(o?.numero||'').trim()===ref);
+      if(directa)return directa;
+    }
+    return numero?baseOrdenes.find(o=>String(o?.reclamoNumero||o?.reclamo||'').split(',').map(v=>v.trim()).includes(numero))||null:null;
+  }
+  function fechaLocal(raw){
+    if(raw instanceof Date&&!Number.isNaN(raw.getTime()))return new Date(raw.getFullYear(),raw.getMonth(),raw.getDate());
+    const s=String(raw||'').trim();
+    let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m)return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    if(m){const y=Number(m[3])<100?2000+Number(m[3]):Number(m[3]);return new Date(y,Number(m[2])-1,Number(m[1]))}
+    const d=new Date(s);
+    return Number.isNaN(d.getTime())?null:new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  }
+  function diasDesde(raw){
+    const fecha=fechaLocal(raw);
+    if(!fecha)return null;
+    const hoy=new Date(),inicioHoy=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
+    return Math.max(0,Math.floor((inicioHoy-fecha)/86400000));
+  }
+  function reclamoAnulado(r,o){
+    let manual=norm(r?.estado||r?.estado_reclamo||'');
+    try{if(typeof window.estadoInspectorReclamoKey==='function')manual=norm(window.estadoInspectorReclamoKey(r)||manual)}catch(_e){}
+    return manual==='anulado'||(o&&estadoOrden(o)==='anulado');
+  }
+  function metricasRanking(scope){
+    const z=Number(scope?.zona||zonaActual());
+    const baseEstabs=(Array.isArray(scope?.estabs)?scope.estabs:estabs().filter(e=>Number(e?.zona)===z));
+    const baseOrdenes=ordenes().filter(o=>Number(o?.zona||zonaDeItem(o))===z);
+    const baseReclamos=reclamos().filter(r=>zonaReclamo(r)===z);
+    const rows=new Map();
+    baseEstabs.forEach(e=>{
+      const id=Number(e?.id||0),nombre=estNombre(e);
+      if(nombre)rows.set(keyEst(id,nombre),{id,nombre,pendientes:0,sin_os:0,demora_pendientes:null,demora_os:null,finalizados:0,detalle:{pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0}});
+    });
+    baseReclamos.forEach(r=>{
+      const id=reclamoEstId(r),nombre=reclamoEstNombre(r),key=keyEst(id,nombre);
+      if(!rows.has(key))rows.set(key,{id,nombre,pendientes:0,sin_os:0,demora_pendientes:null,demora_os:null,finalizados:0,detalle:{pendientes:0,sin_os:0,demora_pendientes:0,demora_os:0,finalizados:0}});
+      const row=rows.get(key),os=ordenReclamo(r,baseOrdenes);
+      if(reclamoAnulado(r,os))return;
+      if(os&&estadoOrden(os)==='finalizado'){
+        row.finalizados++;
+        row.detalle.finalizados++;
+        return;
+      }
+      row.pendientes++;
+      row.detalle.pendientes++;
+      const demoraPendiente=diasDesde(r?.fecha||r?.created_at||r?.createdAt||r?.fechaHora||r?.fecha_hora);
+      if(demoraPendiente!==null)row.demora_pendientes=Math.max(row.demora_pendientes??0,demoraPendiente);
+      row.detalle.demora_pendientes++;
+      if(!os){
+        row.sin_os++;
+        row.detalle.sin_os++;
+      }else if(['pendiente','trabajando'].includes(estadoOrden(os))){
+        const demoraOrden=diasDesde(os?.fecha||os?.created_at||os?.createdAt);
+        if(demoraOrden!==null)row.demora_os=Math.max(row.demora_os??0,demoraOrden);
+        row.detalle.demora_os++;
+      }
+    });
+    return Array.from(rows.values());
+  }
+  const RANKING_COLUMNS={
+    pendientes:{label:'Pendientes',header:'Pendientes',short:'Pendientes'},
+    sin_os:{label:'Sin O.S.',header:'Sin O.S.',short:'Sin O.S.'},
+    demora_pendientes:{label:'Demora de pendientes',header:'Demora pend.',short:'Demora de pendientes'},
+    demora_os:{label:'Demora de O.S.',header:'Demora O.S.',short:'Demora de O.S.'},
+    finalizados:{label:'Finalizados',header:'Finalizados',short:'Finalizados'}
+  };
+  function valorRanking(row,key){return row?.[key]??null}
+  function filasRanking(scope){
+    const key=rankingSort.key,direction=rankingSort.direction==='asc'?1:-1;
+    return metricasRanking(scope).sort((a,b)=>{
+      const av=valorRanking(a,key),bv=valorRanking(b,key);
+      if(av===null&&bv!==null)return 1;
+      if(av!==null&&bv===null)return -1;
+      if(av!==bv)return (Number(av)-Number(bv))*direction;
+      return a.nombre.localeCompare(b.nombre,'es');
+    });
+  }
+  function diasLabel(value){return value===null?'—':`${Number(value)} d`}
+  function headerRanking(key){
+    const active=rankingSort.key===key,dir=rankingSort.direction;
+    return `<th class="dgie-ranking-metric ${active?'is-active':'is-muted'}" aria-sort="${active?(dir==='desc'?'descending':'ascending'):'none'}"><button type="button" title="Ordenar por ${esc(RANKING_COLUMNS[key].label.toLowerCase())}" onclick="ordenarRankingReclamos('${key}')"><span>${esc(RANKING_COLUMNS[key].header)}</span><span class="dgie-ranking-arrow" aria-hidden="true">${active?(dir==='desc'?'↓':'↑'):'↕'}</span></button></th>`;
+  }
+  function rankingHTML(scope){
+    return `<section class="dgie-ranking-panel" id="dgie-ranking-reclamos" aria-labelledby="dgie-ranking-title">
+      <div class="dgie-ranking-head"><div><div class="inspector-chart-title" id="dgie-ranking-title">Ranking de reclamos por establecimiento</div><div class="dgie-ranking-sub" id="dgie-ranking-order-label"></div></div><span class="badge b-info">${esc(scope?.label||'')}</span></div>
+      <div class="dgie-ranking-scroll"><table class="dgie-ranking-table"><thead><tr><th class="dgie-ranking-position">#</th><th class="dgie-ranking-school">Establecimiento</th>${Object.keys(RANKING_COLUMNS).map(headerRanking).join('')}<th class="dgie-ranking-action">Detalle</th></tr></thead><tbody id="dgie-ranking-body"></tbody></table></div>
+    </section>`;
+  }
+  function renderRankingBody(scope=alcanceDashboard()){
+    const body=byId('dgie-ranking-body');
+    if(!body)return;
+    const rows=filasRanking(scope),active=rankingSort.key;
+    const label=byId('dgie-ranking-order-label');
+    if(label)label.textContent=`Todos los establecimientos · ordenados por ${RANKING_COLUMNS[active].short.toLowerCase()} ${rankingSort.direction==='desc'?'de mayor a menor':'de menor a mayor'}`;
+    body.innerHTML=rows.map((row,index)=>{
+      const detailCount=Number(row.detalle?.[active]||0),id=Number(row.id||0);
+      const cell=(key,value)=>`<td class="dgie-ranking-value ${active===key?'is-active':'is-muted'}" data-ranking-key="${key}">${value}</td>`;
+      return `<tr><td class="dgie-ranking-position">${index+1}</td><td class="dgie-ranking-school" title="${esc(row.nombre)}">${esc(row.nombre)}</td>${cell('pendientes',row.pendientes)}${cell('sin_os',row.sin_os)}${cell('demora_pendientes',diasLabel(row.demora_pendientes))}${cell('demora_os',diasLabel(row.demora_os))}${cell('finalizados',row.finalizados)}<td class="dgie-ranking-action"><button type="button" class="dgie-ranking-view" ${detailCount?'':'disabled'} onclick="verReclamosRanking(${id},'${active}')">Ver</button></td></tr>`;
+    }).join('')||'<tr><td colspan="8" class="dgie-est-empty">No hay establecimientos para mostrar.</td></tr>';
+    document.querySelectorAll('#dgie-ranking-reclamos th.dgie-ranking-metric').forEach(th=>{
+      const button=th.querySelector('button'),key=button?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      th.classList.toggle('is-active',key===active);th.classList.toggle('is-muted',key!==active);
+      th.setAttribute('aria-sort',key===active?(rankingSort.direction==='desc'?'descending':'ascending'):'none');
+      const arrow=th.querySelector('.dgie-ranking-arrow');if(arrow)arrow.textContent=key===active?(rankingSort.direction==='desc'?'↓':'↑'):'↕';
+    });
+  }
+  window.ordenarRankingReclamos=function(key){
+    if(!RANKING_COLUMNS[key])return;
+    if(rankingSort.key===key)rankingSort.direction=rankingSort.direction==='desc'?'asc':'desc';
+    else rankingSort={key,direction:'desc'};
+    renderRankingBody();
+    const scroll=byId('dgie-ranking-reclamos')?.querySelector('.dgie-ranking-scroll');
+    if(scroll)scroll.scrollTop=0;
+  };
+  function addSmartFilter(field,value){
+    const fieldEl=byId('insp-rec-sf-field'),valueEl=byId('insp-rec-sf-value');
+    if(!fieldEl||!valueEl)return false;
+    fieldEl.value=field;
+    if(typeof window.dgieSmartRenderValue==='function')window.dgieSmartRenderValue('insp-rec');
+    valueEl.value=value;
+    if(valueEl.value!==String(value))return false;
+    if(typeof window.dgieSmartAddFromSelect==='function')window.dgieSmartAddFromSelect('insp-rec');
+    return true;
+  }
+  function applyRankingFilters(estId,key,attempt=0){
+    if(!byId('insp-rec-sf-field')){
+      if(attempt<8)setTimeout(()=>applyRankingFilters(estId,key,attempt+1),80);
+      return;
+    }
+    if(typeof window.dgieSmartClear==='function')window.dgieSmartClear('insp-rec');
+    addSmartFilter('establecimiento',`id:${Number(estId)}`);
+    if(key==='sin_os'){
+      addSmartFilter('os','sin');
+      addSmartFilter('estado','pendiente');
+    }else if(key==='demora_os'){
+      addSmartFilter('os_estado','pendiente');
+      addSmartFilter('os_estado','trabajando');
+    }else if(key==='finalizados'){
+      addSmartFilter('estado','finalizado');
+    }else{
+      addSmartFilter('estado','pendiente');
+      addSmartFilter('estado','trabajando');
+    }
+    if(typeof window.filterReclamosInspector==='function')window.filterReclamosInspector();
+    const est=estabs().find(e=>Number(e?.id)===Number(estId));
+    const card=byId('insp-rec-list')?.closest('.card');
+    if(card&&!byId('dgie-ranking-filter-note')){
+      const filters=card.querySelector('.os-filters');
+      filters?.insertAdjacentHTML('beforebegin',`<div id="dgie-ranking-filter-note" class="dgie-ranking-filter-note"><strong>${esc(estNombre(est)||'Establecimiento')}</strong><span>${esc(RANKING_COLUMNS[key]?.label||'Reclamos')}</span></div>`);
+    }
+  }
+  window.verReclamosRanking=function(estId,key){
+    const user=current(),tabs=typeof window.dgieTabsForUser==='function'?window.dgieTabsForUser(user):[];
+    const index=tabs.indexOf('Reclamos');
+    if(index<0||typeof window.renderTab!=='function')return;
+    window.renderTab(index);
+    setTimeout(()=>applyRankingFilters(Number(estId),key),80);
+  };
   function ensureStyle(){
     if(byId('dgie-est-intervenidos-style'))return;
     const st=document.createElement('style');
@@ -20632,7 +20824,43 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       .dgie-est-bar{height:100%;background:#005aa9;border-radius:999px;min-width:0}
       .dgie-est-count{text-align:right;font-size:12px;font-weight:900;color:#123c69}
       .dgie-est-empty{color:var(--muted);font-size:13px;padding:14px 0}
-      @media(max-width:680px){.dgie-est-intervenidos-head{display:block}.dgie-est-intervenidos-badges{justify-content:flex-start;margin-top:8px}.dgie-est-row{grid-template-columns:1fr 72px}.dgie-est-track{grid-column:1/-1;grid-row:2}.dgie-est-count{grid-column:2;grid-row:1}}
+      #dgie-est-intervenidos-card.dgie-est-intervenidos-below{margin-top:0!important;width:100%}
+      .inspector-map-card:has(#dgie-ranking-reclamos){min-width:0}
+      .dgie-ranking-panel{width:100%;max-width:100%;box-sizing:border-box;margin-top:18px;padding-top:16px;border-top:1px solid #dbe5f0;min-width:0}
+      .dgie-ranking-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+      .dgie-ranking-sub{font-size:12px;color:#64748b;margin-top:4px;line-height:1.35}
+      .dgie-ranking-scroll{width:100%;max-width:100%;box-sizing:border-box;max-height:350px;overflow:auto;border:1px solid #dbe5f0;border-radius:7px;background:#fff}
+      .dgie-ranking-table{width:100%;min-width:610px;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:11px}
+      .dgie-ranking-table thead{position:sticky;top:0;z-index:4;background:#eef3f8;box-shadow:0 1px 0 #cbd5e1}
+      .dgie-ranking-table thead tr{background:#eef3f8}
+      .dgie-ranking-table th{background:#eef3f8;border-bottom:1px solid #cbd5e1;color:#334155;text-align:center;height:52px;padding:0 5px;white-space:normal;line-height:1.15}
+      .dgie-ranking-table th.dgie-ranking-school{text-align:left;padding-left:12px}
+      .dgie-ranking-table th.dgie-ranking-metric{transition:opacity .18s,background .18s,color .18s}
+      .dgie-ranking-table th.dgie-ranking-metric button{width:100%;height:51px;border:0;background:transparent;color:inherit;font:inherit;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;padding:0}
+      .dgie-ranking-table th.dgie-ranking-metric.is-active{background:#dbeafe;color:#005aa9;box-shadow:inset 0 -3px 0 #005aa9}
+      .dgie-ranking-table th.dgie-ranking-metric.is-muted{opacity:.68}
+      .dgie-ranking-arrow{font-size:13px;line-height:1}
+      .dgie-ranking-table td{height:42px;border-bottom:1px solid #edf1f6;padding:7px 9px;background:#fff;transition:opacity .18s,background .18s,color .18s}
+      .dgie-ranking-table tbody tr:last-child td{border-bottom:0}
+      .dgie-ranking-table tbody tr:hover td{background:#f8fbff}
+      .dgie-ranking-position{width:30px;text-align:center;color:#64748b;font-weight:800}
+      .dgie-ranking-school{width:170px;text-align:left;font-weight:800;color:#1e3a5f;line-height:1.25}
+      td.dgie-ranking-school{overflow-wrap:anywhere}
+      .dgie-ranking-value{min-width:0;text-align:center;font-weight:900;color:#334155}
+      .dgie-ranking-table th:nth-child(3),.dgie-ranking-table td:nth-child(3){width:65px}
+      .dgie-ranking-table th:nth-child(4),.dgie-ranking-table td:nth-child(4){width:54px}
+      .dgie-ranking-table th:nth-child(5),.dgie-ranking-table td:nth-child(5){width:90px}
+      .dgie-ranking-table th:nth-child(6),.dgie-ranking-table td:nth-child(6){width:78px}
+      .dgie-ranking-table th:nth-child(7),.dgie-ranking-table td:nth-child(7){width:67px}
+      .dgie-ranking-value.is-active{background:#eff6ff;color:#005aa9}
+      .dgie-ranking-value.is-muted{opacity:.62}
+      .dgie-ranking-action{width:56px;text-align:center}
+      .dgie-ranking-view{border:1px solid #b9c8da;background:#fff;color:#005aa9;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer}
+      .dgie-ranking-view:hover{border-color:#005aa9;background:#eef6ff}
+      .dgie-ranking-view:disabled{opacity:.35;cursor:not-allowed;background:#f8fafc;color:#64748b}
+      .dgie-ranking-filter-note{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;padding:9px 11px;border-left:3px solid #005aa9;background:#eef6ff;color:#334155;font-size:12px}
+      .dgie-ranking-filter-note span{color:#005aa9;font-weight:800}
+      @media(max-width:680px){.dgie-est-intervenidos-head{display:block}.dgie-est-intervenidos-badges{justify-content:flex-start;margin-top:8px}.dgie-est-row{grid-template-columns:1fr 72px}.dgie-est-track{grid-column:1/-1;grid-row:2}.dgie-est-count{grid-column:2;grid-row:1}.dgie-ranking-head{display:block}.dgie-ranking-head .badge{margin-top:8px}.dgie-ranking-scroll{max-height:390px}.dgie-ranking-table{min-width:610px}.dgie-ranking-school{width:170px}}
     `;
     document.head.appendChild(st);
   }
@@ -20662,7 +20890,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     let card=byId('dgie-est-intervenidos-card');
     if(card)card.remove();
     const anchor=map.querySelector('#coord-map-estab-info')||map.querySelector('.inspector-selected-box');
-    if(anchor)anchor.insertAdjacentHTML('afterend',cardHTML(scope,rows));
+    byId('dgie-ranking-reclamos')?.remove();
+    if(current()?.role==='inspector'){
+      if(anchor)anchor.insertAdjacentHTML('afterend',rankingHTML(scope));
+      else map.insertAdjacentHTML('beforeend',rankingHTML(scope));
+      renderRankingBody(scope);
+      grid.insertAdjacentHTML('afterend',cardHTML(scope,rows));
+      byId('dgie-est-intervenidos-card')?.classList.add('dgie-est-intervenidos-below');
+    }else if(anchor)anchor.insertAdjacentHTML('afterend',cardHTML(scope,rows));
     else map.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
   }
   const prevRenderChart=window.renderChartInsp;
