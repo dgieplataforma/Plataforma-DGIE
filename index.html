@@ -3007,8 +3007,17 @@ function fechaLocalAISO(fecha){
   return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
 }
 function presupuestoOSParaDB(o){
-  if(Array.isArray(o?.presupuestoItems))return o.presupuestoItems;
-  return [];
+  const items=Array.isArray(o?.presupuestoItems)?o.presupuestoItems.filter(it=>it?.__dgie_meta!=='orden_adjuntos_v1'):[];
+  const adjuntos=(Array.isArray(o?.adjuntos)?o.adjuntos:[]).map(a=>({
+    nombre:a?.nombre||a?.name||'Adjunto',
+    url:a?.url||a?.secure_url||a?.dataUrl||'',
+    publicId:a?.publicId||a?.public_id||null,
+    resourceType:a?.resourceType||a?.resource_type||null,
+    tipo:a?.tipo||a?.type||'',
+    size:Number(a?.size||0)||0,
+    uploadedAt:a?.uploadedAt||a?.uploaded_at||null
+  })).filter(a=>a.url);
+  return adjuntos.length?[...items,{__dgie_meta:'orden_adjuntos_v1',archivos:adjuntos}]:items;
 }
 async function persistirReclamoSupabase(r){
   if(!r||r._remoteSaved)return{ok:true,skipped:true};
@@ -5182,7 +5191,14 @@ function renderChartInsp(){
     };
   }
   function mapRemoteOrden(row,idx){
-    const items=Array.isArray(row.presupuesto)?row.presupuesto:[];
+    const presupuestoRaw=Array.isArray(row.presupuesto)
+      ?row.presupuesto
+      :(row.presupuesto&&typeof row.presupuesto==='object'&&Array.isArray(row.presupuesto.items)?row.presupuesto.items:[]);
+    const adjuntosMeta=presupuestoRaw.find(it=>it?.__dgie_meta==='orden_adjuntos_v1');
+    const items=presupuestoRaw.filter(it=>it?.__dgie_meta!=='orden_adjuntos_v1');
+    const adjuntos=Array.isArray(adjuntosMeta?.archivos)
+      ?adjuntosMeta.archivos
+      :(Array.isArray(row.presupuesto?.adjuntos)?row.presupuesto.adjuntos:[]);
     const modulos=items.reduce((a,it)=>a+Number(it.modulos||0),0);
     return {
       id:idx+1,
@@ -5201,6 +5217,7 @@ function renderChartInsp(){
       monto:row.monto||'',
       presupuesto:modulos,
       presupuestoItems:items,
+      adjuntos,
       prio:row.prioridad||'medio',
       empresaFinalizo:!!row.empresa_finalizo,
       empresaFinalizoFecha:row.empresa_finalizo_fecha||null,
@@ -8725,6 +8742,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       monto:data.monto,
       presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),
       presupuestoItems:data.presupuestoItems,
+      adjuntos:Array.isArray(data.adjuntos)?data.adjuntos:[],
       prio:data.prio,
       estId:data.estId
     };
@@ -8761,7 +8779,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       prio:data.prio,
       monto:data.monto,
       presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),
-      presupuestoItems:data.presupuestoItems
+      presupuestoItems:data.presupuestoItems,
+      adjuntos:Array.isArray(data.adjuntos)?data.adjuntos:[]
     });
     aplicarReclamosAOS(os,numeroAnterior);
     saveAppState&&saveAppState();
@@ -14941,6 +14960,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function n(v){return Number(String(v??'').replace(',','.'))||0}
   function mods(v){return n(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
   function certOrdenesSafe(c){return typeof window.certOrdenes==='function'?(window.certOrdenes(c)||[]):[]}
+  function esInspectorCertificacion(){return currentUser?.role==='inspector'}
+  function exigirInspectorCertificacion(){
+    if(esInspectorCertificacion())return true;
+    alert('Esta acción está disponible únicamente para el inspector.');
+    return false;
+  }
   function tieneModulosFinal(c){return n(c?.modulos_final ?? c?.monto_final)>0}
   function valorModulosFinal(c){return n(c?.modulos_final ?? c?.monto_final)}
   function fechaMedicion(c){return c?.fecha_medicion||c?.fecha_envio_administracion||''}
@@ -15000,6 +15025,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
   };
   window.guardarModulosFinalCertificado=async function(id){
+    if(!exigirInspectorCertificacion())return;
     const c=certById(id);
     const input=document.getElementById('cert-final-mod-'+String(id).replace(/[^a-zA-Z0-9_-]/g,'_'));
     const modulos=n(input?.value);
@@ -15017,6 +15043,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
   };
   window.limpiarModulosFinalCertificado=async function(id){
+    if(!exigirInspectorCertificacion())return;
     const c=certById(id);
     if(!c)return;
     if(!confirm('¿Quitar los módulos certificados final de este certificado?'))return;
@@ -15039,6 +15066,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return `${zona}-MEDICION-${String(numero||'')}-FIRMADA.pdf`;
   }
   window.subirPdfMedicionFirmada=async function(numero){
+    if(!exigirInspectorCertificacion())return;
     const data=dataMedicion(numero);
     const safe=String(numero).replace(/[^a-zA-Z0-9_-]/g,'_');
     const input=document.getElementById('medicion-firmada-file-'+safe);
@@ -15066,6 +15094,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
   };
   window.eliminarPdfMedicionFirmada=async function(numero){
+    if(!exigirInspectorCertificacion())return;
     const data=dataMedicion(numero);
     if(!data.length)return;
     if(!confirm('¿Eliminar el PDF de medición firmada de esta medición?'))return;
@@ -15090,13 +15119,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const safe=String(numero).replace(/[^a-zA-Z0-9_-]/g,'_');
     const header=detalle.querySelector('.med-card > .card-header');
     if(!header)return;
-    header.insertAdjacentHTML('afterend',`<div class="medicion-firmada-box" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;background:#f8fafc;padding:10px 12px;margin:0 0 12px">
-      <div style="font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b>${firmada?.medicion_firmada_url?` · <a href="${esc(firmada.medicion_firmada_url)}" target="_blank" rel="noopener">${esc(firmada.medicion_firmada_archivo||'Ver PDF')}</a>`:' · Sin PDF cargado'}</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    const controles=esInspectorCertificacion()?`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input class="form-input" id="medicion-firmada-file-${safe}" type="file" accept="application/pdf,.pdf" style="max-width:280px;padding:7px 9px;font-size:12px">
         <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="subirPdfMedicionFirmada('${esc(numero)}')">${firmada?.medicion_firmada_url?'Reemplazar PDF':'Subir PDF firmado'}</button>
         ${firmada?.medicion_firmada_url?`<button class="secondary-btn" style="color:var(--danger);padding:7px 10px;font-size:12px" onclick="eliminarPdfMedicionFirmada('${esc(numero)}')">Eliminar</button>`:''}
-      </div>
+      </div>`:'<span class="badge b-neutral">Solo consulta</span>';
+    header.insertAdjacentHTML('afterend',`<div class="medicion-firmada-box" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;background:#f8fafc;padding:10px 12px;margin:0 0 12px">
+      <div style="font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b>${firmada?.medicion_firmada_url?` · <a href="${esc(firmada.medicion_firmada_url)}" target="_blank" rel="noopener">${esc(firmada.medicion_firmada_archivo||'Ver PDF')}</a>`:' · Sin PDF cargado'}</div>
+      ${controles}
     </div>`);
   }
   function parcheTablaMedicion(numero){
@@ -15118,12 +15148,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(metaRow){
         const safeId=String(c.id||c.localId).replace(/[^a-zA-Z0-9_-]/g,'_');
         const valorFinal=tieneModulosFinal(c)?valorModulosFinal(c):'';
+        const contenidoFinal=esInspectorCertificacion()?`
+            <input class="form-input" id="cert-final-mod-${safeId}" type="number" step="0.001" min="0" value="${esc(valorFinal)}" placeholder="Cantidad de módulos" style="max-width:190px;padding:7px 9px;font-size:12px">
+            <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="guardarModulosFinalCertificado('${esc(c.id||c.localId)}')">Guardar</button>
+            ${tieneModulosFinal(c)?`<button class="secondary-btn" style="color:var(--danger);padding:7px 10px;font-size:12px" onclick="limpiarModulosFinalCertificado('${esc(c.id||c.localId)}')">Quitar</button>`:''}`
+          :`<strong style="font-size:12px;color:#123c69">${tieneModulosFinal(c)?mods(valorFinal):'Sin definir'}</strong>`;
         metaRow.insertAdjacentHTML('beforeend',`
           <div class="cert-final-modulos-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
             <label style="font-size:12px;font-weight:800;color:#123c69">Módulos certificado final</label>
-            <input class="form-input" id="cert-final-mod-${safeId}" type="number" step="0.001" min="0" value="${esc(valorFinal)}" placeholder="Cantidad de módulos" style="max-width:190px;padding:7px 9px;font-size:12px">
-            <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="guardarModulosFinalCertificado('${esc(c.id||c.localId)}')">Guardar</button>
-            ${tieneModulosFinal(c)?`<button class="secondary-btn" style="color:var(--danger);padding:7px 10px;font-size:12px" onclick="limpiarModulosFinalCertificado('${esc(c.id||c.localId)}')">Quitar</button>`:''}
+            ${contenidoFinal}
           </div>`);
       }
     });
@@ -15162,6 +15195,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
   const finalizarPrev=window.finalizarCertificacion;
   window.finalizarCertificacion=async function(numero){
+    if(!exigirInspectorCertificacion())return;
     const res=typeof finalizarPrev==='function'?await finalizarPrev.apply(this,arguments):undefined;
     const data=dataMedicion(numero);
     const fecha=new Date().toISOString().slice(0,10);
@@ -15172,6 +15206,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     setTimeout(()=>parcheTablaMedicion(numero),0);
     return res;
+  };
+  const revertirPrev=window.revertirCertificacionFinalizada;
+  window.revertirCertificacionFinalizada=async function(){
+    if(!exigirInspectorCertificacion())return;
+    return typeof revertirPrev==='function'?revertirPrev.apply(this,arguments):undefined;
   };
 })();
 </script>
@@ -22124,5 +22163,296 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 </script>
 <script src="./dgie-certificacion-flujo.js?v=20260721-1"></script>
 <script src="./dgie-comunicaciones.js?v=20260720-6"></script>
+<style id="dgie-os-adjuntos-style-2026-07-21">
+.os-attachment-panel{border:1px solid #d9e2ef;border-radius:8px;background:#f8fafc;padding:14px}
+.os-attachment-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.os-attachment-title{font-size:14px;font-weight:900;color:#123c69}
+.os-attachment-help{font-size:12px;color:#64748b;margin-top:3px}
+.os-attachment-picker{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 12px;border:1px solid #b8c8db;border-radius:7px;background:#fff;color:#075aa8;font-size:12px;font-weight:900;cursor:pointer}
+.os-attachment-picker:hover{border-color:#075aa8;background:#eef6ff}
+.os-attachment-list{display:grid;gap:7px;margin-top:12px}
+.os-attachment-empty{padding:14px;border:1px dashed #cbd5e1;border-radius:7px;background:#fff;color:#64748b;font-size:12px;text-align:center}
+.os-attachment-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid #dbe5f0;border-radius:7px;background:#fff}
+.os-attachment-type{display:flex;align-items:center;justify-content:center;width:42px;height:30px;border-radius:6px;background:#eaf3fc;color:#075aa8;font-size:10px;font-weight:900}
+.os-attachment-name{font-size:12px;font-weight:800;color:#1e3a56;overflow-wrap:anywhere}
+.os-attachment-meta{font-size:11px;color:#64748b;margin-top:2px}
+.os-attachment-remove{width:30px;height:30px;border:1px solid #d8e1ec;border-radius:6px;background:#fff;color:#991b1b;font-size:18px;line-height:1;cursor:pointer}
+.os-attachment-error{display:none;margin-top:9px;color:#b91c1c;font-size:12px;font-weight:800}
+.os-form-tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:4px;padding:0 5px;border-radius:9px;background:#e0effd;color:#075aa8;font-size:10px;font-weight:900}
+.os-download-actions{display:grid!important;grid-template-columns:repeat(2,minmax(96px,1fr))!important;gap:4px!important;align-items:stretch!important;min-width:204px!important}
+.os-download-actions>button,.os-download-actions>span{min-width:0}
+.os-download-actions .pdf-btn,.os-download-actions .os-chat-btn{display:flex!important;align-items:center!important;justify-content:center!important;width:100%!important;min-height:30px!important;padding:4px 6px!important;border-radius:6px!important;font-size:10.5px!important;line-height:1.15!important;text-align:center!important;white-space:normal!important}
+.os-table th:nth-child(12),.os-table td:nth-child(12){min-width:218px!important;width:218px!important}
+.os-attachments-backdrop{position:fixed;inset:0;z-index:10020;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.48)}
+.os-attachments-backdrop.visible{display:flex}
+.os-attachments-modal{width:min(560px,100%);max-height:min(680px,calc(100vh - 36px));overflow:auto;border:1px solid #d7e1ec;border-radius:8px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.25)}
+.os-attachments-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0}
+.os-attachments-modal-title{font-size:15px;font-weight:900;color:#123c69}
+.os-attachments-modal-sub{font-size:12px;color:#64748b;margin-top:3px}
+.os-attachments-modal-close{width:30px;height:30px;border:1px solid #d8e1ec;border-radius:6px;background:#fff;color:#475569;font-size:18px;cursor:pointer}
+.os-attachments-modal-body{display:grid;gap:8px;padding:14px 16px 16px}
+.os-attachments-download{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid #dbe5f0;border-radius:7px;background:#f8fafc}
+@media(max-width:720px){.os-download-actions{grid-template-columns:1fr!important;min-width:128px!important}.os-table th:nth-child(12),.os-table td:nth-child(12){min-width:145px!important;width:145px!important}.os-attachments-download{grid-template-columns:36px minmax(0,1fr)}.os-attachments-download .secondary-btn{grid-column:1/-1;width:100%}}
+</style>
+<script id="dgie-os-adjuntos-2026-07-21">
+(function(){
+  'use strict';
+  const MAX_FILE_BYTES=10*1024*1024;
+  let formState={existing:[],pending:[],busy:false};
+
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function js(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ')}
+  function nombre(a){return String(a?.nombre||a?.name||'Adjunto')}
+  function url(a){return String(a?.url||a?.secure_url||a?.dataUrl||'')}
+  function adjuntos(o){return (Array.isArray(o?.adjuntos)?o.adjuntos:[]).filter(a=>url(a))}
+  function extension(v){const m=nombre(v).toLowerCase().match(/\.([a-z0-9]+)$/);return m?.[1]||''}
+  function tipoLabel(v){return extension(v)==='pdf'?'PDF':'JPG'}
+  function sizeLabel(value){const n=Number(value||0);if(!n)return'';return n>=1048576?`${(n/1048576).toFixed(1)} MB`:`${Math.max(1,Math.round(n/1024))} KB`}
+  function archivosForm(){return formState.existing.map(a=>({...a}))}
+  window.adjuntosOSFormActual=archivosForm;
+
+  function setFormError(message){
+    const el=byId('nos-adjuntos-error');
+    if(!el)return;
+    el.textContent=message||'';
+    el.style.display=message?'block':'none';
+  }
+  function updateTabCount(){
+    const count=byId('os-adjuntos-count');
+    if(count)count.textContent=String(formState.existing.length+formState.pending.length);
+  }
+  function renderFormFiles(){
+    const list=byId('nos-adjuntos-list');
+    if(!list)return;
+    const rows=[
+      ...formState.existing.map((a,index)=>({kind:'existing',index,item:a,status:'Cargado'})),
+      ...formState.pending.map((a,index)=>({kind:'pending',index,item:a,status:'Listo para subir'}))
+    ];
+    list.innerHTML=rows.length?rows.map(row=>`<div class="os-attachment-row"><span class="os-attachment-type">${tipoLabel(row.item)}</span><div><div class="os-attachment-name">${esc(nombre(row.item))}</div><div class="os-attachment-meta">${esc(row.status)}${sizeLabel(row.item?.size)?` · ${esc(sizeLabel(row.item.size))}`:''}</div></div><button type="button" class="os-attachment-remove" title="Quitar adjunto" aria-label="Quitar ${esc(nombre(row.item))}" onclick="quitarAdjuntoOSForm('${row.kind}',${row.index})">×</button></div>`).join(''):'<div class="os-attachment-empty">No hay archivos adjuntos.</div>';
+    updateTabCount();
+  }
+  window.quitarAdjuntoOSForm=function(kind,index){
+    if(formState.busy)return;
+    const list=kind==='existing'?formState.existing:formState.pending;
+    list.splice(Number(index),1);
+    setFormError('');
+    renderFormFiles();
+  };
+  window.seleccionarAdjuntosOS=function(input){
+    const files=[...(input?.files||[])];
+    const invalid=[];
+    const keys=new Set([...formState.existing,...formState.pending].map(a=>`${nombre(a).toLowerCase()}|${Number(a?.size||0)}`));
+    files.forEach(file=>{
+      const ext=extension(file);
+      if(!['jpg','jpeg','pdf'].includes(ext)){invalid.push(`${file.name}: formato no admitido`);return}
+      if(file.size>MAX_FILE_BYTES){invalid.push(`${file.name}: supera 10 MB`);return}
+      const key=`${file.name.toLowerCase()}|${Number(file.size||0)}`;
+      if(keys.has(key))return;
+      keys.add(key);
+      formState.pending.push(file);
+    });
+    if(input)input.value='';
+    setFormError(invalid.join(' · '));
+    renderFormFiles();
+  };
+  function installForm(os){
+    const tabs=document.querySelector('.os-form-tabs');
+    const presupuesto=byId('os-presupuesto');
+    const fixed=document.querySelector('.fixed-zone-box');
+    if(!tabs||!presupuesto||!fixed||byId('os-tab-adjuntos'))return;
+    formState={existing:adjuntos(os).map(a=>({...a})),pending:[],busy:false};
+    tabs.insertAdjacentHTML('beforeend','<button type="button" class="os-form-tab" id="os-tab-adjuntos" onclick="switchOSFormTab(\'adjuntos\')">Adjuntos <span class="os-form-tab-count" id="os-adjuntos-count">0</span></button>');
+    fixed.insertAdjacentHTML('beforebegin',`<div id="os-adjuntos" class="os-form-section hidden"><div class="os-attachment-panel"><div class="os-attachment-head"><div><div class="os-attachment-title">Archivos de la orden</div><div class="os-attachment-help">JPG o PDF · hasta 10 MB por archivo</div></div><label class="os-attachment-picker" for="nos-adjuntos-input">Seleccionar archivos</label><input id="nos-adjuntos-input" type="file" accept=".jpg,.jpeg,.pdf,image/jpeg,application/pdf" multiple hidden onchange="seleccionarAdjuntosOS(this)"></div><div class="os-attachment-list" id="nos-adjuntos-list"></div><div class="os-attachment-error" id="nos-adjuntos-error"></div></div></div>`);
+    const save=[...document.querySelectorAll('.modal-actions .primary-btn')].find(btn=>/guardar orden/i.test(btn.textContent||''));
+    if(save)save.id='nos-guardar-btn';
+    renderFormFiles();
+  }
+
+  const renderFormPrev=window.renderOSForm;
+  if(typeof renderFormPrev==='function'){
+    window.renderOSForm=function(os=null){
+      const result=renderFormPrev.apply(this,arguments);
+      installForm(os);
+      return result;
+    };
+  }
+  const switchTabPrev=window.switchOSFormTab;
+  window.switchOSFormTab=function(tab){
+    if(typeof switchTabPrev==='function')switchTabPrev(tab==='adjuntos'?'datos':tab);
+    byId('os-tab-datos')?.classList.toggle('active',tab==='datos');
+    byId('os-tab-presupuesto')?.classList.toggle('active',tab==='presupuesto');
+    byId('os-tab-adjuntos')?.classList.toggle('active',tab==='adjuntos');
+    byId('os-presupuesto')?.classList.toggle('hidden',tab!=='presupuesto');
+    byId('os-adjuntos')?.classList.toggle('hidden',tab!=='adjuntos');
+  };
+  const formDataPrev=window.obtenerDatosOSForm;
+  if(typeof formDataPrev==='function'){
+    window.obtenerDatosOSForm=function(){
+      const data=formDataPrev.apply(this,arguments);
+      if(data)data.adjuntos=archivosForm();
+      return data;
+    };
+  }
+
+  async function uploadFile(file){
+    if(typeof subirArchivoCloudinary==='function'&&typeof cloudinaryHabilitado==='function'&&cloudinaryHabilitado()){
+      return subirArchivoCloudinary(file,'ordenes-servicio');
+    }
+    if(!window.DGIE_DB?.isConfigured&&typeof leerArchivoDataUrl==='function')return leerArchivoDataUrl(file);
+    throw new Error('No se pudo acceder al servicio de archivos.');
+  }
+  function setBusy(value,text='Guardando...'){
+    formState.busy=value;
+    const button=byId('nos-guardar-btn');
+    if(button){
+      if(!button.dataset.defaultText)button.dataset.defaultText=button.textContent||'Guardar orden';
+      button.disabled=value;
+      button.textContent=value?text:button.dataset.defaultText;
+    }
+    const input=byId('nos-adjuntos-input');
+    if(input)input.disabled=value;
+  }
+  async function uploadPending(){
+    if(!formState.pending.length)return true;
+    setBusy(true,'Subiendo archivos...');
+    setFormError('');
+    while(formState.pending.length){
+      const file=formState.pending[0];
+      try{
+        const uploaded=await uploadFile(file);
+        if(!uploaded||!url(uploaded))throw new Error('El archivo no devolvió una dirección válida.');
+        formState.existing.push({
+          nombre:file.name,
+          url:url(uploaded),
+          publicId:uploaded.publicId||uploaded.public_id||null,
+          resourceType:uploaded.resourceType||uploaded.resource_type||null,
+          tipo:file.type||uploaded.tipo||uploaded.type||'',
+          size:Number(file.size||0)||0,
+          uploadedAt:new Date().toISOString()
+        });
+        formState.pending.shift();
+        renderFormFiles();
+      }catch(error){
+        setFormError(`No se pudo subir ${file.name}: ${error?.message||error}`);
+        setBusy(false);
+        return false;
+      }
+    }
+    return true;
+  }
+  const saveNewPrev=window.guardarNuevaOS;
+  if(typeof saveNewPrev==='function'){
+    window.guardarNuevaOS=async function(){
+      if(formState.busy)return;
+      if(!window.obtenerDatosOSForm?.(null))return;
+      if(!await uploadPending())return;
+      setBusy(true);
+      try{
+        return await saveNewPrev.apply(this,arguments);
+      }finally{setBusy(false)}
+    };
+  }
+  const saveEditPrev=window.guardarEdicionOS;
+  if(typeof saveEditPrev==='function'){
+    window.guardarEdicionOS=async function(id){
+      if(formState.busy)return;
+      if(!window.obtenerDatosOSForm?.(id))return;
+      if(!await uploadPending())return;
+      setBusy(true);
+      try{
+        return await saveEditPrev.apply(this,arguments);
+      }finally{setBusy(false)}
+    };
+  }
+
+  function findOrder(key){
+    const k=String(key??'');
+    return (OS_ZONA||[]).find(o=>String(o?.id)===k||String(o?.remoteId||'')===k||String(o?.numero||'')===k);
+  }
+  function safeDownloadUrl(file){
+    const source=url(file);
+    if(!source.includes('res.cloudinary.com')||!source.includes('/upload/')||source.includes('/upload/fl_attachment'))return source;
+    const base=nombre(file).replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9_-]+/g,'_')||'adjunto';
+    return source.replace('/upload/',`/upload/fl_attachment:${encodeURIComponent(base)}/`);
+  }
+  window.descargarArchivoAdjuntoOS=function(fileUrl,fileName){
+    if(!fileUrl)return;
+    const a=document.createElement('a');
+    a.href=fileUrl;
+    a.download=fileName||'adjunto';
+    a.target='_blank';
+    a.rel='noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  function ensureModal(){
+    if(byId('os-attachments-modal'))return;
+    document.body.insertAdjacentHTML('beforeend','<div class="os-attachments-backdrop" id="os-attachments-modal" onclick="if(event.target===this)cerrarAdjuntosOS()"><div class="os-attachments-modal"><div class="os-attachments-modal-head"><div><div class="os-attachments-modal-title" id="os-attachments-title">Adjuntos</div><div class="os-attachments-modal-sub" id="os-attachments-sub"></div></div><button type="button" class="os-attachments-modal-close" aria-label="Cerrar" onclick="cerrarAdjuntosOS()">×</button></div><div class="os-attachments-modal-body" id="os-attachments-body"></div></div></div>');
+  }
+  window.cerrarAdjuntosOS=function(){byId('os-attachments-modal')?.classList.remove('visible')};
+  window.abrirDescargaAdjuntosOS=function(key){
+    const order=findOrder(key);
+    const files=adjuntos(order);
+    if(!files.length){alert('Esta orden no tiene archivos adjuntos.');return}
+    if(files.length===1){window.descargarArchivoAdjuntoOS(safeDownloadUrl(files[0]),nombre(files[0]));return}
+    ensureModal();
+    byId('os-attachments-title').textContent=`Adjuntos · ${order?.numero||'Orden'}`;
+    byId('os-attachments-sub').textContent=`${files.length} archivos disponibles`;
+    byId('os-attachments-body').innerHTML=files.map(file=>`<div class="os-attachments-download"><span class="os-attachment-type">${tipoLabel(file)}</span><div><div class="os-attachment-name">${esc(nombre(file))}</div><div class="os-attachment-meta">${esc(sizeLabel(file?.size)||tipoLabel(file))}</div></div><button type="button" class="secondary-btn" onclick="descargarArchivoAdjuntoOS('${js(safeDownloadUrl(file))}','${js(nombre(file))}')">Descargar</button></div>`).join('');
+    byId('os-attachments-modal').classList.add('visible');
+  };
+  function buttonFor(order){
+    const files=adjuntos(order);
+    if(!files.length)return'';
+    const key=order?.remoteId||order?.id||order?.numero||'';
+    const label=files.length===1?'Descargar adjunto':`Adjuntos (${files.length})`;
+    return `<button class="pdf-btn os-attachment-action" type="button" title="Descargar archivos adjuntos" onclick="abrirDescargaAdjuntosOS('${js(key)}')">${esc(label)}</button>`;
+  }
+  function orderFromRow(tr){
+    const number=String(tr.querySelector('.os-num')?.textContent||'').trim();
+    const cells=tr.querySelectorAll('td');
+    const school=String(cells[2]?.textContent||'').trim();
+    const matches=(OS_ZONA||[]).filter(o=>String(o?.numero||'').trim()===number);
+    return matches.find(o=>String(o?.establecimiento||'').trim()===school)||matches[0]||null;
+  }
+  function enhanceButtons(){
+    document.querySelectorAll('#os-table-body tr,#empresa-os-body tr,#coord-os-body tr').forEach(tr=>{
+      if(tr.querySelector('.os-empty')||tr.querySelector('.os-attachment-action'))return;
+      const actions=tr.querySelector('.os-download-actions');
+      if(!actions)return;
+      const order=orderFromRow(tr);
+      const button=buttonFor(order);
+      if(!button)return;
+      const chat=actions.querySelector('[data-os-chat-cell]');
+      if(chat)chat.insertAdjacentHTML('beforebegin',button);
+      else actions.insertAdjacentHTML('beforeend',button);
+    });
+  }
+  function wrapRender(name){
+    const prev=window[name];
+    if(typeof prev!=='function'||prev.__osAttachmentsWrapped)return;
+    window[name]=function(){
+      const result=prev.apply(this,arguments);
+      setTimeout(enhanceButtons,0);
+      return result;
+    };
+    window[name].__osAttachmentsWrapped=true;
+  }
+  ['renderOSTable','filterOSEmpresa','filterOSCoord'].forEach(wrapRender);
+  let enhanceQueued=false;
+  function queueEnhanceButtons(){
+    if(enhanceQueued)return;
+    enhanceQueued=true;
+    setTimeout(()=>{enhanceQueued=false;enhanceButtons()},0);
+  }
+  const observerRoot=byId('main-content')||document.body;
+  if(observerRoot&&typeof MutationObserver==='function'){
+    new MutationObserver(queueEnhanceButtons).observe(observerRoot,{childList:true,subtree:true});
+  }
+  setTimeout(()=>{['renderOSTable','filterOSEmpresa','filterOSCoord'].forEach(wrapRender);queueEnhanceButtons()},500);
+})();
+</script>
 </body>
 </html>
