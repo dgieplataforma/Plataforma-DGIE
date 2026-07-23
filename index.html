@@ -12293,6 +12293,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       a.download=nombre||'archivo';
       a.target='_blank';
       a.rel='noopener';
+      a.dataset.dgieNativeDownload='1';
       document.body.appendChild(a);
       a.click();
       setTimeout(()=>a.remove(),0);
@@ -23560,7 +23561,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   setTimeout(queueEnhancements,600);
 })();
 </script>
-<script src="./dgie-file-viewer.js?v=20260723-1"></script>
+<script src="./dgie-file-viewer.js?v=20260723-2"></script>
 <script src="./dgie-notificaciones.js?v=20260723-1"></script>
 </body>
 </html>

@@ -252,6 +252,7 @@
     byId('dgie-file-viewer-name').textContent=state.name;
     const kind=kindOf(source,state.name);
     byId('dgie-file-viewer-type').textContent=friendlyType(kind,extensionOf(source,state.name));
+    byId('dgie-file-viewer-download').textContent=kind==='sheet'?'Descargar para editar':'Descargar';
     byId('dgie-file-viewer').classList.add('visible');
     state.bodyOverflow=document.body.style.overflow;
     document.body.style.overflow='hidden';
