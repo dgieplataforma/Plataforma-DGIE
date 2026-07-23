@@ -1866,6 +1866,12 @@ function fotoUrlDGIE(f){
   if(typeof f==='string')return f;
   return f.url||f.secure_url||f.dataUrl||f.path||'';
 }
+function fotoThumbUrlDGIE(url){
+  const raw=String(url||'');
+  if(!raw.includes('res.cloudinary.com')||!raw.includes('/image/upload/'))return raw;
+  if(/\/image\/upload\/[a-z]+_/i.test(raw))return raw;
+  return raw.replace('/image/upload/','/image/upload/w_160,h_120,c_fill,g_auto,q_auto,f_auto/');
+}
 function fotoNombreDGIE(f,fallback='Foto'){
   if(!f||typeof f==='string')return fallback;
   return f.nombre||f.name||f.descripcion||fallback;
@@ -1876,7 +1882,7 @@ function renderFotosReclamo(r){
     return `<div class="reclamo-fotos">${fotos.map(f=>{
       const src=fotoUrlDGIE(f);
       const nombre=fotoNombreDGIE(f,'Foto del reclamo');
-      return src?`<img src="${src}" alt="${escapeHtml(nombre)}" title="${escapeHtml(nombre)}" class="reclamo-foto-thumb" onclick="window.open(this.src,'_blank')">`:'';
+      return src?`<img src="${escapeHtml(fotoThumbUrlDGIE(src))}" data-full="${escapeHtml(src)}" alt="${escapeHtml(nombre)}" title="${escapeHtml(nombre)}" class="reclamo-foto-thumb" loading="lazy" decoding="async" onclick="window.open(this.dataset.full,'_blank')">`:'';
     }).join('')}</div>`;
   }
   if(Number(r.fotos)>0){
@@ -18286,7 +18292,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       .dgie-smart-head-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
       .dgie-smart-pdf-btn{padding:7px 12px;font-size:12px;white-space:nowrap}
       .dgie-smart-summary-row{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:-2px 0 10px;flex-wrap:wrap}
-      @media(max-width:780px){.dgie-smart-filter{grid-template-columns:1fr;min-width:0}.dgie-smart-filter .secondary-btn{width:100%}}
+      .dgie-date-range{display:flex;gap:8px}
+      .dgie-date-field{display:flex;flex-direction:column;gap:4px;flex:1 1 0;min-width:0}
+      .dgie-date-field>span{font-size:11px;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+      @media(max-width:780px){
+        .dgie-smart-filter{grid-template-columns:1fr 1fr;min-width:0}
+        .dgie-smart-filter .secondary-btn{grid-column:1/-1;width:100%}
+      }
     `;
     document.head.appendChild(st);
   }
@@ -18474,7 +18486,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function smartChipsSlot(ctx){return `<div class="dgie-smart-chips" id="${esc(ctx)}-sf-chips"></div>`}
   function dateInputs(prefix,fn,values={}){
-    return `<input class="filter-sel" id="${esc(prefix)}-desde" type="date" value="${esc(values.desde||'')}" onchange="${esc(fn)}" title="Fecha desde"><input class="filter-sel" id="${esc(prefix)}-hasta" type="date" value="${esc(values.hasta||'')}" onchange="${esc(fn)}" title="Fecha hasta">`;
+    return `<div class="dgie-date-range">
+      <label class="dgie-date-field"><span>Desde</span><input class="filter-sel" id="${esc(prefix)}-desde" type="date" value="${esc(values.desde||'')}" onchange="${esc(fn)}" title="Fecha desde"></label>
+      <label class="dgie-date-field"><span>Hasta</span><input class="filter-sel" id="${esc(prefix)}-hasta" type="date" value="${esc(values.hasta||'')}" onchange="${esc(fn)}" title="Fecha hasta"></label>
+    </div>`;
   }
   function fechaISO(v){
     const s=String(v||'').trim();
@@ -23090,13 +23105,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   .map-placeholder,.inspector-map-card .map-placeholder{height:300px}
   .chart-wrap{height:230px}
 
-  .os-filters,.estab-filters,.inspector-map-tools,.dgie-smart-filter,.ficha-metricas-filters,.budget-toolbar{
+  .os-filters,.estab-filters,.inspector-map-tools,.ficha-metricas-filters,.budget-toolbar{
     display:grid!important;
     grid-template-columns:minmax(0,1fr)!important;
     gap:9px!important;
     width:100%;
   }
-  .os-filters>*,.estab-filters>*,.inspector-map-tools>*,.dgie-smart-filter>*,.ficha-metricas-filters>*,.budget-toolbar>*{
+  .os-filters>*,.estab-filters>*,.inspector-map-tools>*,.ficha-metricas-filters>*,.budget-toolbar>*{
     width:100%!important;
     min-width:0!important;
     max-width:none!important;
@@ -23570,7 +23585,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   setTimeout(queueEnhancements,600);
 })();
 </script>
-<script src="./dgie-file-viewer.js?v=20260723-3"></script>
+<script src="./dgie-file-viewer.js?v=20260723-4"></script>
 <script src="./dgie-notificaciones.js?v=20260723-1"></script>
 </body>
 </html>

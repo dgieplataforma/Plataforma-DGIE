@@ -318,7 +318,7 @@
     const image=target?.closest?.('img');
     if(!image)return null;
     if(!image.matches('.reclamo-foto-thumb,.foto-grid img,.foto-item img,.intervencion-photo-row img,[data-dgie-file-image]'))return null;
-    const url=cleanUrl(image.currentSrc||image.src);
+    const url=cleanUrl(image.dataset?.full||image.currentSrc||image.src);
     return url?{url,name:image.alt||image.title||'Imagen'}:null;
   }
   function interceptClick(event){
