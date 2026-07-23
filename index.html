@@ -6554,6 +6554,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   .med-btn{min-width:160px;text-align:left}
   .med-btn strong{display:block;color:#123c69;font-size:15px}
   .med-btn span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+  .med-btn.is-done{background:#e8f5e9;border-color:#a7d7ac}
+  .med-btn.is-done:hover{background:#dcf0de}
+  .med-btn.is-done strong{color:#1b6e20}
+  .med-btn.is-done span{color:#2f7d37}
   .med-inline-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .med-table{width:100%;border-collapse:collapse;background:#fff}
   .med-table th{background:#000;color:#fff;text-align:left;font-size:12px;padding:6px 8px}
@@ -7264,7 +7268,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const total=grupos[num].reduce((a,c)=>a+modFinalCert(c),0);
       const fin=esMedicionFinalizada(num);
       const badge=fin?`<span class="badge b-ok" style="font-size:11px;margin-left:4px">✓</span>`:'';
-      return `<button class="secondary-btn med-btn" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
+      return `<button class="secondary-btn med-btn${fin?' is-done':''}" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
     }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`;
   }
   window.abrirMedicionInspector=function(numero){
@@ -7478,6 +7482,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return CERTIFICADOS_MEDICION.some(c=>String(c.medicion_numero)===String(numero)&&_certTieneFin(c,zona));
   }
   function esMedicionFinalizada(numero,zona=_zonaFinActual()){return !!_readFinMap()[_finKey(numero,zona)]||_medicionTieneFinPersistida(numero,zona)}
+  window.esMedicionFinalizada=esMedicionFinalizada;
   window.numeroCertificacionOS=function(osNumero){
     if(!osNumero)return null;
     const m=String(osNumero).match(/(\d+)$/);
@@ -14357,7 +14362,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         const data = grupos[num];
         const total = data.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
         const fin = medicionFinalizadaCoord(num,z) || data.some(certTieneFinCoord);
-        return `<button class="secondary-btn med-btn" onclick="abrirMedicionCoordinador(${z}, '${esc(num)}')"><strong>Medición Nº ${esc(num)} ${fin?`<span class="badge b-ok" style="font-size:10px">✓</span>`:''}</strong><span>${data.length} certificados · ${fmtMods(total)} módulos</span></button>`;
+        return `<button class="secondary-btn med-btn${fin?' is-done':''}" onclick="abrirMedicionCoordinador(${z}, '${esc(num)}')"><strong>Medición Nº ${esc(num)} ${fin?`<span class="badge b-ok" style="font-size:10px">✓</span>`:''}</strong><span>${data.length} certificados · ${fmtMods(total)} módulos</span></button>`;
       }).join('')}</div><div id="coord-cert-medicion-detalle" style="margin-top:14px"></div>`
       : `<div style="text-align:center;padding:26px;color:var(--muted);border:1px dashed var(--border);border-radius:12px;background:#f8fafc">Todavía no hay mediciones cargadas para Zona ${z}.</div>`}
     </div>`;
@@ -18989,7 +18994,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     </div>
     <div class="med-card">
       <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Mediciones</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Certificados aprobados filtrados por los mismos criterios.</div></div><span class="badge b-ok">${nums.length}</span></div>
-      ${nums.length?`<div class="med-btn-grid">${nums.map(num=>`<button class="secondary-btn med-btn" onclick="abrirMedicionInspector('${esc(num)}')"><strong>Medición Nº ${esc(num)}</strong><span>${grupos[num].length} certificados · ${mods(grupos[num].reduce((a,c)=>a+modCert(c),0))} módulos</span></button>`).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`:'<div style="text-align:center;padding:28px;color:var(--muted)">Todavía no hay mediciones para estos filtros.</div>'}
+      ${nums.length?`<div class="med-btn-grid">${nums.map(num=>{
+        const fin=typeof esMedicionFinalizada==='function'&&esMedicionFinalizada(num);
+        const badge=fin?`<span class="badge b-ok" style="font-size:11px;margin-left:4px">✓</span>`:'';
+        return `<button class="secondary-btn med-btn${fin?' is-done':''}" onclick="abrirMedicionInspector('${esc(num)}')"><strong>Medición Nº ${esc(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(grupos[num].reduce((a,c)=>a+modCert(c),0))} módulos</span></button>`;
+      }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`:'<div style="text-align:center;padding:28px;color:var(--muted)">Todavía no hay mediciones para estos filtros.</div>'}
     </div>`;
   }
   const renderMedicionesInspectorPrev=window.renderMedicionesInspector;
