@@ -127,7 +127,9 @@
   }
   function inspectorKey(zone){return String(Number(zone));}
   function companyKey(zone){return `empresa-${Number(zone)}`;}
+  const COORD_KEY='coordinacion';
   function currentKey(){
+    if(isManager())return COORD_KEY;
     const zone=Number(user()?.zona||0);
     return isCompany()?companyKey(zone):inspectorKey(zone);
   }
@@ -254,6 +256,14 @@
     return meta.clase==='notificacion_empresa'
       ||(meta.origenRol==='inspector'&&c?.alcance==='empresa_zona'&&isNotice(c));
   }
+  function isInspectorCoordinationNotification(c){
+    const meta=communicationMeta(c);
+    return meta.clase==='notificacion_coordinacion'
+      ||(meta.origenRol==='inspector'&&c?.alcance==='coordinador'&&isNotice(c));
+  }
+  function isInspectorOutbound(c){
+    return isInspectorCompanyNotification(c)||isInspectorCoordinationNotification(c);
+  }
   function copiedToCoordination(c){
     return communicationMeta(c).copiaCoordinacion===true;
   }
@@ -262,12 +272,12 @@
     const creatorId=c?.creadoPorId||c?.creado_por;
     if(currentId&&creatorId)return String(currentId)===String(creatorId);
     const meta=communicationMeta(c);
-    return isInspectorCompanyNotification(c)
+    return isInspectorOutbound(c)
       &&Number(meta.origenZona||0)===Number(user()?.zona||0)
       &&(!c?.creadoPor||normalize(c.creadoPor)===normalize(user()?.name));
   }
   function isOwnInspectorNotification(c){
-    return isInspector()&&isInspectorCompanyNotification(c)&&authoredByCurrentUser(c);
+    return isInspector()&&isInspectorOutbound(c)&&authoredByCurrentUser(c);
   }
   function priority(c){
     const value=String(schemaFor(c).meta?.prioridad||c?.prioridad||'normal').toLowerCase();
@@ -290,11 +300,13 @@
     if(c?.alcance==='zona')return selected.map(zone=>({key:inspectorKey(zone),zone,type:'inspector',label:destinationName('inspector',zone)}));
     if(c?.alcance==='empresas')return zones().map(zone=>({key:companyKey(zone),zone,type:'empresa',label:destinationName('empresa',zone)}));
     if(c?.alcance==='empresa_zona')return selected.map(zone=>({key:companyKey(zone),zone,type:'empresa',label:destinationName('empresa',zone)}));
+    if(c?.alcance==='coordinador')return [{key:COORD_KEY,zone:0,type:'coordinacion',label:'Coordinación'}];
     return [];
   }
   function destinationScope(c){
     if(c?.alcance==='general')return 'Todos los inspectores';
     if(c?.alcance==='empresas')return 'Todas las empresas';
+    if(c?.alcance==='coordinador')return 'Coordinación';
     const names=destinations(c).map(item=>`Zona ${item.zone}`);
     return names.length?names.join(', '):'Sin destinatarios';
   }
@@ -424,6 +436,7 @@
     const active=commId(c)===String(state.selectedId);
     const outgoing=isOwnInspectorNotification(c);
     const inspectorNotice=isInspectorCompanyNotification(c);
+    const coordinationNotice=isInspectorCoordinationNotification(c);
     const responseStatus=!isManager()&&!outgoing?normalizedStatus(c,{key:currentKey()}):status;
     return `<button type="button" class="dgc-list-item ${active?'is-active':''}" data-dgc-action="select" data-comm-id="${esc(commId(c))}">
       <div class="dgc-list-top">
@@ -434,7 +447,7 @@
       <div class="dgc-list-preview">${esc(c?.mensaje||'')}</div>
       <div class="dgc-list-foot">
         ${priorityBadge(c)}
-        <span class="dgc-badge ${isNotice(c)?'is-blue':'is-amber'}">${inspectorNotice?'Notificación a empresa':isNotice(c)?'Aviso':'Pedido'}</span>
+        <span class="dgc-badge ${isNotice(c)?'is-blue':'is-amber'}">${coordinationNotice?'Mensaje a Coordinación':inspectorNotice?'Notificación a empresa':isNotice(c)?'Aviso':'Pedido'}</span>
         ${outgoing?'<span class="dgc-badge">Enviada</span>':''}
         ${copiedToCoordination(c)?'<span class="dgc-badge is-blue">Copia a Coordinación</span>':''}
         ${isManager()?`<span class="dgc-badge">${data.completed}/${data.total} respondieron</span>`:''}
@@ -460,7 +473,7 @@
           <option value="" ${!state.list.type?'selected':''}>Pedidos y avisos</option>
           <option value="tarea" ${state.list.type==='tarea'?'selected':''}>Solo pedidos</option>
           <option value="notificacion" ${state.list.type==='notificacion'?'selected':''}>Solo avisos</option>
-          ${isInspector()?`<option value="enviadas" ${state.list.type==='enviadas'?'selected':''}>Enviadas a empresa</option>`:''}
+          ${isInspector()?`<option value="enviadas" ${state.list.type==='enviadas'?'selected':''}>Enviadas</option>`:''}
           ${isManager()?`<option value="copias" ${state.list.type==='copias'?'selected':''}>Copias de inspectores</option>`:''}
         </select>
       </div>
@@ -480,6 +493,7 @@
   }
   function renderDetailHeader(c){
     const inspectorNotice=isInspectorCompanyNotification(c);
+    const coordinationNotice=isInspectorCoordinationNotification(c);
     return `<div class="dgc-detail-head">
       <div class="dgc-detail-head-top">
         <div>
@@ -487,7 +501,7 @@
           <div class="dgc-detail-meta">${esc(formatDate(c?.createdAt||c?.created_at))} · Por ${esc(c?.creadoPor||c?.creado_por_nombre||'Coordinación')} · ${esc(destinationScope(c))}</div>
         </div>
         <div class="dgc-inline-actions">
-          ${statusBadge(overallStatus(c))}${priorityBadge(c)}${inspectorNotice?'<span class="dgc-badge">Inspector a empresa</span>':''}${copiedToCoordination(c)?'<span class="dgc-badge is-blue">Coordinación en copia</span>':''}${deadline(c)?`<span class="dgc-badge">${esc(formatShortDate(deadline(c)))}</span>`:''}
+          ${statusBadge(overallStatus(c))}${priorityBadge(c)}${coordinationNotice?'<span class="dgc-badge">Inspector a Coordinación</span>':inspectorNotice?'<span class="dgc-badge">Inspector a empresa</span>':''}${copiedToCoordination(c)?'<span class="dgc-badge is-blue">Coordinación en copia</span>':''}${deadline(c)?`<span class="dgc-badge">${esc(formatShortDate(deadline(c)))}</span>`:''}
           ${isManager()?`<button type="button" class="dgc-btn dgc-btn-danger" data-dgc-action="delete-communication" data-comm-id="${esc(commId(c))}" ${state.busy?'disabled':''}>${state.busy?'Eliminando…':'Eliminar'}</button>`:''}
         </div>
       </div>
@@ -813,7 +827,7 @@
           <div class="dgc-detail-meta">${response?.fecha?`Última actualización: ${esc(formatDate(response.fecha))}`:'Todavía no registraste actividad.'}</div>
           <div class="dgc-inline-actions">${noticeAction}${completedForCurrent(c)&&!isNotice(c)&&readOnly?`<button type="button" class="dgc-btn" data-dgc-action="edit-response" data-comm-id="${esc(commId(c))}" ${state.busy?'disabled':''}>Editar respuesta</button>`:''}</div>
         </div>
-        ${isNotice(c)?`<div class="dgc-alert ${completedForCurrent(c)?'is-success':''}">${completedForCurrent(c)?'Aviso leído y registrado.':'Leé el aviso y marcá la confirmación para que Coordinación pueda hacer el seguimiento.'}</div>`:`
+        ${isNotice(c)?`<div class="dgc-alert ${completedForCurrent(c)?'is-success':''}">${completedForCurrent(c)?'Aviso leído y registrado.':isManager()?'Leé el mensaje y marcá la confirmación de lectura.':'Leé el aviso y marcá la confirmación para que Coordinación pueda hacer el seguimiento.'}</div>`:`
           <div>
             ${fields.map(field=>`<div class="dgc-response-field">
               <label class="dgc-label">${esc(field.etiqueta)} ${field.requerido?'<span class="dgc-required">*</span>':''}</label>
@@ -841,22 +855,25 @@
       ?'vencido'
       :destination?normalizedStatus(c,destination):'pendiente';
     const read=COMPLETE_STATES.has(String(response.estado||''));
+    const coordinationMessage=isInspectorCoordinationNotification(c);
+    const recipientLabel=destination?.label||(coordinationMessage?'Coordinación':'Empresa de la zona');
+    const recipientNoun=coordinationMessage?'Coordinación':'la empresa';
     return `<section class="dgc-pane dgc-detail">
       ${renderDetailHeader(c)}
       <div class="dgc-detail-body">
         <div class="dgc-response-status">
           <div>
-            <div class="dgc-label">Estado en la empresa</div>
+            <div class="dgc-label">Estado en ${esc(recipientNoun)}</div>
             <div style="margin-top:5px">${statusBadge(status)}</div>
           </div>
-          <div class="dgc-detail-meta">${read&&response?.fecha?`Lectura registrada: ${esc(formatDate(response.fecha))}`:'La empresa todavía no registró la lectura.'}</div>
+          <div class="dgc-detail-meta">${read&&response?.fecha?`Lectura registrada: ${esc(formatDate(response.fecha))}`:`${esc(recipientNoun==='Coordinación'?'Coordinación':'La empresa')} todavía no registró la lectura.`}</div>
         </div>
         <div class="dgc-delivery-facts">
-          <div><span>Destinatario</span><strong>${esc(destination?.label||'Empresa de la zona')}</strong></div>
-          <div><span>Copia</span><strong>${copiedToCoordination(c)?'Coordinación':'Sin copia'}</strong></div>
+          <div><span>Destinatario</span><strong>${esc(recipientLabel)}</strong></div>
+          ${coordinationMessage?'':`<div><span>Copia</span><strong>${copiedToCoordination(c)?'Coordinación':'Sin copia'}</strong></div>`}
           <div><span>Enviada</span><strong>${esc(formatDate(c?.createdAt||c?.created_at))}</strong></div>
         </div>
-        <div class="dgc-alert ${read?'is-success':''}">${read?'La empresa confirmó la lectura de esta notificación.':'La notificación fue enviada y está pendiente de lectura por la empresa.'}</div>
+        <div class="dgc-alert ${read?'is-success':''}">${read?`${esc(recipientNoun==='Coordinación'?'Coordinación confirmó':'La empresa confirmó')} la lectura de esta notificación.`:`La notificación fue enviada y está pendiente de lectura por ${esc(recipientNoun)}.`}</div>
       </div>
     </section>`;
   }
@@ -896,6 +913,22 @@
       mensaje:'',
       campos:[],
       copiaCoordinacion:false
+    };
+    state.composeFiles=[];
+  }
+  function resetCoordinationNotification(){
+    const zone=Number(user()?.zona||0);
+    state.template='aviso';
+    state.compose={
+      mode:'inspector_coordinacion',
+      tipo:'notificacion',
+      alcance:'coordinador',
+      zonas:zone?[zone]:[],
+      prioridad:'normal',
+      fechaLimite:'',
+      titulo:'',
+      mensaje:'',
+      campos:[]
     };
     state.composeFiles=[];
   }
@@ -941,10 +974,40 @@
       </div>
     </div>`;
   }
+  function renderCoordinationNotificationDialog(data){
+    const zone=Number(user()?.zona||0);
+    return `<div class="dgc-dialog-backdrop" role="presentation">
+      <div class="dgc-dialog dgc-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="dgc-dialog-title">
+        <div class="dgc-dialog-head">
+          <div><div class="dgc-dialog-title" id="dgc-dialog-title">Escribir a Coordinación</div><div class="dgc-dialog-sub">Nueva comunicación desde la inspección de Zona ${zone||'—'}.</div></div>
+          <button type="button" class="dgc-btn dgc-close" aria-label="Cerrar" title="Cerrar" data-dgc-action="close-compose">×</button>
+        </div>
+        <div class="dgc-dialog-body">
+          <div class="dgc-recipient-line">
+            <span>Destinatario</span>
+            <strong>Coordinación</strong>
+          </div>
+          <div class="dgc-form-section">
+            <div class="dgc-form-grid">
+              <label class="dgc-form-field"><span class="dgc-label">Prioridad</span><select class="dgc-select" data-dgc-compose="prioridad"><option value="normal" ${data.prioridad==='normal'?'selected':''}>Normal</option><option value="alta" ${data.prioridad==='alta'?'selected':''}>Alta</option><option value="urgente" ${data.prioridad==='urgente'?'selected':''}>Urgente</option><option value="baja" ${data.prioridad==='baja'?'selected':''}>Baja</option></select></label>
+              <label class="dgc-form-field is-full"><span class="dgc-label">Título <span class="dgc-required">*</span></span><input class="dgc-input" data-dgc-compose="titulo" value="${esc(data.titulo)}" placeholder="Asunto del mensaje"></label>
+              <label class="dgc-form-field is-full"><span class="dgc-label">Mensaje <span class="dgc-required">*</span></span><textarea class="dgc-textarea" data-dgc-compose="mensaje" placeholder="Escribí el detalle para Coordinación">${esc(data.mensaje)}</textarea></label>
+              <label class="dgc-form-field is-full"><span class="dgc-label">Archivos adjuntos</span><input class="dgc-input" type="file" multiple accept="image/*,.pdf,.xls,.xlsx,.doc,.docx" data-dgc-compose-files><span class="dgc-help">${state.composeFiles.length?`${state.composeFiles.length} archivo(s) seleccionado(s)`:'Opcional'}</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="dgc-dialog-foot">
+          <div class="dgc-sync"><span class="dgc-sync-dot ${window.DGIE_DB?.isConfigured?'':'is-warn'}"></span>${window.DGIE_DB?.isConfigured?'Listo para enviar':'Sin conexión'}</div>
+          <div class="dgc-inline-actions"><button type="button" class="dgc-btn" data-dgc-action="close-compose">Cancelar</button><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="save-communication" ${state.busy?'disabled':''}>${state.busy?'Enviando…':'Enviar mensaje'}</button></div>
+        </div>
+      </div>
+    </div>`;
+  }
   function renderCreateDialog(){
     if(!state.formOpen||!state.compose)return '';
     const data=state.compose;
     if(data.mode==='inspector_empresa')return renderInspectorNotificationDialog(data);
+    if(data.mode==='inspector_coordinacion')return renderCoordinationNotificationDialog(data);
     const needsZones=['zona','empresa_zona'].includes(data.alcance);
     return `<div class="dgc-dialog-backdrop" role="presentation">
       <div class="dgc-dialog" role="dialog" aria-modal="true" aria-labelledby="dgc-dialog-title">
@@ -995,17 +1058,20 @@
     const subtitle=isManager()
       ?'Creá pedidos estructurados, seguí cada respuesta y exportá resultados consolidados.'
       :isInspector()
-        ?'Respondé pedidos, consultá avisos y notificá a la empresa de tu zona.'
+        ?'Respondé pedidos, consultá avisos, notificá a la empresa de tu zona y escribile a Coordinación.'
         :'Consultá las comunicaciones recibidas y registrá su lectura.';
-    const detail=isManager()
-      ?renderManagerDetail(selected)
-      :isOwnInspectorNotification(selected)
-        ?renderInspectorSentDetail(selected)
-        :renderInspectorDetail(selected);
+    const managerIsRecipient=isManager()&&isInspectorCoordinationNotification(selected);
+    const detail=managerIsRecipient
+      ?renderInspectorDetail(selected)
+      :isManager()
+        ?renderManagerDetail(selected)
+        :isOwnInspectorNotification(selected)
+          ?renderInspectorSentDetail(selected)
+          :renderInspectorDetail(selected);
     state.container.innerHTML=`<div class="dgc-page" id="dgc-root">
       <div class="dgc-header">
         <div><h1>${isManager()?'Comunicaciones y pedidos':'Comunicaciones'}</h1><p>${subtitle}</p></div>
-        ${isManager()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button></div>`:isInspector()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-company-notification">Notificar a empresa</button></div>`:''}
+        ${isManager()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button></div>`:isInspector()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-company-notification">Notificar a empresa</button><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-coordination-message">Escribir a Coordinación</button></div>`:''}
       </div>
       ${state.toast?`<div class="dgc-alert ${state.toast.type==='error'?'is-error':state.toast.type==='success'?'is-success':''}">${esc(state.toast.message)}</div>`:''}
       ${renderGlobalKpis(list)}
@@ -1121,7 +1187,7 @@
   function validateCompose(){
     const data=state.compose;
     if(!data?.titulo.trim()||!data?.mensaje.trim())return 'Completá el título y las instrucciones.';
-    if(data.mode==='inspector_empresa'&&!Number(user()?.zona||0))return 'No se pudo determinar la zona del inspector.';
+    if(['inspector_empresa','inspector_coordinacion'].includes(data.mode)&&!Number(user()?.zona||0))return 'No se pudo determinar la zona del inspector.';
     if(['zona','empresa_zona'].includes(data.alcance)&&!data.zonas.length)return 'Seleccioná al menos una zona destinataria.';
     if(data.tipo==='tarea'){
       if(!data.campos.length)return 'Agregá al menos un campo para la respuesta.';
@@ -1143,12 +1209,19 @@
     renderPage();
     try{
       const data=state.compose;
-      const inspectorMode=data.mode==='inspector_empresa';
+      const isCompanyMode=data.mode==='inspector_empresa';
+      const isCoordMode=data.mode==='inspector_coordinacion';
+      const inspectorMode=isCompanyMode||isCoordMode;
       const profile=inspectorMode?await verifiedInspectorProfile():await verifiedManagerProfile();
       const inspectorZone=Number(profile?.zona||user()?.zona||0);
-      if(inspectorMode){
+      if(isCompanyMode){
         data.tipo='notificacion';
         data.alcance='empresa_zona';
+        data.zonas=[inspectorZone];
+        data.campos=[];
+      }else if(isCoordMode){
+        data.tipo='notificacion';
+        data.alcance='coordinador';
         data.zonas=[inspectorZone];
         data.campos=[];
       }
@@ -1159,10 +1232,10 @@
           prioridad:data.prioridad,
           fechaLimite:data.fechaLimite||'',
           estado:'activo',
-          clase:inspectorMode?'notificacion_empresa':'comunicacion_gestion',
+          clase:isCoordMode?'notificacion_coordinacion':isCompanyMode?'notificacion_empresa':'comunicacion_gestion',
           origenRol:inspectorMode?'inspector':String(profile?.rol||role()),
           origenZona:inspectorMode?inspectorZone:null,
-          copiaCoordinacion:inspectorMode?!!data.copiaCoordinacion:false
+          copiaCoordinacion:isCompanyMode?!!data.copiaCoordinacion:false
         },
         campos:data.tipo==='tarea'?data.campos.map(normalizeField):[]
       };
@@ -1171,7 +1244,7 @@
         titulo:data.titulo.trim(),
         mensaje:data.mensaje.trim(),
         alcance:data.alcance,
-        zonas:['zona','empresa_zona'].includes(data.alcance)?data.zonas.slice().sort((a,b)=>a-b):[],
+        zonas:['zona','empresa_zona','coordinador'].includes(data.alcance)?data.zonas.slice().sort((a,b)=>a-b):[],
         creado_por:profile.id,
         creado_por_nombre:profile.nombre||user()?.name||'Coordinación',
         estados:{},
@@ -1191,7 +1264,7 @@
       state.composeFiles=[];
       state.detailView='resumen';
       state.lastSync=Date.now();
-      showToast(inspectorMode?'Notificación enviada a la empresa.':'Pedido enviado y guardado correctamente.','success');
+      showToast(isCoordMode?'Mensaje enviado a Coordinación.':isCompanyMode?'Notificación enviada a la empresa.':'Pedido enviado y guardado correctamente.','success');
     }catch(error){
       showToast(`No se pudo enviar la comunicación: ${error?.message||error}`,'error');
     }finally{
@@ -1528,6 +1601,7 @@
     if(action==='refresh'){await refreshRemote();return;}
     if(action==='new-communication'){resetCompose('respuesta');state.formOpen=true;renderPage();return;}
     if(action==='new-company-notification'){resetInspectorNotification();state.formOpen=true;renderPage();return;}
+    if(action==='new-coordination-message'){resetCoordinationNotification();state.formOpen=true;renderPage();return;}
     if(action==='close-compose'){state.formOpen=false;state.compose=null;state.composeFiles=[];renderPage();return;}
     if(action==='template'){
       const template=button.dataset.template||'respuesta';
