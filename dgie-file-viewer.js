@@ -307,7 +307,9 @@
     }
   }
   function linkFileInfo(anchor){
-    const href=cleanUrl(anchor?.href||anchor?.getAttribute?.('href'));
+    const rawHref=String(anchor?.getAttribute?.('href')||'').trim();
+    if(!rawHref||rawHref==='#'||rawHref.startsWith('#'))return null;
+    const href=cleanUrl(anchor?.href||rawHref);
     if(!href||href.startsWith('blob:')||anchor?.dataset?.dgieNativeDownload)return null;
     const name=anchor.getAttribute('download')||anchor.textContent?.trim()||'';
     return isViewable(href,name)?{url:href,name}:null;
