@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
+import { deliverQueued } from '../lib/push-delivery.mjs';
 
 const SUPABASE_URL='https://gvejicxbavveqrrxicen.supabase.co';
-const VAPID_PUBLIC_KEY='BImxVQUuI8gXsAJ50jH_pK8KwLeVPEkGlFpWR2DMHhThZl5JKLDpjoSUGgCLIKu4c8VPj7Y5NYXJEQwjUljkj3w';
 const ALLOWED_KINDS=new Set(['comunicado','reclamo']);
 
 function json(body,status=200){
@@ -96,49 +96,6 @@ async function notificationContent(admin,kind,record){
     url:'/?dgiePush=reclamo&sourceId='+encodeURIComponent(record.id)
   };
 }
-async function unreadCount(admin,userId){
-  const {count,error}=await admin.from('push_notifications')
-    .select('id',{count:'exact',head:true})
-    .eq('user_id',userId)
-    .is('read_at',null);
-  if(error)throw error;
-  return Number(count||0);
-}
-async function deliverForUser(admin,userId,notifications,subscriptions,content,kind,sourceId){
-  const userSubscriptions=subscriptions.filter(subscription=>String(subscription.user_id)===String(userId));
-  if(!userSubscriptions.length)return {delivered:0,failed:0,stale:0};
-  const count=await unreadCount(admin,userId);
-  const payload=JSON.stringify({
-    ...content,
-    kind,
-    sourceId:String(sourceId),
-    unreadCount:count,
-    tag:`dgie-${kind}-${sourceId}`
-  });
-  let delivered=0;
-  let failed=0;
-  const stale=[];
-  for(const subscription of userSubscriptions){
-    try{
-      await webpush.sendNotification({
-        endpoint:subscription.endpoint,
-        keys:{p256dh:subscription.p256dh,auth:subscription.auth}
-      },payload,{TTL:86400,urgency:'normal'});
-      delivered++;
-    }catch(error){
-      failed++;
-      if([404,410].includes(Number(error?.statusCode)))stale.push(subscription.id);
-      else console.error('Push delivery failed',{statusCode:error?.statusCode,message:error?.message});
-    }
-  }
-  if(stale.length)await admin.from('push_subscriptions').delete().in('id',stale);
-  if(delivered){
-    const ids=notifications.filter(item=>String(item.user_id)===String(userId)).map(item=>item.id);
-    if(ids.length)await admin.from('push_notifications').update({sent_at:new Date().toISOString()}).in('id',ids);
-  }
-  return {delivered,failed,stale:stale.length};
-}
-
 export default async request=>{
   if(request.method!=='POST')return json({error:'Metodo no permitido.'},405);
   const secret=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -191,23 +148,21 @@ export default async request=>{
       onConflict:'user_id,kind,source_id',ignoreDuplicates:true
     });
     if(insertError)throw insertError;
-    const [{data:pending,error:pendingError},{data:subscriptions,error:subscriptionsError}]=await Promise.all([
-      admin.from('push_notifications').select('id,user_id,sent_at').eq('kind',kind).eq('source_id',String(record.id)).in('user_id',recipientIds).is('sent_at',null),
-      admin.from('push_subscriptions').select('id,user_id,endpoint,p256dh,auth').in('user_id',recipientIds)
-    ]);
-    if(pendingError)throw pendingError;
-    if(subscriptionsError)throw subscriptionsError;
+    const {data:notifications,error:notificationsError}=await admin.from('push_notifications')
+      .select('id')
+      .eq('kind',kind)
+      .eq('source_id',String(record.id))
+      .in('user_id',recipientIds);
+    if(notificationsError)throw notificationsError;
 
-    webpush.setVapidDetails(process.env.VAPID_SUBJECT||process.env.URL||'https://dgie.netlify.app',VAPID_PUBLIC_KEY,privateKey);
-    const pendingUsers=[...new Set((pending||[]).map(item=>String(item.user_id)))];
-    const results=await Promise.all(pendingUsers.map(userId=>deliverForUser(
-      admin,userId,pending||[],subscriptions||[],content,kind,record.id
-    )));
-    const totals=results.reduce((sum,item)=>({
-      delivered:sum.delivered+item.delivered,
-      failed:sum.failed+item.failed,
-      stale:sum.stale+item.stale
-    }),{delivered:0,failed:0,stale:0});
+    const totals=await deliverQueued({
+      admin,
+      webpush,
+      privateKey,
+      subject:process.env.VAPID_SUBJECT||process.env.URL||'https://dgie.netlify.app',
+      notificationIds:(notifications||[]).map(item=>item.id),
+      limit:200
+    });
     return json({ok:true,recipients:recipientIds.length,...totals});
   }catch(error){
     console.error('Push dispatch error',{message:error?.message,code:error?.code});

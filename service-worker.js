@@ -36,6 +36,7 @@ self.addEventListener('push', event => {
     badge: APP_BADGE,
     tag: String(payload.tag || `dgie-${Date.now()}`),
     renotify: true,
+    requireInteraction: true,
     data: {
       url: String(payload.url || APP_URL),
       kind: String(payload.kind || ''),

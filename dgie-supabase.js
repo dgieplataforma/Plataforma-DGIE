@@ -191,7 +191,7 @@
     },
     async crearReclamo(row){
       const result = await client.from('reclamos').insert(row).select('*').single();
-      if(!result.error && result.data?.id) window.DGIE_PUSH?.dispatch('reclamo', result.data.id);
+      if(!result.error && result.data?.id) await window.DGIE_PUSH?.dispatch('reclamo', result.data.id);
       return result;
     },
     async actualizarReclamo(id, row){
@@ -273,7 +273,7 @@
         if(userId) payload.creado_por = userId;
       }
       const result = await client.from('comunicaciones').insert(payload).select('*').single();
-      if(!result.error && result.data?.id) window.DGIE_PUSH?.dispatch('comunicado', result.data.id);
+      if(!result.error && result.data?.id) await window.DGIE_PUSH?.dispatch('comunicado', result.data.id);
       return result;
     },
     async eliminarComunicacion(id){

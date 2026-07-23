@@ -4,7 +4,7 @@
   const PUBLIC_KEY='BImxVQUuI8gXsAJ50jH_pK8KwLeVPEkGlFpWR2DMHhThZl5JKLDpjoSUGgCLIKu4c8VPj7Y5NYXJEQwjUljkj3w';
   const WORKER_URL='/service-worker.js';
   const DISPATCH_URL='/api/push/dispatch';
-  const state={registration:null,user:null,busy:false,enabled:false,status:'',pendingKind:''};
+  const state={registration:null,user:null,busy:false,enabled:false,status:'',pendingKind:'',recentDispatches:new Map()};
 
   try{
     const params=new URLSearchParams(window.location.search);
@@ -190,23 +190,40 @@
   }
   async function dispatch(kind,sourceId){
     if(!['comunicado','reclamo'].includes(kind)||!sourceId||!window.DGIE_DB?.isConfigured)return;
-    try{
-      const tokenResult=await window.DGIE_DB.tokenAccesoPush?.();
-      const token=tokenResult?.data;
-      if(!token)return;
-      const response=await fetch(DISPATCH_URL,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
-        body:JSON.stringify({kind,sourceId:String(sourceId)}),
-        keepalive:true
-      });
-      if(!response.ok){
+    const dispatchKey=`${kind}:${sourceId}`;
+    const startedAt=Date.now();
+    if(startedAt-Number(state.recentDispatches.get(dispatchKey)||0)<30000)return;
+    state.recentDispatches.set(dispatchKey,startedAt);
+    setTimeout(()=>{
+      if(state.recentDispatches.get(dispatchKey)===startedAt)state.recentDispatches.delete(dispatchKey);
+    },30000);
+    const waits=[0,1200,3500];
+    let lastError=null;
+    for(let attempt=0;attempt<waits.length;attempt++){
+      if(waits[attempt])await new Promise(resolve=>setTimeout(resolve,waits[attempt]));
+      try{
+        const tokenResult=await window.DGIE_DB.tokenAccesoPush?.();
+        const token=tokenResult?.data;
+        if(!token)throw new Error('La sesion no tiene un token valido.');
+        const response=await fetch(DISPATCH_URL,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+          body:JSON.stringify({kind,sourceId:String(sourceId)}),
+          keepalive:true
+        });
+        if(response.ok)return await response.json().catch(()=>({ok:true}));
         const detail=await response.json().catch(()=>({}));
-        throw new Error(detail?.error||`Error ${response.status}`);
+        const error=new Error(detail?.error||`Error ${response.status}`);
+        error.status=response.status;
+        if(response.status>=400&&response.status<500&&response.status!==429)throw error;
+        lastError=error;
+      }catch(error){
+        lastError=error;
+        if(Number(error?.status)>=400&&Number(error?.status)<500&&Number(error?.status)!==429)break;
       }
-    }catch(error){
-      console.warn('El registro se guardo, pero no se pudo emitir su notificacion',error);
     }
+    console.warn('El registro se guardo, pero la notificacion quedo pendiente de reintento',lastError);
+    return {ok:false,pending:true};
   }
   function onUserLoaded(nextUser){
     state.user=nextUser||user();
@@ -245,7 +262,7 @@
   const previousLogout=window.doLogout;
   if(typeof previousLogout==='function'){
     window.doLogout=async function(){
-      await disable();
+      await setBadge(0);
       state.user=null;
       return previousLogout.apply(this,arguments);
     };
