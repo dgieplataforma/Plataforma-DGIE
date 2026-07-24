@@ -18368,7 +18368,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return {
       head:'<tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>O.S.</th></tr>',
       body:rows.map(r=>{
-        const st=callcenter?estadoCallcenter(r).label:(typeof estadoOSLabel==='function'?estadoOSLabel(estadoReclamo(r)):estadoReclamo(r));
+        const estReclamo=estadoReclamo(r);
+        const st=callcenter?estadoCallcenter(r).label:(estReclamo==='derivado'?(typeof window.reclamoDerivadoLabel==='function'?window.reclamoDerivadoLabel(r):'Derivado'):(typeof estadoOSLabel==='function'?estadoOSLabel(estReclamo):estReclamo));
         return `<tr>${td(reclamoNumero(r)||r?.numero)}${td(zonaEst(r)||'')}${td(r?.est||r?.establecimiento)}${td(r?.titulo||r?.descripcion)}${td(rubroRec(r))}${td(r?.fecha)}${td(r?.prio||r?.prioridad)}${td(st)}${td(osReclamoLabel(r)||'—')}</tr>`;
       }).join('')
     };
@@ -19064,6 +19065,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(st==='finalizado')return {key:'finalizado',label:'Finalizado',cls:'b-ok'};
     if(st==='trabajando')return {key:'trabajando',label:'Trabajando',cls:'b-info'};
     if(st==='anulado')return {key:'anulado',label:'Anulado',cls:'b-danger'};
+    if(st==='derivado')return {key:'derivado',label:typeof window.reclamoDerivadoLabel==='function'?window.reclamoDerivadoLabel(r):'Derivado',cls:'b-neutral'};
     if(st==='orden_servicio')return {key:'orden_servicio',label:'Orden de servicio',cls:'b-warn'};
     return {key:'pendiente',label:'Pendiente',cls:'b-neutral'};
   }
@@ -23597,6 +23599,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   setTimeout(queueEnhancements,600);
 })();
 </script>
+<style id="dgie-reclamos-derivacion-borde-2026-07-24">
+.reclamo-row+.reclamo-anulacion-panel,.reclamo-row+.reclamo-derivacion-panel,.reclamo-row+.reclamo-acciones-panel{border-bottom:1px solid #e5edf6;padding-bottom:14px}
+.reclamo-row:has(+.reclamo-anulacion-panel),.reclamo-row:has(+.reclamo-derivacion-panel),.reclamo-row:has(+.reclamo-acciones-panel){border-bottom:none}
+</style>
 <script id="dgie-reclamos-derivacion-2026-07-24">
 (function(){
   'use strict';
@@ -23661,6 +23667,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         </div>`;
       }
       if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return html;
+      html=html.replace(
+        '<div style="display:flex;justify-content:flex-end;margin:-4px 0 10px">',
+        '<div class="reclamo-acciones-panel" style="display:flex;justify-content:flex-end;margin:-4px 0 10px">'
+      );
       return html.replace(
         /<button class="edit-btn" type="button" onclick="abrirAnulacionReclamoInspector\(([^)]*)\)">Anular reclamo<\/button>/,
         (m,keyArg)=>`<button class="edit-btn" type="button" style="margin-right:8px" onclick="abrirDerivacionReclamoInspector(${keyArg})">Derivar</button>${m}`
