@@ -18352,7 +18352,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(last.type==='ordenes'){
       return {
         head:'<tr><th>Orden</th><th>Zona</th><th>N° reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Prioridad</th><th>Fecha envío</th><th>Estado</th><th>Estado s/ empresa</th><th>Fecha finalización</th><th>Certificado</th></tr>',
-        body:rows.map(o=>`<tr>${td(o?.numero)}${td(zonaOS(o)||'')}${td(o?.reclamoNumero)}${td(o?.establecimiento)}${td(o?.tarea)}${td(o?.rubro)}${td(plain(prioOSHtml(o)))}${td(o?.fecha)}${td(typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):o?.estado)}${td(empresaFin(o)?'Finalizada por empresa':'Sin informar')}${td(o?.fechaFinalizacion)}${td(osMediciones(o).length?`Medición ${osMediciones(o).join(', ')}`:'—')}</tr>`).join('')
+        body:rows.map(o=>`<tr>${td(o?.numero)}${td(zonaOS(o)||'')}${td(o?.reclamoNumero)}${td(o?.establecimiento)}${td(o?.tarea)}${td(o?.rubro)}${td(plain(typeof formatPrioridadOS==='function'?formatPrioridadOS(o?.prio):(o?.prio||'Media')))}${td(o?.fecha)}${td(typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):o?.estado)}${td(empresaFin(o)?'Finalizada por empresa':'Sin informar')}${td(o?.fechaFinalizacion)}${td(osMediciones(o).length?`Medición ${osMediciones(o).join(', ')}`:'—')}</tr>`).join('')
       };
     }
     if(last.type==='certificados'){
