@@ -1443,7 +1443,7 @@ function renderTab(i){if(!currentUser)return;setActiveTab(i);hideGlobal();curren
 function showGlobal(){safeHTML('global-content',`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><div style="font-size:22px;font-weight:900;color:#123c69">Dashboard Global · Provincia de Córdoba</div><button class="logout-btn" onclick="hideGlobal()">Cerrar ✕</button></div>${renderDashboardDir()}`);$('global-overlay')?.classList.add('visible');if($('nav-tabs'))$('nav-tabs').style.display='none';if($('main-content'))$('main-content').style.display='none';setTimeout(()=>renderChartDir(),80)}function hideGlobal(){$('global-overlay')?.classList.remove('visible');if($('nav-tabs'))$('nav-tabs').style.display='';if($('main-content'))$('main-content').style.display=''}
 function drawDonut(id,data,labels=['Reportado','Anulado'],colors=['#0ea5e9','#ef4444']){if(chartInstances[id])chartInstances[id].destroy();const el=$(id);if(el&&window.Chart)chartInstances[id]=new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#64748b',boxWidth:12}}}}})}function drawBar(id,data){if(chartInstances[id])chartInstances[id].destroy();const el=$(id);if(el&&window.Chart)chartInstances[id]=new Chart(el,{type:'bar',data:{labels:['Crítico','Alto','Medio','Bajo'],datasets:[{data,backgroundColor:['#dc2626','#f59e0b','#2563eb','#16a34a'],borderWidth:0,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#64748b'},grid:{color:'rgba(0,0,0,.06)'}},x:{ticks:{color:'#64748b'},grid:{display:false}}}}})}function fakeMapDots(){const colors=['#a37b00','#111827','#7c3aed','#0ea5e9','#a6c93a','#f59e0b','#ef4444','#6cab43','#94a3b8','#006b8f','#d946ef'];let dots='';for(let i=0;i<115;i++){dots+=`<span class="map-dot" style="left:${8+Math.random()*84}%;top:${10+Math.random()*78}%;background:${colors[i%colors.length]}"></span>`}return dots}
 function renderDashboardDir(){return renderDashboardGlobalPrincipal()}function renderDashboardGlobalPrincipal(){return `<div class="section-label">Dashboard provincial</div><div class="dashboard-tabs"><button class="dashboard-tab active" onclick="switchDashboardGlobal('principal')">Principal</button><button class="dashboard-tab" onclick="switchDashboardGlobal('gestion')">Reclamos y mantenimientos</button></div><div id="dashboard-global-body">${renderDashboardPrincipalBody()}</div>`}function renderDashboardPrincipalBody(){const totalEst=ESTABS.length,totalRec=RECLAMOS_ZONA.length,totalOS=OS_ZONA.length,totalInt=INTERVENCIONES.length;return `<div class="metrics-grid"><div class="metric-card"><div class="metric-lbl">Zonas</div><div class="metric-val">17</div></div><div class="metric-card"><div class="metric-lbl">Establecimientos cargados</div><div class="metric-val">${totalEst}</div></div><div class="metric-card"><div class="metric-lbl">Reclamos cargados</div><div class="metric-val">${totalRec}</div></div><div class="metric-card"><div class="metric-lbl">Órdenes de servicio</div><div class="metric-val">${totalOS}</div></div><div class="metric-card"><div class="metric-lbl">Intervenciones</div><div class="metric-val">${totalInt}</div></div></div><div class="dashboard-map-grid"><div class="card"><div class="card-title">Establecimientos reales cargados</div><div class="map-placeholder">${fakeMapDots()}<div style="position:absolute;left:18px;top:18px;background:#fff;border:1px solid #d9e2ef;border-radius:10px;padding:8px 10px;color:#123c69;font-weight:900">Base inicial: ${totalEst} establecimientos</div></div></div><div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${totalRec}</div><div class="big-kpi-label">reclamos<br>registrados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-dir-reclamos"></canvas></div></div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${totalOS}</div><div class="big-kpi-label">órdenes de<br>servicio</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-dir-mantenimiento"></canvas></div></div></div></div>`}function switchDashboardGlobal(view){const body=$('dashboard-global-body');if(!body)return;if(view==='principal'){body.innerHTML=renderDashboardPrincipalBody();setTimeout(()=>renderChartDir('principal'),80)}else if(view==='gestion'){body.innerHTML=renderDashboardGestionBody();setTimeout(()=>renderChartDir('gestion'),80)}else{body.innerHTML=renderDashboardGestionBody();setTimeout(()=>renderChartDir('gestion'),80)}}function renderDashboardOSZona(){const z=Number($('dash-os-zona')?.value||1);const data=osPorZona(z);const body=$('dash-os-zona-body');if(!body)return;body.innerHTML=`<div class="grid2"><div class="card" style="margin-bottom:0"><div class="card-title">Estado de órdenes · Zona ${z}</div><div class="chart-wrap" style="height:260px"><canvas id="chart-os-zona-estado"></canvas></div></div><div class="card" style="margin-bottom:0"><div class="card-title">Resumen Zona ${z}</div><div class="metrics-grid" style="margin-bottom:0"><div class="metric-card"><div class="metric-lbl">Total OS</div><div class="metric-val">${data.length}</div></div><div class="metric-card"><div class="metric-lbl">Finalizadas</div><div class="metric-val v-ok">${data.filter(o=>o.estado==='Finalizada').length}</div></div><div class="metric-card"><div class="metric-lbl">En ejecución</div><div class="metric-val v-info">${data.filter(o=>o.estado==='En ejecución').length}</div></div><div class="metric-card"><div class="metric-lbl">Pendientes</div><div class="metric-val v-warn">${data.filter(o=>o.estado==='Pendiente'||o.estado==='Presupuestado').length}</div></div></div></div></div><div class="os-table-wrap" style="margin-top:16px"><table class="os-table"><thead><tr><th>Orden de servicio</th><th>Nº reclamo</th><th>Establecimiento</th><th>Tarea</th><th>Rubro</th><th>Fecha de envío</th><th>Fecha finalización</th><th>Presupuesto</th><th>Prioridad</th><th>Estado</th></tr></thead><tbody id="dash-os-table-body"></tbody></table></div>`;renderDashboardOSTable(data);renderChartDashboardOS(data)}
-function renderDashboardInsp(){const z=currentUser.zona,d=zonaStats(z);return `<div class="section-label">Dashboard · Zona ${z}</div><div class="dashboard-tabs"><button class="dashboard-tab active" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div id="dashboard-zona-body">${renderDashboardZonaPrincipalBody(z,d)}</div>`}function renderDashboardZonaPrincipalBody(z,d){return `<div class="metrics-grid"><div class="metric-card"><div class="metric-lbl">Zona</div><div class="metric-val">${z}</div></div><div class="metric-card"><div class="metric-lbl">Establecimientos</div><div class="metric-val">${d.estabs}</div></div><div class="metric-card"><div class="metric-lbl">Reclamos</div><div class="metric-val">${d.relev}</div></div><div class="metric-card"><div class="metric-lbl">Órdenes</div><div class="metric-val">${d.os}</div></div><div class="metric-card"><div class="metric-lbl">Inspector</div><div class="metric-val" style="font-size:20px">${d.inspector}</div></div></div><div class="dashboard-map-grid"><div class="card"><div class="card-title">Establecimientos · Zona ${z}</div><div class="map-placeholder">${fakeMapDots()}<div style="position:absolute;left:18px;top:18px;background:#fff;border:1px solid #d9e2ef;border-radius:10px;padding:8px 10px;color:#123c69;font-weight:900">Mapa Zona ${z}</div></div></div><div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos<br>registrados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-reclamos"></canvas></div></div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos<br>ejecutados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-mantenimiento"></canvas></div></div></div></div>`}function renderDashboardZonaGestionBody(z,d){return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos en total</div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-rec-ejec"></canvas></div></div><div class="card"><div class="card-title">Reclamos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-rec-prio"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-man-ejec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-man-prio"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-rec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-man"></canvas></div></div></div>`}function switchDashboardZona(view){const z=currentUser.zona,d=ZONE_DATA[z],body=$('dashboard-zona-body');if(!body)return;if(view==='principal'){body.innerHTML=renderDashboardZonaPrincipalBody(z,d);setTimeout(()=>renderChartInsp('principal'),80)}else{body.innerHTML=renderDashboardZonaGestionBody(z,d);setTimeout(()=>renderChartInsp('gestion'),80)}}function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function reclamoReiteradoDe(r){const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';if(directo)return String(directo);const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);return m?m[1]:''}function reclamoNumeroVisible(r){const rep=reclamoReiteradoDe(r);return rep||r?.numero||''}function limpiarMetaReiterado(txt){return String(txt||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim()}function reclamoTieneOSAsignada(r){if(typeof findOSForReclamo==='function'&&findOSForReclamo(r,OS_ZONA))return true;const os=String(r?.os||'').trim();return !!os&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(os)}function botonGenerarOSReclamo(r){if(currentUser?.role!=='inspector'||reclamoTieneOSAsignada(r)||String(r?.estado||'').toLowerCase()==='anulado')return '';const numero=encodeURIComponent(reclamoNumeroVisible(r)).replace(/'/g,'%27');return `<button class="reclamo-os-btn" onclick="event.stopPropagation();openNuevaOSDesdeReclamo('${numero}',${Number(r?.estId)||0})">Generar orden de servicio</button>`}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const reiterado=reclamoReiteradoDe(r);const numeroVisible=reclamoNumeroVisible(r);const extra=[numeroVisible,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';const _osObj=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite'?OS_ZONA.find(x=>x.numero===r.os):null;const _osEst=_osObj?getEstadoOS(_osObj):'';const _osLbl=_osObj?estadoOSLabel(_osObj.estado):'';const _osDisplay=r.os&&r.os!=='Sin OS'?escapeHtml(r.os)+(_osLbl?' · '+_osLbl:''):'Sin OS';const _osClr=_osEst==='finalizado'?'#2e7d32':_osEst==='trabajando'?'#0072ce':_osEst==='anulado'?'#dc2626':_osEst==='pendiente'?'#d97706':'var(--muted)';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${escapeHtml(r.titulo||'Reclamo')}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?escapeHtml(r.est||r.establecimiento||'')+' · ':''}${escapeHtml(r.fecha||'')}${extra?' · '+escapeHtml(extra):''}${reiterado?' · Reclamo original '+escapeHtml(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:${_osClr};font-weight:${_osEst?'700':'400'}">${_osDisplay}</span>${botonGenerarOSReclamo(r)}</div></div>`}function renderReclamos(container){
+function renderDashboardInsp(){const z=currentUser.zona,d=zonaStats(z);return `<div class="section-label">Dashboard · Zona ${z}</div><div class="dashboard-tabs"><button class="dashboard-tab active" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div id="dashboard-zona-body">${renderDashboardZonaPrincipalBody(z,d)}</div>`}function renderDashboardZonaPrincipalBody(z,d){return `<div class="metrics-grid"><div class="metric-card"><div class="metric-lbl">Zona</div><div class="metric-val">${z}</div></div><div class="metric-card"><div class="metric-lbl">Establecimientos</div><div class="metric-val">${d.estabs}</div></div><div class="metric-card"><div class="metric-lbl">Reclamos</div><div class="metric-val">${d.relev}</div></div><div class="metric-card"><div class="metric-lbl">Órdenes</div><div class="metric-val">${d.os}</div></div><div class="metric-card"><div class="metric-lbl">Inspector</div><div class="metric-val" style="font-size:20px">${d.inspector}</div></div></div><div class="dashboard-map-grid"><div class="card"><div class="card-title">Establecimientos · Zona ${z}</div><div class="map-placeholder">${fakeMapDots()}<div style="position:absolute;left:18px;top:18px;background:#fff;border:1px solid #d9e2ef;border-radius:10px;padding:8px 10px;color:#123c69;font-weight:900">Mapa Zona ${z}</div></div></div><div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos<br>registrados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-reclamos"></canvas></div></div><div class="card"><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos<br>ejecutados</div></div><div class="chart-wrap" style="height:245px"><canvas id="chart-zona-mantenimiento"></canvas></div></div></div></div>`}function renderDashboardZonaGestionBody(z,d){return `<div class="dashboard-tabs"><button class="dashboard-tab" onclick="switchDashboardZona('principal')">Principal</button><button class="dashboard-tab active" onclick="switchDashboardZona('gestion')">Reclamos y mantenimientos</button></div><div class="grid2" style="margin-bottom:14px"><div class="big-kpi-card"><div class="big-kpi-number">${d.relev}</div><div class="big-kpi-label">reclamos en total</div></div><div class="big-kpi-card"><div class="big-kpi-number">${d.os}</div><div class="big-kpi-label">mantenimientos en total</div></div></div><div class="mini-chart-grid"><div class="card"><div class="card-title">Reclamos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-rec-ejec"></canvas></div></div><div class="card"><div class="card-title">Reclamos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-rec-prio"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según ejecución</div><div class="chart-wrap"><canvas id="chart-zona-man-ejec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos según prioridad</div><div class="chart-wrap"><canvas id="chart-zona-man-prio"></canvas></div></div></div><div class="grid2"><div class="card"><div class="card-title">Reclamos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-rec"></canvas></div></div><div class="card"><div class="card-title">Mantenimientos por rubro</div><div class="chart-wrap" style="height:260px"><canvas id="chart-zona-rubro-man"></canvas></div></div></div>`}function switchDashboardZona(view){const z=currentUser.zona,d=ZONE_DATA[z],body=$('dashboard-zona-body');if(!body)return;if(view==='principal'){body.innerHTML=renderDashboardZonaPrincipalBody(z,d);setTimeout(()=>renderChartInsp('principal'),80)}else{body.innerHTML=renderDashboardZonaGestionBody(z,d);setTimeout(()=>renderChartInsp('gestion'),80)}}function renderZonaTab(c){const z=currentUser.zona;c.innerHTML=`<div class="sub-tabs"><div class="sub-tab active" id="ztab-0" onclick="switchZonaTab(0)">Reclamos Zona ${z}</div><div class="sub-tab" id="ztab-1" onclick="switchZonaTab(1)">Establecimientos</div><div class="sub-tab" id="ztab-2" onclick="switchZonaTab(2)">Órdenes de servicio</div></div><div id="zona-content"></div>`;switchZonaTab(0)}function switchZonaTab(i){['ztab-0','ztab-1','ztab-2'].forEach((id,idx)=>$(id)?.classList.toggle('active',idx===i));const zc=$('zona-content');if(!zc)return;if(i===0)renderReclamos(zc);else if(i===1)renderEstablecimientos(zc);else renderOSZona(zc)}function reclamoReiteradoDe(r){const directo=r?.reiteradoDe||r?.reiterado_de||r?.reclamo_anterior||'';if(directo)return String(directo);const m=String(r?.descripcion||'').match(/\[REITERADO_DE:([^\]]+)\]/);return m?m[1]:''}function reclamoNumeroVisible(r){const rep=reclamoReiteradoDe(r);return rep||r?.numero||''}function limpiarMetaReiterado(txt){return String(txt||'').replace(/\s*\[REITERADO_DE:[^\]]+\]\s*/g,'').trim()}function reclamoTieneOSAsignada(r){if(typeof findOSForReclamo==='function'&&findOSForReclamo(r,OS_ZONA))return true;const os=String(r?.os||'').trim();return !!os&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(os)}function botonGenerarOSReclamo(r){if(currentUser?.role!=='inspector'||reclamoTieneOSAsignada(r)||['anulado','derivado'].includes(String(r?.estado||'').toLowerCase()))return '';const numero=encodeURIComponent(reclamoNumeroVisible(r)).replace(/'/g,'%27');return `<button class="reclamo-os-btn" onclick="event.stopPropagation();openNuevaOSDesdeReclamo('${numero}',${Number(r?.estId)||0})">Generar orden de servicio</button>`}function rowReclamo(r,showEst){const pm={critico:['Crítico','b-danger','ps-danger'],alto:['Alto','b-warn','ps-warn'],medio:['Medio','b-info','ps-info'],bajo:['Bajo','b-ok','ps-ok']},[lbl,bdg,ps]=pm[r.prio]||['Sin prioridad','b-neutral',''];const reiterado=reclamoReiteradoDe(r);const numeroVisible=reclamoNumeroVisible(r);const extra=[numeroVisible,r.rubro].filter(Boolean).join(' · ');const fotosHtml=typeof renderFotosReclamo==='function'?renderFotosReclamo(r):'';const _osObj=r.os&&r.os!=='Sin OS'&&r.os!=='Pendiente'&&r.os!=='En trámite'&&r.os!=='En tramite'?OS_ZONA.find(x=>x.numero===r.os):null;const _osEst=_osObj?getEstadoOS(_osObj):'';const _osLbl=_osObj?estadoOSLabel(_osObj.estado):'';const _osDisplay=r.os&&r.os!=='Sin OS'?escapeHtml(r.os)+(_osLbl?' · '+_osLbl:''):'Sin OS';const _osClr=_osEst==='finalizado'?'#2e7d32':_osEst==='trabajando'?'#0072ce':_osEst==='anulado'?'#dc2626':_osEst==='pendiente'?'#d97706':'var(--muted)';return `<div class="reclamo-row"><div class="prio-strip ${ps}"></div><div class="reclamo-body"><div class="reclamo-title">${escapeHtml(r.titulo||'Reclamo')}${reiterado?` <span class="badge b-warn" style="font-size:11px;margin-left:8px">Reiterado</span>`:''}</div><div class="reclamo-meta">${showEst?escapeHtml(r.est||r.establecimiento||'')+' · ':''}${escapeHtml(r.fecha||'')}${extra?' · '+escapeHtml(extra):''}${reiterado?' · Reclamo original '+escapeHtml(reiterado):''}</div>${fotosHtml}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"><span class="badge ${bdg}">${lbl}</span><span style="font-size:11px;color:${_osClr};font-weight:${_osEst?'700':'400'}">${_osDisplay}</span>${botonGenerarOSReclamo(r)}</div></div>`}function renderReclamos(container){
   const z=currentUser.zona;
   const reclamosZona=RECLAMOS_ZONA.filter(r=>Number(r.zona)===Number(z)||zonaEstablecimiento(r.estId)===Number(z));
   const prioOrder={critico:0,alto:1,medio:2,bajo:3};
@@ -18547,6 +18547,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
     if(manual)return manual;
     if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return 'anulado';
+    if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='derivado')return 'derivado';
     const os=reclamoOSVinculada(r);
     if(!os)return 'pendiente';
     const st=typeof getEstadoOS==='function'?getEstadoOS(os):'orden_servicio';
@@ -18616,7 +18617,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const fields=[];
     if(zona)fields.push({key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)});
     fields.push(
-      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoReclamo(r)===v},
+      {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado'),opt('derivado','Derivado')],test:(r,v)=>estadoReclamo(r)===v},
       {key:'establecimiento',label:'Establecimiento',options:()=>reclamoEstablecimientoOptions(base),test:(r,v)=>reclamoEstablecimientoKey(r)===String(v)},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
@@ -19733,6 +19734,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }catch(_e){}
     const raw=norm(r?.estado||r?.estado_reclamo||'');
     if(raw==='anulado')return 'anulado';
+    if(raw==='derivado')return 'derivado';
     const os=osVinculada(r);
     if(!os)return 'pendiente';
     const st=estadoOSSeguro(os);
@@ -19740,7 +19742,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return 'orden_servicio';
   }
   function estadoReclamoLabel(r){
-    return {pendiente:'Pendiente',orden_servicio:'Orden de servicio',trabajando:'Trabajando',finalizado:'Finalizado',anulado:'Anulado'}[estadoReclamoCoord(r)]||'Pendiente';
+    const est=estadoReclamoCoord(r);
+    if(est==='derivado')return typeof window.reclamoDerivadoLabel==='function'?window.reclamoDerivadoLabel(r):'Derivado';
+    return {pendiente:'Pendiente',orden_servicio:'Orden de servicio',trabajando:'Trabajando',finalizado:'Finalizado',anulado:'Anulado'}[est]||'Pendiente';
   }
   function fechaHora(v){
     if(!v)return '';
@@ -23591,6 +23595,247 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.documentElement.setAttribute('data-dgie-mobile-app','ready');
   queueEnhancements();
   setTimeout(queueEnhancements,600);
+})();
+</script>
+<script id="dgie-reclamos-derivacion-2026-07-24">
+(function(){
+  'use strict';
+  const esc=v=>typeof escapeHtml==='function'?escapeHtml(v==null?'':v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const DESTINOS=['Obra','Obra gas','Epec','Aguas cordobesas'];
+  const COLOR_DERIVADO='#7c3aed';
+
+  function reclamoKeyDeriv(r){return String(r?.remoteId||r?.id||r?.numero||'')}
+  function buscarReclamoDeriv(key){
+    const k=String(key||'');
+    const rows=typeof RECLAMOS_ZONA!=='undefined'?RECLAMOS_ZONA:(window.RECLAMOS_ZONA||[]);
+    return (rows||[]).find(r=>String(r.remoteId||'')===k||String(r.id||'')===k||String(r.numero||'')===k);
+  }
+  function reclamoDerivado(r){return String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='derivado'}
+  function derivadoA(r){return String(r?.derivadoA||r?.derivado_a||'').trim()}
+  function metaDerivado(r){
+    const fecha=r?.derivadoEn||r?.derivado_en;
+    const por=r?.derivadoPor||r?.derivado_por||'Inspector';
+    const f=fecha&&!Number.isNaN(new Date(fecha).getTime())?new Date(fecha).toLocaleString('es-AR'):'';
+    return [f,por].filter(Boolean).join(' · ');
+  }
+  function limpiarMarcaDerivacion(txt){
+    return String(txt||'').replace(/\s*\[RECLAMO_DERIVADO:[A-Za-z0-9+/=]+\]\s*/g,'').trim();
+  }
+  function zonaItemDeriv(item){
+    const z=Number(item?.zona||0);
+    if(z>0)return z;
+    const est=Number(item?.estId||item?.establecimiento_id||0);
+    try{return est&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(est))||0:0}catch(_e){return 0}
+  }
+
+  window.reclamoDerivadoLabel=function(r){
+    const destino=derivadoA(r);
+    return destino?`Derivado a ${destino}`:'Derivado';
+  };
+
+  // ---- estado canónico: reconocer 'derivado' ----
+  const estadoCanonPrevDeriv=window.estadoReclamoCanon;
+  window.estadoReclamoCanon=function(r,ordenes){
+    if(reclamoDerivado(r))return 'derivado';
+    return typeof estadoCanonPrevDeriv==='function'?estadoCanonPrevDeriv.apply(this,arguments):'pendiente';
+  };
+
+  // ---- tarjeta del reclamo: mover "Anular reclamo" abajo junto con "Derivar" ----
+  const rowPrevDeriv=window.rowReclamo;
+  if(typeof rowPrevDeriv==='function'){
+    window.rowReclamo=function(r,showEst){
+      let html=rowPrevDeriv.apply(this,arguments);
+      if(currentUser?.role!=='inspector')return html;
+      const key=esc(JSON.stringify(reclamoKeyDeriv(r)));
+      if(reclamoDerivado(r)){
+        html=html.replace(/<div style="display:flex;justify-content:flex-end;margin:-4px 0 10px"><button class="edit-btn" type="button" onclick="abrirAnulacionReclamoInspector\([^)]*\)">Anular reclamo<\/button><\/div>/,'');
+        const destino=derivadoA(r)||'—';
+        return html+`<div class="reclamo-derivacion-panel" style="margin:-6px 0 10px 10px;padding:10px 12px;border-left:4px solid ${COLOR_DERIVADO};background:#f5f3ff;border-radius:0 10px 10px 0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div><span class="badge" style="background:${COLOR_DERIVADO};color:#fff">Derivado a ${esc(destino)}</span> <span style="font-size:12px;color:#64748b;font-weight:700">${esc(metaDerivado(r))}</span></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button class="secondary-btn" type="button" onclick="abrirDerivacionReclamoInspector(${key})">Editar</button>
+              <button class="secondary-btn" type="button" style="color:#15803d;border-color:#86efac" onclick="revertirDerivacionReclamoInspector(${key})">Revertir</button>
+            </div>
+          </div>
+        </div>`;
+      }
+      if(String(r?.estado||r?.estado_reclamo||'').toLowerCase()==='anulado')return html;
+      return html.replace(
+        /<button class="edit-btn" type="button" onclick="abrirAnulacionReclamoInspector\(([^)]*)\)">Anular reclamo<\/button>/,
+        (m,keyArg)=>`<button class="edit-btn" type="button" style="margin-right:8px" onclick="abrirDerivacionReclamoInspector(${keyArg})">Derivar</button>${m}`
+      );
+    };
+    try{if(typeof rowReclamo!=='undefined')rowReclamo=window.rowReclamo}catch(_){}
+  }
+
+  // ---- modal "Derivar reclamo" ----
+  window.cerrarDerivacionReclamoInspector=function(){
+    document.getElementById('insp-derivar-reclamo-modal')?.remove();
+  };
+  window.abrirDerivacionReclamoInspector=function(key){
+    const r=buscarReclamoDeriv(key);
+    if(!r){alert('No se encontró el reclamo.');return}
+    const actual=derivadoA(r);
+    const esOtro=!!actual&&!DESTINOS.includes(actual);
+    const bd=document.createElement('div');
+    bd.id='insp-derivar-reclamo-modal';
+    bd.className='modal-backdrop visible';
+    bd.innerHTML=`<div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div><div class="modal-title">Derivar reclamo ${esc(r.numero||'')}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">${esc(r.est||r.establecimiento||'')} · ${esc(r.titulo||'')}</div></div>
+        <button class="logout-btn" onclick="cerrarDerivacionReclamoInspector()">Cerrar</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field full">
+          <label class="form-label">Derivar a</label>
+          <select class="form-select" id="insp-derivar-select" onchange="document.getElementById('insp-derivar-otro-wrap').style.display=this.value==='__otro__'?'':'none'">
+            <option value="">Seleccioná una opción...</option>
+            ${DESTINOS.map(d=>`<option value="${esc(d)}" ${actual===d?'selected':''}>${esc(d)}</option>`).join('')}
+            <option value="__otro__" ${esOtro?'selected':''}>Otro...</option>
+          </select>
+        </div>
+        <div class="form-field full" id="insp-derivar-otro-wrap" style="${esOtro?'':'display:none'}">
+          <label class="form-label">Especificar destino</label>
+          <input class="form-input" id="insp-derivar-otro" placeholder="Ej: Municipalidad" value="${esOtro?esc(actual):''}" />
+        </div>
+        <div class="form-error" id="insp-derivar-error" style="display:none">Elegí o escribí un destino para derivar el reclamo.</div>
+        <div class="modal-actions">
+          <button class="secondary-btn" type="button" onclick="cerrarDerivacionReclamoInspector()">Cancelar</button>
+          <button class="primary-btn" type="button" style="background:${COLOR_DERIVADO}" onclick="guardarDerivacionReclamoInspector(${esc(JSON.stringify(String(key)))})">Guardar derivación</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(bd);
+  };
+  window.guardarDerivacionReclamoInspector=async function(key){
+    const r=buscarReclamoDeriv(key);
+    if(!r){alert('No se encontró el reclamo.');return}
+    const sel=document.getElementById('insp-derivar-select')?.value||'';
+    const otro=document.getElementById('insp-derivar-otro')?.value.trim()||'';
+    const destino=sel==='__otro__'?otro:sel;
+    if(!destino){const err=document.getElementById('insp-derivar-error');if(err)err.style.display='block';return}
+    const now=new Date().toISOString();
+    const por=currentUser?.name||currentUser?.email||'Inspector';
+    const patch={estado:'derivado',derivado_a:destino,derivado_en:now,derivado_por:por,updated_at:now};
+    if(r.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarReclamo==='function'){
+      let {data,error}=await window.DGIE_DB.actualizarReclamo(r.remoteId,patch);
+      if(error){
+        const meta={destino,fecha:now,por};
+        const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(meta))));
+        const base=limpiarMarcaDerivacion(r.descripcion||r.titulo||'');
+        const fallback={descripcion:`${base}\n[RECLAMO_DERIVADO:${encoded}]`,updated_at:now};
+        const retry=await window.DGIE_DB.actualizarReclamo(r.remoteId,fallback);
+        if(retry.error){alert('No se pudo guardar la derivación: '+retry.error.message);return}
+        data=retry.data;
+      }
+      r.updatedAt=data?.updated_at||now;
+    }
+    r.estado='derivado';
+    r.estado_reclamo='derivado';
+    r.derivadoA=destino;
+    r.derivado_a=destino;
+    r.derivadoEn=now;
+    r.derivado_en=now;
+    r.derivadoPor=por;
+    r.derivado_por=por;
+    r.updatedAt=now;
+    if(typeof saveAppState==='function')saveAppState();
+    window.cerrarDerivacionReclamoInspector();
+    if(typeof filterReclamosInspector==='function')filterReclamosInspector();
+    if(typeof filterReclamosCoord==='function')filterReclamosCoord();
+    if(typeof filtrarReclamosCallcenter==='function')filtrarReclamosCallcenter();
+    if(typeof refreshVisiblePanels==='function')refreshVisiblePanels();
+    if(typeof window.renderChartInsp==='function')window.renderChartInsp();
+    if(typeof window.renderChartCoordinadorDashboard==='function')window.renderChartCoordinadorDashboard();
+    if(typeof window.renderLcGraficos==='function')window.renderLcGraficos(window._lcZonaGraficosActiva||null);
+  };
+  window.revertirDerivacionReclamoInspector=async function(key){
+    const r=buscarReclamoDeriv(key);
+    if(!r){alert('No se encontró el reclamo.');return}
+    if(!reclamoDerivado(r))return;
+    if(!confirm('¿Revertir la derivación de este reclamo?'))return;
+    const now=new Date().toISOString();
+    const descripcionLimpia=limpiarMarcaDerivacion(r.descripcion||r.titulo||'');
+    if(r.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarReclamo==='function'){
+      const patch={estado:'pendiente',derivado_a:null,derivado_en:null,derivado_por:null,descripcion:descripcionLimpia,updated_at:now};
+      const {data,error}=await window.DGIE_DB.actualizarReclamo(r.remoteId,patch);
+      if(error){
+        const retry=await window.DGIE_DB.actualizarReclamo(r.remoteId,{descripcion:descripcionLimpia,updated_at:now});
+        if(retry.error){alert('No se pudo revertir la derivación: '+retry.error.message);return}
+        r.updatedAt=retry.data?.updated_at||now;
+      }else{
+        r.updatedAt=data?.updated_at||now;
+      }
+    }
+    r.estado='pendiente';
+    r.estado_reclamo='pendiente';
+    r.derivadoA='';
+    r.derivado_a='';
+    r.derivadoEn=null;
+    r.derivado_en=null;
+    r.derivadoPor='';
+    r.derivado_por='';
+    r.descripcion=descripcionLimpia;
+    r.updatedAt=now;
+    if(typeof saveAppState==='function')saveAppState();
+    if(typeof filterReclamosInspector==='function')filterReclamosInspector();
+    if(typeof filterReclamosCoord==='function')filterReclamosCoord();
+    if(typeof filtrarReclamosCallcenter==='function')filtrarReclamosCallcenter();
+    if(typeof refreshVisiblePanels==='function')refreshVisiblePanels();
+    if(typeof window.renderChartInsp==='function')window.renderChartInsp();
+    if(typeof window.renderChartCoordinadorDashboard==='function')window.renderChartCoordinadorDashboard();
+    if(typeof window.renderLcGraficos==='function')window.renderLcGraficos(window._lcZonaGraficosActiva||null);
+  };
+
+  // ---- gráficos "Estado de reclamos": agregar el sexto sector "Derivado" ----
+  function redibujarConDerivado(id,recs,oss){
+    const el=document.getElementById(id);
+    if(!el||!window.Chart)return;
+    const base=typeof window.reclamoEstadoCounts==='function'?window.reclamoEstadoCounts(recs,oss):[0,0,0,0,0];
+    const derivados=(recs||[]).filter(r=>reclamoDerivado(r)).length;
+    const labels=['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado','Derivado'];
+    const colors=['#f59e0b','#7dd3fc','#2563eb','#16a34a','#dc2626',COLOR_DERIVADO];
+    const data=[...base,derivados].map(n=>Number(n)||0);
+    const has=data.some(n=>n>0);
+    const prev=typeof Chart.getChart==='function'?Chart.getChart(el):null;
+    if(prev&&typeof prev.destroy==='function')prev.destroy();
+    new Chart(el,{type:'doughnut',data:{labels:has?labels:['Sin datos'],datasets:[{data:has?data:[1],backgroundColor:has?colors:['#e2e8f0'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,animation:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:11,color:'#64748b',font:{size:11,weight:'700'}}},tooltip:{enabled:has}}}});
+  }
+
+  const renderInspPrevDeriv=window.renderChartInsp;
+  if(typeof renderInspPrevDeriv==='function'){
+    window.renderChartInsp=function(){
+      const out=renderInspPrevDeriv.apply(this,arguments);
+      const z=Number(currentUser?.zona||selectedZona||1);
+      const recs=RECLAMOS_ZONA.filter(r=>zonaItemDeriv(r)===z);
+      const oss=OS_ZONA.filter(o=>zonaItemDeriv(o)===z);
+      redibujarConDerivado('chart-insp-estado-reclamos',recs,oss);
+      return out;
+    };
+  }
+  const renderCoordPrevDeriv=window.renderChartCoordinadorDashboard;
+  if(typeof renderCoordPrevDeriv==='function'){
+    window.renderChartCoordinadorDashboard=function(){
+      const out=renderCoordPrevDeriv.apply(this,arguments);
+      const scope=Number(document.getElementById('coord-dashboard-zona')?.value||0);
+      const recs=RECLAMOS_ZONA.filter(r=>!scope||zonaItemDeriv(r)===scope);
+      const oss=OS_ZONA.filter(o=>!scope||zonaItemDeriv(o)===scope);
+      redibujarConDerivado('chart-coord-estado-reclamos',recs,oss);
+      return out;
+    };
+  }
+  const renderLcPrevDeriv=window.renderLcGraficos;
+  if(typeof renderLcPrevDeriv==='function'){
+    window.renderLcGraficos=function(zona){
+      const out=renderLcPrevDeriv.apply(this,arguments);
+      const z=Number(zona||window._lcZonaGraficosActiva||0);
+      const recs=RECLAMOS_ZONA.filter(r=>!z||zonaItemDeriv(r)===z);
+      const oss=OS_ZONA.filter(o=>!z||zonaItemDeriv(o)===z);
+      redibujarConDerivado('lc-mant-estados',recs,oss);
+      return out;
+    };
+  }
 })();
 </script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
