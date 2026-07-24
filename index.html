@@ -6882,11 +6882,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const ordenes=certOrdenes(c).length?certOrdenes(c).join('-'):'SINOS';
     return `${zona}-${ordenes}-${sanitizarNombreCert(c.establecimiento_nombre||'ESTABLECIMIENTO')}${ext}`;
   }
-  window.descargarCertificadoArchivo=async function(id){
+  window.descargarCertificadoArchivo=async function(id,kind){
     const c=CERTIFICADOS_MEDICION.find(x=>String(x.id)===String(id)||String(x.localId)===String(id));
     if(!c)return;
-    const url=fileUrl(c);
-    const nombre=certNombreDescarga(c);
+    const url=kind==='original'?(c.url_original||''):fileUrl(c);
+    const nombre=kind==='original'?(c.archivo_original||'Archivo'):certNombreDescarga(c);
     if(!url){alert('El archivo no tiene URL de descarga.');return;}
     try{
       const res=await fetch(url);
@@ -7124,7 +7124,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return data.map(c=>`<div class="med-card">
       <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
       <div class="med-card-meta">
-        Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}${certRubroVisible(c)?` · Rubro/s: ${escapeHtml(certRubroVisible(c))}`:''} · Módulos empresa: ${mods(c.modulos_original)}<br>
+        Original: ${c.url_original?`<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}','original');return false">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}${certRubroVisible(c)?` · Rubro/s: ${escapeHtml(certRubroVisible(c))}`:''} · Módulos empresa: ${mods(c.modulos_original)}<br>
         ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
         ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
         ${c.medicion_numero?`Medición Nº ${escapeHtml(c.medicion_numero)} · ${escapeHtml(c.periodo||'Sin período')}<br>`:''}
@@ -7294,7 +7294,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div>
         <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
         <div class="med-card-meta">
-          Original: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank" rel="noopener">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
+          Original: ${c.url_original?`<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}','original');return false">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>
           ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
           ${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}
           ${escapeHtml(limpiarObsCert(c.observaciones_inspector)||limpiarObsCert(c.observaciones_empresa)||'Sin observaciones')}
@@ -7357,14 +7357,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!c||!cont)return;
     cont.innerHTML=`<div class="section-label">Inspector · Revisar certificado</div><div class="card">
       <button class="back-btn" onclick="renderMedicionesInspector($('main-content'),currentUser.zona)">‹ Volver a certificación</button>
-      <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="${fileUrl(c,'original')}" target="_blank">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
+      <div class="card-header"><div><div class="card-title">${escapeHtml(c.establecimiento_nombre)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Original de empresa: ${c.url_original?`<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}','original');return false">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')}</div></div><span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span></div>
       <div style="margin-bottom:14px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:13px">
         ${limpiarObsCert(c.observaciones_empresa)?`<div style="margin-bottom:6px"><span style="font-weight:700;color:#64748b">Empresa (inicial):</span> ${escapeHtml(limpiarObsCert(c.observaciones_empresa))}</div>`:''}
         ${limpiarObsCert(c.observaciones_inspector)?`<div style="margin-bottom:6px"><span style="font-weight:700;color:var(--blue)">Inspector:</span> ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</div>`:''}
         ${renderHiloConversacion(c,true)}
       </div>
       <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${certLimitHelpHTML()}${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="${fileUrl(c)}" target="_blank" rel="noopener" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
+        <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${certLimitHelpHTML()}${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
         <div class="form-field"><label class="form-label">Módulos inspección</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
         <div class="form-field"><label class="form-label">Medición Nº</label><input class="form-input" id="insp-cert-medicion" type="number" min="1" value="${escapeHtml(c.medicion_numero||'')}"></div>
         <div class="form-field"><label class="form-label">Período</label><input class="form-input" id="insp-cert-periodo" placeholder="Ej: Mayo 2026" value="${escapeHtml(c.periodo||'')}"></div>
@@ -13896,7 +13896,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function certLinkCoord(c){
     const url = c?.url_inspector || c?.url_original || '';
     const name = c?.archivo_inspector || c?.archivo_original || 'Archivo';
-    return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>` : esc(name);
+    const id = c?.id||c?.localId;
+    return url&&id ? `<a href="#" onclick="descargarCertificadoArchivo('${id}');return false">${esc(name)}</a>` : esc(name);
   }
 
   function readCertFinMapCoord(){
@@ -14244,8 +14245,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   function renderCertificadosMedicionCoordDetalle(data){
     return data.map(c => {
-      const original = c?.url_original ? `<a href="${esc(c.url_original)}" target="_blank" rel="noopener">${esc(c.archivo_original || 'Archivo original')}</a>` : esc(c.archivo_original || 'Archivo original');
-      const inspector = c?.url_inspector ? `<a href="${esc(c.url_inspector)}" target="_blank" rel="noopener">${esc(c.archivo_inspector || 'Archivo inspector')}</a>` : '';
+      const original = c?.url_original ? `<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}','original');return false">${esc(c.archivo_original || 'Archivo original')}</a>` : esc(c.archivo_original || 'Archivo original');
+      const inspector = c?.url_inspector ? `<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${esc(c.archivo_inspector || 'Archivo inspector')}</a>` : '';
       const rubros = typeof window.certRubroVisible === 'function' ? window.certRubroVisible(c) : '';
       const obs = obsInspectorCoord(c) || String(c?.observaciones_empresa || '').replace(/\[[^\]]+\]/g,'').trim() || 'Sin observaciones';
       return `<div class="med-version-row">
@@ -17500,9 +17501,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const final=n(c?.modulos_final??c?.monto_final);
     return final>0?final:modInspeccion(c);
   }
-  function fileLink(url,nombre){
+  function fileLink(c,kind,nombre){
     const name=nombre||'Archivo';
-    return url?`<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>`:esc(name);
+    const url=kind==='original'?(c?.url_original||''):(c?.url_inspector||c?.url_original||'');
+    const id=c?.id||c?.localId;
+    return url&&id?`<a href="#" onclick="descargarCertificadoArchivo('${id}','${kind==='original'?'original':'actual'}');return false">${esc(name)}</a>`:esc(name);
   }
   function fechaMedicionLabel(c){
     const fecha=c?.fecha_medicion||c?.fecha_envio_administracion||c?.updated_at||'';
@@ -17597,9 +17600,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div>
         <div class="med-card-title">${esc(c?.establecimiento_nombre||c?.establecimiento||c?.escuela||estById(c?.establecimiento_id)?.n||'Establecimiento')}</div>
         <div class="med-card-meta">
-          Original: ${fileLink(c?.url_original,c?.archivo_original||'Archivo original')} · Rubro/s: ${esc(rubrosCert(c))} · Módulos empresa: ${mods(c?.modulos_original)}<br>
+          Original: ${fileLink(c,'original',c?.archivo_original||'Archivo original')} · Rubro/s: ${esc(rubrosCert(c))} · Módulos empresa: ${mods(c?.modulos_original)}<br>
           ${ordenes.length?`O.S. ${esc(ordenes.join(', '))}<br>`:''}
-          ${c?.url_inspector||c?.archivo_inspector?`Inspector: ${fileLink(c?.url_inspector,c?.archivo_inspector||c?.archivo_original||'Archivo inspección')} · Módulos inspección: ${mods(modInspeccion(c))}<br>`:''}
+          ${c?.url_inspector||c?.archivo_inspector?`Inspector: ${fileLink(c,'actual',c?.archivo_inspector||c?.archivo_original||'Archivo inspección')} · Módulos inspección: ${mods(modInspeccion(c))}<br>`:''}
           ${esc(obs)}
           <div class="cert-final-modulos-row ficha-cert-final-row">
             <span>Módulos certificado final</span>
@@ -18978,7 +18981,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return `<div class="med-card" data-cert-card="${esc(certCommentKey(c))}">
       <div class="med-card-title">${esc(c?.establecimiento_nombre||'Establecimiento')}</div>
       <div class="med-card-meta">
-        Original: ${certFileUrl(c,'original')?`<a href="${esc(certFileUrl(c,'original'))}" target="_blank" rel="noopener">${esc(c?.archivo_original||'Archivo')}</a>`:esc(c?.archivo_original||'Archivo')}${rubros?` · Rubro/s: ${esc(rubros)}`:''} · Módulos empresa: ${mods(c?.modulos_original)}<br>
+        Original: ${certFileUrl(c,'original')?`<a href="#" onclick="descargarCertificadoArchivo('${id}','original');return false">${esc(c?.archivo_original||'Archivo')}</a>`:esc(c?.archivo_original||'Archivo')}${rubros?` · Rubro/s: ${esc(rubros)}`:''} · Módulos empresa: ${mods(c?.modulos_original)}<br>
         ${ordenes.length?`O.S. ${esc(ordenes.join(', '))}<br>`:''}
         ${c?.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${id}');return false">${esc(c?.archivo_inspector||'Archivo inspector')}</a> · Módulos inspección: ${mods(c?.modulos_inspector)}<br>`:''}
         ${c?.medicion_numero?`Medición Nº ${esc(c.medicion_numero)} · Módulos certificado final: ${mods(modCert(c))}<br>`:''}
@@ -21976,7 +21979,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     try{return new Date(v).toLocaleDateString('es-AR')}catch(_){return String(v)}
   }
   function certFecha(c){return fechaLabel(c?.fecha_medicion||c?.fecha_envio_administracion||c?.updated_at||c?.created_at||'')}
-  function fileLink(url,nombre){return url?`<a href="${esc(url)}" target="_blank" rel="noopener">${esc(nombre||'Archivo')}</a>`:esc(nombre||'Archivo')}
+  function fileLink(c,kind,nombre){
+    const name=nombre||'Archivo';
+    const url=kind==='original'?(c?.url_original||''):(c?.url_inspector||c?.url_original||'');
+    const id=c?.id||c?.localId;
+    return url&&id?`<a href="#" onclick="descargarCertificadoArchivo('${id}','${kind==='original'?'original':'actual'}');return false">${esc(name)}</a>`:esc(name);
+  }
   function certKey(c){return String(c?.id||c?.localId||`${c?.zona||''}-${c?.establecimiento_id||''}-${c?.archivo_original||''}-${c?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_')}
   function certCard(c){
     const ordenes=certOrdenes(c), obs=obsLimpia(c?.observaciones_inspector)||obsLimpia(c?.observaciones_empresa)||'Sin observaciones';
@@ -21985,9 +21993,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div>
         <div class="med-card-title">${esc(c?.archivo_inspector||c?.archivo_original||'Certificado')}</div>
         <div class="med-card-meta">
-          Original: ${fileLink(c?.url_original,c?.archivo_original||'Archivo original')} · Rubro/s: ${esc(rubros(c))} · Módulos empresa: ${mods(c?.modulos_original)}<br>
+          Original: ${fileLink(c,'original',c?.archivo_original||'Archivo original')} · Rubro/s: ${esc(rubros(c))} · Módulos empresa: ${mods(c?.modulos_original)}<br>
           ${ordenes.length?`O.S. ${esc(ordenes.join(', '))}<br>`:''}
-          ${(c?.url_inspector||c?.archivo_inspector)?`Inspector: ${fileLink(c?.url_inspector,c?.archivo_inspector||c?.archivo_original||'Archivo inspección')} · Módulos inspección: ${mods(c?.modulos_inspector||c?.modulos_original)}<br>`:''}
+          ${(c?.url_inspector||c?.archivo_inspector)?`Inspector: ${fileLink(c,'actual',c?.archivo_inspector||c?.archivo_original||'Archivo inspección')} · Módulos inspección: ${mods(c?.modulos_inspector||c?.modulos_original)}<br>`:''}
           ${esc(obs)}
           <div class="cert-final-modulos-row ficha-cert-final-row"><span>Módulos certificado final</span><strong>${mods(modFinal(c))}</strong></div>
         </div>
