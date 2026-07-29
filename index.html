@@ -5198,6 +5198,9 @@ function renderChartInsp(){
       anuladoComentario:row.anulado_comentario||anulacionMeta?.comentario||'',
       anuladoEn:row.anulado_en||anulacionMeta?.fecha||null,
       anuladoPor:row.anulado_por||anulacionMeta?.por||'',
+      derivadoA:row.derivado_a||'',
+      derivadoEn:row.derivado_en||null,
+      derivadoPor:row.derivado_por||'',
       creadoEn:row.created_at||null,
       editadoEn:editadoMatch?.[1]||null,
       creadoPor:row.creado_por||null,
@@ -23858,7 +23861,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       chips,
       q:document.getElementById(`${prefix}-q`)?.value||'',
       desde:document.getElementById(`${prefix}-desde`)?.value||'',
-      hasta:document.getElementById(`${prefix}-hasta`)?.value||''
+      hasta:document.getElementById(`${prefix}-hasta`)?.value||'',
+      scrollX:window.scrollX,
+      scrollY:window.scrollY
     };
   }
   function restaurar(ctx,prefix,estado,filterFnName){
@@ -23871,6 +23876,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(hasta&&estado.hasta)hasta.value=estado.hasta;
     if(typeof window[filterFnName]==='function')window[filterFnName]();
     if(typeof window.dgieSmartRenderChips==='function')window.dgieSmartRenderChips(ctx);
+    window.scrollTo(estado.scrollX,estado.scrollY);
+    requestAnimationFrame(()=>window.scrollTo(estado.scrollX,estado.scrollY));
   }
   function envolver(fnName,ctx,prefix,filterFnName){
     const prev=window[fnName];
