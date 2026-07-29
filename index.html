@@ -4052,7 +4052,8 @@ function renderChartInsp(){
     const nroOS=String(os?.numero||'');
     const reclamos=RECLAMOS_ZONA.filter(r=>{
       const n=reclamoNumeroOS(r);
-      const libre=!r.os||r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite'||r.os==='En tramite';
+      const estadoR=String(r.estado||r.estado_reclamo||'').toLowerCase();
+      const libre=(!r.os||r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite'||r.os==='En tramite')&&estadoR!=='anulado'&&estadoR!=='derivado';
       const vinculado=seleccionados.has(String(n))||String(r.os||'')===nroOS;
       return Number(r.estId)===estId&&(libre||vinculado);
     });
