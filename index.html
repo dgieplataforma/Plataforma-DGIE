@@ -23849,6 +23849,43 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 })();
 </script>
+<script id="dgie-reclamos-filtros-persistentes-2026-07-27">
+(function(){
+  'use strict';
+  function capturar(ctx,prefix){
+    const chips=(window.DGIE_SMART_FILTERS&&window.DGIE_SMART_FILTERS[ctx])?window.DGIE_SMART_FILTERS[ctx].slice():null;
+    return {
+      chips,
+      q:document.getElementById(`${prefix}-q`)?.value||'',
+      desde:document.getElementById(`${prefix}-desde`)?.value||'',
+      hasta:document.getElementById(`${prefix}-hasta`)?.value||''
+    };
+  }
+  function restaurar(ctx,prefix,estado,filterFnName){
+    if(estado.chips&&estado.chips.length&&window.DGIE_SMART_FILTERS)window.DGIE_SMART_FILTERS[ctx]=estado.chips;
+    const q=document.getElementById(`${prefix}-q`);
+    if(q&&estado.q)q.value=estado.q;
+    const desde=document.getElementById(`${prefix}-desde`);
+    if(desde&&estado.desde)desde.value=estado.desde;
+    const hasta=document.getElementById(`${prefix}-hasta`);
+    if(hasta&&estado.hasta)hasta.value=estado.hasta;
+    if(typeof window[filterFnName]==='function')window[filterFnName]();
+    if(typeof window.dgieSmartRenderChips==='function')window.dgieSmartRenderChips(ctx);
+  }
+  function envolver(fnName,ctx,prefix,filterFnName){
+    const prev=window[fnName];
+    if(typeof prev!=='function')return;
+    window[fnName]=function(container){
+      const estado=capturar(ctx,prefix);
+      const out=prev.apply(this,arguments);
+      restaurar(ctx,prefix,estado,filterFnName);
+      return out;
+    };
+  }
+  envolver('renderReclamos','insp-rec','insp-rec','filterReclamosInspector');
+  envolver('renderReclamosCoordinador','coord-rec','coord-rec','filterReclamosCoord');
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
 <script src="./dgie-notificaciones.js?v=20260723-1"></script>
 </body>
