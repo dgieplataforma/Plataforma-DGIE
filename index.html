@@ -24164,6 +24164,61 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.addEventListener('load',()=>setTimeout(renderAll,500));
 })();
 </script>
+<style id="dgie-public-chart-zone-selector-style-2026-07-30">
+.dgie-public-chart-zone-selector{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eef6ff;border:1px solid #c7dbef;border-radius:12px;padding:10px 12px}
+.dgie-public-chart-zone-selector-label{font-size:12px;font-weight:900;color:#123c69}
+.dgie-public-chart-zone-selector select{min-width:190px;border:1px solid #b9cde2;border-radius:9px;background:#fff;color:#123c69;padding:8px 34px 8px 10px;font-size:12px;font-weight:800;cursor:pointer}
+@media(max-width:680px){
+  .dgie-public-chart-zone-selector{align-items:stretch;flex-direction:column;gap:7px}
+  .dgie-public-chart-zone-selector select{width:100%;min-width:0}
+}
+</style>
+<script id="dgie-public-chart-zone-selector-2026-07-30">
+(function(){
+  'use strict';
+  function selectorHTML(){
+    const options=['<option value="">Todas las zonas</option>'];
+    for(let zona=1;zona<=17;zona++)options.push(`<option value="${zona}">Zona ${zona}</option>`);
+    return `<div class="dgie-public-chart-zone-selector" id="dgie-public-chart-zone-selector">
+      <label class="dgie-public-chart-zone-selector-label" for="dgie-public-chart-zone-select">Individualizar gráficos por zona</label>
+      <select id="dgie-public-chart-zone-select" onchange="window.selectLandingChartZona(this.value?Number(this.value):null)">${options.join('')}</select>
+    </div>`;
+  }
+  function syncSelector(zona){
+    const select=document.getElementById('dgie-public-chart-zone-select');
+    if(select)select.value=zona?String(Number(zona)):'';
+  }
+  function ensureSelector(){
+    if(document.getElementById('dgie-public-chart-zone-selector')){
+      syncSelector(window._lcZonaGraficosActiva||null);
+      return;
+    }
+    const charts=document.querySelector('#landing-screen .landing-charts-col');
+    if(!charts)return;
+    charts.insertAdjacentHTML('afterbegin',selectorHTML());
+    syncSelector(window._lcZonaGraficosActiva||null);
+  }
+  const selectPrev=window.selectLandingChartZona;
+  if(typeof selectPrev==='function'){
+    window.selectLandingChartZona=function(zona){
+      const out=selectPrev.apply(this,arguments);
+      syncSelector(zona||null);
+      return out;
+    };
+  }
+  const chartsPrev=window.renderLcCharts;
+  if(typeof chartsPrev==='function'){
+    window.renderLcCharts=function(){
+      const out=chartsPrev.apply(this,arguments);
+      setTimeout(ensureSelector,0);
+      return out;
+    };
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(ensureSelector,250));
+  document.addEventListener('dgie:data-ready',()=>setTimeout(ensureSelector,100));
+  window.addEventListener('load',()=>setTimeout(ensureSelector,300));
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
 <script src="./dgie-notificaciones.js?v=20260730-1"></script>
 </body>
