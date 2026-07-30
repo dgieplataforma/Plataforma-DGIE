@@ -21007,6 +21007,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         grid.insertBefore(column,map);
         column.appendChild(map);
       }
+      if(anchor)anchor.insertAdjacentHTML('afterend',rankingHTML(scope));
+      else map.insertAdjacentHTML('beforeend',rankingHTML(scope));
+      renderRankingBody(scope);
       column.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
       byId('dgie-est-intervenidos-card')?.classList.add('dgie-est-intervenidos-below');
     }else if(current()?.role==='coordinador'){
