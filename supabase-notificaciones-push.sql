@@ -18,7 +18,7 @@ create table if not exists public.push_subscriptions (
 create table if not exists public.push_notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  kind text not null check (kind in ('comunicado','reclamo')),
+  kind text not null check (kind in ('comunicado','reclamo','certificado','comentario_intervencion','comentario_relevamiento')),
   source_id text not null,
   title text not null,
   body text,
@@ -134,7 +134,7 @@ begin
   if v_user_id is null then
     raise exception 'Se requiere una sesion valida.' using errcode = '42501';
   end if;
-  if p_kind is not null and p_kind not in ('comunicado','reclamo') then
+  if p_kind is not null and p_kind not in ('comunicado','reclamo','certificado','comentario_intervencion','comentario_relevamiento') then
     raise exception 'Tipo de notificacion invalido.' using errcode = '22023';
   end if;
 

@@ -382,7 +382,9 @@
       return selectAll('certificados_medicion', { orderBy:'created_at', ascending:false, filters });
     },
     async crearCertificadoMedicion(row){
-      return client.from('certificados_medicion').insert(row).select('*').single();
+      const result = await client.from('certificados_medicion').insert(row).select('*').single();
+      if(!result.error && result.data?.id) await window.DGIE_PUSH?.dispatch('certificado', result.data.id);
+      return result;
     },
     async actualizarCertificadoMedicion(id, row){
       return updateOne('certificados_medicion', id, row, 'ese certificado');

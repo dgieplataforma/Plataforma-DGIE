@@ -4,12 +4,13 @@
   const PUBLIC_KEY='BImxVQUuI8gXsAJ50jH_pK8KwLeVPEkGlFpWR2DMHhThZl5JKLDpjoSUGgCLIKu4c8VPj7Y5NYXJEQwjUljkj3w';
   const WORKER_URL='/service-worker.js';
   const DISPATCH_URL='/api/push/dispatch';
+  const ALLOWED_KINDS=new Set(['comunicado','reclamo','certificado','comentario_intervencion','comentario_relevamiento']);
   const state={registration:null,user:null,busy:false,enabled:false,status:'',pendingKind:'',pendingSourceId:'',routing:false,focusTimers:[],recentDispatches:new Map()};
 
   try{
     const params=new URLSearchParams(window.location.search);
     const kind=params.get('dgiePush');
-    if(['comunicado','reclamo'].includes(kind))state.pendingKind=kind;
+    if(ALLOWED_KINDS.has(kind))state.pendingKind=kind;
     state.pendingSourceId=String(params.get('sourceId')||'');
   }catch(_){}
 
@@ -125,10 +126,10 @@
     const denied=Notification.permission==='denied';
     const title=denied?'Notificaciones bloqueadas':'Recibi avisos en este dispositivo';
     const enabledText=role()==='inspector'
-      ?'Te avisaremos solamente por nuevos comunicados y reclamos de tu zona.'
+      ?'Te avisaremos por comunicados, reclamos, certificados y comentarios de tu zona.'
       :role()==='empresa'
         ?'Te avisaremos solamente por nuevos comunicados dirigidos a tu empresa.'
-        :'Te avisaremos cuando un inspector envie una comunicacion con copia.';
+        :'Te avisaremos por comunicaciones y respuestas de los inspectores.';
     const text=denied?'Podes habilitarlas desde Ajustes > Notificaciones.':enabledText;
     const button=denied?'':`<button type="button" class="dgie-push-optin-button" onclick="DGIE_PUSH.enable()" ${state.busy?'disabled':''}>${state.busy?'Activando...':'Activar notificaciones'}</button>`;
     return `<div class="dgie-push-optin-copy"><div class="dgie-push-optin-title">${title}</div><div class="dgie-push-optin-text">${text}</div>${state.status?`<div class="dgie-push-optin-status">${String(state.status).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}</div>`:''}</div>${button}`;
@@ -148,7 +149,7 @@
     if(!existing)content.prepend(element);
   }
   async function markRead(kind){
-    if(!['comunicado','reclamo'].includes(kind)||!user())return;
+    if(!ALLOWED_KINDS.has(kind)||!user())return;
     if(!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.marcarNotificacionesPushLeidas!=='function')return;
     try{
       const result=await window.DGIE_DB.marcarNotificacionesPushLeidas(kind);
@@ -161,6 +162,9 @@
   function kindForActiveTab(){
     const label=String(document.querySelector('#nav-tabs>.tab.active')?.textContent||'').trim().toLowerCase();
     if(label.includes('comunicaciones'))return 'comunicado';
+    if(label.includes('certificacion')||label.includes('certificación'))return 'certificado';
+    if(label.includes('intervenciones'))return 'comentario_intervencion';
+    if(label.includes('relevamientos'))return 'comentario_relevamiento';
     if(role()==='inspector'&&/^zona\s+\d+/.test(label))return 'reclamo';
     if(label==='reclamos'||label.startsWith('reclamos '))return 'reclamo';
     return '';
@@ -183,16 +187,34 @@
   }
   function pendingRecord(){
     const sourceId=String(state.pendingSourceId||'');
+    const recordId=sourceId.split(':')[0];
     if(!sourceId)return null;
     if(state.pendingKind==='comunicado'){
       const rows=typeof COMUNICACIONES!=='undefined'&&Array.isArray(COMUNICACIONES)?COMUNICACIONES:[];
       return rows.find(item=>String(item?.remoteId||item?.id||'')===sourceId)||null;
     }
+    if(state.pendingKind==='certificado'){
+      const rows=typeof CERTIFICADOS_MEDICION!=='undefined'&&Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[];
+      return rows.find(item=>String(item?.id||item?.localId||'')===recordId)||null;
+    }
+    if(state.pendingKind==='comentario_intervencion'){
+      const rows=typeof INTERVENCIONES!=='undefined'&&Array.isArray(INTERVENCIONES)?INTERVENCIONES:[];
+      return rows.find(item=>String(item?.remoteId||item?.id||'')===recordId)||null;
+    }
+    if(state.pendingKind==='comentario_relevamiento'){
+      const groups=typeof RELEVAMIENTOS!=='undefined'&&RELEVAMIENTOS?RELEVAMIENTOS:{};
+      for(const [estId,items] of Object.entries(groups)){
+        const record=(Array.isArray(items)?items:[]).find(item=>String(item?.remoteId||item?.id||'')===recordId);
+        if(record)return {...record,_dgieEstId:Number(estId)};
+      }
+      return null;
+    }
     const rows=typeof RECLAMOS_ZONA!=='undefined'&&Array.isArray(RECLAMOS_ZONA)?RECLAMOS_ZONA:[];
-    return rows.find(item=>String(item?.remoteId||item?.id||'')===sourceId)||null;
+    return rows.find(item=>String(item?.remoteId||item?.id||'')===recordId)||null;
   }
   function pendingElement(){
     const sourceId=String(state.pendingSourceId||'');
+    const recordId=sourceId.split(':')[0];
     if(!sourceId)return null;
     if(state.pendingKind==='comunicado'){
       const direct=document.getElementById(`comm-card-${sourceId}`);
@@ -201,7 +223,26 @@
       const needle=String(record?.titulo||record?.mensaje||'').trim();
       return needle?[...document.querySelectorAll('.comm-card')].find(card=>String(card.textContent||'').includes(needle))||null:null;
     }
-    const direct=[...document.querySelectorAll('[data-dgie-reclamo-id]')].find(row=>row.getAttribute('data-dgie-reclamo-id')===sourceId);
+    if(state.pendingKind==='certificado'){
+      const key=recordId.replace(/[^a-zA-Z0-9_-]/g,'_');
+      return [...document.querySelectorAll('[data-cert-card]')].find(card=>card.getAttribute('data-cert-card')===key)||null;
+    }
+    if(state.pendingKind==='comentario_intervencion'){
+      const record=pendingRecord();
+      const key=String(record?.id||recordId).replace(/[^a-zA-Z0-9_-]/g,'_');
+      return document.querySelector(`[data-int-comentarios="${key}"]`)
+        ||document.querySelector(`[data-int-comentarios-paquete] [data-int-comentarios="${key}"]`)
+        ||null;
+    }
+    if(state.pendingKind==='comentario_relevamiento'){
+      const record=pendingRecord();
+      const base=String(record?.remoteId||record?.id||recordId).replace(/[^a-zA-Z0-9_-]/g,'_');
+      const key=`rel_${Number(record?._dgieEstId||record?.establecimiento_id||0)}_${base}`;
+      const input=document.getElementById(`rel-comment-${key}`)
+        ||document.querySelector(`[id^="rel-resp-${key}-"]`);
+      return input?.closest('.intervencion-card')||input?.parentElement||null;
+    }
+    const direct=[...document.querySelectorAll('[data-dgie-reclamo-id]')].find(row=>row.getAttribute('data-dgie-reclamo-id')===recordId);
     if(direct)return direct;
     const record=pendingRecord();
     const numero=record?(typeof reclamoNumeroVisible==='function'?reclamoNumeroVisible(record):record.numero):'';
@@ -254,13 +295,24 @@
     const index=tabs.findIndex(tab=>{
       const label=String(tab.textContent||'').trim().toLowerCase();
       if(kind==='comunicado')return label.includes('comunicaciones');
+      if(kind==='certificado')return label.includes('certificacion')||label.includes('certificación');
+      if(kind==='comentario_intervencion')return label.includes('intervenciones');
+      if(kind==='comentario_relevamiento')return label.includes('relevamientos');
       if(role()==='inspector')return /^zona\s+\d+/.test(label);
       return label==='reclamos'||label.startsWith('reclamos ');
     });
     if(index<0)return;
     state.routing=true;
     if(typeof window.renderTab==='function')window.renderTab(index);
-    schedulePushFocus();
+    if(kind==='comentario_intervencion'){
+      setTimeout(()=>{
+        const record=pendingRecord();
+        if(record&&typeof window.verDetalleIntervencion==='function')window.verDetalleIntervencion(record.id);
+        schedulePushFocus();
+      },120);
+    }else{
+      schedulePushFocus();
+    }
   }
   function attr(value){
     return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -275,7 +327,7 @@
     };
   }
   async function dispatch(kind,sourceId){
-    if(!['comunicado','reclamo'].includes(kind)||!sourceId||!window.DGIE_DB?.isConfigured)return;
+    if(!ALLOWED_KINDS.has(kind)||!sourceId||!window.DGIE_DB?.isConfigured)return;
     const dispatchKey=`${kind}:${sourceId}`;
     const startedAt=Date.now();
     if(startedAt-Number(state.recentDispatches.get(dispatchKey)||0)<30000)return;

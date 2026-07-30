@@ -24261,7 +24261,82 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.addEventListener('load',()=>setTimeout(ensureLayout,300));
 })();
 </script>
+<script id="dgie-notificaciones-certificados-comentarios-2026-07-30">
+(function(){
+  'use strict';
+  function safeId(value){return String(value??'').replace(/[^a-zA-Z0-9_-]/g,'_')}
+  function remoteId(record){
+    if(record?.remoteId)return String(record.remoteId);
+    return record?._remoteSaved&&record?.id?String(record.id):'';
+  }
+  function emit(kind,record,event){
+    const id=remoteId(record),fecha=String(event?.fecha||'');
+    if(!id||!fecha)return;
+    Promise.resolve().then(()=>window.DGIE_PUSH?.dispatch(kind,`${id}:${fecha}`)).catch(error=>{
+      console.warn('El comentario se guardo, pero no se pudo preparar su notificacion.',error);
+    });
+  }
+  function interventionByDomId(id){
+    try{return (INTERVENCIONES||[]).find(item=>safeId(item?.id)===String(id))||null}catch(_e){return null}
+  }
+  function relKey(record,estId){
+    const base=record?.remoteId||record?.id||record?.ts||`${record?.fecha||''}-${record?.inspector||''}-${record?.zona||''}`;
+    return `rel_${Number(estId)}_${safeId(base)}`;
+  }
+  function relevamientoByKey(id){
+    try{
+      for(const [estId,records] of Object.entries(RELEVAMIENTOS||{})){
+        const record=(records||[]).find(item=>relKey(item,estId)===String(id));
+        if(record)return record;
+      }
+    }catch(_e){}
+    return null;
+  }
+  function dates(items){return new Set((items||[]).map(item=>String(item?.fecha||'')).filter(Boolean))}
+
+  const commentInterventionPrev=window.guardarComentarioIntervencionFinal;
+  if(typeof commentInterventionPrev==='function'){
+    window.guardarComentarioIntervencionFinal=async function(id){
+      const record=interventionByDomId(id),before=dates(record?.comentariosCoordinacion);
+      const result=await commentInterventionPrev.apply(this,arguments);
+      const event=(record?.comentariosCoordinacion||[]).find(item=>item?.fecha&&!before.has(String(item.fecha)));
+      if(event)emit('comentario_intervencion',record,event);
+      return result;
+    };
+  }
+  const responseInterventionPrev=window.responderComentarioIntervencionFinal;
+  if(typeof responseInterventionPrev==='function'){
+    window.responderComentarioIntervencionFinal=async function(id,index){
+      const record=interventionByDomId(id),comment=record?.comentariosCoordinacion?.[index],before=dates(comment?.respuestas);
+      const result=await responseInterventionPrev.apply(this,arguments);
+      const event=(comment?.respuestas||[]).find(item=>item?.fecha&&!before.has(String(item.fecha)));
+      if(event)emit('comentario_intervencion',record,event);
+      return result;
+    };
+  }
+  const commentSurveyPrev=window.guardarComentarioRelevamiento;
+  if(typeof commentSurveyPrev==='function'){
+    window.guardarComentarioRelevamiento=async function(id){
+      const record=relevamientoByKey(id),before=dates(record?.comentariosCoordinacion);
+      const result=await commentSurveyPrev.apply(this,arguments);
+      const event=(record?.comentariosCoordinacion||[]).find(item=>item?.fecha&&!before.has(String(item.fecha)));
+      if(event)emit('comentario_relevamiento',record,event);
+      return result;
+    };
+  }
+  const responseSurveyPrev=window.responderComentarioRelevamiento;
+  if(typeof responseSurveyPrev==='function'){
+    window.responderComentarioRelevamiento=async function(id,index){
+      const record=relevamientoByKey(id),comment=record?.comentariosCoordinacion?.[index],before=dates(comment?.respuestas);
+      const result=await responseSurveyPrev.apply(this,arguments);
+      const event=(comment?.respuestas||[]).find(item=>item?.fecha&&!before.has(String(item.fecha)));
+      if(event)emit('comentario_relevamiento',record,event);
+      return result;
+    };
+  }
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
-<script src="./dgie-notificaciones.js?v=20260730-1"></script>
+<script src="./dgie-notificaciones.js?v=20260730-2"></script>
 </body>
 </html>
