@@ -24139,7 +24139,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(tabs)tabs.innerHTML=tabsHTML(surface);
     bars.innerHTML=data.map(row=>{
       const item=row[key]||{value:0,percent:0};
-      const width=max>0?Math.max(item.value>0?2:0,Math.min(100,item.value*100/max)):0;
+      const width=key==='modulos_consumidos'
+        ?Math.max(0,Math.min(100,Number(item.percent)||0))
+        :(max>0?Math.max(item.value>0?2:0,Math.min(100,item.value*100/max)):0);
       const valueLabel=`${formatNumber(item.value,key)} · ${formatPercent(item.percent)}`;
       return `<div class="dgie-zone-comparison-row" aria-label="Zona ${row.zona}: ${valueLabel}"><div class="dgie-zone-comparison-zone">Zona ${row.zona}</div><div class="dgie-zone-comparison-track"><div class="dgie-zone-comparison-fill" style="width:${width}%"></div></div><div class="dgie-zone-comparison-value">${valueLabel}</div></div>`;
     }).join('')||'<div class="dgie-zone-comparison-empty">Sin datos para mostrar.</div>';
