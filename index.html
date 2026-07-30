@@ -12109,8 +12109,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       legacyStorage.removeItem(KEY_OPEN);
     }catch(_){}
   }
+  function aperturaDesdePush(){
+    try{
+      const kind=new URLSearchParams(window.location.search).get('dgiePush');
+      return kind==='comunicado'||kind==='reclamo';
+    }catch(_){return false}
+  }
   function ocultarMientrasRestaura(){
-    if(safeGet(KEY_OPEN)==='1'&&safeGet(KEY_LOGOUT)!=='1')document.documentElement.style.visibility='hidden';
+    if((safeGet(KEY_OPEN)==='1'||aperturaDesdePush())&&safeGet(KEY_LOGOUT)!=='1')document.documentElement.style.visibility='hidden';
   }
   function mostrarPagina(){
     document.documentElement.style.visibility='';
@@ -12186,7 +12192,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 
   async function restaurarSesion(){
-    if(currentUser||safeGet(KEY_LOGOUT)==='1'||safeGet(KEY_OPEN)!=='1'){
+    if(currentUser||safeGet(KEY_LOGOUT)==='1'){
       mostrarPagina();
       return;
     }
@@ -23941,6 +23947,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 }
 </style>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
-<script src="./dgie-notificaciones.js?v=20260723-1"></script>
+<script src="./dgie-notificaciones.js?v=20260730-1"></script>
 </body>
 </html>

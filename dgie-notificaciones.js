@@ -4,12 +4,13 @@
   const PUBLIC_KEY='BImxVQUuI8gXsAJ50jH_pK8KwLeVPEkGlFpWR2DMHhThZl5JKLDpjoSUGgCLIKu4c8VPj7Y5NYXJEQwjUljkj3w';
   const WORKER_URL='/service-worker.js';
   const DISPATCH_URL='/api/push/dispatch';
-  const state={registration:null,user:null,busy:false,enabled:false,status:'',pendingKind:'',recentDispatches:new Map()};
+  const state={registration:null,user:null,busy:false,enabled:false,status:'',pendingKind:'',pendingSourceId:'',routing:false,focusTimers:[],recentDispatches:new Map()};
 
   try{
     const params=new URLSearchParams(window.location.search);
     const kind=params.get('dgiePush');
     if(['comunicado','reclamo'].includes(kind))state.pendingKind=kind;
+    state.pendingSourceId=String(params.get('sourceId')||'');
   }catch(_){}
 
   function user(){
@@ -173,9 +174,82 @@
       window.history.replaceState({},'',url.pathname+(query?`?${query}`:'')+url.hash);
     }catch(_){}
   }
+  function ensureTargetStyle(){
+    if(document.getElementById('dgie-push-target-style'))return;
+    const style=document.createElement('style');
+    style.id='dgie-push-target-style';
+    style.textContent='.dgie-push-target{outline:3px solid #0b74c9!important;outline-offset:3px;background:#eef7ff!important;scroll-margin-block:110px 90px}';
+    document.head.appendChild(style);
+  }
+  function pendingRecord(){
+    const sourceId=String(state.pendingSourceId||'');
+    if(!sourceId)return null;
+    if(state.pendingKind==='comunicado'){
+      const rows=typeof COMUNICACIONES!=='undefined'&&Array.isArray(COMUNICACIONES)?COMUNICACIONES:[];
+      return rows.find(item=>String(item?.remoteId||item?.id||'')===sourceId)||null;
+    }
+    const rows=typeof RECLAMOS_ZONA!=='undefined'&&Array.isArray(RECLAMOS_ZONA)?RECLAMOS_ZONA:[];
+    return rows.find(item=>String(item?.remoteId||item?.id||'')===sourceId)||null;
+  }
+  function pendingElement(){
+    const sourceId=String(state.pendingSourceId||'');
+    if(!sourceId)return null;
+    if(state.pendingKind==='comunicado'){
+      const direct=document.getElementById(`comm-card-${sourceId}`);
+      if(direct)return direct;
+      const record=pendingRecord();
+      const needle=String(record?.titulo||record?.mensaje||'').trim();
+      return needle?[...document.querySelectorAll('.comm-card')].find(card=>String(card.textContent||'').includes(needle))||null:null;
+    }
+    const direct=[...document.querySelectorAll('[data-dgie-reclamo-id]')].find(row=>row.getAttribute('data-dgie-reclamo-id')===sourceId);
+    if(direct)return direct;
+    const record=pendingRecord();
+    const numero=record?(typeof reclamoNumeroVisible==='function'?reclamoNumeroVisible(record):record.numero):'';
+    return numero?[...document.querySelectorAll('.reclamo-row')].find(row=>String(row.textContent||'').includes(String(numero)))||null:null;
+  }
+  function finishPushNavigation(){
+    state.focusTimers.forEach(timer=>clearTimeout(timer));
+    state.focusTimers=[];
+    state.pendingKind='';
+    state.pendingSourceId='';
+    state.routing=false;
+    cleanPushQuery();
+  }
+  function focusPendingTarget(){
+    if(!state.pendingKind||!user())return false;
+    if(!state.pendingSourceId){finishPushNavigation();return true}
+    const target=pendingElement();
+    if(!target)return false;
+    ensureTargetStyle();
+    target.classList.add('dgie-push-target');
+    target.scrollIntoView({behavior:'auto',block:'center',inline:'nearest'});
+    const previousTabindex=target.getAttribute('tabindex');
+    target.setAttribute('tabindex','-1');
+    try{target.focus({preventScroll:true})}catch(_){target.focus()}
+    setTimeout(()=>{
+      target.classList.remove('dgie-push-target');
+      if(previousTabindex===null)target.removeAttribute('tabindex');
+      else target.setAttribute('tabindex',previousTabindex);
+    },10000);
+    finishPushNavigation();
+    return true;
+  }
+  function schedulePushFocus(){
+    state.focusTimers.forEach(timer=>clearTimeout(timer));
+    state.focusTimers=[];
+    const waits=[0,250,700,1500,3000,5500,8500];
+    waits.forEach((delay,index)=>{
+      const timer=setTimeout(()=>{
+        if(!state.pendingKind)return;
+        if(focusPendingTarget())return;
+        if(index===waits.length-1)state.routing=false;
+      },delay);
+      state.focusTimers.push(timer);
+    });
+  }
   function navigateFromPush(){
     const kind=state.pendingKind;
-    if(!kind||!user())return;
+    if(!kind||!user()||state.routing)return;
     const tabs=Array.from(document.querySelectorAll('#nav-tabs>.tab'));
     const index=tabs.findIndex(tab=>{
       const label=String(tab.textContent||'').trim().toLowerCase();
@@ -184,9 +258,21 @@
       return label==='reclamos'||label.startsWith('reclamos ');
     });
     if(index<0)return;
-    state.pendingKind='';
+    state.routing=true;
     if(typeof window.renderTab==='function')window.renderTab(index);
-    cleanPushQuery();
+    schedulePushFocus();
+  }
+  function attr(value){
+    return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  }
+  const previousRowReclamo=window.rowReclamo;
+  if(typeof previousRowReclamo==='function'){
+    window.rowReclamo=function(reclamo){
+      const html=previousRowReclamo.apply(this,arguments);
+      const id=String(reclamo?.remoteId||reclamo?.id||'');
+      if(!id||String(html).includes('data-dgie-reclamo-id='))return html;
+      return String(html).replace('class="reclamo-row"',`class="reclamo-row" data-dgie-reclamo-id="${attr(id)}"`);
+    };
   }
   async function dispatch(kind,sourceId){
     if(!['comunicado','reclamo'].includes(kind)||!sourceId||!window.DGIE_DB?.isConfigured)return;
@@ -255,6 +341,7 @@
         renderPrompt();
         const kind=kindForActiveTab();
         if(kind)markRead(kind);
+        if(state.pendingKind&&!focusPendingTarget()&&!state.routing)navigateFromPush();
       },0);
       return result;
     };
