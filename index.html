@@ -20763,7 +20763,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function reclamoAnulado(r,o){
     let manual=norm(r?.estado||r?.estado_reclamo||'');
     try{if(typeof window.estadoInspectorReclamoKey==='function')manual=norm(window.estadoInspectorReclamoKey(r)||manual)}catch(_e){}
-    return manual==='anulado'||(o&&estadoOrden(o)==='anulado');
+    return manual==='anulado'||manual==='derivado'||(o&&estadoOrden(o)==='anulado');
   }
   function reclamoDemorado(r,tipo,o){
     try{
@@ -20773,10 +20773,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return !!o&&['pendiente','trabajando'].includes(estadoOrden(o))&&Number(diasDesde(o?.fecha||o?.created_at||o?.createdAt))>15;
   }
   function metricasRanking(scope){
-    const z=Number(scope?.zona||zonaActual());
-    const baseEstabs=(Array.isArray(scope?.estabs)?scope.estabs:estabs().filter(e=>Number(e?.zona)===z));
-    const baseOrdenes=ordenes().filter(o=>Number(o?.zona||zonaDeItem(o))===z);
-    const baseReclamos=reclamos().filter(r=>zonaReclamo(r)===z);
+    const z=scope?.tipo==='coord'?Number(scope?.zona||0):Number(scope?.zona||zonaActual());
+    const baseEstabs=(Array.isArray(scope?.estabs)?scope.estabs:estabs().filter(e=>!z||Number(e?.zona)===z));
+    const baseOrdenes=ordenes().filter(o=>!z||Number(o?.zona||zonaDeItem(o))===z);
+    const baseReclamos=reclamos().filter(r=>!z||zonaReclamo(r)===z);
     const rows=new Map();
     baseEstabs.forEach(e=>{
       const id=Number(e?.id||0),nombre=estNombre(e);
@@ -20862,39 +20862,45 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const scroll=byId('dgie-ranking-reclamos')?.querySelector('.dgie-ranking-scroll');
     if(scroll)scroll.scrollTop=0;
   };
-  function addSmartFilter(field,value){
-    const fieldEl=byId('insp-rec-sf-field'),valueEl=byId('insp-rec-sf-value');
+  function rankingFilterContext(){
+    return current()?.role==='coordinador'
+      ? {ctx:'coord-rec',prefix:'coord-rec',filter:'filterReclamosCoord'}
+      : {ctx:'insp-rec',prefix:'insp-rec',filter:'filterReclamosInspector'};
+  }
+  function addSmartFilter(config,field,value){
+    const fieldEl=byId(`${config.prefix}-sf-field`),valueEl=byId(`${config.prefix}-sf-value`);
     if(!fieldEl||!valueEl)return false;
     fieldEl.value=field;
-    if(typeof window.dgieSmartRenderValue==='function')window.dgieSmartRenderValue('insp-rec');
+    if(typeof window.dgieSmartRenderValue==='function')window.dgieSmartRenderValue(config.ctx);
     valueEl.value=value;
     if(valueEl.value!==String(value))return false;
-    if(typeof window.dgieSmartAddFromSelect==='function')window.dgieSmartAddFromSelect('insp-rec');
+    if(typeof window.dgieSmartAddFromSelect==='function')window.dgieSmartAddFromSelect(config.ctx);
     return true;
   }
   function applyRankingFilters(estId,key,attempt=0){
-    if(!byId('insp-rec-sf-field')){
+    const config=rankingFilterContext();
+    if(!byId(`${config.prefix}-sf-field`)){
       if(attempt<8)setTimeout(()=>applyRankingFilters(estId,key,attempt+1),80);
       return;
     }
-    if(typeof window.dgieSmartClear==='function')window.dgieSmartClear('insp-rec');
-    addSmartFilter('establecimiento',`id:${Number(estId)}`);
+    if(typeof window.dgieSmartClear==='function')window.dgieSmartClear(config.ctx);
+    addSmartFilter(config,'establecimiento',`id:${Number(estId)}`);
     if(key==='sin_os'){
-      addSmartFilter('os','sin');
-      addSmartFilter('estado','pendiente');
+      addSmartFilter(config,'os','sin');
+      addSmartFilter(config,'estado','pendiente');
     }else if(key==='demora_pendientes'){
-      addSmartFilter('antiguedad','reclamo_mas_15');
+      addSmartFilter(config,'antiguedad','reclamo_mas_15');
     }else if(key==='demora_os'){
-      addSmartFilter('antiguedad','os_mas_15');
+      addSmartFilter(config,'antiguedad','os_mas_15');
     }else if(key==='finalizados'){
-      addSmartFilter('estado','finalizado');
+      addSmartFilter(config,'estado','finalizado');
     }else{
-      addSmartFilter('estado','pendiente');
-      addSmartFilter('estado','trabajando');
+      addSmartFilter(config,'estado','pendiente');
+      addSmartFilter(config,'estado','trabajando');
     }
-    if(typeof window.filterReclamosInspector==='function')window.filterReclamosInspector();
+    if(typeof window[config.filter]==='function')window[config.filter]();
     const est=estabs().find(e=>Number(e?.id)===Number(estId));
-    const card=byId('insp-rec-list')?.closest('.card');
+    const card=(byId('insp-rec-list')||byId('coord-rec-body'))?.closest('.card');
     if(card&&!byId('dgie-ranking-filter-note')){
       const filters=card.querySelector('.os-filters');
       filters?.insertAdjacentHTML('beforebegin',`<div id="dgie-ranking-filter-note" class="dgie-ranking-filter-note"><strong>${esc(estNombre(est)||'Establecimiento')}</strong><span>${esc(RANKING_COLUMNS[key]?.label||'Reclamos')}</span></div>`);
@@ -21001,13 +21007,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         grid.insertBefore(column,map);
         column.appendChild(map);
       }
+      column.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
+      byId('dgie-est-intervenidos-card')?.classList.add('dgie-est-intervenidos-below');
+    }else if(current()?.role==='coordinador'){
       if(anchor)anchor.insertAdjacentHTML('afterend',rankingHTML(scope));
       else map.insertAdjacentHTML('beforeend',rankingHTML(scope));
       renderRankingBody(scope);
-      column.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
-      byId('dgie-est-intervenidos-card')?.classList.add('dgie-est-intervenidos-below');
-    }else if(anchor)anchor.insertAdjacentHTML('afterend',cardHTML(scope,rows));
-    else map.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
+      const ranking=byId('dgie-ranking-reclamos');
+      if(ranking)ranking.insertAdjacentHTML('afterend',cardHTML(scope,rows));
+      else map.insertAdjacentHTML('beforeend',cardHTML(scope,rows));
+    }
   }
   const prevRenderChart=window.renderChartInsp;
   if(typeof prevRenderChart==='function'){
@@ -23946,6 +23955,215 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 }
 </style>
+<style id="dgie-comparativo-zonas-style-2026-07-30">
+.dgie-zone-comparison{width:100%;max-width:100%;box-sizing:border-box;margin-top:18px;min-width:0}
+.dgie-zone-comparison-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}
+.dgie-zone-comparison-title{font-size:16px;font-weight:900;color:#123c69}
+.dgie-zone-comparison-sub{font-size:12px;color:#64748b;line-height:1.4;margin-top:4px}
+.dgie-zone-comparison-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px 1px 9px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.dgie-zone-comparison-tab{flex:0 0 auto;border:1px solid #cbd8e6;background:#fff;color:#334155;border-radius:999px;padding:7px 11px;font-size:11px;font-weight:850;white-space:nowrap;cursor:pointer}
+.dgie-zone-comparison-tab:hover{border-color:#005aa9;color:#005aa9;background:#f7fbff}
+.dgie-zone-comparison-tab.active{border-color:#005aa9;background:#005aa9;color:#fff}
+.dgie-zone-comparison-note{font-size:11px;color:#64748b;margin:0 0 10px}
+.dgie-zone-comparison-bars{display:grid;gap:7px;max-height:560px;overflow-y:auto;padding:3px 7px 3px 1px;scrollbar-width:thin}
+.dgie-zone-comparison-row{display:grid;grid-template-columns:58px minmax(120px,1fr) minmax(118px,auto);align-items:center;gap:10px;min-height:27px}
+.dgie-zone-comparison-zone{font-size:11px;font-weight:900;color:#334155;text-align:right}
+.dgie-zone-comparison-track{height:18px;border-radius:5px;background:#e8eef5;overflow:hidden;position:relative}
+.dgie-zone-comparison-fill{height:100%;min-width:0;border-radius:5px;background:linear-gradient(90deg,#005aa9,#3b8fd4)}
+.dgie-zone-comparison-value{font-size:11px;font-weight:900;color:#123c69;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dgie-zone-comparison-empty{padding:24px;text-align:center;color:#64748b;font-size:13px}
+#landing-screen .dgie-zone-comparison{background:#fff;border:1px solid #d9e2ef;border-radius:16px;padding:18px;box-shadow:0 6px 18px rgba(15,23,42,.05)}
+@media(max-width:680px){
+  .dgie-zone-comparison{padding:14px!important}
+  .dgie-zone-comparison-head{display:block}
+  .dgie-zone-comparison-head .badge{display:inline-flex;margin-top:8px}
+  .dgie-zone-comparison-tabs{margin-right:-14px;padding-right:14px}
+  .dgie-zone-comparison-bars{max-height:none;overflow:visible;padding-right:0}
+  .dgie-zone-comparison-row{grid-template-columns:43px minmax(86px,1fr) minmax(91px,auto);gap:7px}
+  .dgie-zone-comparison-zone,.dgie-zone-comparison-value{font-size:10px}
+  .dgie-zone-comparison-track{height:16px}
+}
+</style>
+<script id="dgie-comparativo-zonas-2026-07-30">
+(function(){
+  'use strict';
+  const MODULOS_POR_ZONA=11300;
+  const activeMetric={coord:'reclamos_pendientes',public:'reclamos_pendientes'};
+  let certRequest=null;
+  const METRICS={
+    reclamos_totales:{label:'Reclamos totales',note:'El porcentaje indica la participación de cada zona sobre el total provincial.'},
+    reclamos_pendientes:{label:'Reclamos pendientes',note:'El porcentaje indica qué parte de los reclamos de la zona está pendiente.'},
+    reclamos_finalizados:{label:'Reclamos finalizados',note:'El porcentaje indica qué parte de los reclamos de la zona está finalizada.'},
+    os_totales:{label:'O.S. totales',note:'El porcentaje indica la participación de cada zona sobre el total provincial de O.S.'},
+    os_pendientes:{label:'O.S. pendientes',note:'El porcentaje indica qué parte de las O.S. de la zona está pendiente.'},
+    os_finalizadas:{label:'O.S. finalizadas',note:'El porcentaje indica qué parte de las O.S. de la zona está finalizada.'},
+    modulos_consumidos:{label:'Módulos consumidos',note:'El porcentaje indica el consumo sobre los 11.300 módulos asignados a cada zona.'}
+  };
+  function norm(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+  function esc(value){return typeof escapeHtml==='function'?escapeHtml(value):String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
+  function reclamos(){try{return Array.isArray(RECLAMOS_ZONA)?RECLAMOS_ZONA:[]}catch(_e){return []}}
+  function ordenes(){try{return Array.isArray(OS_ZONA)?OS_ZONA:[]}catch(_e){return []}}
+  function establecimientos(){try{return Array.isArray(ESTABS)?ESTABS:[]}catch(_e){return []}}
+  function certificados(){try{return Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[]}catch(_e){return []}}
+  function nombreEst(item){return String(item?.est||item?.establecimiento||item?.establecimiento_nombre||'').trim()}
+  function zonaItem(item){
+    const directa=Number(item?.zona||0);
+    if(directa>0)return directa;
+    const estId=Number(item?.estId||item?.establecimiento_id||item?.establecimientoId||0);
+    if(estId&&typeof zonaEstablecimiento==='function'){
+      try{const z=Number(zonaEstablecimiento(estId)||0);if(z>0)return z}catch(_e){}
+    }
+    const nombre=norm(nombreEst(item));
+    if(nombre){
+      const est=establecimientos().find(e=>norm(e?.n||e?.nombre||e?.establecimiento)===nombre);
+      const z=Number(est?.zona||0);
+      if(z>0)return z;
+    }
+    return 0;
+  }
+  function zonaCert(c){
+    if(typeof zonaCertificado==='function'){
+      try{const z=Number(zonaCertificado(c)||0);if(z>0)return z}catch(_e){}
+    }
+    return zonaItem(c);
+  }
+  function estadoOS(o){
+    if(typeof getEstadoOS==='function'){
+      try{return norm(getEstadoOS(o))}catch(_e){}
+    }
+    const estado=norm(o?.estado);
+    if(estado.includes('final'))return 'finalizado';
+    if(estado.includes('trabaj')||estado.includes('ejec'))return 'trabajando';
+    if(estado.includes('anul'))return 'anulado';
+    return 'pendiente';
+  }
+  function buscarOS(r,base){
+    if(typeof findOSForReclamo==='function'){
+      try{return findOSForReclamo(r,base)||null}catch(_e){}
+    }
+    const numero=String(r?.numero||'').trim();
+    const referencia=String(r?.os||'').trim();
+    if(referencia&&!['Sin OS','Pendiente','En trámite','En tramite'].includes(referencia)){
+      const directa=base.find(o=>String(o?.numero||'').trim()===referencia);
+      if(directa)return directa;
+    }
+    return numero?base.find(o=>String(o?.reclamoNumero||o?.reclamo||'').split(',').map(v=>v.trim()).includes(numero))||null:null;
+  }
+  function estadoReclamo(r,baseOS){
+    const manual=norm(r?.estado_reclamo||r?.estado);
+    if(manual==='anulado'||manual==='derivado')return manual;
+    if(typeof estadoReclamoCanon==='function'){
+      try{return norm(estadoReclamoCanon(r,baseOS)||'pendiente')}catch(_e){}
+    }
+    const os=buscarOS(r,baseOS);
+    if(!os)return 'pendiente';
+    const estado=estadoOS(os);
+    return estado==='pendiente'?'orden_servicio':estado;
+  }
+  function modulosCert(c){
+    const number=value=>Number(String(value??'').replace(',','.'))||0;
+    const final=number(c?.modulos_final??c?.monto_final);
+    return final>0?final:number(c?.modulos_inspector||c?.modulos_original);
+  }
+  function medicionFinalizada(c,zona){
+    if(norm(c?.estado)!=='medido'||!c?.medicion_numero)return false;
+    if(typeof esMedicionFinalizada==='function'){
+      try{return !!esMedicionFinalizada(c.medicion_numero,zona)}catch(_e){}
+    }
+    return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''));
+  }
+  function pct(value,total){return total>0?(Number(value)||0)*100/total:0}
+  function datosZonas(){
+    const recs=reclamos(),oss=ordenes(),certs=certificados();
+    const totalRecs=recs.filter(r=>zonaItem(r)>0).length;
+    const totalOS=oss.filter(o=>zonaItem(o)>0).length;
+    return Array.from({length:17},(_,index)=>{
+      const zona=index+1;
+      const rz=recs.filter(r=>zonaItem(r)===zona);
+      const oz=oss.filter(o=>zonaItem(o)===zona);
+      const pendientes=rz.filter(r=>estadoReclamo(r,oss)==='pendiente').length;
+      const finalizados=rz.filter(r=>estadoReclamo(r,oss)==='finalizado').length;
+      const osPendientes=oz.filter(o=>estadoOS(o)==='pendiente').length;
+      const osFinalizadas=oz.filter(o=>estadoOS(o)==='finalizado').length;
+      const consumidos=certs.filter(c=>zonaCert(c)===zona&&medicionFinalizada(c,zona)).reduce((sum,c)=>sum+modulosCert(c),0);
+      return {
+        zona,
+        reclamos_totales:{value:rz.length,percent:pct(rz.length,totalRecs)},
+        reclamos_pendientes:{value:pendientes,percent:pct(pendientes,rz.length)},
+        reclamos_finalizados:{value:finalizados,percent:pct(finalizados,rz.length)},
+        os_totales:{value:oz.length,percent:pct(oz.length,totalOS)},
+        os_pendientes:{value:osPendientes,percent:pct(osPendientes,oz.length)},
+        os_finalizadas:{value:osFinalizadas,percent:pct(osFinalizadas,oz.length)},
+        modulos_consumidos:{value:consumidos,percent:pct(consumidos,MODULOS_POR_ZONA)}
+      };
+    });
+  }
+  function formatNumber(value,metric){
+    return Number(value||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:metric==='modulos_consumidos'?2:0});
+  }
+  function formatPercent(value){return `${Number(value||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:1})}%`}
+  function tabsHTML(surface){
+    return Object.entries(METRICS).map(([key,meta])=>`<button type="button" class="dgie-zone-comparison-tab ${activeMetric[surface]===key?'active':''}" aria-pressed="${activeMetric[surface]===key?'true':'false'}" onclick="seleccionarComparativoZonas('${surface}','${key}')">${esc(meta.label)}</button>`).join('');
+  }
+  function cardHTML(surface){
+    const publicSurface=surface==='public';
+    return `<section class="${publicSurface?'':'card '}dgie-zone-comparison" id="dgie-zone-comparison-${surface}" aria-labelledby="dgie-zone-comparison-title-${surface}">
+      <div class="dgie-zone-comparison-head"><div><div class="dgie-zone-comparison-title" id="dgie-zone-comparison-title-${surface}">Comparativo por zonas</div><div class="dgie-zone-comparison-sub">Cantidad y porcentaje para las 17 zonas.</div></div><span class="badge b-info">17 zonas</span></div>
+      <div class="dgie-zone-comparison-tabs" id="dgie-zone-comparison-tabs-${surface}">${tabsHTML(surface)}</div>
+      <div class="dgie-zone-comparison-note" id="dgie-zone-comparison-note-${surface}"></div>
+      <div class="dgie-zone-comparison-bars" id="dgie-zone-comparison-bars-${surface}"></div>
+    </section>`;
+  }
+  function ensureCoord(){
+    let user=null;try{user=currentUser}catch(_e){}
+    if(user?.role!=='coordinador'||document.getElementById('dgie-zone-comparison-coord'))return;
+    const grid=document.querySelector('#main-content .inspector-pro-grid');
+    if(grid)grid.insertAdjacentHTML('afterend',cardHTML('coord'));
+  }
+  function ensurePublic(){
+    if(document.getElementById('dgie-zone-comparison-public'))return;
+    const row=document.querySelector('#landing-screen .landing-row4');
+    if(row)row.insertAdjacentHTML('afterend',cardHTML('public'));
+  }
+  function renderSurface(surface){
+    const key=activeMetric[surface],meta=METRICS[key];
+    const bars=document.getElementById(`dgie-zone-comparison-bars-${surface}`);
+    if(!bars||!meta)return;
+    const data=datosZonas(),max=Math.max(0,...data.map(row=>Number(row[key]?.value)||0));
+    const note=document.getElementById(`dgie-zone-comparison-note-${surface}`);
+    if(note)note.textContent=meta.note;
+    const tabs=document.getElementById(`dgie-zone-comparison-tabs-${surface}`);
+    if(tabs)tabs.innerHTML=tabsHTML(surface);
+    bars.innerHTML=data.map(row=>{
+      const item=row[key]||{value:0,percent:0};
+      const width=max>0?Math.max(item.value>0?2:0,Math.min(100,item.value*100/max)):0;
+      const valueLabel=`${formatNumber(item.value,key)} · ${formatPercent(item.percent)}`;
+      return `<div class="dgie-zone-comparison-row" aria-label="Zona ${row.zona}: ${valueLabel}"><div class="dgie-zone-comparison-zone">Zona ${row.zona}</div><div class="dgie-zone-comparison-track"><div class="dgie-zone-comparison-fill" style="width:${width}%"></div></div><div class="dgie-zone-comparison-value">${valueLabel}</div></div>`;
+    }).join('')||'<div class="dgie-zone-comparison-empty">Sin datos para mostrar.</div>';
+  }
+  function renderAll(){ensureCoord();ensurePublic();renderSurface('coord');renderSurface('public')}
+  function requestCertificados(){
+    if(certRequest||typeof window.cargarCertificadosMedicion!=='function')return;
+    certRequest=Promise.resolve(window.cargarCertificadosMedicion()).then(()=>renderAll()).catch(()=>{});
+  }
+  window.seleccionarComparativoZonas=function(surface,key){
+    if(!METRICS[key]||!Object.prototype.hasOwnProperty.call(activeMetric,surface))return;
+    activeMetric[surface]=key;
+    renderSurface(surface);
+  };
+  const coordPrev=window.renderChartCoordinadorDashboard;
+  if(typeof coordPrev==='function'){
+    window.renderChartCoordinadorDashboard=function(){const out=coordPrev.apply(this,arguments);setTimeout(()=>{ensureCoord();renderSurface('coord');requestCertificados()},0);return out};
+  }
+  const landingPrev=window.renderLcCharts;
+  if(typeof landingPrev==='function'){
+    window.renderLcCharts=function(){const out=landingPrev.apply(this,arguments);setTimeout(()=>{ensurePublic();renderSurface('public');requestCertificados()},0);return out};
+  }
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderAll();requestCertificados()},450));
+  document.addEventListener('dgie:data-ready',()=>setTimeout(renderAll,120));
+  window.addEventListener('load',()=>setTimeout(renderAll,500));
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
 <script src="./dgie-notificaciones.js?v=20260730-1"></script>
 </body>
