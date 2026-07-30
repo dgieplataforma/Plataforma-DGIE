@@ -24164,45 +24164,82 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.addEventListener('load',()=>setTimeout(renderAll,500));
 })();
 </script>
-<style id="dgie-public-chart-zone-selector-style-2026-07-30">
-.dgie-public-chart-zone-selector{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eef6ff;border:1px solid #c7dbef;border-radius:12px;padding:10px 12px}
-.dgie-public-chart-zone-selector-label{font-size:12px;font-weight:900;color:#123c69}
-.dgie-public-chart-zone-selector select{min-width:190px;border:1px solid #b9cde2;border-radius:9px;background:#fff;color:#123c69;padding:8px 34px 8px 10px;font-size:12px;font-weight:800;cursor:pointer}
+<style id="dgie-public-dashboard-layout-2026-07-30">
+#landing-screen .landing-row3{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+#landing-screen .landing-detail-card{width:100%;min-width:0;overflow:hidden}
+#landing-screen #lm-ranking-list,#landing-screen #lm-rubro-list{min-width:0;max-width:100%}
+#landing-screen .landing-row4{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:stretch}
+#landing-screen .landing-map-card{min-width:0}
+#landing-screen .landing-charts-col{min-width:0;align-self:stretch;height:100%}
+#landing-screen .landing-public-ficha{height:300px;min-height:300px;max-height:300px;display:flex;flex-direction:column;padding:10px 12px 12px;overflow:hidden}
+#landing-screen .landing-public-ficha .ficha-header{flex:0 0 auto;min-height:0}
+#landing-screen .landing-public-ficha .ficha-nombre{font-size:15px;line-height:1.2;letter-spacing:-.01em}
+#landing-screen .landing-public-ficha .ficha-meta{font-size:10px;line-height:1.3;margin-top:3px}
+#landing-screen .landing-public-ficha .badge{font-size:9px;padding:4px 7px}
+#landing-screen .landing-public-ficha .ficha-datos{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+#landing-screen .landing-public-ficha .ficha-dato{min-width:0;min-height:46px;border-radius:9px;padding:7px 8px}
+#landing-screen .landing-public-ficha .ficha-dato-lbl{font-size:9px;line-height:1.1}
+#landing-screen .landing-public-ficha .ficha-dato-val{font-size:11px;line-height:1.2;margin-top:2px;overflow-wrap:anywhere}
+#landing-screen .landing-public-ficha .ficha-tabs{flex:0 0 auto;margin-top:8px;padding:0 4px;overflow:hidden}
+#landing-screen .landing-public-ficha .ficha-tab{flex:1 1 0;min-width:0;padding:8px 4px;font-size:11px;text-align:center}
+#landing-screen .landing-public-ficha .ficha-body{flex:1 1 auto;min-height:0;overflow:auto;padding:9px 10px;font-size:11px}
+#landing-screen .landing-public-ficha .ficha-body .card-header{margin-bottom:7px;font-size:11px}
+#landing-screen .landing-public-ficha .ficha-body .card-title{font-size:12px}
+#landing-screen .landing-public-ficha .ficha-body .reclamo-row{padding:7px 0}
+#landing-screen .dgie-public-ficha-empty .ficha-tab{pointer-events:none;opacity:.45}
+#landing-screen .dgie-public-ficha-empty .ficha-dato-val{min-height:13px}
+#landing-screen .dgie-public-ficha-empty .ficha-body{overflow:hidden}
+#landing-screen .dgie-next-chart-placeholder{flex:1 1 160px!important;min-height:160px;display:flex;align-items:center;justify-content:center;background:#f8fafc;border-style:dashed;box-shadow:none}
+#landing-screen .dgie-next-chart-placeholder-label{font-size:13px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+#landing-screen .dgie-zone-comparison-tabs{display:flex;flex-wrap:wrap;overflow:visible;margin:0;padding:2px 1px 9px}
+#landing-screen .dgie-zone-comparison-tab{flex:0 1 auto}
+#landing-screen .dgie-zone-comparison-bars{max-height:none;overflow:visible;padding-right:0;gap:6px}
+#landing-screen .dgie-zone-comparison-row{min-height:25px}
 @media(max-width:680px){
-  .dgie-public-chart-zone-selector{align-items:stretch;flex-direction:column;gap:7px}
-  .dgie-public-chart-zone-selector select{width:100%;min-width:0}
+  #landing-screen .landing-row3,#landing-screen .landing-row4{grid-template-columns:1fr}
+  #landing-screen .landing-public-ficha{height:286px;min-height:286px;max-height:286px}
+  #landing-screen .landing-charts-col{height:auto}
+  #landing-screen .dgie-next-chart-placeholder{min-height:140px}
+  #landing-screen .dgie-zone-comparison-tabs{margin-right:0;padding-right:0}
+  #landing-screen .dgie-zone-comparison-tab{font-size:10px;padding:6px 8px}
+  #landing-screen .dgie-zone-comparison-row{grid-template-columns:43px minmax(70px,1fr) minmax(88px,auto);gap:6px}
 }
 </style>
-<script id="dgie-public-chart-zone-selector-2026-07-30">
+<script id="dgie-public-dashboard-layout-2026-07-30">
 (function(){
   'use strict';
-  function selectorHTML(){
-    const options=['<option value="">Todas las zonas</option>'];
-    for(let zona=1;zona<=17;zona++)options.push(`<option value="${zona}">Zona ${zona}</option>`);
-    return `<div class="dgie-public-chart-zone-selector" id="dgie-public-chart-zone-selector">
-      <label class="dgie-public-chart-zone-selector-label" for="dgie-public-chart-zone-select">Individualizar gráficos por zona</label>
-      <select id="dgie-public-chart-zone-select" onchange="window.selectLandingChartZona(this.value?Number(this.value):null)">${options.join('')}</select>
+  function emptyFichaHTML(){
+    const fields=['Nivel','Tipo','Inspector','CUE','Barrio','Zona'];
+    return `<div class="landing-public-ficha dgie-public-ficha-empty" id="landing-estab-info" aria-label="Sin establecimiento seleccionado">
+      <div class="ficha-header">
+        <div class="ficha-nombre">Establecimiento seleccionado</div>
+        <div class="ficha-meta">&nbsp;</div>
+        <div class="ficha-datos">${fields.map(label=>`<div class="ficha-dato"><div class="ficha-dato-lbl">${label}</div><div class="ficha-dato-val">&nbsp;</div></div>`).join('')}</div>
+      </div>
+      <div class="ficha-tabs" aria-hidden="true"><div class="ficha-tab">Reclamos</div><div class="ficha-tab">Intervenciones</div><div class="ficha-tab">Relevamiento</div></div>
+      <div class="ficha-body" aria-hidden="true"></div>
     </div>`;
   }
-  function syncSelector(zona){
-    const select=document.getElementById('dgie-public-chart-zone-select');
-    if(select)select.value=zona?String(Number(zona)):'';
+  function selectedEstablishment(){
+    try{return Number(selectedLandingEstabId||0)}catch(_e){return 0}
   }
-  function ensureSelector(){
-    if(document.getElementById('dgie-public-chart-zone-selector')){
-      syncSelector(window._lcZonaGraficosActiva||null);
-      return;
-    }
+  function renderEmptyFicha(){
+    if(selectedEstablishment())return;
+    const box=document.getElementById('landing-estab-info');
+    if(box&&!box.classList.contains('dgie-public-ficha-empty'))box.outerHTML=emptyFichaHTML();
+  }
+  function ensureNextChart(){
+    document.getElementById('dgie-public-chart-zone-selector')?.remove();
+    if(document.getElementById('dgie-next-chart-placeholder'))return;
     const charts=document.querySelector('#landing-screen .landing-charts-col');
-    if(!charts)return;
-    charts.insertAdjacentHTML('afterbegin',selectorHTML());
-    syncSelector(window._lcZonaGraficosActiva||null);
+    if(charts)charts.insertAdjacentHTML('beforeend','<div class="landing-chart-card dgie-next-chart-placeholder" id="dgie-next-chart-placeholder"><div class="dgie-next-chart-placeholder-label">Próximo gráfico</div></div>');
   }
-  const selectPrev=window.selectLandingChartZona;
-  if(typeof selectPrev==='function'){
-    window.selectLandingChartZona=function(zona){
-      const out=selectPrev.apply(this,arguments);
-      syncSelector(zona||null);
+  function ensureLayout(){renderEmptyFicha();ensureNextChart()}
+  const mapPrev=window.renderLcMapa;
+  if(typeof mapPrev==='function'){
+    window.renderLcMapa=function(){
+      const out=mapPrev.apply(this,arguments);
+      setTimeout(renderEmptyFicha,0);
       return out;
     };
   }
@@ -24210,13 +24247,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   if(typeof chartsPrev==='function'){
     window.renderLcCharts=function(){
       const out=chartsPrev.apply(this,arguments);
-      setTimeout(ensureSelector,0);
+      setTimeout(ensureLayout,0);
       return out;
     };
   }
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(ensureSelector,250));
-  document.addEventListener('dgie:data-ready',()=>setTimeout(ensureSelector,100));
-  window.addEventListener('load',()=>setTimeout(ensureSelector,300));
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(ensureLayout,250));
+  document.addEventListener('dgie:data-ready',()=>setTimeout(ensureLayout,100));
+  window.addEventListener('load',()=>setTimeout(ensureLayout,300));
 })();
 </script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
