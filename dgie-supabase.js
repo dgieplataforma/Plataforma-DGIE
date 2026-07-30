@@ -21,7 +21,7 @@
   }
 
   let authStorage;
-  try{ authStorage = window.sessionStorage; }catch(_){ authStorage = undefined; }
+  try{ authStorage = window.localStorage; }catch(_){ authStorage = undefined; }
   const client = supabaseLib.createClient(cfg.url, cfg.anonKey, {
     auth: {
       persistSession: true,

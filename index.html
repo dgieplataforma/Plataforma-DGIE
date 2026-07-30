@@ -12090,8 +12090,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const KEY_TAB='dgie_sesion_tab_activa_v1';
   const KEY_LOGOUT='dgie_sesion_logout_manual_v1';
   const KEY_OPEN='dgie_sesion_pestana_abierta_v1';
-  const storage=window.sessionStorage;
-  const legacyStorage=window.localStorage;
+  const storage=window.localStorage;
+  const legacyStorage=window.sessionStorage;
   function safeGet(key){
     try{return storage.getItem(key)}catch(_){return null}
   }
