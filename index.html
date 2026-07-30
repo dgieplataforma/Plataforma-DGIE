@@ -23894,6 +23894,52 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   envolver('renderReclamosCoordinador','coord-rec','coord-rec','filterReclamosCoord');
 })();
 </script>
+<style id="dgie-mobile-scroll-compat-2026-07-30">
+@media(max-width:760px){
+  html{
+    min-height:100%;
+    overflow-x:visible;
+    overflow-y:auto;
+    scroll-behavior:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  body{
+    min-height:100%;
+    overflow-x:visible;
+    overflow-y:visible;
+    overscroll-behavior-y:auto;
+  }
+  #app-wrapper{
+    min-height:100%;
+    overflow-x:hidden;
+    overflow-y:visible;
+  }
+  @supports (overflow:clip){
+    #app-wrapper{overflow-x:clip}
+  }
+  #app-wrapper #main-content,
+  #app-wrapper #global-content{
+    min-height:calc(100vh - 60px);
+    min-height:calc(100dvh - 60px);
+  }
+  .modal{
+    height:100vh;
+    max-height:100vh;
+    height:100dvh;
+    max-height:100dvh;
+  }
+  .modal-body,.os-attachments-modal,.dgc-dialog,.dgc-dialog-body{
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:contain;
+  }
+  .dgc-dialog{
+    height:100vh;
+    max-height:100vh;
+    height:100dvh;
+    max-height:100dvh;
+  }
+}
+</style>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
 <script src="./dgie-notificaciones.js?v=20260723-1"></script>
 </body>
