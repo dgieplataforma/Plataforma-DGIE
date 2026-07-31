@@ -24442,6 +24442,86 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.getElementById('dgie-vincular-os-modal'))window.cerrarVincularOrdenReclamo()});
 })();
 </script>
+<style id="dgie-reclamo-orden-navegable-2026-07-31">
+.dgie-reclamo-os-link{appearance:none;border:0;background:transparent;padding:3px 2px;margin:0;font:inherit;font-size:11px;font-weight:700;line-height:1.35;text-align:right;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer;border-radius:5px;max-width:230px;white-space:normal}
+.dgie-reclamo-os-link:hover{background:#eff6ff}
+.dgie-reclamo-os-link:focus-visible{outline:3px solid rgba(0,114,206,.28);outline-offset:2px}
+#os-table-body tr.dgie-os-fila-ubicada>td{background:#fff7d6!important;border-top-color:#f0b429!important;border-bottom-color:#f0b429!important}
+#os-table-body tr.dgie-os-fila-ubicada>td:first-child{box-shadow:inset 4px 0 0 #d97706}
+@media(max-width:620px){.dgie-reclamo-os-link{min-height:34px;max-width:180px;padding:7px 4px}}
+</style>
+<script id="dgie-reclamo-orden-navegable-2026-07-31">
+(function(){
+  'use strict';
+  function esc(value){return typeof escapeHtml==='function'?escapeHtml(value):String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
+  function ordenes(){try{return Array.isArray(OS_ZONA)?OS_ZONA:[]}catch(_e){return []}}
+  function ordenKey(o){return String(o?.remoteId||o?.id||o?.numero||'')}
+  function zonaItem(item){const directa=Number(item?.zona||0);if(directa)return directa;const estId=Number(item?.estId||item?.establecimiento_id||0);try{return estId&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(estId)||0):0}catch(_e){return 0}}
+  function buscarOrden(key){const value=String(key||'');return ordenes().find(o=>ordenKey(o)===value||String(o?.numero||'')===value)||null}
+  function ordenDeReclamo(r){try{return typeof window.findOSForReclamo==='function'?window.findOSForReclamo(r,ordenes()):null}catch(_e){return null}}
+  function estadoOrden(o){try{return typeof getEstadoOS==='function'?getEstadoOS(o):String(o?.estado||'').toLowerCase()}catch(_e){return String(o?.estado||'').toLowerCase()}}
+  function etiquetaEstado(o){try{return typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):String(o?.estado||'')}catch(_e){return String(o?.estado||'')}}
+  function colorEstado(o){const estado=estadoOrden(o);return estado==='finalizado'?'#2e7d32':estado==='trabajando'?'#0072ce':estado==='anulado'?'#dc2626':estado==='pendiente'?'#d97706':'var(--muted)'}
+
+  const rowPrev=window.rowReclamo;
+  if(typeof rowPrev==='function'){
+    window.rowReclamo=function(r,showEst){
+      const html=String(rowPrev.apply(this,arguments));
+      if(currentUser?.role!=='inspector')return html;
+      const orden=ordenDeReclamo(r);
+      if(!orden)return html;
+      const numero=String(orden?.numero||r?.os||'').trim();
+      if(!numero)return html;
+      const estado=etiquetaEstado(orden);
+      const texto=`${esc(numero)}${estado?' · '+esc(estado):''}`;
+      const cierre=`>${texto}</span>`;
+      const cierreIdx=html.indexOf(cierre);
+      const inicio=cierreIdx>=0?html.lastIndexOf('<span ',cierreIdx):-1;
+      const finEtiqueta=inicio>=0?html.indexOf('>',inicio):-1;
+      if(inicio<0||finEtiqueta<0||!html.slice(inicio,finEtiqueta).includes('font-size:11px'))return html;
+      const key=encodeURIComponent(ordenKey(orden)).replace(/'/g,'%27');
+      const titulo=esc(`Abrir la orden de servicio ${numero} en el listado`);
+      const boton=`<button type="button" class="dgie-reclamo-os-link" style="color:${colorEstado(orden)}" title="${titulo}" aria-label="${titulo}" onclick="event.stopPropagation();irAOrdenServicioDesdeReclamo('${key}')">${texto}</button>`;
+      return html.slice(0,inicio)+boton+html.slice(cierreIdx+cierre.length);
+    };
+    try{rowReclamo=window.rowReclamo}catch(_e){}
+  }
+
+  function filaOrden(numero){
+    const buscado=String(numero||'').trim();
+    return [...document.querySelectorAll('#os-table-body .os-num')].find(el=>String(el.textContent||'').trim()===buscado)?.closest('tr')||null;
+  }
+  function ubicarOrden(numero){
+    const fila=filaOrden(numero);
+    if(!fila)return false;
+    document.querySelectorAll('#os-table-body tr.dgie-os-fila-ubicada').forEach(row=>row.classList.remove('dgie-os-fila-ubicada'));
+    fila.classList.add('dgie-os-fila-ubicada');
+    fila.setAttribute('tabindex','-1');
+    fila.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+    try{fila.focus({preventScroll:true})}catch(_e){fila.focus()}
+    return true;
+  }
+  function aplicarBusqueda(numero){
+    const search=document.getElementById('os-search');
+    if(search)search.value=String(numero||'');
+    ['os-desde','os-hasta'].forEach(id=>{const input=document.getElementById(id);if(input)input.value=''});
+    if(typeof window.dgieSmartClear==='function')window.dgieSmartClear('os');
+    else if(typeof window.filterOS==='function')window.filterOS();
+  }
+
+  window.irAOrdenServicioDesdeReclamo=function(keyCodificado){
+    let key='';try{key=decodeURIComponent(String(keyCodificado||''))}catch(_e){key=String(keyCodificado||'')}
+    const orden=buscarOrden(key);
+    if(!orden){alert('No se encontró la orden de servicio vinculada.');return}
+    if(currentUser?.role!=='inspector'||Number(zonaItem(orden))!==Number(currentUser?.zona||0)){alert('No tenés permiso para ver esta orden de servicio.');return}
+    if(typeof window.switchZonaTab!=='function'){alert('No se pudo abrir el listado de órdenes de servicio.');return}
+    window.switchZonaTab(2);
+    setTimeout(()=>aplicarBusqueda(orden.numero),0);
+    [40,120,320,800,1600,3200].forEach(delay=>setTimeout(()=>ubicarOrden(orden.numero),delay));
+    setTimeout(()=>document.querySelectorAll('#os-table-body tr.dgie-os-fila-ubicada').forEach(row=>row.classList.remove('dgie-os-fila-ubicada')),8000);
+  };
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
 <script src="./dgie-notificaciones.js?v=20260730-2"></script>
 </body>
