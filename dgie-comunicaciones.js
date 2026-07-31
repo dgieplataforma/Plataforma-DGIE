@@ -3,7 +3,8 @@
 
   if(window.DGIE_COMUNICACIONES_PRO?.version)return;
 
-  const VERSION=1;
+  const VERSION=2;
+  const DIRECT_CONVERSATION_CLASS='conversacion_inspector_empresa';
   const COMPLETE_STATES=new Set(['completado','visto','cerrada']);
   const MANAGER_ROLES=new Set(['coordinador','direccion','director']);
   const FIELD_TYPES={
@@ -98,6 +99,28 @@
     const profile=result.data;
     if(String(profile.rol||'').toLowerCase()!=='inspector'){
       throw new Error('La sesión activa no corresponde a un inspector. Volvé a ingresar.');
+    }
+    const visibleUser=user();
+    if(visibleUser?.id&&String(visibleUser.id)!==String(profile.id)){
+      throw new Error('La cuenta activa cambió en otra pestaña. Recargá esta página e ingresá nuevamente.');
+    }
+    if(Number(profile.zona||0)!==Number(visibleUser?.zona||0)){
+      throw new Error('La zona de la sesión no coincide con la zona visible. Volvé a ingresar.');
+    }
+    return profile;
+  }
+  async function verifiedCompanyProfile(){
+    if(!isCompany())throw new Error('Solo una empresa puede iniciar esta comunicación.');
+    if(typeof window.DGIE_DB?.currentProfile!=='function'){
+      throw new Error('No se pudo verificar la sesión del sistema. Volvé a ingresar.');
+    }
+    const result=await window.DGIE_DB.currentProfile();
+    if(result?.error||!result?.data){
+      throw new Error('La sesión venció o no está disponible. Cerrá sesión y volvé a ingresar.');
+    }
+    const profile=result.data;
+    if(String(profile.rol||'').toLowerCase()!=='empresa'){
+      throw new Error('La sesión activa no corresponde a una empresa. Volvé a ingresar.');
     }
     const visibleUser=user();
     if(visibleUser?.id&&String(visibleUser.id)!==String(profile.id)){
@@ -251,6 +274,8 @@
       ?raw.meta
       :{};
   }
+  function isDirectConversation(c){return communicationMeta(c).clase===DIRECT_CONVERSATION_CLASS;}
+  function conversationOriginRole(c){return String(communicationMeta(c).origenRol||'').toLowerCase();}
   function isInspectorCompanyNotification(c){
     const meta=communicationMeta(c);
     return meta.clase==='notificacion_empresa'
@@ -272,13 +297,16 @@
     const creatorId=c?.creadoPorId||c?.creado_por;
     if(currentId&&creatorId)return String(currentId)===String(creatorId);
     const meta=communicationMeta(c);
-    return isInspectorOutbound(c)
-      &&Number(meta.origenZona||0)===Number(user()?.zona||0)
-      &&(!c?.creadoPor||normalize(c.creadoPor)===normalize(user()?.name));
+    const sameZone=Number(meta.origenZona||0)===Number(user()?.zona||0);
+    const sameName=!c?.creadoPor||normalize(c.creadoPor)===normalize(user()?.name);
+    if(isDirectConversation(c))return conversationOriginRole(c)===role()&&sameZone&&sameName;
+    return isInspectorOutbound(c)&&sameZone&&sameName;
   }
   function isOwnInspectorNotification(c){
     return isInspector()&&isInspectorOutbound(c)&&authoredByCurrentUser(c);
   }
+  function isOwnDirectConversation(c){return isDirectConversation(c)&&authoredByCurrentUser(c);}
+  function isOwnOutgoing(c){return isOwnInspectorNotification(c)||isOwnDirectConversation(c);}
   function priority(c){
     const value=String(schemaFor(c).meta?.prioridad||c?.prioridad||'normal').toLowerCase();
     return ['urgente','alta','normal','baja'].includes(value)?value:'normal';
@@ -366,10 +394,10 @@
       list=list.filter(c=>!isInspectorCompanyNotification(c)||copiedToCoordination(c));
     }else if(isInspector()){
       const key=currentKey();
-      list=list.filter(c=>destinations(c).some(destination=>destination.key===key)||isOwnInspectorNotification(c));
+      list=list.filter(c=>destinations(c).some(destination=>destination.key===key)||isOwnInspectorNotification(c)||isOwnDirectConversation(c));
     }else{
       const key=currentKey();
-      list=list.filter(c=>destinations(c).some(destination=>destination.key===key));
+      list=list.filter(c=>destinations(c).some(destination=>destination.key===key)||isOwnDirectConversation(c));
     }
     const q=normalize(state.list.q);
     list=list.filter(c=>{
@@ -379,7 +407,7 @@
       const matchesType=!state.list.type
         ||(state.list.type==='tarea'&&!isNotice(c))
         ||(state.list.type==='notificacion'&&isNotice(c))
-        ||(state.list.type==='enviadas'&&isOwnInspectorNotification(c))
+        ||(state.list.type==='enviadas'&&isOwnOutgoing(c))
         ||(state.list.type==='copias'&&isInspectorCompanyNotification(c)&&copiedToCoordination(c));
       return matchesText&&matchesStatus&&matchesType;
     });
@@ -409,14 +437,14 @@
       ];
     }
     const key=currentKey();
-    const incoming=isInspector()?list.filter(c=>!isOwnInspectorNotification(c)):list;
-    const sent=isInspector()?list.filter(isOwnInspectorNotification):[];
+    const incoming=list.filter(c=>!isOwnOutgoing(c));
+    const sent=list.filter(isOwnOutgoing);
     const assigned=incoming.length;
     const completed=incoming.filter(c=>COMPLETE_STATES.has(String(stateFor(c,key).estado||''))).length;
     const inProgress=incoming.filter(c=>String(stateFor(c,key).estado||'')==='en_proceso').length;
     const overdue=incoming.filter(c=>isOverdue(c,{key})).length;
     return [
-      {label:'Asignados',value:assigned,note:sent.length?`${sent.length} notificación${sent.length===1?'':'es'} enviada${sent.length===1?'':'s'}`:'Pedidos y avisos',tone:'blue'},
+      {label:'Asignados',value:assigned,note:sent.length?`${sent.length} comunicación${sent.length===1?'':'es'} enviada${sent.length===1?'':'s'}`:'Pedidos y avisos',tone:'blue'},
       {label:'Completados',value:completed,note:'Respuestas enviadas',tone:'green'},
       {label:'En curso',value:inProgress,note:'Borradores guardados',tone:'amber'},
       {label:'Vencidos',value:overdue,note:'Requieren atención',tone:'red'}
@@ -434,11 +462,13 @@
     const data=summary(c);
     const status=overallStatus(c);
     const active=commId(c)===String(state.selectedId);
-    const outgoing=isOwnInspectorNotification(c);
+    const outgoing=isOwnOutgoing(c);
     const inspectorNotice=isInspectorCompanyNotification(c);
     const coordinationNotice=isInspectorCoordinationNotification(c);
+    const conversation=isDirectConversation(c);
+    const origin=conversationOriginRole(c);
     const responseStatus=!isManager()&&!outgoing?normalizedStatus(c,{key:currentKey()}):status;
-    return `<button type="button" class="dgc-list-item ${active?'is-active':''}" data-dgc-action="select" data-comm-id="${esc(commId(c))}">
+    return `<button type="button" id="comm-card-${esc(commId(c))}" class="dgc-list-item ${active?'is-active':''}" data-dgc-action="select" data-comm-id="${esc(commId(c))}">
       <div class="dgc-list-top">
         <div class="dgc-list-title">${esc(c?.titulo||'Sin título')}</div>
         ${statusBadge(responseStatus)}
@@ -447,7 +477,7 @@
       <div class="dgc-list-preview">${esc(c?.mensaje||'')}</div>
       <div class="dgc-list-foot">
         ${priorityBadge(c)}
-        <span class="dgc-badge ${isNotice(c)?'is-blue':'is-amber'}">${coordinationNotice?'Mensaje a Coordinación':inspectorNotice?'Notificación a empresa':isNotice(c)?'Aviso':'Pedido'}</span>
+        <span class="dgc-badge ${isNotice(c)?'is-blue':'is-amber'}">${conversation?(origin==='empresa'?'Empresa a inspector':'Inspector a empresa'):coordinationNotice?'Mensaje a Coordinación':inspectorNotice?'Notificación a empresa':isNotice(c)?'Aviso':'Pedido con respuesta'}</span>
         ${outgoing?'<span class="dgc-badge">Enviada</span>':''}
         ${copiedToCoordination(c)?'<span class="dgc-badge is-blue">Copia a Coordinación</span>':''}
         ${isManager()?`<span class="dgc-badge">${data.completed}/${data.total} respondieron</span>`:''}
@@ -457,7 +487,7 @@
   function renderInbox(list){
     return `<aside class="dgc-pane dgc-inbox">
       <div class="dgc-pane-head">
-        <div class="dgc-pane-title">${isManager()?'Pedidos y avisos':isInspector()?'Bandeja y enviados':'Mi bandeja'}</div>
+        <div class="dgc-pane-title">${isManager()?'Pedidos y avisos':isInspector()||isCompany()?'Bandeja y enviados':'Mi bandeja'}</div>
         <span class="dgc-count">${list.length}</span>
       </div>
       <div class="dgc-filter-stack">
@@ -473,7 +503,7 @@
           <option value="" ${!state.list.type?'selected':''}>Pedidos y avisos</option>
           <option value="tarea" ${state.list.type==='tarea'?'selected':''}>Solo pedidos</option>
           <option value="notificacion" ${state.list.type==='notificacion'?'selected':''}>Solo avisos</option>
-          ${isInspector()?`<option value="enviadas" ${state.list.type==='enviadas'?'selected':''}>Enviadas</option>`:''}
+          ${isInspector()||isCompany()?`<option value="enviadas" ${state.list.type==='enviadas'?'selected':''}>Enviadas</option>`:''}
           ${isManager()?`<option value="copias" ${state.list.type==='copias'?'selected':''}>Copias de inspectores</option>`:''}
         </select>
       </div>
@@ -494,6 +524,8 @@
   function renderDetailHeader(c){
     const inspectorNotice=isInspectorCompanyNotification(c);
     const coordinationNotice=isInspectorCoordinationNotification(c);
+    const conversation=isDirectConversation(c);
+    const origin=conversationOriginRole(c);
     return `<div class="dgc-detail-head">
       <div class="dgc-detail-head-top">
         <div>
@@ -501,7 +533,7 @@
           <div class="dgc-detail-meta">${esc(formatDate(c?.createdAt||c?.created_at))} · Por ${esc(c?.creadoPor||c?.creado_por_nombre||'Coordinación')} · ${esc(destinationScope(c))}</div>
         </div>
         <div class="dgc-inline-actions">
-          ${statusBadge(overallStatus(c))}${priorityBadge(c)}${coordinationNotice?'<span class="dgc-badge">Inspector a Coordinación</span>':inspectorNotice?'<span class="dgc-badge">Inspector a empresa</span>':''}${copiedToCoordination(c)?'<span class="dgc-badge is-blue">Coordinación en copia</span>':''}${deadline(c)?`<span class="dgc-badge">${esc(formatShortDate(deadline(c)))}</span>`:''}
+          ${statusBadge(overallStatus(c))}${priorityBadge(c)}${conversation?`<span class="dgc-badge">${origin==='empresa'?'Empresa a inspector':'Inspector a empresa'} · Con respuesta</span>`:coordinationNotice?'<span class="dgc-badge">Inspector a Coordinación</span>':inspectorNotice?'<span class="dgc-badge">Inspector a empresa</span>':''}${copiedToCoordination(c)?'<span class="dgc-badge is-blue">Coordinación en copia</span>':''}${deadline(c)?`<span class="dgc-badge">${esc(formatShortDate(deadline(c)))}</span>`:''}
           ${isManager()?`<button type="button" class="dgc-btn dgc-btn-danger" data-dgc-action="delete-communication" data-comm-id="${esc(commId(c))}" ${state.busy?'disabled':''}>${state.busy?'Eliminando…':'Eliminar'}</button>`:''}
         </div>
       </div>
@@ -878,6 +910,34 @@
     </section>`;
   }
 
+  function renderSentConversationDetail(c){
+    if(!c)return `<section class="dgc-pane dgc-detail"><div class="dgc-empty"><strong>Seleccioná una conversación</strong>Elegí un envío para consultar su respuesta.</div></section>`;
+    const destination=destinations(c)[0]||null;
+    const response=destination?stateFor(c,destination.key):{estado:'pendiente'};
+    const status=destination&&isOverdue(c,destination)&&!COMPLETE_STATES.has(String(response.estado||''))
+      ?'vencido'
+      :destination?normalizedStatus(c,destination):'pendiente';
+    const completed=COMPLETE_STATES.has(String(response.estado||''));
+    const fields=schemaFor(c).campos;
+    const values=legacyAnswers(c,response,fields);
+    const recipientLabel=destination?.label||(conversationOriginRole(c)==='empresa'?'Inspector de la zona':'Empresa de la zona');
+    const recipientNoun=conversationOriginRole(c)==='empresa'?'el inspector':'la empresa';
+    return `<section class="dgc-pane dgc-detail">
+      ${renderDetailHeader(c)}
+      <div class="dgc-detail-body">
+        <div class="dgc-response-status">
+          <div><div class="dgc-label">Estado de respuesta</div><div style="margin-top:5px">${statusBadge(status)}</div></div>
+          <div class="dgc-detail-meta">${response?.fecha?`Última actividad: ${esc(formatDate(response.fecha))}`:`${esc(recipientNoun)} todavía no respondió.`}</div>
+        </div>
+        <div class="dgc-delivery-facts">
+          <div><span>Destinatario</span><strong>${esc(recipientLabel)}</strong></div>
+          <div><span>Enviada</span><strong>${esc(formatDate(c?.createdAt||c?.created_at))}</strong></div>
+        </div>
+        ${completed?`<div class="dgc-definition"><h3>Respuesta recibida</h3>${fields.map(field=>`<div class="dgc-response-field"><div class="dgc-label">${esc(field.etiqueta)}</div><div style="margin-top:7px">${renderReadValue(field,values[field.id])}</div></div>`).join('')}${renderAttachments(response?.archivosRespuesta,'Respuesta adjunta')}</div>`:`<div class="dgc-alert">${status==='en_proceso'?`${esc(recipientNoun)} guardó un avance, pero todavía no envió la respuesta.`:`La comunicación está pendiente de respuesta por ${esc(recipientNoun)}.`}</div>`}
+      </div>
+    </section>`;
+  }
+
   function defaultFields(template){
     if(template==='establecimientos')return [normalizeField({id:uniqueId(),tipo:'establecimientos',etiqueta:'Establecimientos a informar',requerido:true,comentarioPorItem:true},0)];
     if(template==='encuesta')return [normalizeField({id:uniqueId(),tipo:'opcion',etiqueta:'Seleccione una opción',requerido:true,opciones:['Sí','No','Parcialmente']},0)];
@@ -929,6 +989,23 @@
       titulo:'',
       mensaje:'',
       campos:[]
+    };
+    state.composeFiles=[];
+  }
+  function resetDirectConversation(originRole){
+    const zone=Number(user()?.zona||0);
+    const fromCompany=originRole==='empresa';
+    state.template='respuesta';
+    state.compose={
+      mode:fromCompany?'empresa_inspector_conversacion':'inspector_empresa_conversacion',
+      tipo:'tarea',
+      alcance:fromCompany?'zona':'empresa_zona',
+      zonas:zone?[zone]:[],
+      prioridad:'normal',
+      fechaLimite:'',
+      titulo:'',
+      mensaje:'',
+      campos:defaultFields('respuesta')
     };
     state.composeFiles=[];
   }
@@ -1003,10 +1080,40 @@
       </div>
     </div>`;
   }
+  function renderDirectConversationDialog(data){
+    const zone=Number(user()?.zona||0);
+    const fromCompany=data.mode==='empresa_inspector_conversacion';
+    const recipient=fromCompany?destinationName('inspector',zone):destinationName('empresa',zone);
+    return `<div class="dgc-dialog-backdrop" role="presentation">
+      <div class="dgc-dialog dgc-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="dgc-dialog-title">
+        <div class="dgc-dialog-head">
+          <div><div class="dgc-dialog-title" id="dgc-dialog-title">${fromCompany?'Escribir al inspector':'Conversar con la empresa'}</div><div class="dgc-dialog-sub">Comunicación de Zona ${zone||'—'} con respuesta habilitada.</div></div>
+          <button type="button" class="dgc-btn dgc-close" aria-label="Cerrar" title="Cerrar" data-dgc-action="close-compose">×</button>
+        </div>
+        <div class="dgc-dialog-body">
+          <div class="dgc-recipient-line"><span>Destinatario</span><strong>${esc(recipient)}</strong></div>
+          <div class="dgc-alert is-success">El destinatario podrá responder con texto y adjuntar archivos dentro de esta comunicación.</div>
+          <div class="dgc-form-section">
+            <div class="dgc-form-grid">
+              <label class="dgc-form-field"><span class="dgc-label">Prioridad</span><select class="dgc-select" data-dgc-compose="prioridad"><option value="normal" ${data.prioridad==='normal'?'selected':''}>Normal</option><option value="alta" ${data.prioridad==='alta'?'selected':''}>Alta</option><option value="urgente" ${data.prioridad==='urgente'?'selected':''}>Urgente</option><option value="baja" ${data.prioridad==='baja'?'selected':''}>Baja</option></select></label>
+              <label class="dgc-form-field is-full"><span class="dgc-label">Título <span class="dgc-required">*</span></span><input class="dgc-input" data-dgc-compose="titulo" value="${esc(data.titulo)}" placeholder="Asunto de la comunicación"></label>
+              <label class="dgc-form-field is-full"><span class="dgc-label">Mensaje <span class="dgc-required">*</span></span><textarea class="dgc-textarea" data-dgc-compose="mensaje" placeholder="Escribí el detalle de la comunicación">${esc(data.mensaje)}</textarea></label>
+              <label class="dgc-form-field is-full"><span class="dgc-label">Archivos adjuntos</span><input class="dgc-input" type="file" multiple accept="image/*,.pdf,.xls,.xlsx,.doc,.docx" data-dgc-compose-files><span class="dgc-help">${state.composeFiles.length?`${state.composeFiles.length} archivo(s) seleccionado(s)`:'Opcional'}</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="dgc-dialog-foot">
+          <div class="dgc-sync"><span class="dgc-sync-dot ${window.DGIE_DB?.isConfigured?'':'is-warn'}"></span>${window.DGIE_DB?.isConfigured?'Listo para enviar':'Sin conexión'}</div>
+          <div class="dgc-inline-actions"><button type="button" class="dgc-btn" data-dgc-action="close-compose">Cancelar</button><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="save-communication" ${state.busy?'disabled':''}>${state.busy?'Enviando…':'Enviar comunicación'}</button></div>
+        </div>
+      </div>
+    </div>`;
+  }
   function renderCreateDialog(){
     if(!state.formOpen||!state.compose)return '';
     const data=state.compose;
     if(data.mode==='inspector_empresa')return renderInspectorNotificationDialog(data);
+    if(['inspector_empresa_conversacion','empresa_inspector_conversacion'].includes(data.mode))return renderDirectConversationDialog(data);
     if(data.mode==='inspector_coordinacion')return renderCoordinationNotificationDialog(data);
     const needsZones=['zona','empresa_zona'].includes(data.alcance);
     return `<div class="dgc-dialog-backdrop" role="presentation">
@@ -1058,20 +1165,24 @@
     const subtitle=isManager()
       ?'Creá pedidos estructurados, seguí cada respuesta y exportá resultados consolidados.'
       :isInspector()
-        ?'Respondé pedidos, consultá avisos, notificá a la empresa de tu zona y escribile a Coordinación.'
-        :'Consultá las comunicaciones recibidas y registrá su lectura.';
+        ?'Respondé pedidos, conservá avisos informativos y conversá con la empresa de tu zona.'
+        :isCompany()
+          ?'Enviá comunicaciones al inspector de tu zona y respondé las que recibas.'
+          :'Consultá las comunicaciones recibidas y registrá su lectura.';
     const managerIsRecipient=isManager()&&isInspectorCoordinationNotification(selected);
     const detail=managerIsRecipient
       ?renderInspectorDetail(selected)
       :isManager()
         ?renderManagerDetail(selected)
-        :isOwnInspectorNotification(selected)
-          ?renderInspectorSentDetail(selected)
-          :renderInspectorDetail(selected);
+        :isOwnDirectConversation(selected)
+          ?renderSentConversationDetail(selected)
+          :isOwnInspectorNotification(selected)
+            ?renderInspectorSentDetail(selected)
+            :renderInspectorDetail(selected);
     state.container.innerHTML=`<div class="dgc-page" id="dgc-root">
       <div class="dgc-header">
         <div><h1>${isManager()?'Comunicaciones y pedidos':'Comunicaciones'}</h1><p>${subtitle}</p></div>
-        ${isManager()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button></div>`:isInspector()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-company-notification">Notificar a empresa</button><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-coordination-message">Escribir a Coordinación</button></div>`:''}
+        ${isManager()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button></div>`:isInspector()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-company-conversation">Conversar con empresa</button><button type="button" class="dgc-btn" data-dgc-action="new-company-notification">Notificar sin respuesta</button><button type="button" class="dgc-btn" data-dgc-action="new-coordination-message">Escribir a Coordinación</button></div>`:isCompany()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-inspector-conversation">Escribir al inspector</button></div>`:''}
       </div>
       ${state.toast?`<div class="dgc-alert ${state.toast.type==='error'?'is-error':state.toast.type==='success'?'is-success':''}">${esc(state.toast.message)}</div>`:''}
       ${renderGlobalKpis(list)}
@@ -1187,7 +1298,7 @@
   function validateCompose(){
     const data=state.compose;
     if(!data?.titulo.trim()||!data?.mensaje.trim())return 'Completá el título y las instrucciones.';
-    if(['inspector_empresa','inspector_coordinacion'].includes(data.mode)&&!Number(user()?.zona||0))return 'No se pudo determinar la zona del inspector.';
+    if(['inspector_empresa','inspector_coordinacion','inspector_empresa_conversacion','empresa_inspector_conversacion'].includes(data.mode)&&!Number(user()?.zona||0))return 'No se pudo determinar la zona de la sesión.';
     if(['zona','empresa_zona'].includes(data.alcance)&&!data.zonas.length)return 'Seleccioná al menos una zona destinataria.';
     if(data.tipo==='tarea'){
       if(!data.campos.length)return 'Agregá al menos un campo para la respuesta.';
@@ -1211,19 +1322,27 @@
       const data=state.compose;
       const isCompanyMode=data.mode==='inspector_empresa';
       const isCoordMode=data.mode==='inspector_coordinacion';
-      const inspectorMode=isCompanyMode||isCoordMode;
-      const profile=inspectorMode?await verifiedInspectorProfile():await verifiedManagerProfile();
-      const inspectorZone=Number(profile?.zona||user()?.zona||0);
+      const inspectorConversation=data.mode==='inspector_empresa_conversacion';
+      const companyConversation=data.mode==='empresa_inspector_conversacion';
+      const directConversation=inspectorConversation||companyConversation;
+      const inspectorMode=isCompanyMode||isCoordMode||inspectorConversation;
+      const profile=companyConversation?await verifiedCompanyProfile():inspectorMode?await verifiedInspectorProfile():await verifiedManagerProfile();
+      const sessionZone=Number(profile?.zona||user()?.zona||0);
       if(isCompanyMode){
         data.tipo='notificacion';
         data.alcance='empresa_zona';
-        data.zonas=[inspectorZone];
+        data.zonas=[sessionZone];
         data.campos=[];
       }else if(isCoordMode){
         data.tipo='notificacion';
         data.alcance='coordinador';
-        data.zonas=[inspectorZone];
+        data.zonas=[sessionZone];
         data.campos=[];
+      }else if(directConversation){
+        data.tipo='tarea';
+        data.alcance=companyConversation?'zona':'empresa_zona';
+        data.zonas=[sessionZone];
+        data.campos=[normalizeField({id:'respuesta_conversacion',tipo:'parrafo',etiqueta:'Respuesta',requerido:true,ayuda:'Podés responder con texto y adjuntar archivos.'},0)];
       }
       const files=await readFiles(state.composeFiles,'comunicaciones');
       const config={
@@ -1232,9 +1351,9 @@
           prioridad:data.prioridad,
           fechaLimite:data.fechaLimite||'',
           estado:'activo',
-          clase:isCoordMode?'notificacion_coordinacion':isCompanyMode?'notificacion_empresa':'comunicacion_gestion',
-          origenRol:inspectorMode?'inspector':String(profile?.rol||role()),
-          origenZona:inspectorMode?inspectorZone:null,
+          clase:directConversation?DIRECT_CONVERSATION_CLASS:isCoordMode?'notificacion_coordinacion':isCompanyMode?'notificacion_empresa':'comunicacion_gestion',
+          origenRol:companyConversation?'empresa':inspectorMode?'inspector':String(profile?.rol||role()),
+          origenZona:directConversation||inspectorMode?sessionZone:null,
           copiaCoordinacion:isCompanyMode?!!data.copiaCoordinacion:false
         },
         campos:data.tipo==='tarea'?data.campos.map(normalizeField):[]
@@ -1264,7 +1383,7 @@
       state.composeFiles=[];
       state.detailView='resumen';
       state.lastSync=Date.now();
-      showToast(isCoordMode?'Mensaje enviado a Coordinación.':isCompanyMode?'Notificación enviada a la empresa.':'Pedido enviado y guardado correctamente.','success');
+      showToast(directConversation?'Comunicación enviada. El destinatario ya puede responder.':isCoordMode?'Mensaje enviado a Coordinación.':isCompanyMode?'Notificación enviada a la empresa.':'Pedido enviado y guardado correctamente.','success');
     }catch(error){
       showToast(`No se pudo enviar la comunicación: ${error?.message||error}`,'error');
     }finally{
@@ -1372,11 +1491,16 @@
         delete next.completadoFecha;
       }
       await mergeRemoteState(c,key,next);
+      if(complete&&c?._remoteSaved&&commId(c)&&typeof window.DGIE_PUSH?.dispatch==='function'){
+        const responseSource=`${commId(c)}:respuesta|${encodeURIComponent(key)}|${Date.now()}`;
+        await window.DGIE_PUSH.dispatch('comunicado',responseSource);
+      }
       delete state.dirtyResponses[commId(c)];
       state.responseFiles[commId(c)]=[];
       state.editingResponses[commId(c)]=false;
       state.lastSync=Date.now();
-      showToast(complete?'Respuesta enviada a Coordinación.':'Avance guardado.','success');
+      const responseTarget=isDirectConversation(c)?(conversationOriginRole(c)==='empresa'?'a la empresa':'al inspector'):'a Coordinación';
+      showToast(complete?`Respuesta enviada ${responseTarget}.`:'Avance guardado.','success');
     }catch(error){
       showToast(`No se pudo guardar la respuesta: ${error?.message||error}`,'error');
     }finally{
@@ -1601,6 +1725,8 @@
     if(action==='refresh'){await refreshRemote();return;}
     if(action==='new-communication'){resetCompose('respuesta');state.formOpen=true;renderPage();return;}
     if(action==='new-company-notification'){resetInspectorNotification();state.formOpen=true;renderPage();return;}
+    if(action==='new-company-conversation'){resetDirectConversation('inspector');state.formOpen=true;renderPage();return;}
+    if(action==='new-inspector-conversation'){resetDirectConversation('empresa');state.formOpen=true;renderPage();return;}
     if(action==='new-coordination-message'){resetCoordinationNotification();state.formOpen=true;renderPage();return;}
     if(action==='close-compose'){state.formOpen=false;state.compose=null;state.composeFiles=[];renderPage();return;}
     if(action==='template'){

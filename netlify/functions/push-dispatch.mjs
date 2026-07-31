@@ -27,6 +27,21 @@ function sourceParts(value){
     ?{recordId:source.slice(0,separator),eventKey:source.slice(separator+1)}
     :{recordId:source,eventKey:''};
 }
+function communicationResponseEvent(record,eventKey){
+  if(!String(eventKey||'').startsWith('respuesta|'))return null;
+  const parts=String(eventKey).split('|');
+  let key='';
+  try{key=decodeURIComponent(parts[1]||'');}catch(_){key=parts[1]||'';}
+  const response=record?.estados?.[key];
+  if(!key||!response)return null;
+  return {
+    type:'response',
+    key,
+    author:clean(response.usuario||response.completadoPor||'Usuario',120),
+    text:clean(response.respuestaTexto||'Nueva respuesta disponible.',300),
+    date:clean(response.fecha||response.completadoFecha||'',80)
+  };
+}
 function commentsForRecord(kind,record){
   if(kind==='comentario_intervencion')return Array.isArray(record?.comentarios_coordinacion)?record.comentarios_coordinacion:[];
   const data=record?.datos&&typeof record.datos==='object'?record.datos:{};
@@ -57,13 +72,28 @@ function serverClient(secret){
     auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
   });
 }
-function canDispatchCommunication(profile,communication){
+function canDispatchCommunication(profile,communication,event){
   const role=normalizedRole(profile?.rol);
   const scope=clean(communication?.alcance,40);
   const zones=numericZones(communication?.zonas);
+  const zone=Number(profile?.zona||0);
+  const metadata=communication?.encuesta?.meta||{};
+  if(event?.type==='response'){
+    if(!authorMatches(profile,event))return false;
+    if(['coordinador','director'].includes(role))return event.key==='coordinacion'&&scope==='coordinador';
+    if(role==='inspector')return event.key===String(zone)&&['general','zona'].includes(scope)&&(!zones.length||zones.includes(zone));
+    if(role==='empresa')return event.key===`empresa-${zone}`&&['empresas','empresa_zona'].includes(scope)&&(!zones.length||zones.includes(zone));
+    return false;
+  }
+  if(String(communication?.creado_por||'')!==String(profile?.id||''))return false;
   if(['coordinador','director'].includes(role))return true;
-  if(role!=='inspector'||!['empresa_zona','coordinador'].includes(scope))return false;
-  return zones.length===1&&zones[0]===Number(profile?.zona||0);
+  if(role==='inspector')return ['empresa_zona','coordinador'].includes(scope)&&zones.length===1&&zones[0]===zone;
+  return role==='empresa'
+    &&scope==='zona'
+    &&zones.length===1
+    &&zones[0]===zone
+    &&metadata.clase==='conversacion_inspector_empresa'
+    &&normalizedRole(metadata.origenRol)==='empresa';
 }
 function canDispatchClaim(profile,claim){
   const role=normalizedRole(profile?.rol);
@@ -95,10 +125,11 @@ function recipientsForEvent(profiles,kind,record,senderProfile){
   }
   return profiles.filter(profile=>normalizedRole(profile?.rol)==='coordinador');
 }
-function recipientsForCommunication(profiles,communication){
+function recipientsForCommunication(profiles,communication,event){
   const scope=clean(communication?.alcance,40);
   const zones=new Set(numericZones(communication?.zonas));
   const metadata=communication?.encuesta?.meta||{};
+  if(event?.type==='response')return profiles.filter(profile=>String(profile?.id||'')===String(communication?.creado_por||''));
   const recipients=profiles.filter(profile=>{
     const role=normalizedRole(profile?.rol);
     const zone=Number(profile?.zona||0);
@@ -118,12 +149,13 @@ async function loadEvent(admin,kind,sourceId,userId){
   const parts=sourceParts(sourceId);
   if(kind==='comunicado'){
     const {data,error}=await admin.from('comunicaciones')
-      .select('id,tipo,titulo,mensaje,alcance,zonas,creado_por,creado_por_nombre,encuesta')
+      .select('id,tipo,titulo,mensaje,alcance,zonas,creado_por,creado_por_nombre,encuesta,estados')
       .eq('id',parts.recordId).maybeSingle();
     if(error)throw error;
     if(!data)return {error:json({error:'La comunicacion no existe.'},404)};
-    if(String(data.creado_por||'')!==String(userId))return {error:json({error:'No podes emitir esta comunicacion.'},403)};
-    return {record:data};
+    const event=parts.eventKey?communicationResponseEvent(data,parts.eventKey):null;
+    if(parts.eventKey&&!event)return {error:json({error:'La respuesta no existe.'},404)};
+    return {record:data,event};
   }
   if(kind==='reclamo'){
     const {data,error}=await admin.from('reclamos')
@@ -159,8 +191,8 @@ async function loadEvent(admin,kind,sourceId,userId){
 async function notificationContent(admin,kind,record,sourceId,event){
   if(kind==='comunicado'){
     return {
-      title:'Nuevo comunicado',
-      body:clean(record.titulo||record.mensaje||'Tenes un nuevo comunicado.'),
+      title:event?.type==='response'?'Nueva respuesta': 'Nuevo comunicado',
+      body:event?.type==='response'?clean([event.author,event.text].filter(Boolean).join(': '),300):clean(record.titulo||record.mensaje||'Tenes un nuevo comunicado.'),
       url:'/?dgiePush=comunicado&sourceId='+encodeURIComponent(record.id)
     };
   }
@@ -222,7 +254,7 @@ export default async request=>{
     if(eventResult.error)return eventResult.error;
     const record=eventResult.record;
     const event=eventResult.event||null;
-    if(kind==='comunicado'&&!canDispatchCommunication(profile,record))return json({error:'El perfil no puede emitir este comunicado.'},403);
+    if(kind==='comunicado'&&!canDispatchCommunication(profile,record,event))return json({error:'El perfil no puede emitir este comunicado.'},403);
     if(kind==='reclamo'&&!canDispatchClaim(profile,record))return json({error:'El perfil no puede emitir este reclamo.'},403);
     if(kind==='certificado'&&!canDispatchCertificate(profile,record))return json({error:'El perfil no puede emitir este certificado.'},403);
     if(kind.startsWith('comentario_')&&!canDispatchComment(profile,record,event))return json({error:'El perfil no puede emitir este comentario.'},403);
@@ -230,7 +262,7 @@ export default async request=>{
     const {data:profiles,error:profilesError}=await admin.from('perfiles').select('id,rol,zona');
     if(profilesError)throw profilesError;
     const recipients=kind==='comunicado'
-      ?recipientsForCommunication(profiles||[],record)
+      ?recipientsForCommunication(profiles||[],record,event)
       :kind==='reclamo'
         ?(profiles||[]).filter(item=>normalizedRole(item.rol)==='inspector'&&Number(item.zona||0)===Number(record.zona||0))
         :recipientsForEvent(profiles||[],kind,record,profile);

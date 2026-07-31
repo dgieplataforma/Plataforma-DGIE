@@ -191,7 +191,7 @@
     if(!sourceId)return null;
     if(state.pendingKind==='comunicado'){
       const rows=typeof COMUNICACIONES!=='undefined'&&Array.isArray(COMUNICACIONES)?COMUNICACIONES:[];
-      return rows.find(item=>String(item?.remoteId||item?.id||'')===sourceId)||null;
+      return rows.find(item=>String(item?.remoteId||item?.id||'')===recordId)||null;
     }
     if(state.pendingKind==='certificado'){
       const rows=typeof CERTIFICADOS_MEDICION!=='undefined'&&Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[];
@@ -217,7 +217,7 @@
     const recordId=sourceId.split(':')[0];
     if(!sourceId)return null;
     if(state.pendingKind==='comunicado'){
-      const direct=document.getElementById(`comm-card-${sourceId}`);
+      const direct=document.getElementById(`comm-card-${recordId}`);
       if(direct)return direct;
       const record=pendingRecord();
       const needle=String(record?.titulo||record?.mensaje||'').trim();
@@ -308,6 +308,16 @@
       setTimeout(()=>{
         const record=pendingRecord();
         if(record&&typeof window.verDetalleIntervencion==='function')window.verDetalleIntervencion(record.id);
+        schedulePushFocus();
+      },120);
+    }else if(kind==='comunicado'){
+      setTimeout(()=>{
+        const record=pendingRecord();
+        const id=String(record?.remoteId||record?.id||state.pendingSourceId.split(':')[0]||'');
+        if(id&&window.DGIE_COMUNICACIONES_PRO?.state){
+          window.DGIE_COMUNICACIONES_PRO.state.selectedId=id;
+          window.DGIE_COMUNICACIONES_PRO.render?.();
+        }
         schedulePushFocus();
       },120);
     }else{
