@@ -22770,15 +22770,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     ensureModal();
     byId('os-attachments-title').textContent=`Adjuntos · ${order?.numero||'Orden'}`;
     byId('os-attachments-sub').textContent=`${files.length} archivos disponibles`;
-    byId('os-attachments-body').innerHTML=files.map(file=>`<div class="os-attachments-download"><span class="os-attachment-type">${tipoLabel(file)}</span><div><div class="os-attachment-name">${esc(nombre(file))}</div><div class="os-attachment-meta">${esc(sizeLabel(file?.size)||tipoLabel(file))}</div></div><button type="button" class="secondary-btn" onclick="descargarArchivoAdjuntoOS('${js(safeDownloadUrl(file))}','${js(nombre(file))}')">Descargar</button></div>`).join('');
+    byId('os-attachments-body').innerHTML=files.map(file=>`<div class="os-attachments-download"><span class="os-attachment-type">${tipoLabel(file)}</span><div><div class="os-attachment-name">${esc(nombre(file))}</div><div class="os-attachment-meta">${esc(sizeLabel(file?.size)||tipoLabel(file))}</div></div><button type="button" class="secondary-btn" onclick="descargarArchivoAdjuntoOS('${js(safeDownloadUrl(file))}','${js(nombre(file))}')">Vista previa</button></div>`).join('');
     byId('os-attachments-modal').classList.add('visible');
   };
   function buttonFor(order){
     const files=adjuntos(order);
     if(!files.length)return'';
     const key=order?.remoteId||order?.id||order?.numero||'';
-    const label=files.length===1?'Descargar adjunto':`Adjuntos (${files.length})`;
-    return `<button class="pdf-btn os-attachment-action" type="button" title="Descargar archivos adjuntos" onclick="abrirDescargaAdjuntosOS('${js(key)}')">${esc(label)}</button>`;
+    const label=files.length===1?'Ver adjunto':`Adjuntos (${files.length})`;
+    return `<button class="pdf-btn os-attachment-action" type="button" title="Ver archivos adjuntos" onclick="abrirDescargaAdjuntosOS('${js(key)}')">${esc(label)}</button>`;
   }
   let pdfJsPromise=null;
   let printBuildBusy=false;
@@ -24538,7 +24538,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
-<script src="./dgie-file-viewer.js?v=20260723-4"></script>
+<script src="./dgie-file-viewer.js?v=20260731-5"></script>
 <script src="./dgie-notificaciones.js?v=20260731-3"></script>
 </body>
 </html>

@@ -2,11 +2,12 @@
   'use strict';
 
   const IMAGE_EXTENSIONS=new Set(['jpg','jpeg','png','gif','webp','bmp','svg','avif']);
+  const VIDEO_EXTENSIONS=new Set(['mp4','webm','ogv','ogg','mov','m4v','3gp']);
   const SHEET_EXTENSIONS=new Set(['xls','xlsx','xlsm','csv','ods']);
   const TEXT_EXTENSIONS=new Set(['txt','json','xml','log','dxf']);
   const GENERIC_EXTENSIONS=new Set(['doc','docx','dwg','zip','rar']);
-  const VIEWABLE_EXTENSIONS=new Set([...IMAGE_EXTENSIONS,'pdf',...SHEET_EXTENSIONS,...TEXT_EXTENSIONS,...GENERIC_EXTENSIONS]);
-  const state={open:false,token:'',url:'',name:'',objectUrls:[],lastFocus:null,bodyOverflow:''};
+  const VIEWABLE_EXTENSIONS=new Set([...IMAGE_EXTENSIONS,...VIDEO_EXTENSIONS,'pdf',...SHEET_EXTENSIONS,...TEXT_EXTENSIONS,...GENERIC_EXTENSIONS]);
+  const state={open:false,token:'',url:'',name:'',mimeType:'',objectUrls:[],lastFocus:null,bodyOverflow:''};
   let nativeWindowOpen=null;
 
   function esc(value){
@@ -46,20 +47,35 @@
       return part||explicit||'Archivo';
     }catch(_){return explicit||'Archivo'}
   }
-  function kindOf(url,name=''){
+  function kindFromMime(value){
+    const mime=String(value||'').split(';')[0].trim().toLowerCase();
+    if(mime.startsWith('image/'))return 'image';
+    if(mime.startsWith('video/'))return 'video';
+    if(mime==='application/pdf')return 'pdf';
+    if(/spreadsheet|excel|csv/.test(mime))return 'sheet';
+    if(mime.startsWith('text/')||/json|xml/.test(mime))return 'text';
+    return '';
+  }
+  function kindOf(url,name='',mimeType=''){
     const ext=extensionOf(url,name);
     if(IMAGE_EXTENSIONS.has(ext))return 'image';
+    if(VIDEO_EXTENSIONS.has(ext))return 'video';
     if(ext==='pdf')return 'pdf';
     if(SHEET_EXTENSIONS.has(ext))return 'sheet';
     if(TEXT_EXTENSIONS.has(ext))return 'text';
     if(GENERIC_EXTENSIONS.has(ext))return 'generic';
+    const mimeKind=kindFromMime(mimeType);
+    if(mimeKind)return mimeKind;
     if(/^data:image\//i.test(url)||/^blob:/i.test(url)&&IMAGE_EXTENSIONS.has(extensionOf('',name)))return 'image';
+    if(/^data:video\//i.test(url)||/^blob:/i.test(url)&&VIDEO_EXTENSIONS.has(extensionOf('',name)))return 'video';
     if(/^data:application\/pdf/i.test(url))return 'pdf';
+    if(/res\.cloudinary\.com\/[^/]+\/video\/upload\//i.test(url))return 'video';
     return '';
   }
   function isViewable(url,name=''){
     return !!kindOf(url,name)||VIEWABLE_EXTENSIONS.has(extensionOf(url,name));
   }
+  function isStoredFileUrl(url){return /res\.cloudinary\.com\/[^/]+\/(?:image|video|raw)\/upload\//i.test(String(url||''));}
   function byId(id){return document.getElementById(id)}
   function revokeObjectUrls(){
     state.objectUrls.forEach(url=>{try{URL.revokeObjectURL(url)}catch(_){}});
@@ -84,6 +100,8 @@
       .dgie-file-viewer-loading,.dgie-file-viewer-error,.dgie-file-viewer-unsupported{display:flex;min-height:280px;align-items:center;justify-content:center;text-align:center;padding:28px;color:#475569;font:700 14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
       .dgie-file-viewer-error{color:#b42318}
       .dgie-file-viewer-image-wrap{width:100%;min-height:100%;display:flex;align-items:center;justify-content:center}
+      .dgie-file-viewer-video-wrap{width:100%;min-height:100%;display:flex;align-items:center;justify-content:center}
+      .dgie-file-viewer-video{display:block;width:auto;height:auto;max-width:100%;max-height:calc(100vh - 100px);background:#000;box-shadow:0 8px 28px rgba(15,23,42,.2)}
       .dgie-file-viewer-image{display:block;max-width:100%;max-height:calc(100vh - 100px);object-fit:contain;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.13)}
       .dgie-file-viewer-frame{display:block;width:100%;height:100%;min-height:calc(100vh - 96px);border:0;background:#fff}
       .dgie-sheet-shell{display:flex;flex-direction:column;min-height:100%;gap:10px}
@@ -141,6 +159,7 @@
   function friendlyType(kind,ext){
     if(kind==='image')return 'Imagen';
     if(kind==='pdf')return 'Documento PDF';
+    if(kind==='video')return 'Video';
     if(kind==='sheet')return `Planilla ${ext?ext.toUpperCase():''}`.trim();
     if(kind==='text')return 'Documento de texto';
     if(kind==='generic')return `Archivo ${ext?ext.toUpperCase():''}`.trim();
@@ -160,6 +179,12 @@
     image.alt=name;
     image.addEventListener('error',()=>setBody('<div class="dgie-file-viewer-error">No se pudo mostrar la imagen. Podés descargarla desde el botón superior.</div>'),{once:true});
     image.src=inlineCloudinaryUrl(url);
+  }
+  async function renderVideo(url,name){
+    const source=inlineCloudinaryUrl(url);
+    setBody(`<div class="dgie-file-viewer-video-wrap"><video class="dgie-file-viewer-video" controls playsinline preload="metadata" aria-label="${esc(name||'Video')}"><source src="${esc(source)}"></video></div>`);
+    const video=byId('dgie-file-viewer-body')?.querySelector('video');
+    video?.addEventListener('error',()=>setBody('<div class="dgie-file-viewer-error">No se pudo reproducir el video. Podés descargarlo desde el botón superior.</div>'),{once:true});
   }
   async function renderPdf(url){
     setLoading('Preparando PDF...');
@@ -225,10 +250,24 @@
     const entries=Object.values(zip.files).filter(entry=>!entry.dir);
     setBody(`<div class="dgie-text-preview" style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif"><strong>${entries.length} archivo${entries.length===1?'':'s'} en el contenido</strong><div style="display:grid;gap:7px;margin-top:14px">${entries.map(entry=>`<div style="padding:7px 9px;border:1px solid #dce6ef;border-radius:6px;background:#f8fafc">${esc(entry.name)}</div>`).join('')}</div></div>`);
   }
+  async function detectKind(){
+    const known=kindOf(state.url,state.name,state.mimeType);
+    if(known)return known;
+    try{
+      const response=await fetch(inlineCloudinaryUrl(state.url),{method:'HEAD',credentials:'omit',cache:'no-store'});
+      if(response.ok){
+        state.mimeType=response.headers.get('content-type')||'';
+        return kindOf(state.url,state.name,state.mimeType);
+      }
+    }catch(_){}
+    return '';
+  }
   async function renderCurrent(){
-    const kind=kindOf(state.url,state.name);
+    const kind=await detectKind();
+    byId('dgie-file-viewer-type').textContent=friendlyType(kind,extensionOf(state.url,state.name));
     try{
       if(kind==='image')return await renderImage(state.url,state.name);
+      if(kind==='video')return await renderVideo(state.url,state.name);
       if(kind==='pdf')return await renderPdf(state.url);
       if(kind==='sheet')return await renderSheet(state.url);
       if(kind==='text')return await renderText(state.url);
@@ -248,9 +287,10 @@
     revokeObjectUrls();
     state.url=source;
     state.name=inferredName(source,name);
+    state.mimeType=String(options.mimeType||options.type||'');
     state.lastFocus=document.activeElement;
     byId('dgie-file-viewer-name').textContent=state.name;
-    const kind=kindOf(source,state.name);
+    const kind=kindOf(source,state.name,state.mimeType);
     byId('dgie-file-viewer-type').textContent=friendlyType(kind,extensionOf(source,state.name));
     byId('dgie-file-viewer-download').textContent=kind==='sheet'?'Descargar para editar':'Descargar';
     byId('dgie-file-viewer').classList.add('visible');
@@ -310,26 +350,35 @@
     const rawHref=String(anchor?.getAttribute?.('href')||'').trim();
     if(!rawHref||rawHref==='#'||rawHref.startsWith('#'))return null;
     const href=cleanUrl(anchor?.href||rawHref);
-    if(!href||href.startsWith('blob:')||anchor?.dataset?.dgieNativeDownload)return null;
+    if(!href||anchor?.dataset?.dgieNativeDownload||anchor?.dataset?.dgieNoPreview)return null;
     const name=anchor.getAttribute('download')||anchor.textContent?.trim()||'';
-    return isViewable(href,name)?{url:href,name}:null;
+    return isViewable(href,name)||isStoredFileUrl(href)?{url:href,name}:null;
+  }
+  function dataFileInfo(target){
+    const element=target?.closest?.('[data-file-url],[data-dgie-file-url]');
+    if(!element||element.closest('#dgie-file-viewer')||element.dataset.dgieNoPreview)return null;
+    const url=cleanUrl(element.dataset.fileUrl||element.dataset.dgieFileUrl||'');
+    const name=element.dataset.fileName||element.dataset.dgieFileName||element.textContent?.trim()||'Archivo';
+    const mimeType=element.dataset.fileType||element.dataset.dgieFileType||'';
+    return url&&(isViewable(url,name)||isStoredFileUrl(url)||kindFromMime(mimeType))?{url,name,mimeType}:null;
   }
   function imageFileInfo(target){
     const image=target?.closest?.('img');
-    if(!image)return null;
-    if(!image.matches('.reclamo-foto-thumb,.foto-grid img,.foto-item img,.intervencion-photo-row img,[data-dgie-file-image]'))return null;
+    if(!image||image.closest('#dgie-file-viewer')||image.dataset.dgieNoPreview)return null;
     const url=cleanUrl(image.dataset?.full||image.currentSrc||image.src);
-    return url?{url,name:image.alt||image.title||'Imagen'}:null;
+    const uploaded=image.matches('.reclamo-foto-thumb,.foto-grid img,.foto-item img,.intervencion-photo-row img,[data-dgie-file-image]')||isStoredFileUrl(url)||/^data:image\//i.test(url)||/^blob:/i.test(url);
+    if(!uploaded)return null;
+    return url?{url,name:image.alt||image.title||'Imagen',mimeType:'image/*'}:null;
   }
   function interceptClick(event){
     if(event.defaultPrevented||event.button!==0)return;
     const link=event.target?.closest?.('a[href]');
-    const info=link?linkFileInfo(link):imageFileInfo(event.target);
+    const info=dataFileInfo(event.target)||(link?linkFileInfo(link):imageFileInfo(event.target));
     if(!info)return;
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    openViewer(info.url,info.name);
+    openViewer(info.url,info.name,{mimeType:info.mimeType||''});
   }
 
   window.abrirArchivoDGIE=openViewer;
@@ -347,10 +396,53 @@
   nativeWindowOpen=window.open.bind(window);
   window.open=function(url,target,features){
     const source=typeof url==='string'?cleanUrl(url):'';
-    if(source&&isViewable(source,'')){
+    if(source&&(isViewable(source,'')||isStoredFileUrl(source))){
       openViewer(source,'');
       return null;
     }
     return nativeWindowOpen(url,target,features);
   };
+})();
+(function(){
+  'use strict';
+  const cleanUrl=value=>String(value||'').trim();
+  const openViewer=window.abrirArchivoDGIE;
+  function certificateFileInfo(id,kind){
+    let rows=[];
+    try{rows=Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[]}catch(_){rows=[]}
+    const record=rows.find(item=>String(item?.id)===String(id)||String(item?.localId)===String(id));
+    if(!record)return null;
+    const original=kind==='original';
+    const url=cleanUrl(original?record?.url_original:(record?.url_inspector||record?.url_original));
+    const name=original?(record?.archivo_original||'Certificado'):(record?.archivo_inspector||record?.archivo_original||'Certificado');
+    return url?{url,name}:null;
+  }
+  function installFunctionAdapters(){
+    const communicationDownload=window.descargarArchivoComunicacion;
+    if(typeof communicationDownload==='function'&&!communicationDownload.__dgiePreviewWrapped){
+      const wrapped=async function(url,name){
+        if(cleanUrl(url))return openViewer(url,name||'Archivo');
+        return communicationDownload.apply(this,arguments);
+      };
+      wrapped.__dgiePreviewWrapped=true;
+      window.descargarArchivoComunicacion=wrapped;
+    }
+    const certificateDownload=window.descargarCertificadoArchivo;
+    if(typeof certificateDownload==='function'&&!certificateDownload.__dgiePreviewWrapped){
+      const wrapped=async function(id,kind){
+        const file=certificateFileInfo(id,kind);
+        if(file)return openViewer(file.url,file.name);
+        return certificateDownload.apply(this,arguments);
+      };
+      wrapped.__dgiePreviewWrapped=true;
+      window.descargarCertificadoArchivo=wrapped;
+    }
+    const orderDownload=window.descargarArchivoAdjuntoOS;
+    if(typeof orderDownload==='function'&&!orderDownload.__dgiePreviewWrapped){
+      const wrapped=async function(url,name){return cleanUrl(url)?openViewer(url,name||'Adjunto'):orderDownload.apply(this,arguments)};
+      wrapped.__dgiePreviewWrapped=true;
+      window.descargarArchivoAdjuntoOS=wrapped;
+    }
+  }
+  installFunctionAdapters();
 })();
