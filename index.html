@@ -24508,14 +24508,21 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(typeof window.dgieSmartClear==='function')window.dgieSmartClear('os');
     else if(typeof window.filterOS==='function')window.filterOS();
   }
+  // dgie-reclamo-orden-tabs-principales-2026-07-31
+  function abrirSeccionOrdenesInspector(){
+    const tabs=typeof window.dgieTabsForUser==='function'?window.dgieTabsForUser(currentUser):(typeof window.tabsForUser==='function'?window.tabsForUser(currentUser):[]);
+    const index=(tabs||[]).findIndex(tab=>tab==='Órdenes de servicio'||String(tab||'').startsWith('Órdenes de servicio · Zona'));
+    if(index>=0&&typeof window.renderTab==='function'){window.renderTab(index);return true}
+    if(typeof window.switchZonaTab==='function'){window.switchZonaTab(2);return !!document.getElementById('os-table-body')}
+    return false;
+  }
 
   window.irAOrdenServicioDesdeReclamo=function(keyCodificado){
     let key='';try{key=decodeURIComponent(String(keyCodificado||''))}catch(_e){key=String(keyCodificado||'')}
     const orden=buscarOrden(key);
     if(!orden){alert('No se encontró la orden de servicio vinculada.');return}
     if(currentUser?.role!=='inspector'||Number(zonaItem(orden))!==Number(currentUser?.zona||0)){alert('No tenés permiso para ver esta orden de servicio.');return}
-    if(typeof window.switchZonaTab!=='function'){alert('No se pudo abrir el listado de órdenes de servicio.');return}
-    window.switchZonaTab(2);
+    if(!abrirSeccionOrdenesInspector()){alert('No se pudo abrir el listado de órdenes de servicio.');return}
     setTimeout(()=>aplicarBusqueda(orden.numero),0);
     [40,120,320,800,1600,3200].forEach(delay=>setTimeout(()=>ubicarOrden(orden.numero),delay));
     setTimeout(()=>document.querySelectorAll('#os-table-body tr.dgie-os-fila-ubicada').forEach(row=>row.classList.remove('dgie-os-fila-ubicada')),8000);
