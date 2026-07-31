@@ -976,6 +976,11 @@
     };
     state.composeFiles=[];
   }
+  function resetInspectorCompanySelector(){
+    state.template='';
+    state.compose={mode:'inspector_empresa_selector'};
+    state.composeFiles=[];
+  }
   function resetCoordinationNotification(){
     const zone=Number(user()?.zona||0);
     state.template='aviso';
@@ -1005,7 +1010,8 @@
       fechaLimite:'',
       titulo:'',
       mensaje:'',
-      campos:defaultFields('respuesta')
+      campos:defaultFields('respuesta'),
+      copiaCoordinacion:false
     };
     state.composeFiles=[];
   }
@@ -1021,12 +1027,31 @@
       ${field.tipo==='establecimientos'?`<label class="dgc-check" style="margin-top:8px"><input type="checkbox" data-dgc-field-prop="comentarioPorItem" data-field-id="${esc(field.id)}" ${field.comentarioPorItem?'checked':''}> Solicitar un comentario por cada establecimiento</label>`:''}
     </div>`;
   }
+  function renderInspectorCompanySelectorDialog(){
+    const zone=Number(user()?.zona||0);
+    return `<div class="dgc-dialog-backdrop" role="presentation">
+      <div class="dgc-dialog dgc-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="dgc-dialog-title">
+        <div class="dgc-dialog-head">
+          <div><div class="dgc-dialog-title" id="dgc-dialog-title">Comunicación empresa</div><div class="dgc-dialog-sub">Elegí el tipo de comunicación para la empresa de Zona ${zone||'—'}.</div></div>
+          <button type="button" class="dgc-btn dgc-close" aria-label="Cerrar" title="Cerrar" data-dgc-action="close-compose">×</button>
+        </div>
+        <div class="dgc-dialog-body">
+          <div class="dgc-recipient-line"><span>Destinatario</span><strong>${esc(destinationName('empresa',zone))}</strong></div>
+          <div class="dgc-template-row">
+            <button type="button" class="dgc-template" data-dgc-action="choose-company-conversation"><strong>Con respuesta</strong><span>La empresa podrá contestar con texto y adjuntar archivos.</span></button>
+            <button type="button" class="dgc-template" data-dgc-action="choose-company-notification"><strong>Sin respuesta</strong><span>Envía un comunicado informativo sin solicitar contestación.</span></button>
+          </div>
+        </div>
+        <div class="dgc-dialog-foot"><div></div><div class="dgc-inline-actions"><button type="button" class="dgc-btn" data-dgc-action="close-compose">Cancelar</button></div></div>
+      </div>
+    </div>`;
+  }
   function renderInspectorNotificationDialog(data){
     const zone=Number(user()?.zona||0);
     return `<div class="dgc-dialog-backdrop" role="presentation">
       <div class="dgc-dialog dgc-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="dgc-dialog-title">
         <div class="dgc-dialog-head">
-          <div><div class="dgc-dialog-title" id="dgc-dialog-title">Notificar a la empresa</div><div class="dgc-dialog-sub">Nueva comunicación desde la inspección de Zona ${zone||'—'}.</div></div>
+          <div><div class="dgc-dialog-title" id="dgc-dialog-title">Comunicación empresa · Sin respuesta</div><div class="dgc-dialog-sub">Nueva comunicación desde la inspección de Zona ${zone||'—'}.</div></div>
           <button type="button" class="dgc-btn dgc-close" aria-label="Cerrar" title="Cerrar" data-dgc-action="close-compose">×</button>
         </div>
         <div class="dgc-dialog-body">
@@ -1087,7 +1112,7 @@
     return `<div class="dgc-dialog-backdrop" role="presentation">
       <div class="dgc-dialog dgc-dialog-compact" role="dialog" aria-modal="true" aria-labelledby="dgc-dialog-title">
         <div class="dgc-dialog-head">
-          <div><div class="dgc-dialog-title" id="dgc-dialog-title">${fromCompany?'Escribir al inspector':'Conversar con la empresa'}</div><div class="dgc-dialog-sub">Comunicación de Zona ${zone||'—'} con respuesta habilitada.</div></div>
+          <div><div class="dgc-dialog-title" id="dgc-dialog-title">${fromCompany?'Escribir al inspector':'Comunicación empresa · Con respuesta'}</div><div class="dgc-dialog-sub">Comunicación de Zona ${zone||'—'} con respuesta habilitada.</div></div>
           <button type="button" class="dgc-btn dgc-close" aria-label="Cerrar" title="Cerrar" data-dgc-action="close-compose">×</button>
         </div>
         <div class="dgc-dialog-body">
@@ -1096,6 +1121,7 @@
           <div class="dgc-form-section">
             <div class="dgc-form-grid">
               <label class="dgc-form-field"><span class="dgc-label">Prioridad</span><select class="dgc-select" data-dgc-compose="prioridad"><option value="normal" ${data.prioridad==='normal'?'selected':''}>Normal</option><option value="alta" ${data.prioridad==='alta'?'selected':''}>Alta</option><option value="urgente" ${data.prioridad==='urgente'?'selected':''}>Urgente</option><option value="baja" ${data.prioridad==='baja'?'selected':''}>Baja</option></select></label>
+              ${!fromCompany?`<label class="dgc-check dgc-copy-option"><input type="checkbox" data-dgc-compose="copiaCoordinacion" ${data.copiaCoordinacion?'checked':''}> Enviar copia a Coordinación</label>`:''}
               <label class="dgc-form-field is-full"><span class="dgc-label">Título <span class="dgc-required">*</span></span><input class="dgc-input" data-dgc-compose="titulo" value="${esc(data.titulo)}" placeholder="Asunto de la comunicación"></label>
               <label class="dgc-form-field is-full"><span class="dgc-label">Mensaje <span class="dgc-required">*</span></span><textarea class="dgc-textarea" data-dgc-compose="mensaje" placeholder="Escribí el detalle de la comunicación">${esc(data.mensaje)}</textarea></label>
               <label class="dgc-form-field is-full"><span class="dgc-label">Archivos adjuntos</span><input class="dgc-input" type="file" multiple accept="image/*,.pdf,.xls,.xlsx,.doc,.docx" data-dgc-compose-files><span class="dgc-help">${state.composeFiles.length?`${state.composeFiles.length} archivo(s) seleccionado(s)`:'Opcional'}</span></label>
@@ -1112,6 +1138,7 @@
   function renderCreateDialog(){
     if(!state.formOpen||!state.compose)return '';
     const data=state.compose;
+    if(data.mode==='inspector_empresa_selector')return renderInspectorCompanySelectorDialog();
     if(data.mode==='inspector_empresa')return renderInspectorNotificationDialog(data);
     if(['inspector_empresa_conversacion','empresa_inspector_conversacion'].includes(data.mode))return renderDirectConversationDialog(data);
     if(data.mode==='inspector_coordinacion')return renderCoordinationNotificationDialog(data);
@@ -1182,7 +1209,7 @@
     state.container.innerHTML=`<div class="dgc-page" id="dgc-root">
       <div class="dgc-header">
         <div><h1>${isManager()?'Comunicaciones y pedidos':'Comunicaciones'}</h1><p>${subtitle}</p></div>
-        ${isManager()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button></div>`:isInspector()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-company-conversation">Conversar con empresa</button><button type="button" class="dgc-btn" data-dgc-action="new-company-notification">Notificar sin respuesta</button><button type="button" class="dgc-btn" data-dgc-action="new-coordination-message">Escribir a Coordinación</button></div>`:isCompany()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-inspector-conversation">Escribir al inspector</button></div>`:''}
+        ${isManager()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-communication">Nuevo pedido</button></div>`:isInspector()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-company-communication">Comunicación empresa</button><button type="button" class="dgc-btn" data-dgc-action="new-coordination-message">Escribir a Coordinación</button></div>`:isCompany()?`<div class="dgc-header-actions"><button type="button" class="dgc-btn dgc-btn-primary" data-dgc-action="new-inspector-conversation">Escribir al inspector</button></div>`:''}
       </div>
       ${state.toast?`<div class="dgc-alert ${state.toast.type==='error'?'is-error':state.toast.type==='success'?'is-success':''}">${esc(state.toast.message)}</div>`:''}
       ${renderGlobalKpis(list)}
@@ -1354,7 +1381,7 @@
           clase:directConversation?DIRECT_CONVERSATION_CLASS:isCoordMode?'notificacion_coordinacion':isCompanyMode?'notificacion_empresa':'comunicacion_gestion',
           origenRol:companyConversation?'empresa':inspectorMode?'inspector':String(profile?.rol||role()),
           origenZona:directConversation||inspectorMode?sessionZone:null,
-          copiaCoordinacion:isCompanyMode?!!data.copiaCoordinacion:false
+          copiaCoordinacion:(isCompanyMode||inspectorConversation)?!!data.copiaCoordinacion:false
         },
         campos:data.tipo==='tarea'?data.campos.map(normalizeField):[]
       };
@@ -1724,6 +1751,9 @@
     if(action==='detail-view'){state.detailView=button.dataset.view||'resumen';renderPage();return;}
     if(action==='refresh'){await refreshRemote();return;}
     if(action==='new-communication'){resetCompose('respuesta');state.formOpen=true;renderPage();return;}
+    if(action==='new-company-communication'){resetInspectorCompanySelector();state.formOpen=true;renderPage();return;}
+    if(action==='choose-company-conversation'){resetDirectConversation('inspector');renderPage();return;}
+    if(action==='choose-company-notification'){resetInspectorNotification();renderPage();return;}
     if(action==='new-company-notification'){resetInspectorNotification();state.formOpen=true;renderPage();return;}
     if(action==='new-company-conversation'){resetDirectConversation('inspector');state.formOpen=true;renderPage();return;}
     if(action==='new-inspector-conversation'){resetDirectConversation('empresa');state.formOpen=true;renderPage();return;}
