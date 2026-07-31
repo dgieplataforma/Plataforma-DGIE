@@ -24352,6 +24352,96 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   overflow:visible;
 }
 </style>
+<style id="dgie-vincular-orden-reclamo-estilos-2026-07-31">
+.dgie-link-os-modal{width:min(820px,100%);max-height:min(88vh,820px);display:flex;flex-direction:column}
+.dgie-link-os-modal .modal-body{overflow-y:auto;overscroll-behavior:contain}
+.dgie-link-os-help{font-size:12px;line-height:1.45;color:#64748b;margin-top:6px}
+.dgie-link-os-list{display:grid;gap:9px;margin-top:12px}
+.dgie-link-os-card{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:11px;align-items:start;padding:12px;border:1px solid #d9e2ef;border-radius:11px;background:#fff;cursor:pointer}
+.dgie-link-os-card:hover,.dgie-link-os-card:has(input:checked){border-color:#0072ce;background:#f4f9ff;box-shadow:0 0 0 2px rgba(0,114,206,.08)}
+.dgie-link-os-card input{margin-top:3px}
+.dgie-link-os-number{font-size:13px;font-weight:900;color:#075aa8}
+.dgie-link-os-task{font-size:14px;line-height:1.45;font-weight:750;color:#1e293b;margin-top:6px;white-space:normal;overflow-wrap:anywhere}
+.dgie-link-os-meta{font-size:11px;line-height:1.45;color:#64748b;margin-top:7px}
+.dgie-link-os-empty{padding:22px 12px;text-align:center;color:#64748b;border:1px dashed #cbd5e1;border-radius:11px;background:#f8fafc}
+@media(max-width:620px){
+  .dgie-link-os-modal{max-height:calc(100dvh - 20px)}
+  .dgie-link-os-modal .modal-header,.dgie-link-os-modal .modal-body{padding:14px}
+  .dgie-link-os-card{grid-template-columns:20px minmax(0,1fr)}
+  .dgie-link-os-card>.badge{grid-column:2;justify-self:start}
+  .dgie-link-os-modal .modal-actions{display:grid;grid-template-columns:1fr}
+  .dgie-link-os-modal .modal-actions button{width:100%}
+}
+</style>
+<script id="dgie-vincular-orden-reclamo-2026-07-31">
+(function(){
+  'use strict';
+  function esc(value){return typeof escapeHtml==='function'?escapeHtml(value):String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
+  function norm(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+  function reclamos(){try{return Array.isArray(RECLAMOS_ZONA)?RECLAMOS_ZONA:[]}catch(_e){return []}}
+  function ordenes(){try{return Array.isArray(OS_ZONA)?OS_ZONA:[]}catch(_e){return []}}
+  function escuelas(){try{return Array.isArray(ESTABS)?ESTABS:[]}catch(_e){return []}}
+  function reclamoKey(r){return String(r?.remoteId||r?.id||r?.numero||'')}
+  function buscarReclamo(key){const value=String(key||'');return reclamos().find(r=>reclamoKey(r)===value||String(r?.numero||'')===value)||null}
+  function numeroReclamo(r){try{return String(reclamoNumeroVisible(r)||r?.numero||'').trim()}catch(_e){return String(r?.numero||'').trim()}}
+  function zonaItem(item){const directa=Number(item?.zona||0);if(directa)return directa;const estId=Number(item?.estId||item?.establecimiento_id||0);try{return estId&&typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(estId)||0):0}catch(_e){return 0}}
+  function ordenKey(o){return String(o?.remoteId||o?.id||o?.numero||'')}
+  function buscarOrden(key){const value=String(key||'');return ordenes().find(o=>ordenKey(o)===value)||null}
+  function escuelaNombre(est){return String(est?.n||est?.nombre||est?.establecimiento||'Establecimiento')}
+  function estadoOrden(o){try{return typeof getEstadoOS==='function'?getEstadoOS(o):norm(o?.estado)}catch(_e){return norm(o?.estado)}}
+  function estadoOrdenLabel(o){try{return typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):String(o?.estado||'Pendiente')}catch(_e){return String(o?.estado||'Pendiente')}}
+  function referencias(o){return String(o?.reclamoNumero||o?.reclamo_numero||'').split(',').map(v=>v.trim()).filter(Boolean)}
+  function osNumeroValor(value){const match=String(value||'').match(/\d+/g);return match?Number(match[match.length-1])||0:0}
+  function escuelasZona(zona,actual){const rows=escuelas().filter(e=>Number(e?.zona||0)===Number(zona));const current=escuelas().find(e=>Number(e?.id)===Number(actual));if(current&&!rows.some(e=>Number(e?.id)===Number(current.id)))rows.push(current);return rows.sort((a,b)=>escuelaNombre(a).localeCompare(escuelaNombre(b),'es'))}
+  function ordenesEscuela(estId,zona){return ordenes().filter(o=>Number(o?.estId||o?.establecimiento_id||0)===Number(estId)&&Number(zonaItem(o))===Number(zona)&&estadoOrden(o)!=='anulado').sort((a,b)=>osNumeroValor(b?.numero)-osNumeroValor(a?.numero)||String(b?.fecha||'').localeCompare(String(a?.fecha||'')))}
+  function reclamoYaVinculado(r){try{return typeof reclamoTieneOSAsignada==='function'&&reclamoTieneOSAsignada(r)}catch(_e){return false}}
+  function refrescarReclamos(){if(typeof window.filterReclamosInspector==='function'&&document.getElementById('insp-rec-list'))window.filterReclamosInspector()}
+
+  const generarPrev=window.botonGenerarOSReclamo;
+  if(typeof generarPrev==='function'){
+    window.botonGenerarOSReclamo=function(r){const generar=generarPrev.apply(this,arguments);if(!generar)return '';const key=encodeURIComponent(reclamoKey(r)).replace(/'/g,'%27');return `${generar}<button type="button" class="reclamo-os-btn" onclick="event.stopPropagation();abrirVincularOrdenReclamo('${key}')">Vincular orden de servicio</button>`};
+    try{botonGenerarOSReclamo=window.botonGenerarOSReclamo}catch(_e){}
+  }
+
+  window.cerrarVincularOrdenReclamo=function(){document.getElementById('dgie-vincular-os-modal')?.remove()};
+  window.abrirVincularOrdenReclamo=function(keyCodificado){
+    const key=decodeURIComponent(String(keyCodificado||'')),r=buscarReclamo(key);
+    if(!r){alert('No se encontró el reclamo.');return}
+    if(currentUser?.role!=='inspector'||Number(currentUser?.zona||0)!==Number(zonaItem(r))){alert('No tenés permiso para vincular este reclamo.');return}
+    if(reclamoYaVinculado(r)){alert(`El reclamo ${numeroReclamo(r)} ya tiene una orden de servicio vinculada.`);refrescarReclamos();return}
+    const schoolRows=escuelasZona(currentUser.zona,r.estId);if(!schoolRows.length){alert('No hay escuelas disponibles para la zona.');return}
+    window.cerrarVincularOrdenReclamo();
+    const actual=schoolRows.some(e=>Number(e.id)===Number(r.estId))?Number(r.estId):Number(schoolRows[0].id),modal=document.createElement('div');
+    modal.id='dgie-vincular-os-modal';modal.className='modal-backdrop visible';modal.dataset.reclamoKey=key;modal.onclick=event=>{if(event.target===modal)window.cerrarVincularOrdenReclamo()};
+    modal.innerHTML=`<div class="modal dgie-link-os-modal" role="dialog" aria-modal="true" aria-labelledby="dgie-link-os-title"><div class="modal-header"><div><div class="modal-title" id="dgie-link-os-title">Vincular orden de servicio</div><div style="font-size:12px;color:var(--muted);margin-top:4px">Reclamo ${esc(numeroReclamo(r)||'—')} · ${esc(r?.titulo||'Reclamo')}</div></div><button type="button" class="logout-btn" onclick="cerrarVincularOrdenReclamo()">Cerrar</button></div><div class="modal-body"><div class="form-field"><label class="form-label" for="dgie-link-os-school">Escuela del reclamo</label><select class="form-select" id="dgie-link-os-school" onchange="filtrarOrdenesParaVincular()">${schoolRows.map(e=>`<option value="${Number(e.id)}" ${Number(e.id)===actual?'selected':''}>${esc(escuelaNombre(e))}${e?.barrio?` · ${esc(e.barrio)}`:''}${e?.cue?` · CUE ${esc(e.cue)}`:''}</option>`).join('')}</select><div class="dgie-link-os-help">La escuela actual está preseleccionada. Si elegís otra, el reclamo también quedará asociado a esa escuela.</div></div><div class="form-field" style="margin-top:14px"><label class="form-label" for="dgie-link-os-query">Buscar orden existente</label><input class="form-input" id="dgie-link-os-query" type="search" autocomplete="off" placeholder="Número de O.S., tarea, rubro o reclamo vinculado..." oninput="filtrarOrdenesParaVincular()"></div><div class="dgie-link-os-help" id="dgie-link-os-count"></div><div class="dgie-link-os-list" id="dgie-link-os-results"></div><div class="modal-actions"><button type="button" class="secondary-btn" onclick="cerrarVincularOrdenReclamo()">Cancelar</button><button type="button" class="primary-btn" id="dgie-link-os-confirm" onclick="confirmarVincularOrdenReclamo()" disabled>Vincular orden</button></div></div></div>`;
+    document.body.appendChild(modal);window.filtrarOrdenesParaVincular();setTimeout(()=>document.getElementById('dgie-link-os-query')?.focus(),0)
+  };
+  window.filtrarOrdenesParaVincular=function(){
+    const modal=document.getElementById('dgie-vincular-os-modal');if(!modal)return;const r=buscarReclamo(modal.dataset.reclamoKey);if(!r)return;
+    const estId=Number(document.getElementById('dgie-link-os-school')?.value||0),query=norm(document.getElementById('dgie-link-os-query')?.value||''),all=ordenesEscuela(estId,Number(currentUser?.zona||zonaItem(r))),rows=all.filter(o=>!query||norm([o?.numero,o?.tarea,o?.rubro,o?.reclamoNumero,o?.fecha,estadoOrdenLabel(o)].join(' ')).includes(query));
+    const count=document.getElementById('dgie-link-os-count');if(count)count.textContent=`${rows.length} orden${rows.length!==1?'es':''} encontrada${rows.length!==1?'s':''}${query?` de ${all.length}`:''}. Las órdenes anuladas no se muestran.`;
+    const results=document.getElementById('dgie-link-os-results');if(!results)return;
+    results.innerHTML=rows.length?rows.map(o=>{const key=esc(ordenKey(o)),refs=referencias(o),state=estadoOrden(o),badge=state==='finalizado'?'b-ok':state==='trabajando'?'b-info':'b-warn';return `<label class="dgie-link-os-card"><input type="radio" name="dgie-link-os-choice" value="${key}" onchange="actualizarOrdenElegidaParaVincular()"><div><div class="dgie-link-os-number">O.S. ${esc(o?.numero||'—')} · ${esc(o?.fecha||'Sin fecha')}</div><div class="dgie-link-os-task">${esc(o?.tarea||o?.titulo||'Sin tarea detallada')}</div><div class="dgie-link-os-meta">${esc(o?.rubro||'Sin rubro')}${refs.length?` · Reclamos actuales: ${esc(refs.join(', '))}`:' · Sin reclamos vinculados'}</div></div><span class="badge ${badge}">${esc(estadoOrdenLabel(o))}</span></label>`}).join(''):'<div class="dgie-link-os-empty">No hay órdenes que coincidan con la escuela y la búsqueda.</div>';
+    window.actualizarOrdenElegidaParaVincular()
+  };
+  window.actualizarOrdenElegidaParaVincular=function(){const button=document.getElementById('dgie-link-os-confirm');if(button)button.disabled=!document.querySelector('input[name="dgie-link-os-choice"]:checked')};
+  window.confirmarVincularOrdenReclamo=async function(){
+    const modal=document.getElementById('dgie-vincular-os-modal');if(!modal)return;const r=buscarReclamo(modal.dataset.reclamoKey),choice=document.querySelector('input[name="dgie-link-os-choice"]:checked'),o=choice?buscarOrden(choice.value):null,estId=Number(document.getElementById('dgie-link-os-school')?.value||0),est=escuelas().find(e=>Number(e?.id)===estId);
+    if(!r||!o||!est){alert('Elegí una escuela y una orden de servicio.');return}
+    if(Number(currentUser?.zona||0)!==Number(zonaItem(r))||Number(currentUser?.zona||0)!==Number(est?.zona||0)||Number(o?.estId||o?.establecimiento_id||0)!==estId){alert('La escuela y la orden deben pertenecer a tu zona.');return}
+    if(reclamoYaVinculado(r)){alert('El reclamo ya tiene una orden de servicio vinculada.');window.cerrarVincularOrdenReclamo();refrescarReclamos();return}
+    const numero=numeroReclamo(r);if(!numero){alert('El reclamo no tiene un número válido para vincular.');return}const db=window.DGIE_DB;if(!db?.isConfigured||typeof db.actualizarOrden!=='function'){alert('No se pudo iniciar el guardado. Revisá la conexión.');return}
+    const oldEstId=Number(r?.estId||r?.establecimiento_id||0),changesSchool=oldEstId!==estId;if(changesSchool&&!r?.remoteId){alert('La escuela del reclamo no puede cambiarse hasta que el reclamo esté sincronizado.');return}if(!o?.remoteId){alert('La orden elegida todavía no está sincronizada. Elegí otra o volvé a intentar más tarde.');return}if(changesSchool&&!confirm(`La escuela del reclamo cambiará a “${escuelaNombre(est)}”. ¿Continuar con la vinculación?`))return;
+    const previousRefs=referencias(o),nextRefs=[...new Set([...previousRefs,numero])],nextValue=nextRefs.join(', '),now=new Date().toISOString(),button=document.getElementById('dgie-link-os-confirm');if(button){button.disabled=true;button.textContent='Vinculando...'}
+    try{
+      const orderResult=await db.actualizarOrden(o.remoteId,{reclamo_numero:nextValue,updated_at:now});if(orderResult?.error)throw orderResult.error;
+      if(changesSchool){if(typeof db.actualizarReclamo!=='function')throw new Error('No está disponible la actualización de la escuela del reclamo.');const claimResult=await db.actualizarReclamo(r.remoteId,{establecimiento_id:estId,zona:Number(est.zona),updated_at:now});if(claimResult?.error){const rollback=await db.actualizarOrden(o.remoteId,{reclamo_numero:previousRefs.join(', ')||null,updated_at:new Date().toISOString()});if(rollback?.error)throw new Error(`${claimResult.error.message||claimResult.error} La orden no pudo revertirse automáticamente.`);throw claimResult.error}}
+      o.reclamoNumero=nextValue;r.os=o.numero;if(changesSchool){r.estId=estId;r.est=escuelaNombre(est);r.establecimiento=escuelaNombre(est);r.zona=Number(est.zona)}if(typeof saveAppState==='function')saveAppState();window.cerrarVincularOrdenReclamo();refrescarReclamos();alert(`Reclamo ${numero} vinculado a la O.S. ${o.numero}.`)
+    }catch(error){alert('No se pudo vincular la orden de servicio: '+(error?.message||error));if(button){button.disabled=false;button.textContent='Vincular orden'}}
+  };
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.getElementById('dgie-vincular-os-modal'))window.cerrarVincularOrdenReclamo()});
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260723-4"></script>
 <script src="./dgie-notificaciones.js?v=20260730-2"></script>
 </body>
