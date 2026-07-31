@@ -24336,20 +24336,29 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 })();
 </script>
-<style id="dgie-public-ficha-altura-contenido-2026-07-30">
+<style id="dgie-public-ficha-scroll-contenido-2026-07-31">
 #landing-screen .landing-row4{align-items:start}
 #landing-screen .landing-map-card{align-self:start}
 #landing-screen .landing-public-ficha:not(.dgie-public-ficha-empty){
-  height:auto;
-  min-height:0;
-  max-height:none;
-  overflow:visible;
+  height:clamp(500px,65vh,600px);
+  min-height:500px;
+  max-height:600px;
+  overflow:hidden;
 }
 #landing-screen .landing-public-ficha:not(.dgie-public-ficha-empty) .ficha-body{
-  flex:0 0 auto;
+  flex:1 1 auto;
   min-height:0;
   max-height:none;
-  overflow:visible;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+@media(max-width:680px){
+  #landing-screen .landing-public-ficha:not(.dgie-public-ficha-empty){
+    height:min(560px,calc(100dvh - 100px));
+    min-height:440px;
+    max-height:560px;
+  }
 }
 </style>
 <style id="dgie-vincular-orden-reclamo-estilos-2026-07-31">
