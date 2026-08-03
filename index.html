@@ -7283,7 +7283,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`;
   }
   window.abrirMedicionInspector=function(numero){
-    const data=certificadosMedicionZona(numero,currentUser?.zona);
+    const visibles=window.DGIE_CERTIFICADOS_VISIBLES_MEDICION;
+    const data=certificadosMedicionZona(numero,currentUser?.zona).filter(c=>!(visibles instanceof Set)||visibles.has(String(c?.id||c?.localId||'')));
     const total=data.reduce((a,c)=>a+modFinalCert(c),0);
     const el=$('med-detalle');
     if(!el)return;
@@ -16135,7 +16136,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return `<table class="med-table"><thead><tr><th style="${th}">Establecimiento</th><th style="${th}">O.S.</th><th style="${th}">Rubros</th><th style="${th}">Monto Empresa</th><th style="${th}">Monto Inspección</th><th style="${th}">Diferencia (inspección - empresa)</th><th style="${th}">Módulos cert. final</th><th style="${th}">Observaciones</th></tr></thead><tbody>${data.map((c,i)=>{const bg=i%2===0?'#d9d9d9':'#fff',td=`background:${bg};border:1px solid #a3a3a3;padding:6px 8px`,ins=num(c.modulos_inspector||c.modulos_original),diff=ins-num(c.modulos_original),fin=typeof window.modulosCertificadoFinal==='function'?window.modulosCertificadoFinal(c):ins;return `<tr><td style="${td}">${esc(c.establecimiento_nombre||'')}</td><td style="${td}">${certOrdenesSafe(c).map(esc).join('<br>')}</td><td style="${td}">${esc(rubroAbrev(c))}</td><td style="${td}">${mods(c.modulos_original)}</td><td style="${td}">${mods(ins)}</td><td style="${td}">${mods(diff)}</td><td style="${td}">${mods(fin)}</td><td style="${td}">${esc(limpiarObsSafe(c.observaciones_inspector)||'')}</td></tr>`}).join('')}</tbody><tfoot><tr><td style="${th}" colspan="3">Totales</td><td style="${th}">${mods(totalEmpresa)}</td><td style="${th}">${mods(totalInspeccion)}</td><td style="${th}">${mods(totalDiff)}</td><td style="${th}">${mods(totalFinal)}</td><td style="${th}"></td></tr></tfoot></table>`;
   }
   function parcheTablaMedicion(numero){
-    const data=certsMedidosNumero(numero);
+    const visibles=window.DGIE_CERTIFICADOS_VISIBLES_MEDICION;
+    const data=certsMedidosNumero(numero).filter(c=>!(visibles instanceof Set)||visibles.has(String(c?.id||c?.localId||'')));
     const table=document.querySelector('#med-detalle .med-table');
     if(table&&data.length){
       const wrap=table.parentElement;
@@ -19065,6 +19067,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const q=(byId('med-q')?.value||'').toLowerCase();
     const base=certsZonaSmart(z);
     const data=base.filter(c=>(!q||certTexto(c).includes(q))&&smartMatches('med',c));
+    window.DGIE_CERTIFICADOS_VISIBLES_MEDICION=new Set(data.map(c=>String(c?.id||c?.localId||'')));
     setLast('med',`Certificados Zona ${z}`,'certificados',data,base.length);
     const badge=byId('med-smart-count');
     if(badge)badge.textContent=`${data.length} visibles de ${base.length}`;
