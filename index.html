@@ -7013,6 +7013,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     await cargarCertificadosMedicion();
     const estabs=establecimientosPorZona(Number(z));
     const data=certsZona(z);
+    window.DGIE_CERTIFICADOS_VISIBLES_MEDICION=new Set(data.map(c=>String(c?.id||c?.localId||'')));
     container.innerHTML=`<div class="section-label">Empresa · Certificación · Zona ${Number(z)}</div>${dbNotice()}<div class="med-grid">
       <section class="card">
         <div class="card-header"><div><div class="card-title">Subir certificado</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa solo carga archivo y observaciones.</div></div></div>
@@ -7026,11 +7027,22 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="modal-actions"><button class="primary-btn" onclick="guardarCertificadoEmpresa()">Subir certificado</button></div>
       </section>
       <section class="card">
-        <div class="card-header"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa ve revisiones y mediciones. No puede editar.</div></div><span class="badge b-info">${data.length} certificados</span></div>
+        <div class="card-header"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa ve revisiones y mediciones. No puede editar.</div></div><span class="badge b-info" id="empresa-cert-count">${data.length} certificados</span></div>
+        <div class="os-filters" style="margin-bottom:12px"><input class="estab-search" id="empresa-cert-q" placeholder="Buscar establecimiento, archivo, rubro, O.S. o medición..." oninput="filtrarCertificadosEmpresa()"></div>
         <div style="margin-bottom:12px;display:flex;justify-content:flex-end"><button class="secondary-btn" onclick="abrirAnalisisPreciosCertificacion(${Number(z)},'empresa')">Análisis de precios</button></div>
-        ${renderSeguimientoCertificados(data,false)}
+        <div id="empresa-cert-seguimiento">${renderSeguimientoCertificados(data,false)}</div>
       </section>
     </div>${renderResumenPresupuestoModulos(data)}`;
+  };
+  window.filtrarCertificadosEmpresa=function(){
+    const q=($('empresa-cert-q')?.value||'').toLowerCase().trim();
+    const base=certsZona(currentUser?.zona);
+    const texto=c=>[c?.establecimiento_nombre,c?.archivo_original,c?.archivo_inspector,certRubroVisible(c),certOrdenes(c).join(' '),c?.medicion_numero].filter(Boolean).join(' ').toLowerCase();
+    const data=base.filter(c=>!q||texto(c).includes(q));
+    window.DGIE_CERTIFICADOS_VISIBLES_MEDICION=new Set(data.map(c=>String(c?.id||c?.localId||'')));
+    const count=$('empresa-cert-count'),seguimiento=$('empresa-cert-seguimiento');
+    if(count)count.textContent=data.length+' visibles de '+base.length;
+    if(seguimiento)seguimiento.innerHTML=renderSeguimientoCertificados(data,false);
   };
   window.filtrarEstablecimientosCertEmpresa=function(){
     const z=Number(currentUser?.zona||0), q=($('cert-est-search')?.value||'').toLowerCase().trim();
