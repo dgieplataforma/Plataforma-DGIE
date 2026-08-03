@@ -18632,7 +18632,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado'),opt('derivado','Derivado')],test:(r,v)=>estadoReclamo(r)===v},
       {key:'establecimiento',label:'Establecimiento',options:()=>reclamoEstablecimientoOptions(base),test:(r,v)=>reclamoEstablecimientoKey(r)===String(v)},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
-      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
+      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):(!reclamoTieneOS(r)&&!['anulado','derivado'].includes(estadoReclamo(r)))},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'antiguedad',label:'Demora',options:()=>[opt('reclamo_mas_15','Reclamo pendiente hace más de 15 días'),opt('os_mas_15','O.S. activa enviada hace más de 15 días')],test:reclamoCumpleDemora},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
@@ -19085,7 +19085,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return [
       {key:'zona',label:'Zona',options:zonaOptions,test:(r,v)=>String(zonaEst(r))===String(v)},
       {key:'estado',label:'Estado del reclamo',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(r,v)=>estadoCallcenter(r).key===v},
-      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):!reclamoTieneOS(r)},
+      {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):(!reclamoTieneOS(r)&&!['anulado','derivado'].includes(estadoCallcenter(r).key))},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
       {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
