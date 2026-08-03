@@ -235,6 +235,14 @@
     async listarIntervenciones(){
       return selectAll('intervenciones', { orderBy:'created_at', ascending:false });
     },
+    async listarAgendaRecordatorios(zona){
+      let query=client.from('agenda_recordatorios').select('*').order('created_at', { ascending:false });
+      if(zona) query=query.eq('zona', Number(zona));
+      return query;
+    },
+    async crearAgendaRecordatorio(row){ return client.from('agenda_recordatorios').insert(row).select('*').single(); },
+    async actualizarAgendaRecordatorio(id,row){ return updateOne('agenda_recordatorios',id,row,'ese recordatorio'); },
+    async eliminarAgendaRecordatorio(id){ return client.from('agenda_recordatorios').delete().eq('id',id); },
     async crearIntervencion(row){
       return client.from('intervenciones').insert(row).select('*').single();
     },
