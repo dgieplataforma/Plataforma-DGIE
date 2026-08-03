@@ -6,7 +6,7 @@
   const SHEET_EXTENSIONS=new Set(['xls','xlsx','xlsm','csv','ods']);
   const TEXT_EXTENSIONS=new Set(['txt','json','xml','log','dxf']);
   const GENERIC_EXTENSIONS=new Set(['doc','docx','dwg','zip','rar']);
-  const VIEWABLE_EXTENSIONS=new Set([...IMAGE_EXTENSIONS,...VIDEO_EXTENSIONS,'pdf',...SHEET_EXTENSIONS,...TEXT_EXTENSIONS,...GENERIC_EXTENSIONS]);
+  const VIEWABLE_EXTENSIONS=new Set([...IMAGE_EXTENSIONS,...VIDEO_EXTENSIONS,'pdf']);
   const state={open:false,token:'',url:'',name:'',mimeType:'',objectUrls:[],lastFocus:null,bodyOverflow:''};
   let nativeWindowOpen=null;
 
@@ -52,8 +52,6 @@
     if(mime.startsWith('image/'))return 'image';
     if(mime.startsWith('video/'))return 'video';
     if(mime==='application/pdf')return 'pdf';
-    if(/spreadsheet|excel|csv/.test(mime))return 'sheet';
-    if(mime.startsWith('text/')||/json|xml/.test(mime))return 'text';
     return '';
   }
   function kindOf(url,name='',mimeType=''){
@@ -61,19 +59,17 @@
     if(IMAGE_EXTENSIONS.has(ext))return 'image';
     if(VIDEO_EXTENSIONS.has(ext))return 'video';
     if(ext==='pdf')return 'pdf';
-    if(SHEET_EXTENSIONS.has(ext))return 'sheet';
-    if(TEXT_EXTENSIONS.has(ext))return 'text';
-    if(GENERIC_EXTENSIONS.has(ext))return 'generic';
     const mimeKind=kindFromMime(mimeType);
     if(mimeKind)return mimeKind;
     if(/^data:image\//i.test(url)||/^blob:/i.test(url)&&IMAGE_EXTENSIONS.has(extensionOf('',name)))return 'image';
     if(/^data:video\//i.test(url)||/^blob:/i.test(url)&&VIDEO_EXTENSIONS.has(extensionOf('',name)))return 'video';
     if(/^data:application\/pdf/i.test(url))return 'pdf';
     if(/res\.cloudinary\.com\/[^/]+\/video\/upload\//i.test(url))return 'video';
+    if(/res\.cloudinary\.com\/[^/]+\/image\/upload\//i.test(url))return 'image';
     return '';
   }
-  function isViewable(url,name=''){
-    return !!kindOf(url,name)||VIEWABLE_EXTENSIONS.has(extensionOf(url,name));
+  function isViewable(url,name='',mimeType=''){
+    return VIEWABLE_EXTENSIONS.has(extensionOf(url,name))||['image','video','pdf'].includes(kindOf(url,name,mimeType));
   }
   function isStoredFileUrl(url){return /res\.cloudinary\.com\/[^/]+\/(?:image|video|raw)\/upload\//i.test(String(url||''));}
   function byId(id){return document.getElementById(id)}
@@ -352,7 +348,7 @@
     const href=cleanUrl(anchor?.href||rawHref);
     if(!href||anchor?.dataset?.dgieNativeDownload||anchor?.dataset?.dgieNoPreview)return null;
     const name=anchor.getAttribute('download')||anchor.textContent?.trim()||'';
-    return isViewable(href,name)||isStoredFileUrl(href)?{url:href,name}:null;
+    return isViewable(href,name)?{url:href,name}:null;
   }
   function dataFileInfo(target){
     const element=target?.closest?.('[data-file-url],[data-dgie-file-url]');
@@ -360,7 +356,7 @@
     const url=cleanUrl(element.dataset.fileUrl||element.dataset.dgieFileUrl||'');
     const name=element.dataset.fileName||element.dataset.dgieFileName||element.textContent?.trim()||'Archivo';
     const mimeType=element.dataset.fileType||element.dataset.dgieFileType||'';
-    return url&&(isViewable(url,name)||isStoredFileUrl(url)||kindFromMime(mimeType))?{url,name,mimeType}:null;
+    return url&&isViewable(url,name,mimeType)?{url,name,mimeType}:null;
   }
   function imageFileInfo(target){
     const image=target?.closest?.('img');
@@ -382,6 +378,7 @@
   }
 
   window.abrirArchivoDGIE=openViewer;
+  window.esArchivoPrevisualizableDGIE=isViewable;
   window.cerrarArchivoDGIE=closeViewer;
   window.addEventListener('popstate',()=>{
     if(state.open&&history.state?.dgieFileViewer!==state.token)hideViewer();
@@ -396,7 +393,7 @@
   nativeWindowOpen=window.open.bind(window);
   window.open=function(url,target,features){
     const source=typeof url==='string'?cleanUrl(url):'';
-    if(source&&(isViewable(source,'')||isStoredFileUrl(source))){
+    if(source&&isViewable(source,'')){
       openViewer(source,'');
       return null;
     }
@@ -407,6 +404,7 @@
   'use strict';
   const cleanUrl=value=>String(value||'').trim();
   const openViewer=window.abrirArchivoDGIE;
+  const canPreview=(url,name,mimeType='')=>window.esArchivoPrevisualizableDGIE?.(url,name,mimeType)===true;
   function certificateFileInfo(id,kind){
     let rows=[];
     try{rows=Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[]}catch(_){rows=[]}
@@ -421,7 +419,7 @@
     const communicationDownload=window.descargarArchivoComunicacion;
     if(typeof communicationDownload==='function'&&!communicationDownload.__dgiePreviewWrapped){
       const wrapped=async function(url,name){
-        if(cleanUrl(url))return openViewer(url,name||'Archivo');
+        if(cleanUrl(url)&&canPreview(url,name||'Archivo'))return openViewer(url,name||'Archivo');
         return communicationDownload.apply(this,arguments);
       };
       wrapped.__dgiePreviewWrapped=true;
@@ -431,7 +429,7 @@
     if(typeof certificateDownload==='function'&&!certificateDownload.__dgiePreviewWrapped){
       const wrapped=async function(id,kind){
         const file=certificateFileInfo(id,kind);
-        if(file)return openViewer(file.url,file.name);
+        if(file&&canPreview(file.url,file.name))return openViewer(file.url,file.name);
         return certificateDownload.apply(this,arguments);
       };
       wrapped.__dgiePreviewWrapped=true;
@@ -439,7 +437,7 @@
     }
     const orderDownload=window.descargarArchivoAdjuntoOS;
     if(typeof orderDownload==='function'&&!orderDownload.__dgiePreviewWrapped){
-      const wrapped=async function(url,name){return cleanUrl(url)?openViewer(url,name||'Adjunto'):orderDownload.apply(this,arguments)};
+      const wrapped=async function(url,name){return cleanUrl(url)&&canPreview(url,name||'Adjunto')?openViewer(url,name||'Adjunto'):orderDownload.apply(this,arguments)};
       wrapped.__dgiePreviewWrapped=true;
       window.descargarArchivoAdjuntoOS=wrapped;
     }
