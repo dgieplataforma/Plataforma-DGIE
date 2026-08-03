@@ -23880,9 +23880,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       chips,
       q:document.getElementById(`${prefix}-q`)?.value||'',
       desde:document.getElementById(`${prefix}-desde`)?.value||'',
-      hasta:document.getElementById(`${prefix}-hasta`)?.value||'',
-      scrollX:window.scrollX,
-      scrollY:window.scrollY
+      hasta:document.getElementById(`${prefix}-hasta`)?.value||''
     };
   }
   function restaurar(ctx,prefix,estado,filterFnName){
@@ -23895,8 +23893,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(hasta&&estado.hasta)hasta.value=estado.hasta;
     if(typeof window[filterFnName]==='function')window[filterFnName]();
     if(typeof window.dgieSmartRenderChips==='function')window.dgieSmartRenderChips(ctx);
-    window.scrollTo(estado.scrollX,estado.scrollY);
-    requestAnimationFrame(()=>window.scrollTo(estado.scrollX,estado.scrollY));
   }
   function envolver(fnName,ctx,prefix,filterFnName){
     const prev=window[fnName];
@@ -24538,6 +24534,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
+<script src="./dgie-agenda.js?v=20260803-1"></script>
 <script src="./dgie-file-viewer.js?v=20260731-5"></script>
 <script src="./dgie-notificaciones.js?v=20260731-3"></script>
 </body>
