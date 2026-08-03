@@ -19013,7 +19013,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     </div>`;
   }
   function renderCertSeguimientoSmart(data){
-    const pendientes=data.filter(c=>String(c?.estado||'')!=='medido');
+    const fechaOrden=c=>{const t=new Date(c?.created_at||c?.fecha_carga||c?.fechaCarga||c?.fecha_subida||c?.fecha||0).getTime();return Number.isFinite(t)?t:0};
+    const pendientes=data.filter(c=>String(c?.estado||'')!=='medido').sort((a,b)=>fechaOrden(b)-fechaOrden(a));
     const medidos=data.filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero);
     const totalPend=pendientes.reduce((a,c)=>a+num(c?.modulos_original),0);
     const grupos={};
