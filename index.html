@@ -6936,13 +6936,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 
   async function cargarCertificadosMedicion(force=false){
-    if(certsLoaded&&!force&&CERTIFICADOS_MEDICION.length){syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
+    if(certsLoaded&&!force&&CERTIFICADOS_MEDICION.length&&!certsDbError){syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
     certsLoaded=true;
     certsDbError='';
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarCertificadosMedicion==='function'){
       const zonaConsulta=currentUser?.role==='director'||currentUser?.role==='coordinador'?null:currentUser?.zona;
       const {data,error}=await window.DGIE_DB.listarCertificadosMedicion(zonaConsulta);
       if(!error){
+        certsDbError='';
         CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));
         try{localStorage.removeItem(LOCAL_KEY)}catch(_e){}
         syncCertificadosGlobal();
@@ -15405,6 +15406,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   async function loadStore(force=false){
     if(AP_LOAD_PROMISE&&!force)return AP_LOAD_PROMISE;
+    if(AP_CACHE&&!force)return AP_CACHE;
     AP_LOAD_PROMISE=(async()=>{
       const localBackup=localStore();
       if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarAnalisisPrecios==='function'){
@@ -24550,8 +24552,53 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
+<script id="dgie-navegacion-certificacion-agil-2026-08-04">
+(function(){
+  'use strict';
+  const rankingState={context:null,navigating:false};
+  const labels={pendientes:'Reclamos pendientes',sin_os:'Reclamos sin O.S.',demora_pendientes:'Pendientes con m\u00e1s de 15 d\u00edas',demora_os:'O.S. con m\u00e1s de 15 d\u00edas',finalizados:'Reclamos finalizados'};
+  function esc(value){return typeof escapeHtml==='function'?escapeHtml(value):String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
+  function tabs(){return typeof window.dgieTabsForUser==='function'?window.dgieTabsForUser(currentUser):[]}
+  function estNombrePorId(id){
+    try{const est=(typeof ESTABS!=='undefined'&&Array.isArray(ESTABS)?ESTABS:[]).find(item=>Number(item?.id)===Number(id));return String(est?.n||est?.nombre||est?.establecimiento||'Establecimiento')}
+    catch(_error){return 'Establecimiento'}
+  }
+  function restaurarContexto(){
+    const state=rankingState.context;
+    if(!state||document.getElementById('dgie-ranking-filter-note'))return;
+    const card=(document.getElementById('insp-rec-list')||document.getElementById('coord-rec-body'))?.closest('.card');
+    const filters=card?.querySelector('.os-filters');
+    if(!filters)return;
+    filters.insertAdjacentHTML('beforebegin',`<div id="dgie-ranking-filter-note" class="dgie-ranking-filter-note"><strong>${esc(state.nombre)}</strong><span>${esc(state.label)}</span></div>`);
+  }
+  const verRankingPrev=window.verReclamosRanking;
+  if(typeof verRankingPrev==='function'){
+    window.verReclamosRanking=function(estId,key){
+      rankingState.context={estId:Number(estId),key:String(key||''),nombre:estNombrePorId(estId),label:labels[key]||'Reclamos'};
+      rankingState.navigating=true;
+      try{return verRankingPrev.apply(this,arguments)}finally{setTimeout(()=>{rankingState.navigating=false;restaurarContexto()},180)}
+    };
+  }
+  ['renderReclamos','renderReclamosCoordinador'].forEach(name=>{
+    const prev=window[name];
+    if(typeof prev!=='function')return;
+    window[name]=function(){const result=prev.apply(this,arguments);restaurarContexto();setTimeout(restaurarContexto,0);return result};
+  });
+  const renderTabPrev=window.renderTab;
+  if(typeof renderTabPrev==='function'){
+    let lastIndex=null,lastAt=0;
+    window.renderTab=function(index){
+      const now=Date.now(),tab=tabs()[Number(index)]||'';
+      if(lastIndex===Number(index)&&now-lastAt<350&&document.getElementById('main-content')?.childElementCount)return;
+      lastIndex=Number(index);lastAt=now;
+      if(tab==='Reclamos'&&!rankingState.navigating)rankingState.context=null;
+      return renderTabPrev.apply(this,arguments);
+    };
+  }
+})();
+</script>
 <script src="./dgie-agenda.js?v=20260803-7"></script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
-<script src="./dgie-notificaciones.js?v=20260731-3"></script>
+<script src="./dgie-notificaciones.js?v=20260804-1"></script>
 </body>
 </html>

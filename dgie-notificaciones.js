@@ -148,16 +148,28 @@
     element.innerHTML=promptMarkup();
     if(!existing)content.prepend(element);
   }
+  const markReadInFlight=new Map();
+  const markReadAt=new Map();
   async function markRead(kind){
     if(!ALLOWED_KINDS.has(kind)||!user())return;
     if(!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.marcarNotificacionesPushLeidas!=='function')return;
-    try{
-      const result=await window.DGIE_DB.marcarNotificacionesPushLeidas(kind);
-      if(result?.error)throw result.error;
-      await syncBadge();
-    }catch(error){
-      console.warn('No se pudo actualizar el contador de notificaciones',error);
-    }
+    const now=Date.now();
+    if(now-Number(markReadAt.get(kind)||0)<15000)return;
+    if(markReadInFlight.has(kind))return markReadInFlight.get(kind);
+    const request=(async()=>{
+      try{
+        const result=await window.DGIE_DB.marcarNotificacionesPushLeidas(kind);
+        if(result?.error)throw result.error;
+        markReadAt.set(kind,Date.now());
+        await syncBadge();
+      }catch(error){
+        console.warn('No se pudo actualizar el contador de notificaciones',error);
+      }finally{
+        markReadInFlight.delete(kind);
+      }
+    })();
+    markReadInFlight.set(kind,request);
+    return request;
   }
   function kindForActiveTab(){
     const label=String(document.querySelector('#nav-tabs>.tab.active')?.textContent||'').trim().toLowerCase();
