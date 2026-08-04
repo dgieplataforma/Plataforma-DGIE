@@ -24693,6 +24693,39 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 })();
 </script>
 <script src="./dgie-agenda.js?v=20260803-7"></script>
+<style id="dgie-barra-superior-sobria-2026-08-04">
+/* La zona de actualizacion pesaba visualmente mas que el resto de la
+   barra. Se vuelve discreta: el boton pasa a ser un icono circular
+   como la campana, y la palabra "Actualizado" solo aparece cuando
+   realmente importa (mientras sincroniza o si algo fallo). */
+#app-wrapper .dgie-global-sync{min-width:0;gap:7px}
+#app-wrapper .dgie-global-refresh{
+  width:40px;
+  min-width:40px;
+  height:40px;
+  min-height:40px;
+  padding:0;
+  gap:0;
+  border-radius:50%;
+}
+#app-wrapper .dgie-global-refresh-label{display:none}
+#app-wrapper .dgie-global-refresh-icon{font-size:16px;color:#64748b}
+#app-wrapper .dgie-global-refresh:hover{border-color:#75a9d6;background:#f2f8fd}
+
+/* Estado en orden: solo un punto verde tenue, sin texto */
+#app-wrapper .dgie-global-sync-status{font-size:0;gap:0;font-weight:700}
+#app-wrapper .dgie-global-sync-status::before{width:6px;height:6px;opacity:.7}
+/* Sincronizando o con error: ahi si se lee el detalle */
+#app-wrapper .dgie-global-sync-status.is-working,
+#app-wrapper .dgie-global-sync-status.is-error{font-size:11px;gap:6px}
+#app-wrapper .dgie-global-sync-status.is-working::before,
+#app-wrapper .dgie-global-sync-status.is-error::before{opacity:1}
+
+/* En celular se mantiene el tamano tactil de siempre */
+@media(max-width:820px){
+  #app-wrapper .dgie-global-refresh{width:44px;min-width:44px;height:44px;min-height:44px;border-radius:8px}
+}
+</style>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
 <script src="./dgie-notificaciones.js?v=20260804-1"></script>
 </body>
