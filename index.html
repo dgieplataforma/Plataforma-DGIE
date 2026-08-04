@@ -24597,6 +24597,101 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 })();
 </script>
+<style id="dgie-reclamos-campos-obligatorios-style-2026-08-04">
+.dgie-required-missing{border-color:#dc2626!important;box-shadow:0 0 0 2px rgba(220,38,38,.12)!important}
+</style>
+<script id="dgie-reclamos-campos-obligatorios-2026-08-04">
+(function(){
+  'use strict';
+  const configs={
+    inline:{
+      error:'nr-error',
+      fields:[
+        {id:'nr-establecimiento',visible:'ac-estab-input',label:'establecimiento'},
+        {id:'nr-numero',label:'n\u00famero de reclamo',fallback:'nr-reclamo-anterior'},
+        {id:'nr-prioridad',label:'prioridad'},
+        {id:'nr-rubro',label:'rubro'},
+        {id:'nr-fecha',label:'fecha'},
+        {id:'nr-mensaje',label:'descripci\u00f3n'}
+      ]
+    },
+    modal:{
+      error:'modal-nr-error',
+      fields:[
+        {id:'modal-nr-establecimiento',label:'establecimiento'},
+        {id:'modal-nr-numero',label:'n\u00famero de reclamo'},
+        {id:'modal-nr-prioridad',label:'prioridad'},
+        {id:'modal-nr-rubro',label:'rubro'},
+        {id:'modal-nr-fecha',label:'fecha'},
+        {id:'modal-nr-mensaje',label:'descripci\u00f3n'}
+      ]
+    }
+  };
+  function value(id){return String(document.getElementById(id)?.value||'').trim()}
+  function fieldElement(field){return document.getElementById(field.visible||field.id)}
+  function fechaCargaHoy(){
+    const parts=new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Cordoba',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  }
+  function fijarFechaCarga(){
+    const hoy=fechaCargaHoy();
+    ['nr-fecha','modal-nr-fecha'].forEach(id=>{
+      const input=document.getElementById(id);
+      if(!input)return;
+      input.value=hoy;
+      input.min=hoy;
+      input.max=hoy;
+      input.readOnly=true;
+      input.setAttribute('aria-readonly','true');
+      input.title='La fecha corresponde al d\u00eda de carga';
+    });
+  }
+  function validar(tipo){
+    fijarFechaCarga();
+    const config=configs[tipo],missing=[];
+    config.fields.forEach(field=>{
+      const complete=!!(value(field.id)||(field.fallback&&value(field.fallback)));
+      const element=fieldElement(field);
+      element?.classList.toggle('dgie-required-missing',!complete);
+      if(element)element.setAttribute('aria-invalid',complete?'false':'true');
+      if(!complete)missing.push({...field,element});
+    });
+    const error=document.getElementById(config.error);
+    if(missing.length){
+      if(error){
+        error.textContent='Complet\u00e1 todos los campos obligatorios. Faltan: '+missing.map(field=>field.label).join(', ')+'.';
+        error.style.display='block';
+      }
+      missing[0].element?.focus();
+      return false;
+    }
+    if(error)error.style.display='none';
+    return true;
+  }
+  function wrap(name,tipo){
+    const prev=window[name];
+    if(typeof prev!=='function')return;
+    window[name]=function(){
+      if(!validar(tipo))return;
+      return prev.apply(this,arguments);
+    };
+  }
+  wrap('guardarNuevoReclamo','inline');
+  wrap('guardarNuevoReclamoModal','modal');
+  fijarFechaCarga();
+  const formRoot=document.getElementById('main-content');
+  if(formRoot&&typeof MutationObserver==='function'){
+    new MutationObserver(fijarFechaCarga).observe(formRoot,{childList:true,subtree:true});
+  }
+  document.addEventListener('input',event=>{
+    if(event.target?.classList?.contains('dgie-required-missing'))event.target.classList.remove('dgie-required-missing');
+  });
+  document.addEventListener('change',event=>{
+    if(event.target?.classList?.contains('dgie-required-missing'))event.target.classList.remove('dgie-required-missing');
+  });
+})();
+</script>
 <script src="./dgie-agenda.js?v=20260803-7"></script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
 <script src="./dgie-notificaciones.js?v=20260804-1"></script>
