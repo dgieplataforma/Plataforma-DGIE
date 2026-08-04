@@ -159,6 +159,14 @@
         .is('read_at', null);
       return { data:Number(count || 0), error };
     },
+    async listarNotificacionesPushPendientes(limit=30){
+      return client
+        .from('push_notifications')
+        .select('id,kind,source_id,title,body,url,created_at')
+        .is('read_at', null)
+        .order('created_at', { ascending:false })
+        .limit(Math.min(Math.max(Number(limit)||30,1),100));
+    },
     async marcarNotificacionesPushLeidas(kind){
       return client.rpc('dgie_marcar_notificaciones_push_leidas', { p_kind:kind || null });
     },
