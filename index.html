@@ -20,6 +20,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./supabase-config.js"></script>
+<script src="./dgie-orden-establecimientos.js?v=20260805-1"></script>
 <script src="./dgie-supabase.js?v=20260723-1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Serif+Display&display=swap" rel="stylesheet">
@@ -6635,9 +6636,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function certificadosMedicionZona(numero,zona){
     const zonaNumero=Number(zona);
     if(!zonaNumero||numero===null||numero===undefined||String(numero).trim()==='')return [];
-    return certsMedidos(CERTIFICADOS_MEDICION).filter(c=>
+    const data=certsMedidos(CERTIFICADOS_MEDICION).filter(c=>
       String(c.medicion_numero)===String(numero)&&zonaCertificado(c)===zonaNumero
     );
+    // Orden de la planilla oficial (dgie-orden-establecimientos.js). Se ordena en el
+    // origen y no en cada tabla porque hay parches que emparejan filas del DOM con
+    // data[i] por indice: si las dos listas no coinciden, las columnas se desalinean.
+    return typeof window.dgieOrdenarPorPlanilla==='function'?window.dgieOrdenarPorPlanilla(data):data;
   }
   window.certificadosMedicionZona=certificadosMedicionZona;
   function modActual(c){return n(c.modulos_inspector||c.modulos_original)}
@@ -12865,7 +12870,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       alert(`La O.S. ${repetida} ya está usada en otro certificado de esta zona (${duplicado.establecimiento_nombre||'sin establecimiento'}). No se puede repetir.`);
       return;
     }
-    const nombre=file?nombreInspector(file,c,ordenes):archivoRenombrado(c);
+    // El nombre se recalcula SIEMPRE a partir de las O.S. que estan en el formulario,
+    // no solo cuando se sube un archivo nuevo. Si se agregan O.S. despues de haber
+    // subido el Excel, el nombre guardado tiene que incluirlas igual.
+    const nombreActual=archivoRenombrado(c);
+    const hayArchivo=!!file||!!nombreActual||!!c?.url_inspector;
+    const extActual=nombreActual.match(/\.[^.]+$/)?.[0]?.toLowerCase()||'.xlsx';
+    const nombre=hayArchivo?nombreInspector(file||{name:'archivo'+extActual},c,ordenes):'';
     let obsConMeta=[
       obsLimpia,
       ordenes.length?`[OS_CERT:${ordenes.join(',')}]`:'',
@@ -12891,6 +12902,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       patch.archivo_inspector=nombre;
       patch.url_inspector=subida?.url||'';
       patch.public_id_inspector=subida?.publicId||null;
+    }else if(nombre&&nombre!==c.archivo_inspector){
+      // Sin archivo nuevo pero con O.S. distintas: se renombra el que ya estaba subido.
+      patch.archivo_inspector=nombre;
     }
     try{
       await window.actualizarCertificado(id,patch);
@@ -14035,7 +14049,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   function certificadosZonaCoord(z){
     const certs = Array.isArray(window.CERTIFICADOS_MEDICION) ? window.CERTIFICADOS_MEDICION : [];
-    return certs.filter(c => certVisibleCoord(c) && zonaCertCoord(c) === Number(z));
+    const data = certs.filter(c => certVisibleCoord(c) && zonaCertCoord(c) === Number(z));
+    // Mismo orden que la planilla oficial, igual que del lado del inspector.
+    return typeof window.dgieOrdenarPorPlanilla === 'function' ? window.dgieOrdenarPorPlanilla(data) : data;
   }
 
   function certificadosMedicionFinalizadaCoord(z){
