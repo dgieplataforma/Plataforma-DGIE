@@ -6584,6 +6584,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const RESET_VERSION='2026-05-12-base-limpia';
   let CERTIFICADOS_MEDICION=[];
   let certsLoaded=false;
+  let certsCargaEnCurso=null;
   let certsDbError='';
   function syncCertificadosGlobal(){
     window.CERTIFICADOS_MEDICION=CERTIFICADOS_MEDICION;
@@ -6937,23 +6938,29 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   async function cargarCertificadosMedicion(force=false){
     if(certsLoaded&&!force&&CERTIFICADOS_MEDICION.length&&!certsDbError){syncCertificadosGlobal();return CERTIFICADOS_MEDICION;}
+    // Si ya hay una carga en curso, esperamos esa en vez de pedir los datos de nuevo.
+    // Sin esto, varias pantallas que se abren a la vez disparaban descargas duplicadas.
+    if(certsCargaEnCurso)return certsCargaEnCurso;
     certsLoaded=true;
     certsDbError='';
-    if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarCertificadosMedicion==='function'){
-      const zonaConsulta=currentUser?.role==='director'||currentUser?.role==='coordinador'?null:currentUser?.zona;
-      const {data,error}=await window.DGIE_DB.listarCertificadosMedicion(zonaConsulta);
-      if(!error){
-        certsDbError='';
-        CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));
-        try{localStorage.removeItem(LOCAL_KEY)}catch(_e){}
-        syncCertificadosGlobal();
-        return CERTIFICADOS_MEDICION;
+    certsCargaEnCurso=(async()=>{
+      if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.listarCertificadosMedicion==='function'){
+        const zonaConsulta=currentUser?.role==='director'||currentUser?.role==='coordinador'?null:currentUser?.zona;
+        const {data,error}=await window.DGIE_DB.listarCertificadosMedicion(zonaConsulta);
+        if(!error){
+          certsDbError='';
+          CERTIFICADOS_MEDICION=(data||[]).map(x=>({...x,localId:x.id}));
+          try{localStorage.removeItem(LOCAL_KEY)}catch(_e){}
+          syncCertificadosGlobal();
+          return CERTIFICADOS_MEDICION;
+        }
+        certsDbError=error.message||String(error);
       }
-      certsDbError=error.message||String(error);
-    }
-    CERTIFICADOS_MEDICION=readLocalCerts();
-    syncCertificadosGlobal();
-    return CERTIFICADOS_MEDICION;
+      CERTIFICADOS_MEDICION=readLocalCerts();
+      syncCertificadosGlobal();
+      return CERTIFICADOS_MEDICION;
+    })();
+    try{return await certsCargaEnCurso}finally{certsCargaEnCurso=null}
   }
   window.cargarCertificadosMedicion=cargarCertificadosMedicion;
   async function subirCertFile(file){
@@ -15405,7 +15412,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return msg||'No se pudo conectar con el servicio.';
   }
   async function loadStore(force=false){
-    if(AP_LOAD_PROMISE&&!force)return AP_LOAD_PROMISE;
+    // Reutilizamos siempre la carga en curso, incluso si se pide con force:
+    // dos pedidos simultaneos deben compartir una sola descarga. Un force
+    // posterior, ya terminada la anterior, sigue refrescando los datos.
+    if(AP_LOAD_PROMISE)return AP_LOAD_PROMISE;
     if(AP_CACHE&&!force)return AP_CACHE;
     AP_LOAD_PROMISE=(async()=>{
       const localBackup=localStore();
