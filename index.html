@@ -5284,6 +5284,7 @@ function renderChartInsp(){
       comentariosCoordinacion:Array.isArray(datos.comentariosCoordinacion)?datos.comentariosCoordinacion:[],
       fotosArchivos:datos.fotosArchivos||[],
       osVinculadas:Array.isArray(datos.osVinculadas)?datos.osVinculadas.map(String).filter(Boolean):[],
+      reclamosVinculados:Array.isArray(datos.reclamosVinculados)?datos.reclamosVinculados.map(r=>({key:String(r?.key||''),numero:String(r?.numero||'')})).filter(r=>r.key||r.numero):[],
       reclamoVinculado:datos.reclamoVinculado||datos.reclamo_vinculado||'',
       reclamoVinculadoId:datos.reclamoVinculadoId||datos.reclamo_vinculado_id||'',
       eliminado:!!datos.eliminado,
@@ -11695,17 +11696,35 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       .filter(r=>Number(r?.estId||r?.establecimiento_id)===Number(estId))
       .sort((a,b)=>Number(b?.ts||0)-Number(a?.ts||0));
   }
-  function relReclamoSeleccionado(r){
+  function relReclamosList(r){
+    // Formato nuevo: array de {key,numero}. Formato viejo: un solo reclamo en
+    // reclamoVinculado/reclamoVinculadoId. Se aceptan los dos.
+    const arr=Array.isArray(r?.reclamosVinculados)?r.reclamosVinculados:null;
+    if(arr&&arr.length){
+      const vistos=new Set();
+      return arr.map(x=>({key:String(x?.key||'').trim(),numero:String(x?.numero||'').trim()}))
+        .filter(x=>{
+          if(!x.key&&!x.numero)return false;
+          const id=x.key||x.numero;
+          if(vistos.has(id))return false;
+          vistos.add(id);
+          return true;
+        });
+    }
     const numero=String(r?.reclamoVinculado||r?.reclamo_vinculado||'').trim();
     const key=String(r?.reclamoVinculadoId||r?.reclamo_vinculado_id||'').trim();
-    return numero||key?{numero,key}:null;
+    return numero||key?[{numero,key}]:[];
   }
   function buscarReclamoVinculado(selected,estId){
     if(!selected)return null;
-    return reclamosDeEstablecimiento(estId).find(r=>
-      (selected.key&&reclamoKey(r)===String(selected.key))||
-      (selected.numero&&reclamoNumero(r)===String(selected.numero))
-    )||null;
+    const lista=reclamosDeEstablecimiento(estId);
+    // La clave primero: si se busca por numero puede aparecer el reiterado en lugar del original.
+    if(selected.key){
+      const porClave=lista.find(r=>reclamoKey(r)===String(selected.key));
+      if(porClave)return porClave;
+    }
+    if(selected.numero)return lista.find(r=>reclamoNumero(r)===String(selected.numero))||null;
+    return null;
   }
   function osBadges(r){
     const arr=relOSList(r);
@@ -11718,12 +11737,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }).join('')}</div>`;
   }
   function reclamoBadge(r,estId){
-    const selected=relReclamoSeleccionado(r);
-    if(!selected)return '';
-    const reclamo=buscarReclamoVinculado(selected,estId);
-    const numero=reclamo?reclamoNumero(reclamo):selected.numero;
-    const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,90):'';
-    return `<div class="comm-targets" style="margin-top:8px"><span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''}</span></div>`;
+    const lista=relReclamosList(r);
+    if(!lista.length)return '';
+    return `<div class="comm-targets" style="margin-top:8px">${lista.map(sel=>{
+      const reclamo=buscarReclamoVinculado(sel,estId);
+      const numero=reclamo?reclamoNumero(reclamo):sel.numero;
+      const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,90):'';
+      return `<span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''}</span>`;
+    }).join('')}</div>`;
   }
   function selectOSHTML(estId,selected=[]){
     window.REL_OS_SELECTED=(selected||[]).map(String).filter(Boolean);
@@ -11737,9 +11758,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     </div>`;
   }
   function selectReclamoHTML(estId,rel=null){
-    window.REL_RECLAMO_SELECTED=relReclamoSeleccionado(rel);
+    window.REL_RECLAMOS_SELECTED=relReclamosList(rel);
     return `<div class="form-field full">
-      <label class="form-label">Reclamo vinculado <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+      <label class="form-label">Reclamos vinculados <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
       <div class="dgie-combo">
         <input class="form-input" id="rel-reclamo-combo" placeholder="Buscar por número, rubro o descripción..." onfocus="renderRelReclamoCombo()" oninput="renderRelReclamoCombo()">
         <div class="dgie-combo-dropdown" id="rel-reclamo-dropdown"></div>
@@ -11874,7 +11895,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     dd.style.display='block';
     const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
     const q=String($('rel-reclamo-combo')?.value||'').toLowerCase().trim();
-    const selected=window.REL_RECLAMO_SELECTED;
+    const seleccionados=relReclamosSeleccionados();
     const items=reclamosDeEstablecimiento(estId).filter(r=>{
       const hay=`${reclamoNumero(r)} ${r?.titulo||''} ${r?.descripcion||''} ${r?.rubro||''} ${r?.fecha||''}`.toLowerCase();
       return !q||hay.includes(q);
@@ -11887,41 +11908,63 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const key=reclamoKey(r);
       const numero=reclamoNumero(r);
       const detalle=(r?.titulo||r?.descripcion||r?.rubro||'Reclamo').slice(0,140);
-      const activo=(selected?.key&&String(selected.key)===key)||(selected?.numero&&String(selected.numero)===numero);
-      return `<button type="button" class="dgie-combo-option ${activo?'is-selected':''}" onclick="seleccionarRelReclamo('${encodeURIComponent(key)}')">${esc(numero||'Sin número')} · ${esc(detalle)}</button>`;
+      const activo=seleccionados.some(s=>mismoReclamoSel(s,{key,numero}));
+      return `<button type="button" class="dgie-combo-option ${activo?'is-selected':''}" onclick="toggleRelReclamo('${encodeURIComponent(key)}')">${esc(numero||'Sin número')} · ${esc(detalle)}</button>`;
     }).join('');
   };
-  window.seleccionarRelReclamo=function(encodedKey){
+  function relReclamosSeleccionados(){
+    if(!Array.isArray(window.REL_RECLAMOS_SELECTED))window.REL_RECLAMOS_SELECTED=[];
+    return window.REL_RECLAMOS_SELECTED;
+  }
+  // Ojo: dos reclamos distintos pueden compartir numero visible (los reiterados
+  // conservan el del original). La clave manda; el numero solo desempata cuando
+  // falta la clave, que es el caso de los relevamientos guardados con el formato viejo.
+  function mismoReclamoSel(a,b){
+    if(!a||!b)return false;
+    if(a.key&&b.key)return String(a.key)===String(b.key);
+    return !!(a.numero&&b.numero&&String(a.numero)===String(b.numero));
+  }
+  window.toggleRelReclamo=function(encodedKey){
     const key=decodeURIComponent(String(encodedKey||''));
     const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
     const reclamo=reclamosDeEstablecimiento(estId).find(r=>reclamoKey(r)===key);
     if(!reclamo)return;
-    window.REL_RECLAMO_SELECTED={key,numero:reclamoNumero(reclamo)};
+    const numero=reclamoNumero(reclamo);
+    const arr=relReclamosSeleccionados();
+    const i=arr.findIndex(s=>mismoReclamoSel(s,{key,numero}));
+    if(i>=0)arr.splice(i,1);
+    else arr.push({key,numero});
     const input=$('rel-reclamo-combo');
     if(input)input.value='';
-    const dd=$('rel-reclamo-dropdown');
-    if(dd)dd.style.display='none';
     window.renderRelReclamoSeleccionado();
+    window.renderRelReclamoCombo();
   };
-  window.quitarRelReclamo=function(){
-    window.REL_RECLAMO_SELECTED=null;
-    const input=$('rel-reclamo-combo');
-    if(input)input.value='';
+  // Se conserva el nombre viejo por si quedó algún onclick en pantalla.
+  window.seleccionarRelReclamo=function(encodedKey){return window.toggleRelReclamo(encodedKey)};
+  window.quitarRelReclamo=function(encodedKey){
+    // El chip manda la clave si la tiene, y si no el numero.
+    const val=decodeURIComponent(String(encodedKey||''));
+    const arr=relReclamosSeleccionados();
+    const i=arr.findIndex(s=>s.key?String(s.key)===val:String(s.numero||'')===val);
+    if(i>=0)arr.splice(i,1);
     window.renderRelReclamoSeleccionado();
+    window.renderRelReclamoCombo();
   };
   window.renderRelReclamoSeleccionado=function(){
     const box=$('rel-reclamo-selected');
     if(!box)return;
-    const selected=window.REL_RECLAMO_SELECTED;
-    if(!selected){
-      box.innerHTML='<div style="font-size:12px;color:var(--muted);font-weight:800">Sin reclamo vinculado.</div>';
+    const arr=relReclamosSeleccionados();
+    if(!arr.length){
+      box.innerHTML='<div style="font-size:12px;color:var(--muted);font-weight:800">Sin reclamos vinculados.</div>';
       return;
     }
     const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
-    const reclamo=buscarReclamoVinculado(selected,estId);
-    const numero=reclamo?reclamoNumero(reclamo):selected.numero;
-    const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,100):'';
-    box.innerHTML=`<div class="comm-targets"><span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''} <button type="button" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer" onclick="quitarRelReclamo()">×</button></span></div>`;
+    box.innerHTML=`<div class="comm-targets">${arr.map(sel=>{
+      const reclamo=buscarReclamoVinculado(sel,estId);
+      const numero=reclamo?reclamoNumero(reclamo):sel.numero;
+      const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,100):'';
+      return `<span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''} <button type="button" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer" onclick="quitarRelReclamo('${encodeURIComponent(sel.key||sel.numero||'')}')">×</button></span>`;
+    }).join('')}</div>`;
   };
   window.openNuevoRelevamiento=function(estId){
     const fb=$('ficha-body')||$('map-ficha-body')||$('main-content');
@@ -11987,7 +12030,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const files=[...($('rel-fotos')?.files||[])];
     const fotosArchivos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
     const osVinculadas=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED.map(String).filter(Boolean):[];
-    const reclamoSeleccionado=window.REL_RECLAMO_SELECTED||null;
+    const reclamosVinculados=(Array.isArray(window.REL_RECLAMOS_SELECTED)?window.REL_RECLAMOS_SELECTED:[])
+      .map(r=>({key:String(r?.key||'').trim(),numero:String(r?.numero||'').trim()}))
+      .filter(r=>r.key||r.numero);
     const rel={
       tipo:'relevamiento',
       fecha:fechaCorta(fechaISO),
@@ -11996,8 +12041,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       comentarios:$('rel-comentarios')?.value||'',
       fotosArchivos,
       osVinculadas,
-      reclamoVinculado:reclamoSeleccionado?.numero||'',
-      reclamoVinculadoId:reclamoSeleccionado?.key||'',
+      reclamosVinculados,
+      // Compatibilidad con lo que todavia lee el formato de un solo reclamo.
+      reclamoVinculado:reclamosVinculados[0]?.numero||'',
+      reclamoVinculadoId:reclamosVinculados[0]?.key||'',
       ts:Date.now()
     };
     let remoteId=null;
@@ -12022,7 +12069,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const files=[...($('rel-fotos')?.files||[])];
     const nuevasFotos=await Promise.all(files.map(f=>leerArchivoDGIE(f,'relevamientos'))).then(a=>a.filter(Boolean));
     const osVinculadas=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED.map(String).filter(Boolean):[];
-    const reclamoSeleccionado=window.REL_RECLAMO_SELECTED||null;
+    const reclamosVinculados=(Array.isArray(window.REL_RECLAMOS_SELECTED)?window.REL_RECLAMOS_SELECTED:[])
+      .map(r=>({key:String(r?.key||'').trim(),numero:String(r?.numero||'').trim()}))
+      .filter(r=>r.key||r.numero);
     const actualizado={
       ...found.rel,
       tipo:'relevamiento',
@@ -12030,8 +12079,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       comentarios:$('rel-comentarios')?.value||'',
       fotosArchivos:[...(found.rel.fotosArchivos||[]),...nuevasFotos],
       osVinculadas,
-      reclamoVinculado:reclamoSeleccionado?.numero||'',
-      reclamoVinculadoId:reclamoSeleccionado?.key||'',
+      reclamosVinculados,
+      // Compatibilidad con lo que todavia lee el formato de un solo reclamo.
+      reclamoVinculado:reclamosVinculados[0]?.numero||'',
+      reclamoVinculadoId:reclamosVinculados[0]?.key||'',
       editedAt:new Date().toISOString()
     };
     if(actualizado.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarRelevamiento==='function'){
@@ -12070,7 +12121,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const q=String($('rel-insp-search')?.value||'').toLowerCase();
     const filtered=relsInspector().filter(r=>{
       const est=ESTABS.find(e=>Number(e.id)===Number(r.estId));
-      return (`${est?.n||''} ${r.fecha||''} ${r.inspector||''} ${relReclamoSeleccionado(r)?.numero||''} ${relOSList(r).join(' ')} ${r.comentarios||''} ${r.descripcion||''}`).toLowerCase().includes(q);
+      return (`${est?.n||''} ${r.fecha||''} ${r.inspector||''} ${relReclamosList(r).map(x=>x.numero).filter(Boolean).join(' ')} ${relOSList(r).join(' ')} ${r.comentarios||''} ${r.descripcion||''}`).toLowerCase().includes(q);
     });
     const badge=$('rel-insp-count-badge');
     if(badge)badge.textContent=filtered.length+' relevamientos';
