@@ -11726,46 +11726,67 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(selected.numero)return lista.find(r=>reclamoNumero(r)===String(selected.numero))||null;
     return null;
   }
+  // Listado de vinculos (O.S. y reclamos): uno por renglon, numero destacado y
+  // descripcion recortada por CSS. Se corta con "..." al final del ancho disponible,
+  // no a mitad de palabra como hacia el slice() anterior.
+  function filaVinculo(punto,acento,titulo,detalle,extra){
+    return `<div title="${esc(detalle?titulo+' · '+detalle:titulo)}" style="display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;line-height:1.4">
+      <span style="width:6px;height:6px;border-radius:50%;background:${punto};flex:0 0 auto"></span>
+      <span style="font-size:12px;font-weight:800;color:${acento};flex:0 0 auto">${esc(titulo)}</span>
+      <span style="font-size:12px;color:#64748b;flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${detalle?'· '+esc(detalle):''}</span>
+      ${extra||''}
+    </div>`;
+  }
+  function listaVinculos(filas){
+    const f=filas.filter(Boolean);
+    if(!f.length)return '';
+    // min-width:0 en toda la cadena: sin esto el contenedor es item de grilla con
+    // min-width:auto, se estira para contener el texto sin cortar y el recorte no aplica.
+    return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;min-width:0;max-width:100%">${f.join('')}</div>`;
+  }
+  function botonQuitarVinculo(onclick){
+    return `<button type="button" title="Quitar" style="flex:0 0 auto;border:0;background:transparent;color:#94a3b8;font-weight:900;font-size:16px;line-height:1;cursor:pointer;padding:0 4px" onclick="${onclick}">×</button>`;
+  }
+  function detalleOS(numero,estId){
+    const os=(OS_ZONA||[]).find(o=>String(o.numero)===String(numero)&&(!estId||Number(o.estId)===Number(estId)));
+    return os?String(os.tarea||os.rubro||''):'';
+  }
   function osBadges(r){
     const arr=relOSList(r);
     if(!arr.length)return '';
-    return `<div class="comm-targets" style="margin-top:8px">${arr.map(n=>{
-      const estId=Number(r?.estId||0);
-      const os=(OS_ZONA||[]).find(o=>String(o.numero)===String(n)&&(!estId||Number(o.estId)===estId));
-      const label=os?`${n} · ${(os.tarea||os.rubro||'').slice(0,70)}`:n;
-      return `<span class="badge b-info">O.S. ${esc(label)}</span>`;
-    }).join('')}</div>`;
+    const estId=Number(r?.estId||0);
+    return listaVinculos(arr.map(n=>filaVinculo('#1d7fd4','#005aa9',`O.S. ${n}`,detalleOS(n,estId))));
   }
   function reclamoBadge(r,estId){
     const lista=relReclamosList(r);
     if(!lista.length)return '';
-    return `<div class="comm-targets" style="margin-top:8px">${lista.map(sel=>{
+    return listaVinculos(lista.map(sel=>{
       const reclamo=buscarReclamoVinculado(sel,estId);
       const numero=reclamo?reclamoNumero(reclamo):sel.numero;
-      const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,90):'';
-      return `<span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''}</span>`;
-    }).join('')}</div>`;
+      const detalle=reclamo?String(reclamo.titulo||reclamo.descripcion||reclamo.rubro||''):'';
+      return filaVinculo('#d97706','#b45309',`Reclamo ${numero||'vinculado'}`,detalle);
+    }));
   }
   function selectOSHTML(estId,selected=[]){
     window.REL_OS_SELECTED=(selected||[]).map(String).filter(Boolean);
-    return `<div class="form-field full">
+    return `<div class="form-field full" style="min-width:0">
       <label class="form-label">Órdenes de servicio vinculadas <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
       <div class="dgie-combo">
         <input class="form-input" id="rel-os-combo" placeholder="Escribí cualquier dato de la O.S..." onfocus="renderRelOSCombo()" oninput="renderRelOSCombo()">
         <div class="dgie-combo-dropdown" id="rel-os-dropdown"></div>
       </div>
-      <div id="rel-os-selected" style="margin-top:8px"></div>
+      <div id="rel-os-selected" style="margin-top:8px;min-width:0"></div>
     </div>`;
   }
   function selectReclamoHTML(estId,rel=null){
     window.REL_RECLAMOS_SELECTED=relReclamosList(rel);
-    return `<div class="form-field full">
+    return `<div class="form-field full" style="min-width:0">
       <label class="form-label">Reclamos vinculados <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
       <div class="dgie-combo">
         <input class="form-input" id="rel-reclamo-combo" placeholder="Buscar por número, rubro o descripción..." onfocus="renderRelReclamoCombo()" oninput="renderRelReclamoCombo()">
         <div class="dgie-combo-dropdown" id="rel-reclamo-dropdown"></div>
       </div>
-      <div id="rel-reclamo-selected" style="margin-top:8px"></div>
+      <div id="rel-reclamo-selected" style="margin-top:8px;min-width:0"></div>
     </div>`;
   }
   function relFormHTML(estId){
@@ -11887,7 +11908,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!box)return;
     const arr=Array.isArray(window.REL_OS_SELECTED)?window.REL_OS_SELECTED:[];
     if(!arr.length){box.innerHTML='<div style="font-size:12px;color:var(--muted);font-weight:800">Sin O.S. vinculadas.</div>';return;}
-    box.innerHTML=`<div class="comm-targets">${arr.map(n=>`<span class="badge b-info">O.S. ${esc(n)} <button type="button" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer" onclick="toggleRelOS('${esc(n)}')">×</button></span>`).join('')}</div>`;
+    const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
+    box.innerHTML=listaVinculos(arr.map(n=>filaVinculo('#1d7fd4','#005aa9',`O.S. ${n}`,detalleOS(n,estId),botonQuitarVinculo(`toggleRelOS('${esc(n)}')`))));
   };
   window.renderRelReclamoCombo=function(){
     const dd=$('rel-reclamo-dropdown');
@@ -11959,12 +11981,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return;
     }
     const estId=Number(currentFichaId||$('rel-est-global')?.value||0);
-    box.innerHTML=`<div class="comm-targets">${arr.map(sel=>{
+    box.innerHTML=listaVinculos(arr.map(sel=>{
       const reclamo=buscarReclamoVinculado(sel,estId);
       const numero=reclamo?reclamoNumero(reclamo):sel.numero;
-      const detalle=reclamo?(reclamo.titulo||reclamo.descripcion||reclamo.rubro||'').slice(0,100):'';
-      return `<span class="badge b-warn">Reclamo ${esc(numero||'vinculado')}${detalle?` · ${esc(detalle)}`:''} <button type="button" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer" onclick="quitarRelReclamo('${encodeURIComponent(sel.key||sel.numero||'')}')">×</button></span>`;
-    }).join('')}</div>`;
+      const detalle=reclamo?String(reclamo.titulo||reclamo.descripcion||reclamo.rubro||''):'';
+      return filaVinculo('#d97706','#b45309',`Reclamo ${numero||'vinculado'}`,detalle,botonQuitarVinculo(`quitarRelReclamo('${encodeURIComponent(sel.key||sel.numero||'')}')`));
+    }));
   };
   window.openNuevoRelevamiento=function(estId){
     const fb=$('ficha-body')||$('map-ficha-body')||$('main-content');
