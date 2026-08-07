@@ -17443,20 +17443,29 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   window.renderOSEmpresa=function(c,z){
     const data=osPorZona(z);
-    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${esc(z)} · Consulta y seguimiento</div><div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${esc(INSPECTORS[Number(z)-1]||'—')} · Zona ${esc(z)}</div></div><span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span></div><div class="os-visible-toolbar">${botonPdfVisibleOS('empresa')}${botonExcelEmpresa()}</div><div class="os-filters"><input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, reclamo, establecimiento o tarea..." oninput="filterOSEmpresa()"><select class="filter-sel" id="empresa-os-estado" onchange="filterOSEmpresa()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="trabajando">Trabajando</option><option value="finalizado">Finalizado</option><option value="anulado">Anulado</option></select><select class="filter-sel" id="empresa-os-orden" onchange="filterOSEmpresa()"><option value="desc">Orden: mayor a menor</option><option value="asc">Orden: menor a mayor</option></select><select class="filter-sel" id="empresa-os-cert" onchange="filterOSEmpresa()"><option value="">Certificación: todas</option><option value="certificado">Certificadas</option><option value="sin">Sin certificar</option></select><select class="filter-sel" id="empresa-os-medicion" onchange="filterOSEmpresa()"><option value="">Todas las mediciones</option>${opcionesMedicion()}</select>${filtrosFecha('empresa-os','filterOSEmpresa()')}</div><div class="os-table-wrap"><table class="os-table empresa-os-table"><thead>${headerHTML()}</thead><tbody id="empresa-os-body"></tbody></table></div></div>`;
+    // Mismos filtros acumulables que usan inspector y coordinacion.
+    const ctxSmart='empresa-os';
+    const smart=typeof window.dgieSmartSetup==='function'&&typeof window.dgieSmartOsFields==='function'
+      ? window.dgieSmartSetup(ctxSmart,window.dgieSmartOsFields(data),'filterOSEmpresa')
+      : '';
+    const chipsSmart=typeof window.dgieSmartChipsSlot==='function'?window.dgieSmartChipsSlot(ctxSmart):'';
+    c.innerHTML=`<div class="section-label">Órdenes de servicio · Zona ${esc(z)} · Consulta y seguimiento</div><div class="card"><div class="card-header"><div><div class="card-title">Órdenes de servicio asignadas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Inspector: ${esc(INSPECTORS[Number(z)-1]||'—')} · Zona ${esc(z)}<br>Filtros acumulables por establecimiento, rubro, estado, prioridad, certificación y medición.</div></div><span class="badge b-info" id="empresa-os-count">${data.length} órdenes</span></div><div class="os-visible-toolbar">${botonPdfVisibleOS('empresa')}${botonExcelEmpresa()}</div><div class="os-filters"><input class="estab-search" id="empresa-os-q" placeholder="Buscar por orden, reclamo, establecimiento o tarea..." oninput="filterOSEmpresa()"><select class="filter-sel" id="empresa-os-orden" onchange="filterOSEmpresa()"><option value="desc">Orden: mayor a menor</option><option value="asc">Orden: menor a mayor</option></select>${smart}${filtrosFecha('empresa-os','filterOSEmpresa()')}</div>${chipsSmart}<div class="os-table-wrap"><table class="os-table empresa-os-table"><thead>${headerHTML()}</thead><tbody id="empresa-os-body"></tbody></table></div></div>`;
     window.filterOSEmpresa();
     if(!window.certsLoaded&&typeof cargarCertificadosMedicion==='function')cargarCertificadosMedicion().then(()=>{if(byId('empresa-os-body'))window.renderOSEmpresa(c,z)}).catch(()=>{});
   };
   window.filterOSEmpresa=function(){
     const z=Number(currentUser?.zona||0);
     const q=(byId('empresa-os-q')?.value||'').toLowerCase();
-    const st=byId('empresa-os-estado')?.value||'';
     const dir=byId('empresa-os-orden')?.value||'desc';
-    const cert=byId('empresa-os-cert')?.value||'';
-    const med=byId('empresa-os-medicion')?.value||'';
     const desde=byId('empresa-os-desde')?.value||'';
     const hasta=byId('empresa-os-hasta')?.value||'';
-    const data=ordenar(osPorZona(z).filter(o=>(!st||estadoCanon(o)===st)&&textoOS(o).includes(q)&&certPasa(o,cert,med)&&rangoFecha(o.fecha,desde,hasta)),dir);
+    // Estado, certificacion, medicion, rubro, prioridad y establecimiento ahora salen
+    // de los filtros acumulables, que permiten varios valores del mismo campo a la vez.
+    const pasaSmart=typeof window.dgieSmartMatches==='function'
+      ? (o=>window.dgieSmartMatches('empresa-os',o))
+      : (()=>true);
+    const data=ordenar(osPorZona(z).filter(o=>textoOS(o).includes(q)&&pasaSmart(o)&&rangoFecha(o.fecha,desde,hasta)),dir);
+    if(typeof window.dgieSmartRenderChips==='function')window.dgieSmartRenderChips('empresa-os');
     ultimasOSEmpresa=data;
     window.dgieOSVisibleEmpresa=data;
     const badge=byId('empresa-os-count');
@@ -18439,7 +18448,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     LAST[ctx]={title,type,rows:Array.isArray(rows)?rows.slice():[],total};
   }
   function snapshotSmartCtx(ctx){
-    const qIds={'os':'os-search','coord-os':'coord-os-q','insp-rec':'insp-rec-q','coord-rec':'coord-rec-q','med':'med-q','cc-rec':'cc-rec-q'};
+    const qIds={'os':'os-search','coord-os':'coord-os-q','empresa-os':'empresa-os-q','insp-rec':'insp-rec-q','coord-rec':'coord-rec-q','med':'med-q','cc-rec':'cc-rec-q'};
     return {
       filters:(STORE[ctx]||[]).map(f=>({...f})),
       q:byId(qIds[ctx])?.value||'',
@@ -18456,7 +18465,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     delete LAST[ctx];
   }
   function filtrosExport(ctx){
-    const qIds={'insp-rec':'insp-rec-q','coord-rec':'coord-rec-q','os':'os-search','coord-os':'coord-os-q','med':'med-q','cc-rec':'cc-rec-q'};
+    const qIds={'insp-rec':'insp-rec-q','coord-rec':'coord-rec-q','os':'os-search','coord-os':'coord-os-q','empresa-os':'empresa-os-q','med':'med-q','cc-rec':'cc-rec-q'};
     const parts=[];
     const q=byId(qIds[ctx])?.value?.trim();
     if(q)parts.push(`Búsqueda: ${q}`);
@@ -18615,6 +18624,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return true;
   }
   function smartChipsSlot(ctx){return `<div class="dgie-smart-chips" id="${esc(ctx)}-sf-chips"></div>`}
+  // Puentes para que otros bloques puedan usar los filtros acumulables.
+  // El listado de empresa vive en otro <script> y necesita armar su propio contexto.
+  window.dgieSmartSetup=function(ctx,fields,refresh){return smartHTML(ctx,fields,refresh)};
+  window.dgieSmartMatches=function(ctx,item){return smartMatches(ctx,item)};
+  window.dgieSmartChipsSlot=function(ctx){return smartChipsSlot(ctx)};
+  window.dgieSmartOsFields=function(base,opts){return osFields(base,opts||{})};
   function dateInputs(prefix,fn,values={}){
     return `<div class="dgie-date-range">
       <label class="dgie-date-field"><span>Desde</span><input class="filter-sel" id="${esc(prefix)}-desde" type="date" value="${esc(values.desde||'')}" onchange="${esc(fn)}" title="Fecha desde"></label>
