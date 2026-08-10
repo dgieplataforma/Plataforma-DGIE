@@ -18776,8 +18776,37 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function fotosReclamo(r){
     const fotos=Array.isArray(r?.fotos)?r.fotos:[];
-    if(fotos.length)return `<span class="badge b-info">${fotos.length}</span>`;
-    return Number(r?.fotos)>0?`<span class="badge b-info">${Number(r.fotos)}</span>`:'—';
+    // Coordinacion veia solo la cantidad y no tenia forma de abrir las fotos.
+    // Ahora se muestran miniaturas (transformadas por Cloudinary, con carga
+    // diferida) y al hacer clic se abre la imagen original.
+    if(!fotos.length)return Number(r?.fotos)>0?`<span class="badge b-info">${Number(r.fotos)}</span>`:'—';
+    const MAX=3;
+    // No todo lo adjunto a un reclamo es una imagen: hay videos (.mp4, servidos por
+    // Cloudinary en /video/upload/) y archivos sueltos en /raw/upload/. Un <img> con
+    // esas URLs queda roto, asi que cada tipo se muestra distinto.
+    const estilo='width:42px;height:34px;border-radius:6px;border:1px solid var(--border);background:#f8fafc;cursor:pointer';
+    const thumbs=fotos.slice(0,MAX).map((f,i)=>{
+      const src=typeof fotoUrlDGIE==='function'?fotoUrlDGIE(f):(f?.url||f?.secure_url||f?.dataUrl||f?.path||'');
+      if(!src)return '';
+      const nombre=typeof fotoNombreDGIE==='function'?fotoNombreDGIE(f,`Adjunto ${i+1}`):`Adjunto ${i+1}`;
+      const abrir=`event.stopPropagation();window.open(${JSON.stringify(src).replace(/"/g,'&quot;')},'_blank')`;
+      if(src.includes('/video/upload/')){
+        // Cloudinary devuelve un fotograma del video si se le pide .jpg del primer segundo.
+        const poster=src.replace('/video/upload/','/video/upload/w_160,h_120,c_fill,so_0,q_auto/').replace(/\.[a-z0-9]+$/i,'.jpg');
+        return `<span style="position:relative;display:inline-block;line-height:0" title="${esc(nombre)} (video)" onclick="${abrir}">
+          <img src="${esc(poster)}" alt="${esc(nombre)}" loading="lazy" decoding="async" style="${estilo};object-fit:cover">
+          <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none">▶</span>
+        </span>`;
+      }
+      if(src.includes('/raw/upload/')){
+        return `<span title="${esc(nombre)} (archivo)" onclick="${abrir}" style="${estilo};display:inline-flex;align-items:center;justify-content:center;font-size:15px">📎</span>`;
+      }
+      const thumb=typeof fotoThumbUrlDGIE==='function'?fotoThumbUrlDGIE(src):src;
+      return `<img src="${esc(thumb)}" data-full="${esc(src)}" alt="${esc(nombre)}" title="${esc(nombre)}" loading="lazy" decoding="async" style="${estilo};object-fit:cover" onclick="event.stopPropagation();window.open(this.dataset.full,'_blank')">`;
+    }).filter(Boolean).join('');
+    if(!thumbs)return `<span class="badge b-info">${fotos.length}</span>`;
+    const resto=fotos.length-Math.min(fotos.length,MAX);
+    return `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">${thumbs}${resto>0?`<span class="badge b-info" title="${fotos.length} fotos en total">+${resto}</span>`:''}</div>`;
   }
   function coordReclamoRow(r){
     const zona=zonaEst(r)||'—';
