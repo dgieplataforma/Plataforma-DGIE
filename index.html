@@ -6971,8 +6971,18 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.cargarCertificadosMedicion=cargarCertificadosMedicion;
   async function subirCertFile(file){
     if(!file)return null;
-    if(typeof leerArchivoDGIE==='function')return leerArchivoDGIE(file,'certificados');
-    return {nombre:file.name,name:file.name,url:'',provider:'local'};
+    if(typeof subirArchivoCloudinary==='function'&&typeof cloudinaryHabilitado==='function'&&cloudinaryHabilitado()){
+      let ultimoError=null;
+      for(let intento=1;intento<=2;intento++){
+        try{return await subirArchivoCloudinary(file,'certificados');}
+        catch(error){
+          ultimoError=error;
+          if(intento<2)await new Promise(resolve=>setTimeout(resolve,700));
+        }
+      }
+      throw new Error('No se pudo subir el Excel. Comprimí las imágenes dentro de la planilla, guardá el archivo y volvé a intentarlo. Los datos del formulario se conservan.');
+    }
+    throw new Error('La carga de archivos no está disponible en este momento. Intentá nuevamente en unos minutos.');
   }
   window.subirCertFile=subirCertFile;
   async function insertarCertificado(row){
@@ -15188,7 +15198,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const guardarPrev=window.guardarRevisionCertificado;
   window.guardarRevisionCertificado=async function(id,medir){
     const c=certById(id);
-    await (typeof guardarPrev==='function'?guardarPrev.apply(this,arguments):undefined);
+    try{
+      await (typeof guardarPrev==='function'?guardarPrev.apply(this,arguments):undefined);
+    }catch(error){
+      alert(error?.message||'No se pudo subir el Excel. Comprimí las imágenes dentro de la planilla y volvé a intentarlo. Los datos del formulario se conservan.');
+      return;
+    }
     const patch={};
     if(Object.keys(patch).length&&window.actualizarCertificado){
       patch.actualizado_por=currentUser?.name||'Inspector';
