@@ -6991,6 +6991,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!c)return;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarCertificadoMedicion==='function'&&c.id&&!String(c.id).startsWith('local_')){
       const {data,error}=await window.DGIE_DB.actualizarCertificadoMedicion(c.id,patch);
+      // "permission denied" significa que la consulta viajo sin sesion (rol anon).
+      // Pasa cuando el token vencio y la app siguio mostrando al usuario como activo.
+      // Se traduce a un mensaje accionable en vez del error crudo de la base.
+      if(error&&/permission denied|jwt|not authenticated/i.test(String(error.message||error))){
+        throw new Error('Tu sesión expiró. Cerrá sesión, volvé a entrar y guardá de nuevo.');
+      }
       if(error)throw error;
       Object.assign(c,data||patch);
     }else{
@@ -12306,7 +12312,33 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         else remoteError=error||null;
       }catch(error){remoteError=error;}
     }
-    if(!user&&(!remoteChecked||remoteError))user=usuarioGuardado();
+    if(!user&&(!remoteChecked||remoteError)){
+      // Si la verificacion contra Supabase fallo, antes se restauraba al usuario desde
+      // localStorage sin importar si habia sesion. La app quedaba "logueada" pero las
+      // consultas viajaban como anon y los guardados fallaban con "permission denied".
+      // Ahora, si podemos confirmar que NO hay sesion y hay conexion, se pide login.
+      // Sin conexion se mantiene el respaldo, para que la PWA siga mostrando datos.
+      let sesionViva=null;
+      try{
+        const cliente=window.DGIE_DB?.client;
+        if(cliente?.auth){
+          const {data:actual}=await cliente.auth.getSession();
+          if(actual?.session)sesionViva=true;
+          else{
+            const {data:refrescada}=await cliente.auth.refreshSession();
+            sesionViva=!!refrescada?.session;
+          }
+        }
+      }catch(_){sesionViva=null;}
+      if(sesionViva===false&&navigator.onLine!==false){
+        safeRemove(KEY_USER);
+        safeRemove(KEY_TAB);
+        safeRemove(KEY_OPEN);
+        mostrarPagina();
+        return;
+      }
+      user=usuarioGuardado();
+    }
     if(remoteChecked&&!user&&!remoteError){
       safeRemove(KEY_USER);
       safeRemove(KEY_TAB);
