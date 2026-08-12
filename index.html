@@ -24498,6 +24498,30 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function dates(items){return new Set((items||[]).map(item=>String(item?.fecha||'')).filter(Boolean))}
 
+  function certificateByKey(key){
+    const rows=Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[];
+    const safe=String(key);
+    return rows.find(record=>{
+      const recordKey=String(record?.id||record?.localId||`${record?.zona||''}-${record?.establecimiento_id||''}-${record?.archivo_original||''}-${record?.created_at||''}`).replace(/[^a-zA-Z0-9_-]/g,'_');
+      return recordKey===safe||String(record?.id||'')===safe||String(record?.localId||'')===safe;
+    })||null;
+  }
+
+  const commentCertificatePrev=window.enviarMensajeCertificado;
+  if(typeof commentCertificatePrev==='function'){
+    window.enviarMensajeCertificado=async function(key){
+      const record=certificateByKey(key),before=dates(record?.conversacion);
+      const result=await commentCertificatePrev.apply(this,arguments);
+      const event=(record?.conversacion||[]).find(item=>item?.fecha&&!before.has(String(item.fecha)));
+      if(event&&String(event?.rol||'').toLowerCase()==='inspector'){
+        const id=String(record?.id||record?.localId||'');
+        if(id)Promise.resolve().then(()=>window.DGIE_PUSH?.dispatch('certificado',`${id}:${event.fecha}`)).catch(error=>{
+          console.warn('El comentario se guardo, pero no se pudo preparar su notificacion.',error);
+        });
+      }
+      return result;
+    };
+  }
   const commentInterventionPrev=window.guardarComentarioIntervencionFinal;
   if(typeof commentInterventionPrev==='function'){
     window.guardarComentarioIntervencionFinal=async function(id){

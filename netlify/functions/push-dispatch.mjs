@@ -63,6 +63,23 @@ function findCommentEvent(kind,record,eventKey){
   }
   return null;
 }
+function certificateComments(record){
+  const observations=String(record?.observaciones_inspector||'');
+  const match=observations.match(/\[CONV_CERT:([^\]]*)\]/);
+  if(!match)return [];
+  try{
+    const parsed=JSON.parse(decodeURIComponent(match[1]));
+    return Array.isArray(parsed)?parsed:[];
+  }catch(_){return []}
+}
+function findCertificateComment(record,eventKey){
+  if(!eventKey)return null;
+  const comment=certificateComments(record).find(item=>String(item?.fecha||'')===String(eventKey));
+  return comment?{
+    type:'comment',author:clean(comment?.autor||'Inspector',120),
+    text:clean(comment?.texto||'',300),role:normalizedRole(comment?.rol)
+  }:null;
+}
 function bearerToken(request){
   const header=request.headers.get('authorization')||'';
   return header.toLowerCase().startsWith('bearer ')?header.slice(7).trim():'';
@@ -105,7 +122,9 @@ function authorMatches(profile,event){
   const authorName=normalizedName(event?.author);
   return !profileName||!authorName||profileName===authorName;
 }
-function canDispatchCertificate(profile,certificate){
+function canDispatchCertificate(profile,certificate,event){
+  if(event)return event.role==='inspector'&&normalizedRole(profile?.rol)==='inspector'
+    &&Number(profile?.zona||0)===Number(certificate?.zona||0)&&authorMatches(profile,event);
   const role=normalizedRole(profile?.rol);
   if(role!=='empresa'||Number(profile?.zona||0)!==Number(certificate?.zona||0))return false;
   const createdBy=normalizedName(certificate?.creado_por);
@@ -124,6 +143,13 @@ function recipientsForEvent(profiles,kind,record,senderProfile){
     return profiles.filter(profile=>normalizedRole(profile?.rol)==='inspector'&&Number(profile?.zona||0)===zone);
   }
   return profiles.filter(profile=>normalizedRole(profile?.rol)==='coordinador');
+}
+function recipientsForCertificateComment(profiles,record){
+  const companyName=normalizedName(record?.creado_por);
+  const companies=profiles.filter(profile=>normalizedRole(profile?.rol)==='empresa'&&Number(profile?.zona||0)===Number(record?.zona||0));
+  if(!companyName)return companies;
+  const exact=companies.filter(profile=>normalizedName(profile?.nombre)===companyName);
+  return exact;
 }
 function recipientsForCommunication(profiles,communication,event){
   const scope=clean(communication?.alcance,40);
@@ -168,11 +194,13 @@ async function loadEvent(admin,kind,sourceId,userId){
   }
   if(kind==='certificado'){
     const {data,error}=await admin.from('certificados_medicion')
-      .select('id,zona,establecimiento_id,establecimiento_nombre,archivo_original,creado_por,created_at')
+      .select('id,zona,establecimiento_id,establecimiento_nombre,archivo_original,creado_por,created_at,observaciones_inspector')
       .eq('id',parts.recordId).maybeSingle();
     if(error)throw error;
     if(!data)return {error:json({error:'El certificado no existe.'},404)};
-    return {record:data};
+    const event=parts.eventKey?findCertificateComment(data,parts.eventKey):null;
+    if(parts.eventKey&&!event)return {error:json({error:'El comentario no existe.'},404)};
+    return {record:data,event};
   }
   const intervention=kind==='comentario_intervencion';
   const table=intervention?'intervenciones':'relevamientos';
@@ -203,6 +231,11 @@ async function notificationContent(admin,kind,record,sourceId,event){
   }
   if(kind==='certificado'){
     const name=clean(record.establecimiento_nombre||establishment||'Establecimiento',100);
+    if(event)return {
+      title:'Nuevo comentario en certificado',
+      body:clean([name,event.author,event.text].filter(Boolean).join(': '),300),
+      url:'/?dgiePush=certificado&sourceId='+encodeURIComponent(sourceId)
+    };
     return {
       title:`Nuevo certificado - Zona ${Number(record.zona)||''}`.trim(),
       body:clean([name,record.archivo_original||'Certificado pendiente de revision'].filter(Boolean).join(': '),300),
@@ -256,16 +289,18 @@ export default async request=>{
     const event=eventResult.event||null;
     if(kind==='comunicado'&&!canDispatchCommunication(profile,record,event))return json({error:'El perfil no puede emitir este comunicado.'},403);
     if(kind==='reclamo'&&!canDispatchClaim(profile,record))return json({error:'El perfil no puede emitir este reclamo.'},403);
-    if(kind==='certificado'&&!canDispatchCertificate(profile,record))return json({error:'El perfil no puede emitir este certificado.'},403);
+    if(kind==='certificado'&&!canDispatchCertificate(profile,record,event))return json({error:'El perfil no puede emitir este certificado.'},403);
     if(kind.startsWith('comentario_')&&!canDispatchComment(profile,record,event))return json({error:'El perfil no puede emitir este comentario.'},403);
 
-    const {data:profiles,error:profilesError}=await admin.from('perfiles').select('id,rol,zona');
+    const {data:profiles,error:profilesError}=await admin.from('perfiles').select('id,rol,zona,nombre');
     if(profilesError)throw profilesError;
     const recipients=kind==='comunicado'
       ?recipientsForCommunication(profiles||[],record,event)
       :kind==='reclamo'
         ?(profiles||[]).filter(item=>normalizedRole(item.rol)==='inspector'&&Number(item.zona||0)===Number(record.zona||0))
-        :recipientsForEvent(profiles||[],kind,record,profile);
+        :kind==='certificado'&&event
+          ?recipientsForCertificateComment(profiles||[],record)
+          :recipientsForEvent(profiles||[],kind,record,profile);
     const recipientIds=[...new Set(recipients.map(item=>String(item.id)).filter(id=>id&&id!==String(authUser.id)))];
     if(!recipientIds.length)return json({ok:true,recipients:0,delivered:0,failed:0});
 
