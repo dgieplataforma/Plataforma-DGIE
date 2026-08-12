@@ -24906,6 +24906,78 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   });
 })();
 </script>
+<style id="dgie-certificados-selector-os-2026-08-12">
+.dgie-cert-os-picker{border:1px solid #cbddec;border-radius:12px;background:#f8fbff;overflow:hidden}
+.dgie-cert-os-picker-head{padding:10px;border-bottom:1px solid #dbe7f2;background:#fff}
+.dgie-cert-os-picker-search{width:100%}
+.dgie-cert-os-picker-list{max-height:310px;overflow:auto;padding:8px;display:grid;gap:7px;overscroll-behavior:contain}
+.dgie-cert-os-option{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:flex-start;padding:10px;border:1px solid #d8e4ef;border-radius:10px;background:#fff;cursor:pointer}
+.dgie-cert-os-option:hover{border-color:#6ea8d7;background:#f4f9ff}
+.dgie-cert-os-option:has(input:checked){border-color:#0874c9;box-shadow:inset 3px 0 #0874c9;background:#eef7ff}
+.dgie-cert-os-option input{width:18px;height:18px;margin-top:2px;accent-color:#0874c9}
+.dgie-cert-os-title{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#123c69;font-size:13px;font-weight:900}
+.dgie-cert-os-detail{margin-top:4px;color:#334155;font-size:12px;line-height:1.4;white-space:normal}
+.dgie-cert-os-meta{margin-top:4px;color:#64748b;font-size:11px;line-height:1.35}
+.dgie-cert-os-empty{padding:22px;text-align:center;color:#64748b;font-size:12px}
+.dgie-cert-os-count{margin-top:7px;color:#45627d;font-size:12px;font-weight:800}
+@media(max-width:560px){.dgie-cert-os-picker-list{max-height:42vh}.dgie-cert-os-option{padding:11px 9px}.dgie-cert-os-title{align-items:flex-start;flex-direction:column;gap:3px}}
+</style>
+<script id="dgie-certificados-selector-os-2026-08-12">
+(function(){
+  'use strict';
+  function esc(value){return typeof escapeHtml==='function'?escapeHtml(value):String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
+  function certs(){return Array.isArray(window.CERTIFICADOS_MEDICION)?window.CERTIFICADOS_MEDICION:[]}
+  function ordenes(){try{return Array.isArray(OS_ZONA)?OS_ZONA:[]}catch(_e){return []}}
+  function certById(id){return certs().find(c=>String(c?.id||'')===String(id)||String(c?.localId||'')===String(id))||null}
+  function numeroCorto(value){const matches=String(value||'').match(/\d+/g);const n=matches?Number(matches[matches.length-1]):NaN;return Number.isFinite(n)&&n>0?String(n).padStart(3,'0'):''}
+  function zonaOrden(o){
+    const direct=Number(o?.zona||0);if(direct)return direct;
+    try{return typeof zonaEstablecimiento==='function'?Number(zonaEstablecimiento(o?.estId||o?.establecimiento_id)||0):0}catch(_e){return 0}
+  }
+  function estadoLabel(o){try{return typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):String(o?.estado||'')}catch(_e){return String(o?.estado||'')||'Sin estado'}}
+  function seleccionActual(c){return new Set((typeof window.certOrdenes==='function'?window.certOrdenes(c):[]).map(numeroCorto).filter(Boolean))}
+  function ordenesCertificado(c){
+    const zona=Number(c?.zona||currentUser?.zona||0),estId=Number(c?.establecimiento_id||0);
+    const zonaRows=ordenes().filter(o=>!zona||zonaOrden(o)===zona);
+    const sameEst=zonaRows.filter(o=>Number(o?.estId||o?.establecimiento_id||0)===estId);
+    return sameEst.slice().sort((a,b)=>Number(numeroCorto(b?.numero))-Number(numeroCorto(a?.numero)));
+  }
+  function optionHtml(o,selected){
+    const numero=numeroCorto(o?.numero),checked=selected.has(numero)?' checked':'';
+    const establecimiento=o?.establecimiento||o?.establecimiento_nombre||'Establecimiento';
+    const tarea=o?.tarea||o?.descripcion||o?.titulo||'Sin detalle cargado';
+    const rubro=o?.rubro||'Sin rubro',estado=estadoLabel(o);
+    return `<label class="dgie-cert-os-option" data-search="${esc(`${o?.numero||''} ${numero} ${establecimiento} ${tarea} ${rubro} ${estado}`.toLowerCase())}"><input type="checkbox" class="insp-cert-os-check" value="${esc(numero)}"${checked} onchange="actualizarResumenOrdenesCertificado()"><span><span class="dgie-cert-os-title"><span>O.S. ${esc(o?.numero||numero)}</span><span class="badge b-info">${esc(estado)}</span></span><span class="dgie-cert-os-detail">${esc(tarea)}</span><span class="dgie-cert-os-meta">${esc(establecimiento)} · ${esc(rubro)}${o?.fecha?' · '+esc(o.fecha):''}</span></span></label>`;
+  }
+  function actualizarResumen(){
+    const count=document.querySelectorAll('.insp-cert-os-check:checked').length;
+    const el=document.getElementById('dgie-cert-os-count');
+    if(el)el.textContent=count?`${count} orden${count===1?'':'es'} seleccionada${count===1?'':'s'}`:'Ninguna orden seleccionada';
+  }
+  window.actualizarResumenOrdenesCertificado=actualizarResumen;
+  window.filtrarOrdenesCertificado=function(value){
+    const terms=String(value||'').toLowerCase().trim().split(/\s+/).filter(Boolean);let visible=0;
+    document.querySelectorAll('#dgie-cert-os-options .dgie-cert-os-option').forEach(row=>{const show=terms.every(term=>String(row.dataset.search||'').includes(term));row.hidden=!show;if(show)visible++});
+    const empty=document.getElementById('dgie-cert-os-filter-empty');if(empty)empty.hidden=visible>0;
+  };
+  function reemplazarSelector(c){
+    const old=document.getElementById('insp-cert-os-list');if(!old)return;
+    const field=old.closest('.form-field');if(!field||field.querySelector('.dgie-cert-os-picker'))return;
+    const selected=seleccionActual(c),rows=ordenesCertificado(c),known=new Set(rows.map(o=>numeroCorto(o?.numero)));
+    const legacy=[...selected].filter(numero=>!known.has(numero));
+    field.innerHTML=`<label class="form-label">Órdenes de servicio</label><div class="dgie-cert-os-picker"><div class="dgie-cert-os-picker-head"><input class="form-input dgie-cert-os-picker-search" type="search" placeholder="Buscar por número, establecimiento, tarea o rubro…" oninput="filtrarOrdenesCertificado(this.value)"><div id="dgie-cert-os-count" class="dgie-cert-os-count"></div></div><div id="dgie-cert-os-options" class="dgie-cert-os-picker-list">${rows.map(o=>optionHtml(o,selected)).join('')}${legacy.map(numero=>`<label class="dgie-cert-os-option" data-search="${esc(numero)}"><input type="checkbox" class="insp-cert-os-check" value="${esc(numero)}" checked onchange="actualizarResumenOrdenesCertificado()"><span><span class="dgie-cert-os-title"><span>O.S. ${esc(numero)}</span><span class="badge b-neutral">Anterior</span></span><span class="dgie-cert-os-detail">Esta orden ya estaba vinculada, pero no se encontró en el listado actual.</span></span></label>`).join('')}<div id="dgie-cert-os-filter-empty" class="dgie-cert-os-empty" ${rows.length?'hidden':''}>No se encontraron órdenes para este establecimiento y zona.</div></div></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Elegí una o más órdenes. Podés leer la tarea antes de seleccionarlas.</div>`;
+    actualizarResumen();
+  }
+  const revisarPrev=window.revisarCertificadoInspector;
+  if(typeof revisarPrev==='function')window.revisarCertificadoInspector=function(id){const result=revisarPrev.apply(this,arguments);const c=certById(id);if(c)setTimeout(()=>reemplazarSelector(c),0);return result};
+  const obtenerPrev=window.obtenerOrdenesCertificadoFormulario;
+  window.obtenerOrdenesCertificadoFormulario=function(c){
+    const checks=[...document.querySelectorAll('.insp-cert-os-check')];
+    if(checks.length)return [...new Set(checks.filter(input=>input.checked).map(input=>numeroCorto(input.value)).filter(Boolean))];
+    return typeof obtenerPrev==='function'?obtenerPrev.apply(this,arguments):[];
+  };
+})();
+</script>
 <script src="./dgie-agenda.js?v=20260803-7"></script>
 <style id="dgie-barra-superior-sobria-2026-08-04">
 /* La zona de actualizacion pesaba visualmente mas que el resto de la
