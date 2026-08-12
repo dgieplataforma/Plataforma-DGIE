@@ -15215,6 +15215,54 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       }
     }
   };
+  function actualizarVistaModulosFinalCertificado(c,valor,continuar){
+    const id=String(c?.id||c?.localId||'');
+    const input=document.getElementById('cert-final-mod-'+id.replace(/[^a-zA-Z0-9_-]/g,'_'));
+    const fila=input?.closest('.med-version-row');
+    const detalle=document.getElementById('med-detalle');
+    const details=fila?.closest('.dgie-med-cert-details');
+    if(details)details.open=true;
+    if(input)input.value=valor==null?'':String(valor);
+
+    const controles=input?.closest('.cert-final-modulos-row');
+    let quitar=controles?[...controles.querySelectorAll('button')].find(btn=>btn.textContent.trim()==='Quitar'):null;
+    if(valor==null){
+      quitar?.remove();
+    }else if(controles&&!quitar){
+      quitar=document.createElement('button');
+      quitar.className='secondary-btn';
+      quitar.style.cssText='color:var(--danger);padding:7px 10px;font-size:12px';
+      quitar.textContent='Quitar';
+      quitar.onclick=()=>window.limpiarModulosFinalCertificado(id);
+      controles.appendChild(quitar);
+    }
+
+    const filas=[...(detalle?.querySelectorAll('.med-version-row')||[])];
+    const indice=filas.indexOf(fila);
+    const tabla=detalle?.querySelector('table.med-table');
+    const encabezados=[...(tabla?.querySelectorAll('thead th')||[])];
+    const indiceFinal=encabezados.findIndex(th=>String(th.textContent||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes('modulos cert. final'));
+    const data=dataMedicion(c.medicion_numero);
+    if(tabla&&indice>=0&&indiceFinal>=0){
+      const celda=tabla.querySelectorAll('tbody tr')[indice]?.children[indiceFinal];
+      if(celda)celda.textContent=mods(modFinal(c));
+      const total=data.reduce((suma,item)=>suma+modFinal(item),0);
+      const celdaTotal=tabla.querySelector('tfoot tr')?.children[indiceFinal];
+      if(celdaTotal)celdaTotal.textContent=mods(total);
+    }
+
+    const meta=detalle?.querySelector('.card-header .card-title')?.parentElement?.querySelector('div[style*="font-size:13px"]');
+    if(meta&&/Total m[oó]dulos:/i.test(meta.textContent||'')){
+      const total=data.reduce((suma,item)=>suma+modFinal(item),0);
+      meta.innerHTML=meta.innerHTML.replace(/Total m[oó]dulos:\s*[\d.,]+/i,'Total módulos: '+mods(total));
+    }
+
+    if(continuar&&fila){
+      const siguiente=filas.slice(indice+1).map(row=>row.querySelector('[id^="cert-final-mod-"]')).find(Boolean);
+      if(siguiente){siguiente.focus();siguiente.select()}
+      else{input?.focus();input?.select()}
+    }
+  }
   window.guardarModulosFinalCertificado=async function(id){
     if(!exigirInspectorCertificacion())return;
     const c=certById(id);
@@ -15222,15 +15270,19 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const modulos=n(input?.value);
     if(!c){alert('No se encontró el certificado.');return}
     if(!modulos){alert('Cargá la cantidad de módulos certificados final.');return}
+    const boton=input?.parentElement?.querySelector('button');
+    if(boton){boton.disabled=true;boton.textContent='Guardando...'}
     try{
       await window.actualizarCertificado(id,{
         modulos_final:modulos,
         monto_final:modulos,
         actualizado_por:currentUser?.name||'Inspector'
       });
-      if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(c.medicion_numero);
+      actualizarVistaModulosFinalCertificado(c,modulos,true);
     }catch(error){
       alert('No se pudo guardar los módulos certificados final: '+msgSupabaseMedicion(error));
+    }finally{
+      if(boton){boton.disabled=false;boton.textContent='Guardar'}
     }
   };
   window.limpiarModulosFinalCertificado=async function(id){
@@ -15244,7 +15296,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         monto_final:null,
         actualizado_por:currentUser?.name||'Inspector'
       });
-      if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(c.medicion_numero);
+      actualizarVistaModulosFinalCertificado(c,null,false);
     }catch(error){
       alert('No se pudo quitar los módulos certificados final: '+msgSupabaseMedicion(error));
     }
