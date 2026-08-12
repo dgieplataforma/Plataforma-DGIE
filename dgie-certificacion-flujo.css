@@ -257,4 +257,6 @@
 @media(max-width:760px){.dgie-cert-queue-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .dgie-cert-analysis-manage{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:12px 14px;border:1px solid #d8e4ef;border-radius:10px;background:#f8fbff}
 .dgie-cert-analysis-manage strong{display:block;color:#123c69;font-size:13px}.dgie-cert-analysis-manage span{display:block;margin-top:3px;color:#64748b;font-size:12px}
-@media(max-width:620px){.dgie-cert-analysis-manage{align-items:stretch;flex-direction:column}.dgie-cert-analysis-manage .med-actions{width:100%}}
+@media(max-width:620px){.dgie-cert-analysis-manage{align-items:stretch;flex-direction:column}.dgie-cert-analysis-manage .med-actions{width:100%}}.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(3,minmax(120px,1fr))}
+@media(max-width:620px){.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:1fr}.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tab{justify-content:space-between}}.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-header{flex-direction:column;align-items:stretch}
+.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{width:100%}
