@@ -195,53 +195,33 @@
     elemento.addEventListener('click',accion);
     return elemento;
   }
-  function actualizarBadgeEstado(acciones,estado){
-    const badge=[...(acciones?.children||[])].find(elemento=>elemento.classList?.contains('badge'));
-    if(!badge)return;
-    badge.classList.remove('b-info','b-warn','b-ok','b-danger','b-neutral');
-    if(estado===ESTADO_DEVUELTO){badge.classList.add('b-danger');badge.textContent='Devuelto';return}
-    if(estado===ESTADO_OBSERVADO){badge.classList.add('b-warn');badge.textContent='Observado';return}
-    if(estado===ESTADO_BORRADO){badge.classList.add('b-neutral');badge.textContent='Borrado';return}
-    badge.remove();
-  }
-  function insertarAntesDeEliminar(acciones,elemento){
-    const eliminar=[...(acciones?.querySelectorAll('button')||[])].find(item=>item.textContent.trim()==='Eliminar');
-    acciones.insertBefore(elemento,eliminar||null);
+  function quitarEstadoVisible(acciones){
+    [...(acciones?.children||[])].filter(elemento=>elemento.classList?.contains('badge')).forEach(elemento=>elemento.remove());
   }
   function mejorarTarjeta(tarjeta,certificado,rol){
     if(!tarjeta||!certificado)return;
-    const estado=estadoFlujo(certificado);
-    tarjeta.dataset.certCard=claveCertificado(certificado);
-    tarjeta.dataset.certId=String(idCertificado(certificado));
-    tarjeta.dataset.certEstado=estado;
+    const estado=estadoFlujo(certificado),id=idCertificado(certificado);
+    tarjeta.dataset.certCard=claveCertificado(certificado);tarjeta.dataset.certId=String(id);tarjeta.dataset.certEstado=estado;
     tarjeta.querySelectorAll('[data-cert-workflow-action]').forEach(elemento=>elemento.remove());
     tarjeta.querySelectorAll('[data-cert-versiones]').forEach(elemento=>elemento.remove());
-    const meta=hijoDirectoClase(tarjeta,'med-card-meta');
-    const historial=historialVersionesHTML(certificado);
+    const meta=hijoDirectoClase(tarjeta,'med-card-meta'),historial=historialVersionesHTML(certificado);
     if(meta&&historial)meta.insertAdjacentHTML('afterend',historial);
-    const acciones=hijoDirectoClase(tarjeta,'med-actions');
-    if(!acciones)return;
-    actualizarBadgeEstado(acciones,rol==='empresa'&&estado===ESTADO_OBSERVADO?ESTADO_PENDIENTE:estado);
-    [...acciones.querySelectorAll('button')].forEach(control=>{
-      if(control.textContent.trim()==='Eliminar'){
-        control.textContent='Enviar a Borrados';
-        control.onclick=()=>window.archivarCertificado(idCertificado(certificado));
-      }
-    });
-    if(estado===ESTADO_BORRADO){
-      [...acciones.querySelectorAll('button')].forEach(control=>control.remove());
-      acciones.appendChild(boton('Restaurar','primary-btn',()=>window.restaurarCertificado(idCertificado(certificado))));
+    const acciones=hijoDirectoClase(tarjeta,'med-actions');if(!acciones)return;
+    quitarEstadoVisible(acciones);
+    if(rol==='empresa'){
+      if(estado===ESTADO_DEVUELTO)acciones.appendChild(boton('Corregir y reenviar','primary-btn',()=>window.abrirReenvioCertificado(id)));
       return;
     }
-    if(estado===ESTADO_DEVUELTO){
-      if(rol==='empresa')insertarAntesDeEliminar(acciones,boton('Corregir y reenviar','primary-btn',()=>window.abrirReenvioCertificado(idCertificado(certificado))));
-      return;
-    }
-    if(rol==='inspector'){
-      if(estado===ESTADO_PENDIENTE)insertarAntesDeEliminar(acciones,boton('Observar','secondary-btn dgie-cert-action-observe',()=>window.observarCertificado(idCertificado(certificado))));
-      if(estado===ESTADO_OBSERVADO)insertarAntesDeEliminar(acciones,boton('Volver a pendientes','secondary-btn',()=>window.volverCertificadoDeObservado(idCertificado(certificado))));
-      insertarAntesDeEliminar(acciones,boton('Devolver','secondary-btn dgie-cert-action-return',evento=>window.devolverCertificado(idCertificado(certificado),evento.currentTarget)));
-    }
+    [...acciones.querySelectorAll('button')].filter(control=>/^(Análisis de precios|PDF\/JPG análisis|Quitar análisis)$/i.test(control.textContent.trim())).forEach(control=>control.remove());
+    const gestionar=[...acciones.querySelectorAll('button')].find(control=>control.textContent.trim()==='Gestionar');
+    const eliminar=[...acciones.querySelectorAll('button')].find(control=>/^(Eliminar|Anular)$/i.test(control.textContent.trim()));
+    if(eliminar){eliminar.textContent='Anular';eliminar.onclick=()=>window.archivarCertificado(id);eliminar.style.color='var(--danger)'}
+    const extras=[];
+    if(estado===ESTADO_BORRADO){[...acciones.querySelectorAll('button')].forEach(control=>control.remove());acciones.appendChild(boton('Restaurar','primary-btn',()=>window.restaurarCertificado(id)));return}
+    if(estado===ESTADO_PENDIENTE)extras.push(boton('Observar','secondary-btn dgie-cert-action-observe',()=>window.observarCertificado(id)));
+    if(estado===ESTADO_OBSERVADO)extras.push(boton('Volver a pendientes','secondary-btn',()=>window.volverCertificadoDeObservado(id)));
+    if(estado!==ESTADO_DEVUELTO)extras.push(boton('Devolver','secondary-btn dgie-cert-action-return',evento=>window.devolverCertificado(id,evento.currentTarget)));
+    [gestionar,...extras,eliminar].filter(Boolean).forEach(control=>acciones.appendChild(control));
   }  function tarjetasCola(contenedor){
     const directas=[];
     [...(contenedor?.children||[])].forEach(hijo=>{
@@ -290,10 +270,10 @@
   window.cambiarPestanaCertificados=function(rol,tab){
     aplicarTab(String(rol||''),String(tab||''));
   };
-  function tarjetaBorrado(certificado){
+  function tarjetaAnulado(certificado){
     const tarjeta=document.createElement('div');
     tarjeta.className='med-card';
-    tarjeta.innerHTML=`<div class="med-card-title">${esc(certificado?.establecimiento_nombre||'Establecimiento')}</div><div class="med-card-meta">Original: ${enlaceOriginal(certificado)} · Módulos empresa: ${modulos(certificado?.modulos_original)}<br>${certificado?.archivo_inspector?`Inspector: ${esc(certificado.archivo_inspector)} · Módulos inspección: ${modulos(certificado?.modulos_inspector)}<br>`:''}<span style="color:#64748b">Archivado por ${esc(certificado?.actualizado_por||'Inspector')} · ${esc(fecha(certificado?.updated_at)||'Sin fecha')}</span></div>${historialVersionesHTML(certificado)}${historialMensajesHTML(certificado)}<div class="med-actions"><span class="badge b-neutral">Borrado</span></div>`;
+    tarjeta.innerHTML=`<div class="med-card-title">${esc(certificado?.establecimiento_nombre||'Establecimiento')}</div><div class="med-card-meta">Original: ${enlaceOriginal(certificado)} · Módulos empresa: ${modulos(certificado?.modulos_original)}<br>${certificado?.archivo_inspector?`Inspector: ${esc(certificado.archivo_inspector)} · Módulos inspección: ${modulos(certificado?.modulos_inspector)}<br>`:''}<span style="color:#64748b">Anulado por ${esc(certificado?.actualizado_por||'Inspector')} · ${esc(fecha(certificado?.updated_at)||'Sin fecha')}</span></div>${historialVersionesHTML(certificado)}${historialMensajesHTML(certificado)}<div class="med-actions"></div>`;
     return tarjeta;
   }
   function panelCola(tab,items,vacio){
@@ -314,16 +294,16 @@
       if(rol==='empresa'&&estado===ESTADO_BORRADO)return;
       grupos[estado].push({tarjeta,certificado});
     });
-    if(rol==='inspector')filasCola.filter(c=>estadoFlujo(c)===ESTADO_BORRADO&&!usados.has(claveCertificado(c))).forEach(certificado=>{const tarjeta=tarjetaBorrado(certificado);mejorarTarjeta(tarjeta,certificado,rol);grupos[ESTADO_BORRADO].push({tarjeta,certificado})});
+    if(rol==='inspector')filasCola.filter(c=>estadoFlujo(c)===ESTADO_BORRADO&&!usados.has(claveCertificado(c))).forEach(certificado=>{const tarjeta=tarjetaAnulado(certificado);mejorarTarjeta(tarjeta,certificado,rol);grupos[ESTADO_BORRADO].push({tarjeta,certificado})});
     const porActividad=(a,b)=>(new Date(b.certificado?.updated_at||b.certificado?.created_at||0).getTime()||0)-(new Date(a.certificado?.updated_at||a.certificado?.created_at||0).getTime()||0);
     Object.values(grupos).forEach(items=>items.sort(porActividad));
     const tabs=rol==='inspector'?[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_BORRADO]:[ESTADO_PENDIENTE,ESTADO_DEVUELTO];
-    const nombres={[ESTADO_PENDIENTE]:'Pendientes',[ESTADO_OBSERVADO]:'Observados',[ESTADO_DEVUELTO]:'Devueltos',[ESTADO_BORRADO]:'Borrados'};
+    const nombres={[ESTADO_PENDIENTE]:'Pendientes',[ESTADO_OBSERVADO]:'Observados',[ESTADO_DEVUELTO]:'Devueltos',[ESTADO_BORRADO]:'Anulados'};
     const titulo=rol==='empresa'?'Seguimiento de certificados':'Certificados recibidos';
     const descripcion=rol==='empresa'?'Consultá el estado y corregí los certificados devueltos.':'Clasificá los certificados sin perder archivos, comentarios ni versiones.';
     const cabecera=document.createElement('div');cabecera.className='dgie-cert-queue-header';
     cabecera.innerHTML=`<div class="dgie-cert-queue-copy"><div class="card-title">${titulo}</div><p>${descripcion}</p></div><div class="dgie-cert-queue-tabs" role="tablist" aria-label="Estado de certificados">${tabs.map(tab=>`<button type="button" class="dgie-cert-queue-tab" role="tab" data-tab="${tab}">${nombres[tab]} <span class="dgie-cert-tab-count">${grupos[tab].length}</span></button>`).join('')}</div>`;
-    const vacios={[ESTADO_PENDIENTE]:'No hay certificados pendientes.',[ESTADO_OBSERVADO]:'No hay certificados observados.',[ESTADO_DEVUELTO]:rol==='empresa'?'No hay certificados devueltos que requieran corrección.':'No hay certificados devueltos.',[ESTADO_BORRADO]:'No hay certificados en Borrados.'};
+    const vacios={[ESTADO_PENDIENTE]:'No hay certificados pendientes.',[ESTADO_OBSERVADO]:'No hay certificados observados.',[ESTADO_DEVUELTO]:rol==='empresa'?'No hay certificados devueltos que requieran corrección.':'No hay certificados devueltos.',[ESTADO_BORRADO]:'No hay certificados en Anulados.'};
     const panels=tabs.map(tab=>panelCola(tab,grupos[tab],vacios[tab]));
     contenedor.replaceChildren(cabecera,...panels);contenedor.dataset.certWorkflow='1';contenedor.classList.add('dgie-cert-queue');contenedor.dataset.certRole=rol;
     cabecera.querySelectorAll('.dgie-cert-queue-tab').forEach(control=>control.addEventListener('click',()=>aplicarTab(rol,control.dataset.tab)));
@@ -380,10 +360,10 @@
   window.volverCertificadoDeObservado=id=>cambiarEstadoInspector(id,ESTADO_PENDIENTE,ESTADO_PENDIENTE,'volver el certificado a pendientes');
   window.archivarCertificado=async function(id){
     const certificado=certificadoPorId(id);if(!certificado||usuario()?.role!=='inspector')return;
-    if(!confirm('¿Enviar este certificado a Borrados? Se conservarán todos los archivos, comentarios y versiones.'))return;
+    if(!confirm('¿Anular este certificado? Se conservarán todos los archivos, comentarios y versiones.'))return;
     const anterior=estadoFlujo(certificado);
     const base=String(certificado?.observaciones_inspector||'').replace(/\s*\[BORRADO_DESDE:[^\]]*\]/g,'').trim();
-    try{await actualizarConCompatibilidad(id,{estado:ESTADO_BORRADO,observaciones_inspector:[base,`[BORRADO_DESDE:${anterior}]`].filter(Boolean).join('\n'),actualizado_por:usuario()?.name||'Inspector'});await volverAListado('inspector',ESTADO_BORRADO)}catch(error){alert(mensajeError(error,'enviar el certificado a Borrados'))}
+    try{await actualizarConCompatibilidad(id,{estado:ESTADO_BORRADO,observaciones_inspector:[base,`[BORRADO_DESDE:${anterior}]`].filter(Boolean).join('\n'),actualizado_por:usuario()?.name||'Inspector'});await volverAListado('inspector',ESTADO_BORRADO)}catch(error){alert(mensajeError(error,'anular el certificado'))}
   };
   window.restaurarCertificado=async function(id){
     const certificado=certificadoPorId(id);if(!certificado||usuario()?.role!=='inspector')return;
@@ -445,7 +425,6 @@
         <button type="button" class="back-btn" id="dgie-cert-resubmit-back">‹ Volver a certificación</button>
         <div class="card-header">
           <div><div class="card-title">Corregir y reenviar</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La nueva versión quedará vigente y la anterior se conservará en el historial.</div></div>
-          <span class="badge b-danger">Requiere corrección</span>
         </div>
         ${resumenCertificado(certificado)}
         ${historialVersionesHTML(certificado)}
@@ -546,15 +525,19 @@
   };
 
   function mejorarGestionInspector(id){
-    const certificado=certificadoPorId(id);
-    const tarjeta=document.getElementById('insp-cert-file')?.closest('.card');
+    const certificado=certificadoPorId(id),tarjeta=document.getElementById('insp-cert-file')?.closest('.card');
     if(!certificado||!tarjeta)return;
+    tarjeta.querySelector('.card-header .badge')?.remove();
     tarjeta.querySelectorAll('[data-cert-versiones]').forEach(elemento=>elemento.remove());
-    const historial=historialVersionesHTML(certificado);
-    if(!historial)return;
-    hijoDirectoClase(tarjeta,'card-header')?.insertAdjacentHTML('afterend',historial);
+    tarjeta.querySelectorAll('[data-cert-analysis-manage]').forEach(elemento=>elemento.remove());
+    const cabecera=hijoDirectoClase(tarjeta,'card-header'),historial=historialVersionesHTML(certificado);
+    if(cabecera&&historial)cabecera.insertAdjacentHTML('afterend',historial);
+    const idSeguro=String(id).replace(/'/g,"\\'");
+    const existe=window.analisisPrecioCertificadoExiste?.(id);
+    const bloque=document.createElement('div');bloque.dataset.certAnalysisManage='1';bloque.className='dgie-cert-analysis-manage';
+    bloque.innerHTML=`<div><strong>Análisis de precios</strong><span>Gestioná el análisis asociado a este certificado.</span></div><div class="med-actions"><button class="secondary-btn" onclick="seleccionarAnalisisPrecioCertificado('${idSeguro}')">Abrir análisis de precios</button>${existe?`<button class="secondary-btn" onclick="imprimirAnalisisPrecioCertificado('${idSeguro}')">PDF/JPG análisis</button><button class="secondary-btn" style="color:var(--danger)" onclick="desanexarAnalisisPrecioCertificado('${idSeguro}')">Quitar análisis</button>`:''}</div>`;
+    const form=tarjeta.querySelector('.form-grid');if(form)form.insertAdjacentElement('beforebegin',bloque);
   }
-
   const revisarAnterior=window.revisarCertificadoInspector;
   if(typeof revisarAnterior==='function'){
     window.revisarCertificadoInspector=function(id){
