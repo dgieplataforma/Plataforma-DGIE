@@ -19,7 +19,7 @@
 }
 .dgie-cert-queue-tabs{
   display:inline-grid;
-  grid-template-columns:repeat(2,minmax(126px,1fr));
+  grid-template-columns:repeat(4,minmax(112px,1fr));
   gap:4px;
   padding:4px;
   border:1px solid #d8e2ee;
@@ -246,3 +246,12 @@
     max-height:none;
   }
 }
+.dgie-cert-queue-tab[data-tab="revision"][aria-selected="true"]{border-color:#e9c870;color:#8a5a00}
+.dgie-cert-queue-tab[data-tab="revision"] .dgie-cert-tab-count{background:#fff3cd;color:#8a5a00}
+.dgie-cert-queue-tab[data-tab="eliminado"][aria-selected="true"]{border-color:#aeb9c6;color:#475569}
+.dgie-cert-action-observe{border-color:#e4c46c!important;color:#805500!important}
+.dgie-med-cert-details{margin-top:12px;border:1px solid #cbd9e6;border-radius:10px;background:#f8fafc;overflow:hidden}
+.dgie-med-cert-details>summary{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;color:#075aa8;font-weight:900;cursor:pointer}
+.dgie-med-cert-details>summary span{background:#e5eef8;border-radius:999px;padding:3px 8px;font-size:12px}
+.dgie-med-cert-list{padding:0 10px 10px}
+@media(max-width:760px){.dgie-cert-queue-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}

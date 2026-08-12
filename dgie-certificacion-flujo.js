@@ -2,8 +2,10 @@
   'use strict';
 
   const ESTADO_PENDIENTE='pendiente';
+  const ESTADO_OBSERVADO='revision';
   const ESTADO_DEVUELTO='devuelto';
   const ESTADO_MEDIDO='medido';
+  const ESTADO_BORRADO='eliminado';
   const META_VERSIONES_EMPRESA='VERSIONES_EMPRESA';
   const tabsActivas={inspector:ESTADO_PENDIENTE,empresa:ESTADO_PENDIENTE};
 
@@ -27,7 +29,9 @@
   function estadoFlujo(certificado){
     const estado=String(certificado?.estado||ESTADO_PENDIENTE).toLowerCase();
     if(estado===ESTADO_MEDIDO)return ESTADO_MEDIDO;
+    if(estado===ESTADO_BORRADO)return ESTADO_BORRADO;
     if(estado===ESTADO_DEVUELTO)return ESTADO_DEVUELTO;
+    if(estado===ESTADO_OBSERVADO)return ESTADO_OBSERVADO;
     return ESTADO_PENDIENTE;
   }
   function idCertificado(certificado){
@@ -62,10 +66,7 @@
     }
   }
   function certificadosZona(zona){
-    return certificados().filter(certificado=>
-      String(certificado?.estado||'')!=='eliminado'&&
-      Number(zonaCertificado(certificado))===Number(zona)
-    );
+    return certificados().filter(certificado=>Number(zonaCertificado(certificado))===Number(zona));
   }
   function versionActualDesdeCertificado(certificado){
     if(!certificado?.archivo_original&&!certificado?.url_original)return null;
@@ -198,17 +199,13 @@
     const badge=[...(acciones?.children||[])].find(elemento=>elemento.classList?.contains('badge'));
     if(!badge)return;
     badge.classList.remove('b-info','b-warn','b-ok','b-danger','b-neutral');
-    if(estado===ESTADO_DEVUELTO){
-      badge.classList.add('b-danger');
-      badge.textContent='Devuelto';
-    }else{
-      badge.classList.add('b-info');
-      badge.textContent='Pendiente';
-    }
+    if(estado===ESTADO_DEVUELTO){badge.classList.add('b-danger');badge.textContent='Devuelto';return}
+    if(estado===ESTADO_OBSERVADO){badge.classList.add('b-warn');badge.textContent='Observado';return}
+    if(estado===ESTADO_BORRADO){badge.classList.add('b-neutral');badge.textContent='Borrado';return}
+    badge.remove();
   }
   function insertarAntesDeEliminar(acciones,elemento){
-    const eliminar=[...(acciones?.querySelectorAll('button')||[])]
-      .find(item=>item.textContent.trim()==='Eliminar');
+    const eliminar=[...(acciones?.querySelectorAll('button')||[])].find(item=>item.textContent.trim()==='Eliminar');
     acciones.insertBefore(elemento,eliminar||null);
   }
   function mejorarTarjeta(tarjeta,certificado,rol){
@@ -217,7 +214,6 @@
     tarjeta.dataset.certCard=claveCertificado(certificado);
     tarjeta.dataset.certId=String(idCertificado(certificado));
     tarjeta.dataset.certEstado=estado;
-
     tarjeta.querySelectorAll('[data-cert-workflow-action]').forEach(elemento=>elemento.remove());
     tarjeta.querySelectorAll('[data-cert-versiones]').forEach(elemento=>elemento.remove());
     const meta=hijoDirectoClase(tarjeta,'med-card-meta');
@@ -225,31 +221,28 @@
     if(meta&&historial)meta.insertAdjacentHTML('afterend',historial);
     const acciones=hijoDirectoClase(tarjeta,'med-actions');
     if(!acciones)return;
-
-    actualizarBadgeEstado(acciones,estado);
-
-    if(estado===ESTADO_DEVUELTO){
-      if(rol==='empresa'){
-        insertarAntesDeEliminar(
-          acciones,
-          boton('Corregir y reenviar','primary-btn',()=>window.abrirReenvioCertificado(idCertificado(certificado)))
-        );
+    actualizarBadgeEstado(acciones,rol==='empresa'&&estado===ESTADO_OBSERVADO?ESTADO_PENDIENTE:estado);
+    [...acciones.querySelectorAll('button')].forEach(control=>{
+      if(control.textContent.trim()==='Eliminar'){
+        control.textContent='Enviar a Borrados';
+        control.onclick=()=>window.archivarCertificado(idCertificado(certificado));
       }
+    });
+    if(estado===ESTADO_BORRADO){
+      [...acciones.querySelectorAll('button')].forEach(control=>control.remove());
+      acciones.appendChild(boton('Restaurar','primary-btn',()=>window.restaurarCertificado(idCertificado(certificado))));
       return;
     }
-
-    if(rol==='inspector'){
-      insertarAntesDeEliminar(
-        acciones,
-        boton(
-          'Devolver',
-          'secondary-btn dgie-cert-action-return',
-          evento=>window.devolverCertificado(idCertificado(certificado),evento.currentTarget)
-        )
-      );
+    if(estado===ESTADO_DEVUELTO){
+      if(rol==='empresa')insertarAntesDeEliminar(acciones,boton('Corregir y reenviar','primary-btn',()=>window.abrirReenvioCertificado(idCertificado(certificado))));
+      return;
     }
-  }
-  function tarjetasCola(contenedor){
+    if(rol==='inspector'){
+      if(estado===ESTADO_PENDIENTE)insertarAntesDeEliminar(acciones,boton('Observar','secondary-btn dgie-cert-action-observe',()=>window.observarCertificado(idCertificado(certificado))));
+      if(estado===ESTADO_OBSERVADO)insertarAntesDeEliminar(acciones,boton('Volver a pendientes','secondary-btn',()=>window.volverCertificadoDeObservado(idCertificado(certificado))));
+      insertarAntesDeEliminar(acciones,boton('Devolver','secondary-btn dgie-cert-action-return',evento=>window.devolverCertificado(idCertificado(certificado),evento.currentTarget)));
+    }
+  }  function tarjetasCola(contenedor){
     const directas=[];
     [...(contenedor?.children||[])].forEach(hijo=>{
       [...(hijo?.children||[])].forEach(nieto=>{
@@ -273,7 +266,7 @@
   function leerTab(rol){
     try{
       const guardada=sessionStorage.getItem(claveTab(rol));
-      if([ESTADO_PENDIENTE,ESTADO_DEVUELTO].includes(guardada))return guardada;
+      if([ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_BORRADO].includes(guardada))return guardada;
     }catch(_){}
     return tabsActivas[rol]||ESTADO_PENDIENTE;
   }
@@ -282,7 +275,7 @@
     try{sessionStorage.setItem(claveTab(rol),tab)}catch(_){}
   }
   function aplicarTab(rol,tab){
-    if(![ESTADO_PENDIENTE,ESTADO_DEVUELTO].includes(tab))return;
+    if(![ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_BORRADO].includes(tab))return;
     guardarTab(rol,tab);
     document.querySelectorAll(`.dgie-cert-queue[data-cert-role="${rol}"]`).forEach(cola=>{
       cola.querySelectorAll('.dgie-cert-queue-tab').forEach(control=>{
@@ -297,90 +290,45 @@
   window.cambiarPestanaCertificados=function(rol,tab){
     aplicarTab(String(rol||''),String(tab||''));
   };
+  function tarjetaBorrado(certificado){
+    const tarjeta=document.createElement('div');
+    tarjeta.className='med-card';
+    tarjeta.innerHTML=`<div class="med-card-title">${esc(certificado?.establecimiento_nombre||'Establecimiento')}</div><div class="med-card-meta">Original: ${enlaceOriginal(certificado)} · Módulos empresa: ${modulos(certificado?.modulos_original)}<br>${certificado?.archivo_inspector?`Inspector: ${esc(certificado.archivo_inspector)} · Módulos inspección: ${modulos(certificado?.modulos_inspector)}<br>`:''}<span style="color:#64748b">Archivado por ${esc(certificado?.actualizado_por||'Inspector')} · ${esc(fecha(certificado?.updated_at)||'Sin fecha')}</span></div>${historialVersionesHTML(certificado)}${historialMensajesHTML(certificado)}<div class="med-actions"><span class="badge b-neutral">Borrado</span></div>`;
+    return tarjeta;
+  }
+  function panelCola(tab,items,vacio){
+    const panel=document.createElement('div');panel.className='dgie-cert-queue-panel';panel.dataset.tab=tab;panel.setAttribute('role','tabpanel');
+    if(items.length)items.forEach(item=>panel.appendChild(item.tarjeta));else panel.appendChild(crearVacio(vacio));
+    return panel;
+  }
   function armarCola(contenedor,rol,filas){
     if(!contenedor)return;
-    if(contenedor.dataset.certWorkflow==='1'){
-      contenedor.querySelectorAll('[data-cert-card]').forEach(tarjeta=>{
-        mejorarTarjeta(tarjeta,certificadoPorId(tarjeta.dataset.certCard),rol);
-      });
-      aplicarTab(rol,leerTab(rol));
-      return;
-    }
-
-    const tarjetas=tarjetasCola(contenedor);
-    const filasCola=(filas||[]).filter(certificado=>estadoFlujo(certificado)!==ESTADO_MEDIDO);
-    const porClave=new Map(filasCola.map(certificado=>[claveCertificado(certificado),certificado]));
-    const pendientes=[];
-    const devueltos=[];
-    const filasVisibles=[];
-
+    const tarjetas=tarjetasCola(contenedor),filasCola=(filas||[]).filter(c=>estadoFlujo(c)!==ESTADO_MEDIDO);
+    const porClave=new Map(filasCola.map(c=>[claveCertificado(c),c]));
+    const grupos={[ESTADO_PENDIENTE]:[],[ESTADO_OBSERVADO]:[],[ESTADO_DEVUELTO]:[],[ESTADO_BORRADO]:[]};
+    const usados=new Set();
     tarjetas.forEach((tarjeta,index)=>{
-      const clave=tarjeta.dataset.certCard||'';
-      const certificado=porClave.get(clave)||filasCola[index]||null;
-      if(!certificado)return;
-      filasVisibles.push(certificado);
-      mejorarTarjeta(tarjeta,certificado,rol);
-      const item={tarjeta,certificado};
-      if(estadoFlujo(certificado)===ESTADO_DEVUELTO)devueltos.push(item);
-      else pendientes.push(item);
+      const certificado=porClave.get(tarjeta.dataset.certCard||'')||filasCola.filter(c=>estadoFlujo(c)!==ESTADO_BORRADO)[index]||null;
+      if(!certificado)return;usados.add(claveCertificado(certificado));mejorarTarjeta(tarjeta,certificado,rol);
+      let estado=estadoFlujo(certificado);if(rol==='empresa'&&estado===ESTADO_OBSERVADO)estado=ESTADO_PENDIENTE;
+      if(rol==='empresa'&&estado===ESTADO_BORRADO)return;
+      grupos[estado].push({tarjeta,certificado});
     });
-    const porActividad=(a,b)=>{
-      const fechaA=new Date(a.certificado?.updated_at||a.certificado?.created_at||0).getTime()||0;
-      const fechaB=new Date(b.certificado?.updated_at||b.certificado?.created_at||0).getTime()||0;
-      return fechaB-fechaA;
-    };
-    pendientes.sort(porActividad);
-    devueltos.sort(porActividad);
-
-    const totalModulos=filasVisibles.reduce((total,certificado)=>total+numero(certificado?.modulos_original),0);
+    if(rol==='inspector')filasCola.filter(c=>estadoFlujo(c)===ESTADO_BORRADO&&!usados.has(claveCertificado(c))).forEach(certificado=>{const tarjeta=tarjetaBorrado(certificado);mejorarTarjeta(tarjeta,certificado,rol);grupos[ESTADO_BORRADO].push({tarjeta,certificado})});
+    const porActividad=(a,b)=>(new Date(b.certificado?.updated_at||b.certificado?.created_at||0).getTime()||0)-(new Date(a.certificado?.updated_at||a.certificado?.created_at||0).getTime()||0);
+    Object.values(grupos).forEach(items=>items.sort(porActividad));
+    const tabs=rol==='inspector'?[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_BORRADO]:[ESTADO_PENDIENTE,ESTADO_DEVUELTO];
+    const nombres={[ESTADO_PENDIENTE]:'Pendientes',[ESTADO_OBSERVADO]:'Observados',[ESTADO_DEVUELTO]:'Devueltos',[ESTADO_BORRADO]:'Borrados'};
     const titulo=rol==='empresa'?'Seguimiento de certificados':'Certificados recibidos';
-    const descripcion=rol==='empresa'
-      ? 'Corregí y reenviá los certificados devueltos. Los pendientes están siendo revisados por el inspector.'
-      : `Los pendientes requieren devolver o pasar a medición. ${modulos(totalModulos)} módulos de empresa en esta cola.`;
-
-    const cabecera=document.createElement('div');
-    cabecera.className='dgie-cert-queue-header';
-    cabecera.innerHTML=`<div class="dgie-cert-queue-copy"><div class="card-title">${titulo}</div><p>${esc(descripcion)}</p></div>
-      <div class="dgie-cert-queue-tabs" role="tablist" aria-label="Estado de certificados">
-        <button type="button" class="dgie-cert-queue-tab" role="tab" data-tab="${ESTADO_PENDIENTE}">
-          Pendientes <span class="dgie-cert-tab-count">${pendientes.length}</span>
-        </button>
-        <button type="button" class="dgie-cert-queue-tab" role="tab" data-tab="${ESTADO_DEVUELTO}">
-          Devueltos <span class="dgie-cert-tab-count">${devueltos.length}</span>
-        </button>
-      </div>`;
-    const panelPendientes=document.createElement('div');
-    panelPendientes.className='dgie-cert-queue-panel';
-    panelPendientes.dataset.tab=ESTADO_PENDIENTE;
-    panelPendientes.setAttribute('role','tabpanel');
-    if(pendientes.length)pendientes.forEach(item=>panelPendientes.appendChild(item.tarjeta));
-    else panelPendientes.appendChild(crearVacio('No hay certificados pendientes para los filtros seleccionados.'));
-
-    const panelDevueltos=document.createElement('div');
-    panelDevueltos.className='dgie-cert-queue-panel';
-    panelDevueltos.dataset.tab=ESTADO_DEVUELTO;
-    panelDevueltos.setAttribute('role','tabpanel');
-    if(devueltos.length)devueltos.forEach(item=>panelDevueltos.appendChild(item.tarjeta));
-    else panelDevueltos.appendChild(crearVacio(
-      rol==='empresa'
-        ? 'No hay certificados devueltos que requieran corrección.'
-        : 'No hay certificados devueltos para los filtros seleccionados.'
-    ));
-
-    contenedor.replaceChildren(cabecera,panelPendientes,panelDevueltos);
-    contenedor.dataset.certWorkflow='1';
-    contenedor.classList.add('dgie-cert-queue');
-    contenedor.dataset.certRole=rol;
-    cabecera.querySelectorAll('.dgie-cert-queue-tab').forEach(control=>{
-      control.addEventListener('click',()=>aplicarTab(rol,control.dataset.tab));
-    });
-
-    let activa=leerTab(rol);
-    if(activa===ESTADO_PENDIENTE&&!pendientes.length&&devueltos.length)activa=ESTADO_DEVUELTO;
-    if(activa===ESTADO_DEVUELTO&&!devueltos.length&&pendientes.length)activa=ESTADO_PENDIENTE;
-    aplicarTab(rol,activa);
-  }
-  function buscarCola(raiz){
+    const descripcion=rol==='empresa'?'Consultá el estado y corregí los certificados devueltos.':'Clasificá los certificados sin perder archivos, comentarios ni versiones.';
+    const cabecera=document.createElement('div');cabecera.className='dgie-cert-queue-header';
+    cabecera.innerHTML=`<div class="dgie-cert-queue-copy"><div class="card-title">${titulo}</div><p>${descripcion}</p></div><div class="dgie-cert-queue-tabs" role="tablist" aria-label="Estado de certificados">${tabs.map(tab=>`<button type="button" class="dgie-cert-queue-tab" role="tab" data-tab="${tab}">${nombres[tab]} <span class="dgie-cert-tab-count">${grupos[tab].length}</span></button>`).join('')}</div>`;
+    const vacios={[ESTADO_PENDIENTE]:'No hay certificados pendientes.',[ESTADO_OBSERVADO]:'No hay certificados observados.',[ESTADO_DEVUELTO]:rol==='empresa'?'No hay certificados devueltos que requieran corrección.':'No hay certificados devueltos.',[ESTADO_BORRADO]:'No hay certificados en Borrados.'};
+    const panels=tabs.map(tab=>panelCola(tab,grupos[tab],vacios[tab]));
+    contenedor.replaceChildren(cabecera,...panels);contenedor.dataset.certWorkflow='1';contenedor.classList.add('dgie-cert-queue');contenedor.dataset.certRole=rol;
+    cabecera.querySelectorAll('.dgie-cert-queue-tab').forEach(control=>control.addEventListener('click',()=>aplicarTab(rol,control.dataset.tab)));
+    let activa=leerTab(rol);if(!tabs.includes(activa)||!grupos[activa].length)activa=tabs.find(tab=>grupos[tab].length)||tabs[0];aplicarTab(rol,activa);
+  }  function buscarCola(raiz){
     return [...(raiz?.querySelectorAll('.med-card')||[])]
       .find(tarjeta=>/^Certificados pendientes$/i.test(tituloDirecto(tarjeta)))||null;
   }
@@ -422,6 +370,30 @@
       <div><span class="dgie-cert-flow-kicker">Última actualización</span><div class="dgie-cert-flow-value">${esc(fecha(certificado?.updated_at||certificado?.created_at)||'Sin fecha')}</div></div>
     </div>`;
   }
+  async function cambiarEstadoInspector(id,estado,tab,accion){
+    const certificado=certificadoPorId(id);
+    if(!certificado||usuario()?.role!=='inspector'||Number(zonaCertificado(certificado))!==Number(usuario()?.zona||0))return;
+    try{await actualizarConCompatibilidad(id,{estado,actualizado_por:usuario()?.name||'Inspector'});await volverAListado('inspector',tab)}
+    catch(error){alert(mensajeError(error,accion))}
+  }
+  window.observarCertificado=id=>cambiarEstadoInspector(id,ESTADO_OBSERVADO,ESTADO_OBSERVADO,'observar el certificado');
+  window.volverCertificadoDeObservado=id=>cambiarEstadoInspector(id,ESTADO_PENDIENTE,ESTADO_PENDIENTE,'volver el certificado a pendientes');
+  window.archivarCertificado=async function(id){
+    const certificado=certificadoPorId(id);if(!certificado||usuario()?.role!=='inspector')return;
+    if(!confirm('¿Enviar este certificado a Borrados? Se conservarán todos los archivos, comentarios y versiones.'))return;
+    const anterior=estadoFlujo(certificado);
+    const base=String(certificado?.observaciones_inspector||'').replace(/\s*\[BORRADO_DESDE:[^\]]*\]/g,'').trim();
+    try{await actualizarConCompatibilidad(id,{estado:ESTADO_BORRADO,observaciones_inspector:[base,`[BORRADO_DESDE:${anterior}]`].filter(Boolean).join('\n'),actualizado_por:usuario()?.name||'Inspector'});await volverAListado('inspector',ESTADO_BORRADO)}catch(error){alert(mensajeError(error,'enviar el certificado a Borrados'))}
+  };
+  window.restaurarCertificado=async function(id){
+    const certificado=certificadoPorId(id);if(!certificado||usuario()?.role!=='inspector')return;
+    if(!confirm('¿Restaurar este certificado a Pendientes?'))return;
+    const obs=String(certificado?.observaciones_inspector||''),match=obs.match(/\[BORRADO_DESDE:([^\]]+)\]/);
+    const destino=[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_MEDIDO].includes(match?.[1])?match[1]:ESTADO_PENDIENTE;
+    const limpio=obs.replace(/\s*\[BORRADO_DESDE:[^\]]*\]/g,'').trim();
+    try{await actualizarConCompatibilidad(id,{estado:destino,observaciones_inspector:limpio,actualizado_por:usuario()?.name||'Inspector'});await volverAListado('inspector',destino===ESTADO_MEDIDO?ESTADO_PENDIENTE:destino)}catch(error){alert(mensajeError(error,'restaurar el certificado'))}
+  };
+  window.eliminarCertificadoInspector=window.archivarCertificado;
   window.devolverCertificado=async function(id,control){
     const certificado=certificadoPorId(id);
     if(!certificado||usuario()?.role!=='inspector')return;
@@ -617,6 +589,25 @@
     };
   }
 
+  function historialMensajesHTML(certificado){
+    const mensajes=typeof window.conversacionCert==='function'?(window.conversacionCert(certificado)||[]):(Array.isArray(certificado?.conversacion)?certificado.conversacion:[]);
+    if(!mensajes.length)return '';
+    return `<details class="dgie-cert-versions dgie-cert-exchange"><summary>Comentarios e intercambio <span>${mensajes.length}</span></summary><div class="dgie-cert-versions-list">${mensajes.map(m=>`<div class="dgie-cert-version-row"><div class="dgie-cert-version-file"><strong>${esc(m?.autor||m?.rol||'Usuario')}</strong><span>${esc(m?.texto||'')}</span></div><div class="dgie-cert-version-meta">${esc(fecha(m?.fecha)||'')}</div></div>`).join('')}</div></details>`;
+  }
+  function compactarMedicion(numero){
+    const detalle=document.getElementById('med-detalle');if(!detalle||detalle.querySelector('.dgie-med-cert-details'))return;
+    const filas=[...detalle.querySelectorAll('.med-version-row')];if(!filas.length)return;
+    const zona=Number(usuario()?.zona||0);
+    const data=certificados().filter(c=>estadoFlujo(c)===ESTADO_MEDIDO&&String(c?.medicion_numero)===String(numero)&&Number(zonaCertificado(c))===zona);
+    filas.forEach((fila,index)=>{const c=data[index];if(!c)return;const meta=fila.querySelector('.med-card-meta');const versiones=historialVersionesHTML(c),mensajes=historialMensajesHTML(c);if(meta&&(versiones||mensajes))meta.insertAdjacentHTML('afterend',versiones+mensajes)});
+    const parent=filas[0].parentElement;if(!parent)return;
+    const details=document.createElement('details');details.className='dgie-med-cert-details';details.innerHTML=`<summary>Ver certificados <span>${filas.length}</span></summary><div class="dgie-med-cert-list"></div>`;
+    const tabla=detalle.querySelector('table.med-table'),tablaWrap=tabla?.parentElement;
+    if(tablaWrap)tablaWrap.insertAdjacentElement('afterend',details);else parent.insertBefore(details,filas[0]);
+    const list=details.querySelector('.dgie-med-cert-list');filas.forEach(fila=>list.appendChild(fila));
+  }
+  const abrirMedicionFlujoPrev=window.abrirMedicionInspector;
+  if(typeof abrirMedicionFlujoPrev==='function')window.abrirMedicionInspector=function(numero){const result=abrirMedicionFlujoPrev.apply(this,arguments);[0,80,250,700].forEach(delay=>setTimeout(()=>compactarMedicion(numero),delay));return result};
   window.DGIE_CERTIFICACION_FLUJO={
     estadoFlujo,
     versionesEmpresa,
