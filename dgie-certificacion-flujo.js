@@ -209,6 +209,7 @@
     const acciones=hijoDirectoClase(tarjeta,'med-actions');if(!acciones)return;
     quitarEstadoVisible(acciones);
     if(rol==='empresa'){
+      if(estado===ESTADO_OBSERVADO)acciones.appendChild(boton('Enviar a pendientes','primary-btn',()=>window.enviarCertificadoObservadoAPendientes(id)));
       if(estado===ESTADO_DEVUELTO)acciones.appendChild(boton('Corregir y reenviar','primary-btn',()=>window.abrirReenvioCertificado(id)));
       return;
     }
@@ -300,7 +301,7 @@
     const tabs=rol==='inspector'?[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_BORRADO]:[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO];
     const nombres={[ESTADO_PENDIENTE]:'Pendientes',[ESTADO_OBSERVADO]:'Observados',[ESTADO_DEVUELTO]:'Devueltos',[ESTADO_BORRADO]:'Anulados'};
     const titulo=rol==='empresa'?'Seguimiento de certificados':'Certificados recibidos';
-    const descripcion=rol==='empresa'?'Consultá el estado y corregí los certificados devueltos.':'Clasificá los certificados sin perder archivos, comentarios ni versiones.';
+    const descripcion=rol==='empresa'?'Consultá el estado, respondé observaciones y corregí los certificados devueltos.':'Clasificá los certificados sin perder archivos, comentarios ni versiones.';
     const cabecera=document.createElement('div');cabecera.className='dgie-cert-queue-header';
     cabecera.innerHTML=`<div class="dgie-cert-queue-copy"><div class="card-title">${titulo}</div><p>${descripcion}</p></div><div class="dgie-cert-queue-tabs" role="tablist" aria-label="Estado de certificados">${tabs.map(tab=>`<button type="button" class="dgie-cert-queue-tab" role="tab" data-tab="${tab}">${nombres[tab]} <span class="dgie-cert-tab-count">${grupos[tab].length}</span></button>`).join('')}</div>`;
     const vacios={[ESTADO_PENDIENTE]:'No hay certificados pendientes.',[ESTADO_OBSERVADO]:'No hay certificados observados.',[ESTADO_DEVUELTO]:rol==='empresa'?'No hay certificados devueltos que requieran corrección.':'No hay certificados devueltos.',[ESTADO_BORRADO]:'No hay certificados en Anulados.'};
@@ -329,7 +330,7 @@
     [...principal.querySelectorAll('.card-title')].forEach(titulo=>{
       if(titulo.textContent.trim()!=='Seguimiento')return;
       const subtitulo=titulo.parentElement?.querySelector('div[style*="font-size:13px"]');
-      if(subtitulo)subtitulo.textContent='Consultá el estado y corregí los certificados que fueron devueltos.';
+      if(subtitulo)subtitulo.textContent='Consultá el estado, respondé observaciones y corregí los certificados devueltos.';
     });
   }
   async function volverAListado(rol,tab){
@@ -358,6 +359,20 @@
   }
   window.observarCertificado=id=>cambiarEstadoInspector(id,ESTADO_OBSERVADO,ESTADO_OBSERVADO,'observar el certificado');
   window.volverCertificadoDeObservado=id=>cambiarEstadoInspector(id,ESTADO_PENDIENTE,ESTADO_PENDIENTE,'volver el certificado a pendientes');
+  window.enviarCertificadoObservadoAPendientes=async function(id){
+    const certificado=certificadoPorId(id);
+    if(!certificado||usuario()?.role!=='empresa'||estadoFlujo(certificado)!==ESTADO_OBSERVADO)return;
+    if(Number(zonaCertificado(certificado))!==Number(usuario()?.zona||0))return;
+    try{
+      await actualizarConCompatibilidad(id,{
+        estado:ESTADO_PENDIENTE,
+        actualizado_por:usuario()?.name||'Empresa'
+      });
+      await volverAListado('empresa',ESTADO_PENDIENTE);
+    }catch(error){
+      alert(mensajeError(error,'enviar el certificado a pendientes'));
+    }
+  };
   window.archivarCertificado=async function(id){
     const certificado=certificadoPorId(id);if(!certificado||usuario()?.role!=='inspector')return;
     if(!confirm('¿Anular este certificado? Se conservarán todos los archivos, comentarios y versiones.'))return;
