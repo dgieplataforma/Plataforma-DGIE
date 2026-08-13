@@ -209,7 +209,7 @@
     const acciones=hijoDirectoClase(tarjeta,'med-actions');if(!acciones)return;
     quitarEstadoVisible(acciones);
     if(rol==='empresa'){
-      if(estado===ESTADO_OBSERVADO)acciones.appendChild(boton('Enviar a pendientes','primary-btn',()=>window.enviarCertificadoObservadoAPendientes(id)));
+      if(estado===ESTADO_OBSERVADO)acciones.appendChild(boton('Enviar a pendientes','secondary-btn',()=>window.enviarCertificadoObservadoAPendientes(id)));
       if(estado===ESTADO_DEVUELTO)acciones.appendChild(boton('Corregir y reenviar','primary-btn',()=>window.abrirReenvioCertificado(id)));
       return;
     }
