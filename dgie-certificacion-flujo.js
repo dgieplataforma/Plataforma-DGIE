@@ -296,13 +296,12 @@
       const certificado=porClave.get(tarjeta.dataset.certCard||'')||filasCola.filter(c=>estadoFlujo(c)!==ESTADO_BORRADO)[index]||null;
       if(!certificado)return;usados.add(claveCertificado(certificado));mejorarTarjeta(tarjeta,certificado,rol);
       const estado=estadoFlujo(certificado);
-      if(rol==='empresa'&&estado===ESTADO_BORRADO)return;
       grupos[estado].push({tarjeta,certificado});
     });
-    if(rol==='inspector')filasCola.filter(c=>estadoFlujo(c)===ESTADO_BORRADO&&!usados.has(claveCertificado(c))).forEach(certificado=>{const tarjeta=tarjetaAnulado(certificado);mejorarTarjeta(tarjeta,certificado,rol);grupos[ESTADO_BORRADO].push({tarjeta,certificado})});
+    filasCola.filter(c=>estadoFlujo(c)===ESTADO_BORRADO&&!usados.has(claveCertificado(c))).forEach(certificado=>{const tarjeta=tarjetaAnulado(certificado);mejorarTarjeta(tarjeta,certificado,rol);grupos[ESTADO_BORRADO].push({tarjeta,certificado})});
     const porActividad=(a,b)=>(new Date(b.certificado?.updated_at||b.certificado?.created_at||0).getTime()||0)-(new Date(a.certificado?.updated_at||a.certificado?.created_at||0).getTime()||0);
     Object.values(grupos).forEach(items=>items.sort(porActividad));
-    const tabs=rol==='inspector'?[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_BORRADO]:[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO];
+    const tabs=[ESTADO_PENDIENTE,ESTADO_OBSERVADO,ESTADO_DEVUELTO,ESTADO_BORRADO];
     const nombres={[ESTADO_PENDIENTE]:'Pendientes',[ESTADO_OBSERVADO]:'Observados',[ESTADO_DEVUELTO]:'Devueltos',[ESTADO_BORRADO]:'Anulados'};
     const titulo=rol==='empresa'?'Seguimiento de certificados':'Certificados recibidos';
     const descripcion=rol==='empresa'?'Consultá el estado, respondé observaciones y corregí los certificados devueltos.':'Clasificá los certificados sin perder archivos, comentarios ni versiones.';

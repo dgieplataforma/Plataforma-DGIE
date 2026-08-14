@@ -272,3 +272,6 @@
 .dgie-cert-queue-tab[data-tab="eliminado"][aria-selected="true"]{border-color:#e58e88;background:#fff0ef;color:#a5231d}
 .dgie-cert-queue-tab[data-tab="eliminado"] .dgie-cert-tab-count{background:#fde3e1;color:#a5231d}
 @media(max-width:760px){.dgie-cert-queue-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.dgie-cert-queue-tab{align-items:flex-start;white-space:normal}}
+.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(4,minmax(145px,1fr))}
+@media(max-width:760px){.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:1fr}}
