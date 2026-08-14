@@ -292,3 +292,4 @@
 .dgie-cert-pass-measurement{background:#247a35;border-color:#247a35}.dgie-cert-pass-measurement:hover{background:#1d642c;border-color:#1d642c}
 .dgie-cert-measure-card{max-width:780px;margin:0 auto}.dgie-cert-measure-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding:12px 14px;border:1px solid #cfe2d2;border-radius:9px;background:#f3faf4}.dgie-cert-measure-summary strong{color:#183b5b}.dgie-cert-measure-summary span{color:#397847;font-size:12px;font-weight:800}
 @media(max-width:620px){.dgie-cert-measure-summary{align-items:flex-start;flex-direction:column}}
+.dgie-cert-pass-measurement:disabled{border-color:#cbd5e1;background:#e5e7eb;color:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:1}
