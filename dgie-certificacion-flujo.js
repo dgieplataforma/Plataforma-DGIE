@@ -282,6 +282,10 @@
     if(items.length)items.forEach(item=>panel.appendChild(item.tarjeta));else panel.appendChild(crearVacio(vacio));
     return panel;
   }
+  function resumenGrupo(items){
+    const total=(items||[]).reduce((suma,item)=>suma+numero(item?.certificado?.modulos_original),0);
+    return `${(items||[]).length} · ${modulos(total)} módulos`;
+  }
   function armarCola(contenedor,rol,filas){
     if(!contenedor)return;
     const tarjetas=tarjetasCola(contenedor),filasCola=(filas||[]).filter(c=>estadoFlujo(c)!==ESTADO_MEDIDO);
@@ -303,7 +307,7 @@
     const titulo=rol==='empresa'?'Seguimiento de certificados':'Certificados recibidos';
     const descripcion=rol==='empresa'?'Consultá el estado, respondé observaciones y corregí los certificados devueltos.':'Clasificá los certificados sin perder archivos, comentarios ni versiones.';
     const cabecera=document.createElement('div');cabecera.className='dgie-cert-queue-header';
-    cabecera.innerHTML=`<div class="dgie-cert-queue-copy"><div class="card-title">${titulo}</div><p>${descripcion}</p></div><div class="dgie-cert-queue-tabs" role="tablist" aria-label="Estado de certificados">${tabs.map(tab=>`<button type="button" class="dgie-cert-queue-tab" role="tab" data-tab="${tab}">${nombres[tab]} <span class="dgie-cert-tab-count">${grupos[tab].length}</span></button>`).join('')}</div>`;
+    cabecera.innerHTML=`<div class="dgie-cert-queue-copy"><div class="card-title">${titulo}</div><p>${descripcion}</p></div><div class="dgie-cert-queue-tabs" role="tablist" aria-label="Estado de certificados">${tabs.map(tab=>`<button type="button" class="dgie-cert-queue-tab" role="tab" data-tab="${tab}">${nombres[tab]} <span class="dgie-cert-tab-count">${resumenGrupo(grupos[tab])}</span></button>`).join('')}</div>`;
     const vacios={[ESTADO_PENDIENTE]:'No hay certificados pendientes.',[ESTADO_OBSERVADO]:'No hay certificados observados.',[ESTADO_DEVUELTO]:rol==='empresa'?'No hay certificados devueltos que requieran corrección.':'No hay certificados devueltos.',[ESTADO_BORRADO]:'No hay certificados en Anulados.'};
     const panels=tabs.map(tab=>panelCola(tab,grupos[tab],vacios[tab]));
     contenedor.replaceChildren(cabecera,...panels);contenedor.dataset.certWorkflow='1';contenedor.classList.add('dgie-cert-queue');contenedor.dataset.certRole=rol;
