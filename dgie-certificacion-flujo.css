@@ -260,3 +260,15 @@
 @media(max-width:620px){.dgie-cert-analysis-manage{align-items:stretch;flex-direction:column}.dgie-cert-analysis-manage .med-actions{width:100%}}.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(3,minmax(120px,1fr))}
 @media(max-width:620px){.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:1fr}.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tab{justify-content:space-between}}.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-header{flex-direction:column;align-items:stretch}
 .dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{width:100%}
+.dgie-cert-queue-tabs{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:8px;padding:5px;border:1px solid #d8e2ee;border-radius:10px;background:#f4f7fa}
+.dgie-cert-queue-tab{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-height:58px;padding:9px 12px;border:1px solid #dce5ee;border-radius:8px;background:#fff;color:#334155;white-space:nowrap}
+.dgie-cert-queue-tab:hover{border-color:#b9ccdf;background:#fafdff;color:#123c69}
+.dgie-cert-queue-tab[aria-selected="true"]{border-color:#85b5df;background:#edf6ff;color:#074f91;box-shadow:0 2px 8px rgba(20,83,139,.12)}
+.dgie-cert-tab-count{display:inline-flex;align-items:center;justify-content:flex-start;min-width:0;height:auto;padding:3px 8px;border-radius:999px;background:#e5eef8;color:#074f91;font-size:11px;line-height:1.2;white-space:nowrap}
+.dgie-cert-queue-tab[data-tab="revision"][aria-selected="true"]{border-color:#e5bd55;background:#fff8df;color:#805500}
+.dgie-cert-queue-tab[data-tab="revision"] .dgie-cert-tab-count{background:#fff0b8;color:#805500}
+.dgie-cert-queue-tab[data-tab="devuelto"][aria-selected="true"]{border-color:#f0a45f;background:#fff4e8;color:#a94b00}
+.dgie-cert-queue-tab[data-tab="devuelto"] .dgie-cert-tab-count{background:#ffead5;color:#a94b00}
+.dgie-cert-queue-tab[data-tab="eliminado"][aria-selected="true"]{border-color:#e58e88;background:#fff0ef;color:#a5231d}
+.dgie-cert-queue-tab[data-tab="eliminado"] .dgie-cert-tab-count{background:#fde3e1;color:#a5231d}
+@media(max-width:760px){.dgie-cert-queue-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.dgie-cert-queue-tab{align-items:flex-start;white-space:normal}}
