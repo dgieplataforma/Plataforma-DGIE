@@ -25182,7 +25182,36 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   #app-wrapper .dgie-global-refresh{width:44px;min-width:44px;height:44px;min-height:44px;border-radius:8px}
 }
 </style>
-<script src="./dgie-file-viewer.js?v=20260803-6"></script>
+<script id="dgie-tableros-estado-edilicio-2026-08-18">
+(function(){
+'use strict';
+let zona=null,nivel='general';
+const E=v=>typeof escapeHtml==='function'?escapeHtml(v):String(v??'');
+const N=[['general','General'],['inicial','Inicial'],['primario','Primario'],['secundario','Secundario'],['especial','Especial'],['adultos','Adultos'],['superior','Superior'],['sin-nivel','Sin nivel']];
+function normal(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+function delNivel(e){const n=normal(e?.nivel);return nivel==='general'||(nivel==='sin-nivel'?(!n||n==='sin nivel'):n.includes(nivel))}
+function rubros(){
+ if(zona)return getRubrosPromZona(zona);
+ const zs=[];for(let z=1;z<=17;z++)if(getPromedioZona(z)!==null)zs.push(getRubrosPromZona(z));
+ return Object.fromEntries(RUBROS_RELEVAMIENTO.map(r=>[r.key,zs.length?Math.round(zs.reduce((s,x)=>s+Number(x[r.key]||0),0)/zs.length):0]));
+}
+function detalle(){
+ const tag=zona?'Zona '+zona:'todas las zonas';document.querySelectorAll('[data-te-tag]').forEach(x=>x.textContent=tag);
+ const rv=rubros(),re=document.getElementById('te-rubros');if(re)re.innerHTML=RUBROS_RELEVAMIENTO.map(r=>`<div class="rubro-bar-row"><span class="rubro-bar-lbl">${E(r.label)}</span><div class="rubro-bar-track"><div class="rubro-bar-fill" style="width:${rv[r.key]||0}%;background:${r.color}"></div></div><span class="rubro-bar-pct">${rv[r.key]||0}%</span></div>`).join('');
+ const rows=ESTABS.filter(e=>(!zona||Number(e.zona)===zona)&&delNivel(e)).map(e=>({...e,p:getPromedioEstab(e.id)})).sort((a,b)=>(a.p===null)-(b.p===null)||(b.p||0)-(a.p||0)||String(a.n||'').localeCompare(String(b.n||''),'es'));
+ const con=rows.filter(e=>e.p!==null).length,rs=document.getElementById('te-resumen');if(rs)rs.textContent=`${(N.find(x=>x[0]===nivel)?.[1]||nivel).toUpperCase()} · ${con}/${rows.length}`;
+ const el=document.getElementById('te-ranking');if(el)el.innerHTML=rows.length?rows.map((e,i)=>`<div class="ranking-row"><span class="ranking-num">${i+1}</span><span class="ranking-name" title="${E(e.n||e.nombre||'')}">${E(e.n||e.nombre||'')}</span><div class="ranking-bar-mini"><div class="ranking-bar-fill" style="width:${e.p||0}%"></div></div><span class="te-pct ${e.p===null?'sd':''}">${e.p===null?'S/D':e.p+'%'}</span></div>`).join(''):'<div class="te-empty">Sin establecimientos para este filtro</div>';
+}
+function zonas(){const el=document.getElementById('te-zonas');if(!el)return;el.innerHTML=Array.from({length:17},(_,i)=>{const z=i+1,p=getPromedioZona(z),ok=p!==null;return `<button type="button" class="zona-hbar-row${zona===z?' active':''}" onclick="seleccionarZonaTablerosEstado(${z})"><span class="zona-hbar-lbl">Z${z}</span><span class="zona-hbar-inspector">${E(INSPECTORS[i]||'')}</span><span class="zona-hbar-track"><span class="zona-hbar-fill ${ok?'has-real':'sin-data'}" style="display:block;width:${ok?p:0}%"></span></span><span class="zona-hbar-pct ${ok?'has-real':'sin-data'}">${ok?p+'%':'—'}</span></button>`}).join('')}
+window.seleccionarZonaTablerosEstado=z=>{zona=zona===Number(z)?null:Number(z);zonas();detalle()};
+window.seleccionarNivelTablerosEstado=n=>{nivel=n;document.querySelectorAll('[data-te-nivel]').forEach(b=>b.classList.toggle('active',b.dataset.teNivel===n));detalle()};
+window.renderTablerosEstadoEdilicio=main=>{if(!main)return;const p=getPromedioGlobal();main.innerHTML=`<div class="section-label">Tableros · Estado edilicio</div><div class="te-wrap"><div class="landing-row2"><div class="landing-promedio-card"><div class="landing-promedio-val">${p===null?'—':p+'%'}</div><div class="landing-promedio-lbl">% Promedio<br>general</div></div><div class="landing-zonas-card"><div class="landing-zonas-title">Situación por zona · % de rubros intervenidos</div><div class="landing-zonas-scroll"><div id="te-zonas"></div></div><div class="zona-bar-legend"><div class="zona-bar-legend-item"><i style="background:linear-gradient(90deg,#1a6b3c,#3da86e)"></i>Con relevamiento real</div><div class="zona-bar-legend-item"><i style="background:#e2e8f0"></i>Sin datos</div></div></div></div><div class="landing-row3"><div class="landing-detail-card"><div class="landing-detail-title">Ranking de escuelas <span class="landing-detail-zone-tag" data-te-tag>todas las zonas</span></div><div class="te-niveles">${N.map(([k,l])=>`<button class="landing-zone-btn ${k==='general'?'active':''}" data-te-nivel="${k}" onclick="seleccionarNivelTablerosEstado('${k}')">${l}</button>`).join('')}</div><div id="te-resumen"></div><div id="te-ranking"></div></div><div class="landing-detail-card"><div class="landing-detail-title">Situación por rubro <span class="landing-detail-zone-tag" data-te-tag>todas las zonas</span></div><div id="te-rubros"></div></div></div></div>`;zonas();detalle()};
+const t1=window.dgieTabsForUser;window.dgieTabsForUser=function(u){return u?.role==='tableros'?['Reclamos','Órdenes de servicio','Estado edilicio']:(t1?.apply(this,arguments)||[])};
+const t2=window.tabsForUser;window.tabsForUser=function(u){return u?.role==='tableros'?['Reclamos','Órdenes de servicio','Estado edilicio']:(t2?.apply(this,arguments)||[])};
+const rt=window.renderTab;window.renderTab=function(i){const ts=window.dgieTabsForUser?.(currentUser)||[];if(currentUser?.role==='tableros'&&ts[Number(i)]==='Estado edilicio'){buildTabs(ts);setActiveTab(Number(i));hideGlobal();renderTablerosEstadoEdilicio(document.getElementById('main-content'));return}return rt?.apply(this,arguments)};
+const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180px;margin:auto}.te-wrap .landing-row2,.te-wrap .landing-row3{margin-bottom:16px}.te-niveles{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}#te-resumen{font-size:11px;font-weight:900;color:#005aa9;margin:8px 0;border-top:1px solid #e5edf6;padding-top:8px}#te-ranking{max-height:340px;overflow:auto;padding-right:6px}#te-rubros{padding-top:10px}.te-pct{font-size:10px;color:#005aa9;width:32px;text-align:right;font-weight:700}.te-pct.sd{color:#9ca3af;font-weight:400}.te-empty{padding:24px;text-align:center;color:var(--muted)}.te-wrap .zona-hbar-row{width:100%;border:0;background:transparent;cursor:pointer}.te-wrap .zona-bar-legend i{width:9px;height:9px;border-radius:2px;display:inline-block}@media(max-width:700px){.te-wrap .landing-row2,.te-wrap .landing-row3{grid-template-columns:1fr}.te-wrap .landing-promedio-card{min-height:150px}.te-wrap .landing-zonas-card,.te-wrap .landing-detail-card{padding:14px}}';document.head.appendChild(st);
+})();
+</script><script src="./dgie-file-viewer.js?v=20260803-6"></script>
 <script src="./dgie-notificaciones.js?v=20260804-1"></script>
 </body>
 </html>
