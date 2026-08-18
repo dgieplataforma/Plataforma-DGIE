@@ -19140,14 +19140,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const snap=snapshotSmartCtx(ctx);
     resetSmartCtx(ctx);
     restoreSmartCtx(ctx,snap);
-    container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, establecimiento, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="coord-os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}</div></div>
+    const acciones=currentUser?.role!=='tableros';
+    container.innerHTML=`<div class="section-label">Coordinación · Órdenes de servicio</div><div class="card"><div class="card-header"><div><div class="card-title">Listado general de órdenes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Filtros acumulables por zona, establecimiento, estado, empresa, rubro, certificación y medición.</div></div><div class="dgie-smart-head-actions" style="align-items:flex-end"><div id="coord-os-state-summary">${resumenEstadosOSVisible(base,base.length)}</div>${pdfButton(ctx,'PDF filtrado')}<button class="secondary-btn" style="padding:6px 13px;font-size:12px;font-weight:700" onclick="exportarOrdenesServicioExcel()">Excel</button></div></div>
       <div class="os-filters">
         <input class="estab-search" id="coord-os-q" placeholder="Buscar por OS, reclamo, establecimiento, rubro o tarea..." value="${esc(snap.q||'')}" oninput="filterOSCoord()">
         ${smartHTML(ctx,osFields(base,{zona:true}),'filterOSCoord')}
         ${dateInputs('coord-os','filterOSCoord()',snap)}
       </div>
       ${smartChipsSlot(ctx)}
-      <div class="os-table-wrap"><table class="os-table" data-mobile-source-paged="true"><thead>${headerOS(true)}</thead><tbody id="coord-os-body"></tbody></table></div><div id="coord-os-mobile-more" class="dgie-source-mobile-more"></div></div>`;
+      <div class="os-table-wrap"><table class="os-table" data-mobile-source-paged="true"><thead>${headerOS(acciones)}</thead><tbody id="coord-os-body"></tbody></table></div><div id="coord-os-mobile-more" class="dgie-source-mobile-more"></div></div>`;
     window.DGIE_MOBILE_COORD_OS_LIMIT=25;
     window.filterOSCoord();
     if(!window.certsLoaded&&typeof window.cargarCertificadosMedicion==='function')window.cargarCertificadosMedicion().then(()=>{if(byId('coord-os-body'))window.filterOSCoord();}).catch(()=>{});
@@ -19166,7 +19167,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const mobile=window.matchMedia?.('(max-width:760px)').matches;
     const limit=Math.max(25,Number(window.DGIE_MOBILE_COORD_OS_LIMIT)||25);
     const visible=mobile?data.slice(0,limit):data;
-    el.innerHTML=visible.length?visible.map(o=>rowOS(o,{actions:true,editable:false})).join(''):`<tr><td colspan="13" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
+    el.innerHTML=visible.length?visible.map(o=>rowOS(o,{actions:currentUser?.role!=='tableros',editable:false})).join(''):`<tr><td colspan="${currentUser?.role==='tableros'?12:13}" class="os-empty">No hay órdenes para los filtros seleccionados</td></tr>`;
     const pager=byId('coord-os-mobile-more');
     if(pager){
       const remaining=Math.max(0,data.length-visible.length);
@@ -25042,13 +25043,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const tabsPrev=window.dgieTabsForUser;
   window.dgieTabsForUser=function(user){
     if(user?.role==='prensa')return ['Intervenciones'];
-    if(user?.role==='tableros')return ['Reclamos'];
+    if(user?.role==='tableros')return ['Reclamos','Órdenes de servicio'];
     return typeof tabsPrev==='function'?tabsPrev.apply(this,arguments):[];
   };
   const tabsCompatPrev=window.tabsForUser;
   window.tabsForUser=function(user){
     if(user?.role==='prensa')return ['Intervenciones'];
-    if(user?.role==='tableros')return ['Reclamos'];
+    if(user?.role==='tableros')return ['Reclamos','Órdenes de servicio'];
     return typeof tabsCompatPrev==='function'?tabsCompatPrev.apply(this,arguments):(window.dgieTabsForUser?.(user)||[]);
   };
   const renderPrev=window.renderTab;
@@ -25065,11 +25066,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return;
     }
     if(role==='tableros'){
-      if(typeof buildTabs==='function')buildTabs(['Reclamos']);
-      if(typeof setActiveTab==='function')setActiveTab(0);
+      const disponibles=['Reclamos','Órdenes de servicio'];
+      if(typeof buildTabs==='function')buildTabs(disponibles);
+      if(typeof setActiveTab==='function')setActiveTab(Math.max(0,Number(index)||0));
       if(typeof hideGlobal==='function')hideGlobal();
       const main=document.getElementById('main-content');
-      if(main&&typeof renderReclamosCoordinador==='function'){
+      if(tab==='Órdenes de servicio'&&main&&typeof renderOSGeneral==='function'){
+        renderOSGeneral(main);
+        const label=main.querySelector('.section-label');
+        if(label)label.textContent='Tableros · Órdenes de servicio';
+      }else if(main&&typeof renderReclamosCoordinador==='function'){
         renderReclamosCoordinador(main);
         const label=main.querySelector('.section-label');
         if(label)label.textContent='Tableros · Reclamos';
@@ -25077,6 +25083,45 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return;
     }
     return typeof renderPrev==='function'?renderPrev.apply(this,arguments):undefined;
+  };
+  window.exportarOrdenesServicioExcel=function(){
+    const rows=window.DGIE_SMART_FILTER_LAST?.['coord-os']?.rows||[];
+    if(!rows.length){alert('No hay órdenes visibles para exportar con los filtros actuales.');return}
+    const headers=['Orden de servicio','Zona','N° reclamo','Establecimiento','Tarea','Rubro','Prioridad','Fecha de envío','Estado','Estado s/ empresa','Fecha finalización','Presupuesto'];
+    const values=rows.map(o=>[
+      o?.numero||'',
+      typeof zonaItem==='function'?zonaItem(o):(o?.zona||''),
+      o?.reclamoNumero||'',
+      o?.establecimiento||'',
+      o?.tarea||'',
+      o?.rubro||'',
+      typeof formatPrioridadOS==='function'?formatPrioridadOS(o?.prio):(o?.prio||''),
+      o?.fecha||'',
+      typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):(o?.estado||''),
+      o?.empresaFinalizo?'Finalizada por empresa':'Sin informar',
+      o?.fechaFinalizacion||'',
+      o?.presupuesto??o?.monto??''
+    ]);
+    const prefix='DGIE_Ordenes_Servicio';
+    if(window.XLSX){
+      const ws=XLSX.utils.aoa_to_sheet([headers,...values]);
+      ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:values.length,c:headers.length-1}})};
+      ws['!cols']=[{wch:20},{wch:8},{wch:18},{wch:38},{wch:62},{wch:24},{wch:14},{wch:16},{wch:18},{wch:22},{wch:18},{wch:16}];
+      const resumen=XLSX.utils.aoa_to_sheet([
+        ['Reporte','Órdenes de servicio'],
+        ['Generado',new Date().toLocaleString('es-AR')],
+        ['Registros visibles',rows.length],
+        ['Total del módulo',window.DGIE_SMART_FILTER_LAST?.['coord-os']?.total??rows.length]
+      ]);
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,'Órdenes de servicio');
+      XLSX.utils.book_append_sheet(wb,resumen,'Resumen');
+      XLSX.writeFile(wb,`${prefix}_${new Date().toISOString().slice(0,10)}.xlsx`);
+      return;
+    }
+    const csv=[headers,...values].map(row=>row.map(value=>`"${String(value??'').replace(/\r?\n/g,' ').replace(/"/g,'""')}"`).join(';')).join('\r\n');
+    const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));
+    const link=document.createElement('a');link.href=url;link.download=`${prefix}_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
   const emailPrev=window.loginEmailFromUsuario;
   window.loginEmailFromUsuario=function(usuario){
