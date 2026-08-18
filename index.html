@@ -25059,13 +25059,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const tabsPrev=window.dgieTabsForUser;
   window.dgieTabsForUser=function(user){
     if(user?.role==='prensa')return ['Intervenciones'];
-    if(user?.role==='tableros')return ['Reclamos','Órdenes de servicio'];
+    if(user?.role==='tableros')return ['Reclamos','Órdenes de servicio','Estado edilicio'];
     return typeof tabsPrev==='function'?tabsPrev.apply(this,arguments):[];
   };
   const tabsCompatPrev=window.tabsForUser;
   window.tabsForUser=function(user){
     if(user?.role==='prensa')return ['Intervenciones'];
-    if(user?.role==='tableros')return ['Reclamos','Órdenes de servicio'];
+    if(user?.role==='tableros')return ['Reclamos','Órdenes de servicio','Estado edilicio'];
     return typeof tabsCompatPrev==='function'?tabsCompatPrev.apply(this,arguments):(window.dgieTabsForUser?.(user)||[]);
   };
   const renderPrev=window.renderTab;
@@ -25082,7 +25082,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return;
     }
     if(role==='tableros'){
-      const disponibles=['Reclamos','Órdenes de servicio'];
+      const disponibles=['Reclamos','Órdenes de servicio','Estado edilicio'];
       if(typeof buildTabs==='function')buildTabs(disponibles);
       if(typeof setActiveTab==='function')setActiveTab(Math.max(0,Number(index)||0));
       if(typeof hideGlobal==='function')hideGlobal();
