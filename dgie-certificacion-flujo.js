@@ -68,6 +68,14 @@
   function certificadosZona(zona){
     return certificados().filter(certificado=>Number(zonaCertificado(certificado))===Number(zona));
   }
+  function establecimientosZonaEmpresa(zona){
+    try{
+      if(typeof establecimientosPorZona==='function')return establecimientosPorZona(Number(zona))||[];
+      return (Array.isArray(ESTABS)?ESTABS:[]).filter(establecimiento=>Number(establecimiento?.zona)===Number(zona));
+    }catch(_){
+      return [];
+    }
+  }
   function versionActualDesdeCertificado(certificado){
     if(!certificado?.archivo_original&&!certificado?.url_original)return null;
     return {
@@ -438,6 +446,8 @@
       alert('Este certificado ya no está pendiente de corrección.');
       return;
     }
+    const establecimientos=establecimientosZonaEmpresa(usuario()?.zona);
+    const establecimientoActual=Number(certificado?.establecimiento_id||0);
     principal.innerHTML=`<div class="section-label">Empresa · Corregir certificado</div>
       <div class="card">
         <button type="button" class="back-btn" id="dgie-cert-resubmit-back">‹ Volver a certificación</button>
@@ -447,6 +457,13 @@
         ${resumenCertificado(certificado)}
         ${historialVersionesHTML(certificado)}
         <div class="form-grid">
+          <div class="form-field full">
+            <label class="form-label" for="dgie-cert-resubmit-establishment">Establecimiento *</label>
+            <select class="form-select" id="dgie-cert-resubmit-establishment">
+              <option value="">Seleccionar establecimiento</option>
+              ${establecimientos.map(establecimiento=>`<option value="${esc(establecimiento?.id)}" ${Number(establecimiento?.id)===establecimientoActual?'selected':''}>${esc(establecimiento?.n||establecimiento?.nombre||'Establecimiento')}</option>`).join('')}
+            </select>
+          </div>
           <div class="form-field full">
             <label class="form-label" for="dgie-cert-resubmit-file">Certificado Excel corregido *</label>
             <input class="form-input" id="dgie-cert-resubmit-file" type="file" accept=".xls,.xlsx">
@@ -476,6 +493,8 @@
   };
   window.confirmarReenvioCertificado=async function(id){
     const certificado=certificadoPorId(id);
+    const establecimientoId=Number(document.getElementById('dgie-cert-resubmit-establishment')?.value||0);
+    const establecimiento=establecimientosZonaEmpresa(usuario()?.zona).find(item=>Number(item?.id)===establecimientoId);
     const archivo=document.getElementById('dgie-cert-resubmit-file')?.files?.[0];
     const modulosCorregidos=numero(document.getElementById('dgie-cert-resubmit-modules')?.value);
     const error=document.getElementById('dgie-cert-resubmit-error');
@@ -487,7 +506,8 @@
       alert('Este certificado ya fue actualizado. Volvé al listado para ver su estado.');
       return;
     }
-    if(!archivo||!modulosCorregidos){
+    if(!establecimiento||!archivo||!modulosCorregidos){
+      if(error)error.textContent='Seleccioná el establecimiento y un archivo corregido válido.';
       error?.classList.add('is-visible');
       return;
     }
@@ -514,6 +534,9 @@
         vigente:true
       }];
       const patch={
+        establecimiento_id:establecimiento.id,
+        establecimiento_nombre:establecimiento.n||establecimiento.nombre||'',
+        zona:Number(establecimiento.zona||usuario()?.zona||0),
         archivo_original:archivo.name,
         url_original:subida?.url||'',
         public_id_original:subida?.publicId||null,
