@@ -7415,7 +7415,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="form-field full"><label class="form-label">Archivo modificado por inspector</label><input class="form-input" id="insp-cert-file" type="file" accept=".xls,.xlsx" onchange="validarYAutocompletarRevisionCertificado('insp-cert-file','insp-cert-modulos')"><div id="insp-cert-info-archivo" style="margin-top:6px;font-size:12px;color:var(--muted)">${certOrdenes(c).length?`O.S. actual: ${escapeHtml(certOrdenes(c).join(', '))} · Rubros: ${escapeHtml(certRubrosCodigos(c).join('-')||'—')}`:'Al subir el archivo se leen la O.S., rubros y módulos.'}</div>${certLimitHelpHTML()}${c.url_inspector?`<div style="margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px">Actual: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false" style="color:var(--blue)">${escapeHtml(certArchivoRenombrado(c)||'Archivo inspector')}</a><button type="button" onclick="borrarArchivoInspector('${c.id||c.localId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:11px;padding:0;text-decoration:underline">Borrar</button></div>`:''}</div>
         <div class="form-field"><label class="form-label">Módulos inspección</label><input class="form-input" id="insp-cert-modulos" type="number" step="0.001" value="${escapeHtml(c.modulos_inspector||'')}" readonly></div>
         <div class="form-field"><label class="form-label">Medición Nº</label><input class="form-input" id="insp-cert-medicion" type="number" min="1" value="${escapeHtml(c.medicion_numero||'')}"></div>
-        <div class="form-field"><label class="form-label">Período</label><input class="form-input" id="insp-cert-periodo" placeholder="Ej: Mayo 2026" value="${escapeHtml(c.periodo||'')}"></div>
         <div class="form-field full"><label class="form-label">Observaciones inspector</label><textarea class="form-textarea" id="insp-cert-obs">${escapeHtml(limpiarObsCert(c.observaciones_inspector)||'')}</textarea></div>
       </div>
       <div class="modal-actions"><button class="secondary-btn" onclick="guardarRevisionCertificado('${id}',false)">Guardar revisión</button><button class="primary-btn" onclick="guardarRevisionCertificado('${id}',true)">Guardar y pasar a medición</button></div>
@@ -12892,6 +12891,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     },0);
     return res;
   };
+  function periodoCertificadoAutomatico(numero,actual){
+    const n=Number(numero||0);
+    if(!n)return String(actual||'');
+    const fecha=new Date(2026,2+(n-1),1);
+    const texto=fecha.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+    return texto.charAt(0).toUpperCase()+texto.slice(1);
+  }
   window.guardarRevisionCertificado=async function(id,medir){
     const c=certByKey(id);
     if(!c)return;
@@ -12934,7 +12940,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       ordenes_servicio_certificado:ordenes.join(','),
       observaciones_inspector:obsConMeta,
       medicion_numero:document.getElementById('insp-cert-medicion')?.value?Number(document.getElementById('insp-cert-medicion').value):null,
-      periodo:(document.getElementById('insp-cert-periodo')?.value||'').trim(),
+      periodo:periodoCertificadoAutomatico(document.getElementById('insp-cert-medicion')?.value,c.periodo),
       estado:medir?'medido':'revision',
       actualizado_por:currentUser?.name||'Inspector'
     };
@@ -17166,7 +17172,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       '#nos-numero',
       '#int-fecha','#int-avance','#int-desc','#int-fotos','#int-est','#int-os-combo','#int-os-selected',
       '#rel-fecha','#rel-comentarios','#rel-fotos','#rel-est','#rel-os-combo','#rel-os-selected',
-      '#insp-cert-file','#insp-cert-medicion','#insp-cert-periodo','#insp-cert-obs','#insp-cert-os-list',
+      '#insp-cert-file','#insp-cert-medicion','#insp-cert-obs','#insp-cert-os-list',
       '#ap-concepto','#ap-materiales','.ap-material-row',
       '.cert-final-modulos-row','.os-task-expanded','.reclamo-reiterado-detalle:not([hidden])'
     ].some(tiene);
