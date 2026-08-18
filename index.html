@@ -25042,13 +25042,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   const tabsPrev=window.dgieTabsForUser;
   window.dgieTabsForUser=function(user){
     if(user?.role==='prensa')return ['Intervenciones'];
-    if(user?.role==='tableros')return ['Tableros'];
+    if(user?.role==='tableros')return ['Reclamos'];
     return typeof tabsPrev==='function'?tabsPrev.apply(this,arguments):[];
   };
   const tabsCompatPrev=window.tabsForUser;
   window.tabsForUser=function(user){
     if(user?.role==='prensa')return ['Intervenciones'];
-    if(user?.role==='tableros')return ['Tableros'];
+    if(user?.role==='tableros')return ['Reclamos'];
     return typeof tabsCompatPrev==='function'?tabsCompatPrev.apply(this,arguments):(window.dgieTabsForUser?.(user)||[]);
   };
   const renderPrev=window.renderTab;
@@ -25065,11 +25065,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return;
     }
     if(role==='tableros'){
-      if(typeof buildTabs==='function')buildTabs(['Tableros']);
+      if(typeof buildTabs==='function')buildTabs(['Reclamos']);
       if(typeof setActiveTab==='function')setActiveTab(0);
       if(typeof hideGlobal==='function')hideGlobal();
       const main=document.getElementById('main-content');
-      if(main)main.innerHTML='<div class="section-label">Tableros</div><div class="card"><div class="card-title">Sesión preparada</div><div style="font-size:13px;color:var(--muted);margin-top:6px">Este espacio está listo para configurar los tableros.</div></div>';
+      if(main&&typeof renderReclamosCoordinador==='function'){
+        renderReclamosCoordinador(main);
+        const label=main.querySelector('.section-label');
+        if(label)label.textContent='Tableros · Reclamos';
+      }
       return;
     }
     return typeof renderPrev==='function'?renderPrev.apply(this,arguments):undefined;
