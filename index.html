@@ -590,7 +590,7 @@ function renderRelevamientoFicha(estId){
     </div>
   `:rels.slice().reverse().map((rel,idx)=>{
     const isUltimo = idx===0;
-    const promRel = Math.round(RUBROS_RELEVAMIENTO.map(r=>Number(rel.rubros[r.key]||0)).reduce((a,b)=>a+b,0)/RUBROS_RELEVAMIENTO.length);
+    const promRel = Math.round(RUBROS_RELEVAMIENTO.map(r=>valorRubroEstadoEdilicio(rel,r.key)).reduce((a,b)=>a+b,0)/RUBROS_RELEVAMIENTO.length);
     return `<div class="card" style="margin-bottom:12px;${isUltimo?'border:1.5px solid #005aa9':''}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
@@ -604,7 +604,7 @@ function renderRelevamientoFicha(estId){
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:${rel.comentarios?'12px':'0'}">
         ${RUBROS_RELEVAMIENTO.map(r=>{
-          const val=Number(rel.rubros[r.key]||0);
+          const val=valorRubroEstadoEdilicio(rel,r.key);
           return `<div style="background:#f8fafc;border-radius:8px;padding:8px 10px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
               <span style="font-size:11px;font-weight:700;color:#334155">${r.label}</span>
@@ -799,12 +799,28 @@ const RUBROS_RELEVAMIENTO = [
   {key:'sanitarios',   label:'Sanitarios',    color:'#0f766e'},
   {key:'electricidad', label:'Electricidad',  color:'#f59e0b'},
   {key:'cubierta',     label:'Cubierta',      color:'#2563eb'},
-  {key:'albanileria',  label:'Albañilería',   color:'#64748b'},
-  {key:'herreria',     label:'Herrería',      color:'#7c3aed'},
+  {key:'albanileria_herreria', label:'Albañilería', color:'#64748b'},
   {key:'pintura',      label:'Pintura',       color:'#db2777'},
   {key:'gas',          label:'Gas',           color:'#dc2626'},
   {key:'carpinteria',  label:'Carpintería',   color:'#92400e'},
 ];
+
+function valorRubroEstadoEdilicio(rel,key){
+  const rubros=rel?.rubros||{};
+  if(key==='albanileria_herreria'){
+    const combinado=Number(rubros.albanileria_herreria);
+    if(Object.prototype.hasOwnProperty.call(rubros,'albanileria_herreria')&&Number.isFinite(combinado)){
+      return Math.max(0,Math.min(100,combinado));
+    }
+    const historicos=['albanileria','herreria']
+      .filter(k=>Object.prototype.hasOwnProperty.call(rubros,k))
+      .map(k=>Number(rubros[k]))
+      .filter(Number.isFinite);
+    if(historicos.length)return Math.round(historicos.reduce((a,b)=>a+b,0)/historicos.length);
+  }
+  const valor=Number(rubros[key]);
+  return Number.isFinite(valor)?Math.max(0,Math.min(100,valor)):0;
+}
 
 function getUltimoRelevamiento(estId){
   const arr=RELEVAMIENTOS[estId];
@@ -814,7 +830,7 @@ function getUltimoRelevamiento(estId){
 function getPromedioEstab(estId){
   const rel=getUltimoRelevamiento(estId);
   if(!rel) return null;
-  const vals=RUBROS_RELEVAMIENTO.map(r=>Number(rel.rubros[r.key]||0));
+  const vals=RUBROS_RELEVAMIENTO.map(r=>valorRubroEstadoEdilicio(rel,r.key));
   return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
 }
 function getPromedioZona(zona){
@@ -834,7 +850,7 @@ function getRubrosPromZona(zona){
   RUBROS_RELEVAMIENTO.forEach(r=>{acc[r.key]=[];});
   estabs.forEach(e=>{
     const rel=getUltimoRelevamiento(e.id);
-    if(rel) RUBROS_RELEVAMIENTO.forEach(r=>{acc[r.key].push(Number(rel.rubros[r.key]||0));});
+    if(rel) RUBROS_RELEVAMIENTO.forEach(r=>{acc[r.key].push(valorRubroEstadoEdilicio(rel,r.key));});
   });
   const avg={};
   RUBROS_RELEVAMIENTO.forEach(r=>{
@@ -5454,14 +5470,14 @@ function renderChartInsp(){
   }
   window.getUltimoRelevamiento=function(estId){return estadoEdilicioActual(estId)}
   window.renderEstadoEdilicioFicha=function(estId){
-    const rel=estadoEdilicioActual(estId), vals=RUBROS_RELEVAMIENTO.map(r=>Number(rel.rubros?.[r.key]||0));
+    const rel=estadoEdilicioActual(estId), vals=RUBROS_RELEVAMIENTO.map(r=>valorRubroEstadoEdilicio(rel,r.key));
     const prom=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
     const can=currentUser?.role==='inspector';
-    return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes editables por rubro. Última actualización: ${escapeHtml(rel.fecha||'—')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div><div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${RUBROS_RELEVAMIENTO.map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${r.label}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${escapeHtml(rel.comentarios)}</div>`:''}`;
+    return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes editables por rubro. Última actualización: ${escapeHtml(rel.fecha||'—')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div><div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${RUBROS_RELEVAMIENTO.map(r=>{const v=valorRubroEstadoEdilicio(rel,r.key);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${r.label}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${escapeHtml(rel.comentarios)}</div>`:''}`;
   };
   window.openEditarEstadoEdilicio=function(estId){
     const fb=$('ficha-body')||$('map-ficha-body'); const rel=estadoEdilicioActual(estId); if(!fb)return;
-    fb.innerHTML=`<button class="back-btn" onclick="volverFichaTab(4,${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${RUBROS_RELEVAMIENTO.map(r=>{const v=Number(rel.rubros?.[r.key]||50);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${r.label}</label><b id="ee-val-${r.key}" style="color:${r.color}">${v}%</b></div><input type="range" id="ee-${r.key}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="$('ee-val-${r.key}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${escapeHtml(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverFichaTab(4,${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
+    fb.innerHTML=`<button class="back-btn" onclick="volverFichaTab(4,${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${RUBROS_RELEVAMIENTO.map(r=>{const v=valorRubroEstadoEdilicio(rel,r.key);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${r.label}</label><b id="ee-val-${r.key}" style="color:${r.color}">${v}%</b></div><input type="range" id="ee-${r.key}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="$('ee-val-${r.key}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${escapeHtml(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverFichaTab(4,${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
   };
   window.guardarEstadoEdilicio=async function(estId){
     const rubros=Object.fromEntries(RUBROS_RELEVAMIENTO.map(r=>[r.key,Number($('ee-'+r.key)?.value||0)]));
@@ -5591,16 +5607,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.getUltimoRelevamiento=function(estId){return estadoEdilicioCero(estId)};
   window.renderEstadoEdilicioFicha=function(estId){
     const rel=estadoEdilicioCero(estId);
-    const vals=RUBROS_RELEVAMIENTO.map(r=>Number(rel.rubros?.[r.key]||0));
+    const vals=RUBROS_RELEVAMIENTO.map(r=>valorRubroEstadoEdilicio(rel,r.key));
     const prom=Math.round(vals.reduce((a,b)=>a+b,0)/Math.max(vals.length,1));
     const can=currentUser?.role==='inspector';
-    return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes editables por rubro. Última actualización: ${escapeHtml(rel.fecha||'Sin cargar')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div><div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${RUBROS_RELEVAMIENTO.map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${r.label}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${escapeHtml(rel.comentarios)}</div>`:''}`;
+    return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes editables por rubro. Última actualización: ${escapeHtml(rel.fecha||'Sin cargar')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div><div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${RUBROS_RELEVAMIENTO.map(r=>{const v=valorRubroEstadoEdilicio(rel,r.key);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${r.label}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${escapeHtml(rel.comentarios)}</div>`:''}`;
   };
   window.openEditarEstadoEdilicio=function(estId){
     const fb=$('ficha-body')||$('map-ficha-body');
     const rel=estadoEdilicioCero(estId);
     if(!fb)return;
-    fb.innerHTML=`<button class="back-btn" onclick="volverFichaTab(${TAB_ESTADO},${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${RUBROS_RELEVAMIENTO.map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${r.label}</label><b id="ee-val-${r.key}" style="color:${r.color}">${v}%</b></div><input type="range" id="ee-${r.key}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="$('ee-val-${r.key}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${escapeHtml(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverFichaTab(${TAB_ESTADO},${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
+    fb.innerHTML=`<button class="back-btn" onclick="volverFichaTab(${TAB_ESTADO},${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${RUBROS_RELEVAMIENTO.map(r=>{const v=valorRubroEstadoEdilicio(rel,r.key);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${r.label}</label><b id="ee-val-${r.key}" style="color:${r.color}">${v}%</b></div><input type="range" id="ee-${r.key}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="$('ee-val-${r.key}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${escapeHtml(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverFichaTab(${TAB_ESTADO},${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
   };
   window.guardarEstadoEdilicio=async function(estId){
     const rubros=Object.fromEntries(RUBROS_RELEVAMIENTO.map(r=>[r.key,Number($('ee-'+r.key)?.value||0)]));
@@ -14967,7 +14983,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rel=estadoRealEstab(estId);
     if(!rel)return null;
     const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
-    const vals=rubros.map(r=>Number(rel.rubros?.[r.key])).filter(v=>Number.isFinite(v));
+    const vals=rubros.map(r=>valorRubroEstadoEdilicio(rel,r.key)).filter(v=>Number.isFinite(v));
     if(!vals.length)return null;
     return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
   }
@@ -14980,7 +14996,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const rel=estadoRealEstab(e.id);
       if(!rel)return;
       realCount++;
-      rubros.forEach(r=>{out[r.key]+=Number(rel.rubros?.[r.key]||0)});
+      rubros.forEach(r=>{out[r.key]+=valorRubroEstadoEdilicio(rel,r.key)});
     });
     const divisor=Math.max(estabs.length,1);
     rubros.forEach(r=>{out[r.key]=Math.round(out[r.key]/divisor)});
@@ -21792,7 +21808,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
   function promedio(rel){
     const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
-    const vals=rubros.map(r=>Number(rel?.rubros?.[r.key]||0));
+    const vals=rubros.map(r=>valorRubroEstadoEdilicio(rel,r.key));
     return Math.round(vals.reduce((a,b)=>a+b,0)/Math.max(vals.length,1));
   }
   function promedioEfectivo(estId){
@@ -21811,7 +21827,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes por rubro. Última actualización: Sin cargar</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Cargar porcentajes</button>`:''}</div>${source}<div style="text-align:center;padding:30px;color:var(--muted)">Sin estado edilicio cargado para este establecimiento</div>`;
     }
     const prom=promedio(rel);
-    return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes por rubro. Última actualización: ${esc(rel.fecha||'Sin cargar')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div>${source}<div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento${principal?' principal':''}</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${esc(r.label)}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${esc(rel.comentarios)}</div>`:''}`;
+    return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes por rubro. Última actualización: ${esc(rel.fecha||'Sin cargar')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div>${source}<div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento${principal?' principal':''}</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=valorRubroEstadoEdilicio(rel,r.key);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${esc(r.label)}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${esc(rel.comentarios)}</div>`:''}`;
   };
   window.toggleComparteEdificioEstado=function(){
     const shared=!!Number(byId('ee-comparte')?.value||0);
@@ -21824,14 +21840,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!fb)return;
     const principal=idPrincipalCompartido(estId);
     const rel=estadoActual(estId);
-    fb.innerHTML=`<button class="back-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div class="form-field full" style="margin-bottom:14px;position:relative"><label class="form-label">Comparte edificio con</label><input type="hidden" id="ee-comparte" value=""><div style="display:flex;gap:8px;align-items:center"><input class="form-input" id="ee-comparte-search" autocomplete="off" placeholder="Buscar establecimiento de la misma zona..." oninput="buscarPrincipalEstadoEdilicio(${Number(estId)})" onfocus="buscarPrincipalEstadoEdilicio(${Number(estId)})"><button type="button" class="secondary-btn" onclick="limpiarPrincipalEstadoEdilicio()">Limpiar</button></div><div id="ee-comparte-results" class="ac-dropdown" style="display:none;position:absolute;left:0;right:0;top:72px;z-index:30;background:#fff;border:1px solid #d9e2ef;border-radius:10px;box-shadow:0 10px 24px rgba(15,23,42,.12);max-height:260px;overflow:auto"></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Solo permite seleccionar establecimientos de la zona correspondiente.</div><div id="ee-comparte-note" style="display:none;margin-top:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 10px">Al guardar, este establecimiento tomará automáticamente el estado edilicio del principal seleccionado.</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=Number(rel.rubros?.[r.key]||0);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${esc(r.label)}</label><b id="ee-val-${esc(r.key)}" style="color:${r.color}">${v}%</b></div><input data-ee-rubro="1" type="range" id="ee-${esc(r.key)}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="document.getElementById('ee-val-${esc(r.key)}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${esc(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
+    fb.innerHTML=`<button class="back-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">‹ Volver a Estado Edilicio</button><div class="card"><div class="card-title" style="margin-bottom:12px">Editar Estado Edilicio</div><div class="form-field full" style="margin-bottom:14px;position:relative"><label class="form-label">Comparte edificio con</label><input type="hidden" id="ee-comparte" value=""><div style="display:flex;gap:8px;align-items:center"><input class="form-input" id="ee-comparte-search" autocomplete="off" placeholder="Buscar establecimiento de la misma zona..." oninput="buscarPrincipalEstadoEdilicio(${Number(estId)})" onfocus="buscarPrincipalEstadoEdilicio(${Number(estId)})"><button type="button" class="secondary-btn" onclick="limpiarPrincipalEstadoEdilicio()">Limpiar</button></div><div id="ee-comparte-results" class="ac-dropdown" style="display:none;position:absolute;left:0;right:0;top:72px;z-index:30;background:#fff;border:1px solid #d9e2ef;border-radius:10px;box-shadow:0 10px 24px rgba(15,23,42,.12);max-height:260px;overflow:auto"></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Solo permite seleccionar establecimientos de la zona correspondiente.</div><div id="ee-comparte-note" style="display:none;margin-top:8px;font-size:12px;color:#1e3a8a;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 10px">Al guardar, este establecimiento tomará automáticamente el estado edilicio del principal seleccionado.</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${(RUBROS_RELEVAMIENTO||[]).map(r=>{const v=valorRubroEstadoEdilicio(rel,r.key);return `<div style="background:#f8fafc;border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><label class="form-label" style="margin:0">${esc(r.label)}</label><b id="ee-val-${esc(r.key)}" style="color:${r.color}">${v}%</b></div><input data-ee-rubro="1" type="range" id="ee-${esc(r.key)}" min="0" max="100" step="5" value="${v}" style="width:100%;accent-color:${r.color}" oninput="document.getElementById('ee-val-${esc(r.key)}').textContent=this.value+'%'"></div>`}).join('')}</div><div class="form-field full" style="margin-top:14px"><label class="form-label">Observaciones</label><textarea class="form-textarea" id="ee-comentarios">${esc(rel.comentarios||'')}</textarea></div><div class="modal-actions"><button class="secondary-btn" onclick="volverEstadoEdilicioCompartido(${Number(estId)})">Cancelar</button><button class="primary-btn" onclick="guardarEstadoEdilicio(${Number(estId)})">Guardar</button></div></div>`;
     if(principal)window.seleccionarPrincipalEstadoEdilicio(principal);
     window.toggleComparteEdificioEstado();
   };
   window.guardarEstadoEdilicio=async function(estId){
     estId=Number(estId);
     const principal=Number(byId('ee-comparte')?.value||0);
-    const rubros=principal?undefined:Object.fromEntries((RUBROS_RELEVAMIENTO||[]).map(r=>[r.key,Number(byId('ee-'+r.key)?.value||0)]));
+    const anterior=estadoActual(estId);
+    const rubros=principal?undefined:{...(anterior?.rubros||{}),...Object.fromEntries((RUBROS_RELEVAMIENTO||[]).map(r=>[r.key,Number(byId('ee-'+r.key)?.value||0)]))};
     const rel={tipo:'estado_edilicio',fecha:new Date().toLocaleDateString('es-AR'),inspector:currentUser?.name||'',zona:typeof zonaEstablecimiento==='function'?zonaEstablecimiento(estId):'',comentarios:byId('ee-comentarios')?.value||'',ts:Date.now()};
     if(principal)rel.comparteEdificioCon=principal;else rel.rubros=rubros;
     if(window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.crearRelevamiento==='function'){
@@ -22391,8 +22408,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return Number.isFinite(d.getTime())?d.getTime():0;
   }
   function rubroNum(rel,key){
-    const n=Number(rel?.rubros?.[key]);
-    return Number.isFinite(n)?Math.max(0,Math.min(100,n)):0;
+    return valorRubroEstadoEdilicio(rel,key);
   }
   function ultimaConfigEstado(estId){
     return relsEstab(estId).filter(esEstadoConfig).sort((a,b)=>relTs(b)-relTs(a))[0]||null;
