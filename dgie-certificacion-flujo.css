@@ -275,21 +275,3 @@
 .dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(4,minmax(145px,1fr))}
 @media(max-width:760px){.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:1fr}}
-.dgie-cert-queue-tabs,.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(5,minmax(130px,1fr))}
-.dgie-cert-queue-tab[data-tab="aceptado"][aria-selected="true"]{border-color:#76bb83;background:#effaf1;color:#226b31}
-.dgie-cert-queue-tab[data-tab="aceptado"] .dgie-cert-tab-count{background:#dff3e3;color:#226b31}
-.dgie-cert-acceptance{margin:12px 0;padding:12px;border:1px solid #cddbea;border-radius:10px;background:#f8fbff}
-.dgie-cert-acceptance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}.dgie-cert-acceptance-head strong{display:block;color:#123c69;font-size:13px}.dgie-cert-acceptance-head span{display:block;margin-top:2px;color:#64748b;font-size:11px}.dgie-cert-acceptance-head>b{flex:0 0 auto;padding:4px 8px;border-radius:999px;background:#dff3e3;color:#226b31;font-size:11px}
-.dgie-cert-acceptance-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.dgie-cert-accept-check{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-height:48px;padding:8px 10px;border:1px solid #d8e2ec;border-radius:8px;background:#fff;color:#475569;text-align:left}.dgie-cert-accept-check strong,.dgie-cert-accept-check small{display:block}.dgie-cert-accept-check strong{font-size:12px}.dgie-cert-accept-check small{margin-top:2px;color:#64748b;font-size:10.5px}.dgie-cert-accept-check em{color:#075aa8;font-size:11px;font-style:normal;font-weight:900}
-.dgie-cert-accept-check.is-action{cursor:pointer}.dgie-cert-accept-check.is-action:hover{border-color:#8db7dc;background:#f5faff}.dgie-cert-accept-check.is-ok{border-color:#9acaa3;background:#f1faf3;color:#226b31}.dgie-cert-accept-check.is-ok small,.dgie-cert-accept-check.is-ok em{color:#397847}
-.dgie-cert-accept-icon{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#eef2f7;color:#64748b;font-size:15px;font-weight:900}.is-ok>.dgie-cert-accept-icon{background:#cfead5;color:#226b31}
-.dgie-cert-accepted-seal{display:inline-flex;margin:8px 0 0;padding:5px 9px;border-radius:999px;background:#dff3e3;color:#226b31;font-size:11px;font-weight:900}
-@media(max-width:900px){.dgie-cert-queue-tabs,.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:760px){.dgie-cert-queue-tabs,.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:620px){.dgie-cert-queue[data-cert-role="empresa"] .dgie-cert-queue-tabs{grid-template-columns:1fr}.dgie-cert-acceptance-checks{grid-template-columns:1fr}}
-@media(max-width:430px){.dgie-cert-queue-tabs{grid-template-columns:1fr}.dgie-cert-acceptance-head{flex-direction:column}}
-.dgie-cert-pass-measurement{background:#247a35;border-color:#247a35}.dgie-cert-pass-measurement:hover{background:#1d642c;border-color:#1d642c}
-.dgie-cert-measure-card{max-width:780px;margin:0 auto}.dgie-cert-measure-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding:12px 14px;border:1px solid #cfe2d2;border-radius:9px;background:#f3faf4}.dgie-cert-measure-summary strong{color:#183b5b}.dgie-cert-measure-summary span{color:#397847;font-size:12px;font-weight:800}
-@media(max-width:620px){.dgie-cert-measure-summary{align-items:flex-start;flex-direction:column}}
-.dgie-cert-accepted-seal.is-partial{background:#fff1d6;color:#925300}
