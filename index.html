@@ -25036,6 +25036,53 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
 })();
 </script>
+<script id="dgie-sesiones-prensa-tableros-2026-08-13">
+(function(){
+  'use strict';
+  const tabsPrev=window.dgieTabsForUser;
+  window.dgieTabsForUser=function(user){
+    if(user?.role==='prensa')return ['Intervenciones'];
+    if(user?.role==='tableros')return ['Tableros'];
+    return typeof tabsPrev==='function'?tabsPrev.apply(this,arguments):[];
+  };
+  const tabsCompatPrev=window.tabsForUser;
+  window.tabsForUser=function(user){
+    if(user?.role==='prensa')return ['Intervenciones'];
+    if(user?.role==='tableros')return ['Tableros'];
+    return typeof tabsCompatPrev==='function'?tabsCompatPrev.apply(this,arguments):(window.dgieTabsForUser?.(user)||[]);
+  };
+  const renderPrev=window.renderTab;
+  window.renderTab=function(index){
+    const role=String(currentUser?.role||'');
+    const tabs=window.dgieTabsForUser?.(currentUser)||[];
+    const tab=tabs[Number(index)]||tabs[0]||'';
+    if(role==='prensa'){
+      if(typeof buildTabs==='function')buildTabs(['Intervenciones']);
+      if(typeof setActiveTab==='function')setActiveTab(0);
+      if(typeof hideGlobal==='function')hideGlobal();
+      const main=document.getElementById('main-content');
+      if(main&&typeof renderIntervencionesDireccion==='function')renderIntervencionesDireccion(main);
+      return;
+    }
+    if(role==='tableros'){
+      if(typeof buildTabs==='function')buildTabs(['Tableros']);
+      if(typeof setActiveTab==='function')setActiveTab(0);
+      if(typeof hideGlobal==='function')hideGlobal();
+      const main=document.getElementById('main-content');
+      if(main)main.innerHTML='<div class="section-label">Tableros</div><div class="card"><div class="card-title">Sesión preparada</div><div style="font-size:13px;color:var(--muted);margin-top:6px">Este espacio está listo para configurar los tableros.</div></div>';
+      return;
+    }
+    return typeof renderPrev==='function'?renderPrev.apply(this,arguments):undefined;
+  };
+  const emailPrev=window.loginEmailFromUsuario;
+  window.loginEmailFromUsuario=function(usuario){
+    const compact=String(usuario||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
+    if(compact==='prensadgie')return 'prensadgie@dgie.netlify.app';
+    if(compact==='tablerosdgie')return 'tablerosdgie@dgie.netlify.app';
+    return typeof emailPrev==='function'?emailPrev.apply(this,arguments):compact+'@dgie.local';
+  };
+})();
+</script>
 <script src="./dgie-agenda.js?v=20260803-7"></script>
 <style id="dgie-barra-superior-sobria-2026-08-04">
 /* La zona de actualizacion pesaba visualmente mas que el resto de la
