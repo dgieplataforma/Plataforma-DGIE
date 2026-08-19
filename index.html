@@ -5219,6 +5219,8 @@ function renderChartInsp(){
       derivadoA:row.derivado_a||'',
       derivadoEn:row.derivado_en||null,
       derivadoPor:row.derivado_por||'',
+      recibidoEn:row.recibido_en||null,
+      recibidoPor:row.recibido_por||'',
       creadoEn:row.created_at||null,
       editadoEn:editadoMatch?.[1]||null,
       creadoPor:row.creado_por||null,
@@ -18622,11 +18624,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
     const callcenter=ctx==='cc-rec';
     return {
-      head:'<tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>O.S.</th></tr>',
+      head:'<tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>O.S.</th><th>Recibido</th></tr>',
       body:rows.map(r=>{
         const estReclamo=estadoReclamo(r);
         const st=callcenter?estadoCallcenter(r).label:(estReclamo==='derivado'?(typeof window.reclamoDerivadoLabel==='function'?window.reclamoDerivadoLabel(r):'Derivado'):(typeof estadoOSLabel==='function'?estadoOSLabel(estReclamo):estReclamo));
-        return `<tr>${td(reclamoNumero(r)||r?.numero)}${td(zonaEst(r)||'')}${td(r?.est||r?.establecimiento)}${td(r?.titulo||r?.descripcion)}${td(rubroRec(r))}${td(r?.fecha)}${td(r?.prio||r?.prioridad)}${td(st)}${td(osReclamoLabel(r)||'—')}</tr>`;
+        return `<tr>${td(reclamoNumero(r)||r?.numero)}${td(zonaEst(r)||'')}${td(r?.est||r?.establecimiento)}${td(r?.titulo||r?.descripcion)}${td(rubroRec(r))}${td(r?.fecha)}${td(r?.prio||r?.prioridad)}${td(st)}${td(osReclamoLabel(r)||'—')}${td(reclamoRecibido(r)?['Recibido',reclamoRecibidoDetalle(r)].filter(Boolean).join(' · '):'Sin recibir')}</tr>`;
       }).join('')
     };
   }
@@ -18886,7 +18888,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):(!reclamoTieneOS(r)&&!['anulado','derivado'].includes(estadoReclamo(r)))},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'antiguedad',label:'Demora',options:()=>[opt('reclamo_mas_15','Reclamo pendiente hace más de 15 días'),opt('os_mas_15','O.S. activa enviada hace más de 15 días')],test:reclamoCumpleDemora},
-      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
+      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)},
+      {key:'recibido',label:'Recibido',options:()=>[opt('si','Recibido'),opt('no','Sin recibir')],test:(r,v)=>v==='si'?reclamoRecibido(r):!reclamoRecibido(r)}
     );
     return fields;
   }
@@ -18894,6 +18897,22 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const c={pendiente:0,trabajando:0,finalizado:0,anulado:0};
     (data||[]).forEach(r=>{const k=estadoReclamo(r);c[c[k]!==undefined?k:'pendiente']++;});
     return `<span class="badge b-warn">${c.pendiente} pendientes</span> <span class="badge b-info">${c.trabajando} trabajando</span> <span class="badge b-ok">${c.finalizado} finalizados</span> <span class="badge b-danger">${c.anulado} anulados</span>`;
+  }
+  // "Recibido": el inspector de la zona confirma a mano que vio el reclamo.
+  // Se guarda cuando y quien, igual que anulado_en/anulado_por y derivado_en/derivado_por.
+  function reclamoRecibido(r){return !!(r?.recibidoEn||r?.recibido_en)}
+  function reclamoRecibidoDetalle(r){
+    if(!reclamoRecibido(r))return '';
+    const cuando=r?.recibidoEn||r?.recibido_en;
+    const quien=String(r?.recibidoPor||r?.recibido_por||'').trim();
+    let f='';
+    try{f=cuando?new Date(cuando).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}):''}catch(_){}
+    return [f,quien].filter(Boolean).join(' · ');
+  }
+  function reclamoRecibidoCelda(r){
+    if(!reclamoRecibido(r))return '<span class="badge b-warn">Sin recibir</span>';
+    const detalle=reclamoRecibidoDetalle(r);
+    return `<span class="badge b-ok">Recibido</span>${detalle?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${esc(detalle)}</div>`:''}`;
   }
   function fotosReclamo(r){
     const fotos=Array.isArray(r?.fotos)?r.fotos:[];
@@ -18947,6 +18966,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <td>${esc(r?.fecha||'—')}</td>
       <td>${typeof prioBadgeFecha==='function'?prioBadgeFecha(r?.prio||r?.prioridad):esc(r?.prio||r?.prioridad||'medio')}</td>
       <td>${tiene?`<span class="badge ${cls}">${esc(os||'Con O.S.')}</span>${osObj?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${esc(typeof estadoOSLabel==='function'?estadoOSLabel(osObj.estado):osObj.estado||'Pendiente')}</div>`:''}`:'<span class="badge b-neutral">Sin O.S.</span>'}</td>
+      <td>${reclamoRecibidoCelda(r)}</td>
       <td>${fotosReclamo(r)}</td>
     </tr>`;
   }
@@ -18990,7 +19010,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${dateInputs('coord-rec','filterReclamosCoord()')}
       </div>
       ${smartChipsSlot(ctx)}
-      <div class="os-table-wrap"><table class="os-table"><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th><th>Fotos</th></tr></thead><tbody id="coord-rec-body"></tbody></table></div></div>`;
+      <div class="os-table-wrap"><table class="os-table"><thead><tr><th>N° Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Título</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>OS asignada</th><th>Recibido</th><th>Fotos</th></tr></thead><tbody id="coord-rec-body"></tbody></table></div></div>`;
     window.filterReclamosCoord();
   };
   window.filterReclamosCoord=function(){
@@ -19005,7 +19025,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     window.dgieSmartRenderChips('coord-rec');
     const el=byId('coord-rec-body');
     if(!el)return;
-    el.innerHTML=data.length?data.map(coordReclamoRow).join(''):`<tr><td colspan="9" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
+    el.innerHTML=data.length?data.map(coordReclamoRow).join(''):`<tr><td colspan="10" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
   };
   function osNum(v){const m=String(v||'').match(/\d+/g);return m?Number(m[m.length-1])||0:0}
   function zonaOS(o){try{return Number(o?.zona||zonaEstablecimiento(o?.estId))||0}catch(e){return Number(o?.zona||0)||0}}
@@ -19396,7 +19416,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${dateInputs('cc-rec','filtrarReclamosCallcenter()')}
       </div>
       ${smartChipsSlot(ctx)}
-      <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>Fotos</th><th>Carga / edición</th><th>Acciones</th></tr></thead><tbody id="cc-rec-body"></tbody></table></div></div>`;
+      <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Reclamo</th><th>Zona</th><th>Establecimiento</th><th>Descripción</th><th>Rubro</th><th>Fecha</th><th>Prioridad</th><th>Estado</th><th>Recibido</th><th>Fotos</th><th>Carga / edición</th><th>Acciones</th></tr></thead><tbody id="cc-rec-body"></tbody></table></div></div>`;
   }
   window.filtrarReclamosCallcenter=function(){
     const rows=callcenterRows();
@@ -19413,8 +19433,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const reiterado=typeof reclamoReiteradoDe==='function'?reclamoReiteradoDe(r):'';
       const fotos=Array.isArray(r?.fotos)?r.fotos.length:Number(r?.fotos||0);
       const comentario=String(r?.anuladoComentario||r?.anulado_comentario||'').trim();
-      return `<tr><td><div class="os-num">${esc(r?.numero||'S/N')}</div>${reiterado?`<div style="font-size:11px;color:#b45309;font-weight:800;margin-top:4px">Reiterado de ${esc(reiterado)}</div>`:''}</td><td>${esc(zonaEst(r)||'—')}</td><td>${esc(r?.est||r?.establecimiento||'—')}</td><td><div class="os-task">${esc(tituloRecVisible(r))}</div>${comentario?`<div style="font-size:11px;color:#991b1b;font-weight:700;margin-top:4px">Anulado: ${esc(comentario)}</div>`:''}</td><td>${esc(rubroRec(r)||'—')}</td><td>${esc(r?.fecha||'—')}</td><td>${typeof prioBadgeCallcenter==='function'?prioBadgeCallcenter(r?.prio||r?.prioridad):(typeof prioBadgeFecha==='function'?prioBadgeFecha(r?.prio||r?.prioridad):esc(r?.prio||r?.prioridad||'medio'))}</td><td><span class="badge ${st.cls}">${esc(st.label)}</span></td><td>${fotos?`<span class="badge b-info">${fotos}</span>`:'—'}</td><td>${auditCC(r)}</td><td><button class="edit-btn" type="button" onclick='abrirEdicionReclamoCallcenter(${JSON.stringify(key)})'>Editar</button></td></tr>`;
-    }).join(''):`<tr><td colspan="11" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
+      return `<tr><td><div class="os-num">${esc(r?.numero||'S/N')}</div>${reiterado?`<div style="font-size:11px;color:#b45309;font-weight:800;margin-top:4px">Reiterado de ${esc(reiterado)}</div>`:''}</td><td>${esc(zonaEst(r)||'—')}</td><td>${esc(r?.est||r?.establecimiento||'—')}</td><td><div class="os-task">${esc(tituloRecVisible(r))}</div>${comentario?`<div style="font-size:11px;color:#991b1b;font-weight:700;margin-top:4px">Anulado: ${esc(comentario)}</div>`:''}</td><td>${esc(rubroRec(r)||'—')}</td><td>${esc(r?.fecha||'—')}</td><td>${typeof prioBadgeCallcenter==='function'?prioBadgeCallcenter(r?.prio||r?.prioridad):(typeof prioBadgeFecha==='function'?prioBadgeFecha(r?.prio||r?.prioridad):esc(r?.prio||r?.prioridad||'medio'))}</td><td><span class="badge ${st.cls}">${esc(st.label)}</span></td><td>${reclamoRecibidoCelda(r)}</td><td>${fotos?`<span class="badge b-info">${fotos}</span>`:'—'}</td><td>${auditCC(r)}</td><td><button class="edit-btn" type="button" onclick='abrirEdicionReclamoCallcenter(${JSON.stringify(key)})'>Editar</button></td></tr>`;
+    }).join(''):`<tr><td colspan="12" class="os-empty">No hay reclamos para los filtros seleccionados</td></tr>`;
   };
   window.descargarPDFReclamosCallcenter=function(){
     if(typeof window.dgieSmartExportPDF==='function')window.dgieSmartExportPDF('cc-rec');
@@ -19437,13 +19457,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         'Prioridad':r?.prio||r?.prioridad||'medio',
         'Estado':st.label,
         'OS':osReclamoLabel(r)||'—',
+        'Recibido':reclamoRecibido(r)?['Recibido',reclamoRecibidoDetalle(r)].filter(Boolean).join(' · '):'Sin recibir',
         'Fotos':Array.isArray(r?.fotos)?r.fotos.length:Number(r?.fotos||0),
         'Cargado':creado?new Date(creado).toLocaleString('es-AR'):'—',
         'Editado':editado?new Date(editado).toLocaleString('es-AR'):''
       };
     });
     const ws=XLSX.utils.json_to_sheet(data);
-    ws['!cols']=[{wch:14},{wch:7},{wch:36},{wch:55},{wch:20},{wch:12},{wch:12},{wch:22},{wch:14},{wch:8},{wch:20},{wch:20}];
+    ws['!cols']=[{wch:14},{wch:7},{wch:36},{wch:55},{wch:20},{wch:12},{wch:12},{wch:22},{wch:14},{wch:26},{wch:8},{wch:20},{wch:20}];
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'Reclamos');
     XLSX.writeFile(wb,`DGIE_Reclamos_CallCenter_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -25229,5 +25250,117 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
 })();
 </script><script src="./dgie-file-viewer.js?v=20260803-6"></script>
 <script src="./dgie-notificaciones.js?v=20260804-1"></script>
+<script id="dgie-reclamo-recibido-2026-08-19">
+(function(){
+  'use strict';
+  const esc=s=>typeof escapeHtml==='function'?escapeHtml(s):String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  function reclamos(){return Array.isArray(window.RECLAMOS_ZONA)?window.RECLAMOS_ZONA:(typeof RECLAMOS_ZONA!=='undefined'?RECLAMOS_ZONA:[])}
+  function usuario(){return typeof currentUser!=='undefined'?currentUser:null}
+
+  function recibido(r){return !!(r?.recibidoEn||r?.recibido_en)}
+  function detalle(r){
+    if(!recibido(r))return '';
+    const cuando=r?.recibidoEn||r?.recibido_en;
+    const quien=String(r?.recibidoPor||r?.recibido_por||'').trim();
+    let f='';
+    try{f=cuando?new Date(cuando).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}):''}catch(_){}
+    return [f,quien].filter(Boolean).join(' · ');
+  }
+  window.dgieReclamoRecibido=recibido;
+  window.dgieReclamoRecibidoDetalle=detalle;
+
+  function clave(r){return String(r?.remoteId||r?.id||r?.numero||'')}
+  function porClave(k){
+    const buscado=String(k||'');
+    return reclamos().find(r=>clave(r)===buscado)||null;
+  }
+  // Solo el inspector de la zona del reclamo puede marcarlo.
+  function puedeMarcar(r){
+    const u=usuario();
+    if(!u||String(u.role||'').toLowerCase()!=='inspector')return false;
+    const zr=Number(r?.zona||(typeof zonaEstablecimiento==='function'?zonaEstablecimiento(r?.estId):0))||0;
+    return !zr||Number(u.zona||0)===zr;
+  }
+
+  function control(r){
+    const marcado=recibido(r);
+    const d=detalle(r);
+    if(!puedeMarcar(r)){
+      return marcado
+        ? `<span class="badge b-ok" title="${esc(d)}">✓ Recibido</span>`
+        : '<span class="badge b-warn">Sin recibir</span>';
+    }
+    const k=encodeURIComponent(clave(r)).replace(/'/g,'%27');
+    const titulo=marcado?`Recibido ${d}. Tocá para desmarcar.`:'Marcar como recibido';
+    return `<button type="button" class="dgie-recibido-btn${marcado?' is-on':''}" title="${esc(titulo)}" aria-pressed="${marcado}" onclick="event.stopPropagation();dgieMarcarReclamoRecibido('${k}')">${marcado?'✓ Recibido':'Marcar recibido'}</button>`;
+  }
+
+  window.dgieMarcarReclamoRecibido=async function(encoded){
+    const r=porClave(decodeURIComponent(String(encoded||'')));
+    if(!r||!puedeMarcar(r))return;
+    const marcar=!recibido(r);
+    const antesEn=r.recibidoEn||null, antesPor=r.recibidoPor||'';
+    const ahora=new Date().toISOString();
+    const quien=usuario()?.name||'Inspector';
+    r.recibidoEn=marcar?ahora:null;
+    r.recibidoPor=marcar?quien:'';
+    refrescar();
+    if(r.remoteId&&window.DGIE_DB?.isConfigured&&typeof window.DGIE_DB.actualizarReclamo==='function'){
+      const {error}=await window.DGIE_DB.actualizarReclamo(r.remoteId,{
+        recibido_en:marcar?ahora:null,
+        recibido_por:marcar?quien:null,
+        updated_at:ahora
+      });
+      if(error){
+        r.recibidoEn=antesEn;r.recibidoPor=antesPor;
+        refrescar();
+        alert(/permission denied|jwt|not authenticated/i.test(String(error.message||error))
+          ? 'Tu sesión expiró. Cerrá sesión, volvé a entrar y probá de nuevo.'
+          : 'No se pudo guardar: '+(error.message||error));
+        return;
+      }
+    }
+    if(typeof saveAppState==='function')saveAppState();
+  };
+
+  function refrescar(){
+    ['filterReclamos','filterReclamosInspector','filterReclamosCoord','filtrarReclamosCallcenter']
+      .forEach(fn=>{try{if(typeof window[fn]==='function')window[fn]()}catch(_){}});
+  }
+
+  function estilo(){
+    if(document.getElementById('dgie-recibido-style'))return;
+    const s=document.createElement('style');
+    s.id='dgie-recibido-style';
+    s.textContent='.dgie-recibido-btn{border:1px solid var(--border);background:#fff;color:#64748b;border-radius:999px;'
+      +'padding:4px 11px;font-size:11px;font-weight:800;cursor:pointer;line-height:1.4;white-space:nowrap;min-height:32px}'
+      +'.dgie-recibido-btn:hover{border-color:#0b74c9;color:#0b74c9}'
+      +'.dgie-recibido-btn.is-on{background:#e8f5e9;border-color:#2e7d32;color:#2e7d32}';
+    document.head.appendChild(s);
+  }
+
+  // Se engancha al final de la cadena de rowReclamo: el control se agrega en la
+  // columna derecha de la tarjeta, junto a la prioridad y la O.S.
+  function enganchar(){
+    const prev=window.rowReclamo;
+    if(typeof prev!=='function'||prev.__recibidoWrapped)return;
+    window.rowReclamo=function(r,showEst){
+      let html=String(prev.apply(this,arguments));
+      const marca=control(r);
+      const cierre='</div></div>';
+      const idx=html.lastIndexOf(cierre);
+      if(idx<0)return html;
+      return html.slice(0,idx)+marca+html.slice(idx);
+    };
+    window.rowReclamo.__recibidoWrapped=true;
+    try{rowReclamo=window.rowReclamo}catch(_){}
+  }
+
+  estilo();
+  enganchar();
+  setTimeout(enganchar,600);
+  setTimeout(enganchar,2000);
+})();
+</script>
 </body>
 </html>
