@@ -25032,11 +25032,30 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function estadoLabel(o){try{return typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):String(o?.estado||'')}catch(_e){return String(o?.estado||'')||'Sin estado'}}
   function seleccionActual(c){return new Set((typeof window.certOrdenes==='function'?window.certOrdenes(c):[]).map(numeroCorto).filter(Boolean))}
+  // Una O.S. ya certificada no se puede volver a certificar, asi que no se ofrece.
+  // Se excluye el propio certificado que se esta editando: sus ordenes tienen que
+  // seguir apareciendo, tildadas.
+  function yaCertificada(o,actual){
+    const numero=numeroCorto(o?.numero);
+    if(!numero)return false;
+    const idActual=String(actual?.id||actual?.localId||'');
+    return certs().some(c=>{
+      if(String(c?.estado||'')==='eliminado')return false;
+      const idC=String(c?.id||c?.localId||'');
+      if(idActual&&idC===idActual)return false;
+      if(typeof window.certificadoPerteneceAOS==='function')
+        return window.certificadoPerteneceAOS(c,o,Number(actual?.zona||0));
+      const arr=typeof window.certOrdenes==='function'?window.certOrdenes(c):[];
+      return arr.map(numeroCorto).includes(numero);
+    });
+  }
   function ordenesCertificado(c){
     const zona=Number(c?.zona||currentUser?.zona||0),estId=Number(c?.establecimiento_id||0);
     const zonaRows=ordenes().filter(o=>!zona||zonaOrden(o)===zona);
     const sameEst=zonaRows.filter(o=>Number(o?.estId||o?.establecimiento_id||0)===estId);
-    return sameEst.slice().sort((a,b)=>Number(numeroCorto(b?.numero))-Number(numeroCorto(a?.numero)));
+    const disponibles=sameEst.filter(o=>!yaCertificada(o,c));
+    window.__certOsOcultas=sameEst.length-disponibles.length;
+    return disponibles.slice().sort((a,b)=>Number(numeroCorto(b?.numero))-Number(numeroCorto(a?.numero)));
   }
   function optionHtml(o,selected){
     const numero=numeroCorto(o?.numero),checked=selected.has(numero)?' checked':'';
@@ -25061,7 +25080,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const field=old.closest('.form-field');if(!field||field.querySelector('.dgie-cert-os-picker'))return;
     const selected=seleccionActual(c),rows=ordenesCertificado(c),known=new Set(rows.map(o=>numeroCorto(o?.numero)));
     const legacy=[...selected].filter(numero=>!known.has(numero));
-    field.innerHTML=`<label class="form-label">Órdenes de servicio</label><div class="dgie-cert-os-picker"><div class="dgie-cert-os-picker-head"><input class="form-input dgie-cert-os-picker-search" type="search" placeholder="Buscar por número, establecimiento, tarea o rubro…" oninput="filtrarOrdenesCertificado(this.value)"><div id="dgie-cert-os-count" class="dgie-cert-os-count"></div></div><div id="dgie-cert-os-options" class="dgie-cert-os-picker-list">${rows.map(o=>optionHtml(o,selected)).join('')}${legacy.map(numero=>`<label class="dgie-cert-os-option" data-search="${esc(numero)}"><input type="checkbox" class="insp-cert-os-check" value="${esc(numero)}" checked onchange="actualizarResumenOrdenesCertificado()"><span><span class="dgie-cert-os-title"><span>O.S. ${esc(numero)}</span><span class="badge b-neutral">Anterior</span></span><span class="dgie-cert-os-detail">Esta orden ya estaba vinculada, pero no se encontró en el listado actual.</span></span></label>`).join('')}<div id="dgie-cert-os-filter-empty" class="dgie-cert-os-empty" ${rows.length?'hidden':''}>No se encontraron órdenes para este establecimiento y zona.</div></div></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Elegí una o más órdenes. Podés leer la tarea antes de seleccionarlas.</div>`;
+    field.innerHTML=`<label class="form-label">Órdenes de servicio</label><div class="dgie-cert-os-picker"><div class="dgie-cert-os-picker-head"><input class="form-input dgie-cert-os-picker-search" type="search" placeholder="Buscar por número, establecimiento, tarea o rubro…" oninput="filtrarOrdenesCertificado(this.value)"><div id="dgie-cert-os-count" class="dgie-cert-os-count"></div>${window.__certOsOcultas?`<div class="dgie-cert-os-count" style="color:#b45309">${window.__certOsOcultas} orden${window.__certOsOcultas===1?'':'es'} no se muestra${window.__certOsOcultas===1?'':'n'}: ya está${window.__certOsOcultas===1?'':'n'} certificada${window.__certOsOcultas===1?'':'s'}</div>`:''}</div><div id="dgie-cert-os-options" class="dgie-cert-os-picker-list">${rows.map(o=>optionHtml(o,selected)).join('')}${legacy.map(numero=>`<label class="dgie-cert-os-option" data-search="${esc(numero)}"><input type="checkbox" class="insp-cert-os-check" value="${esc(numero)}" checked onchange="actualizarResumenOrdenesCertificado()"><span><span class="dgie-cert-os-title"><span>O.S. ${esc(numero)}</span><span class="badge b-neutral">Anterior</span></span><span class="dgie-cert-os-detail">Esta orden ya estaba vinculada, pero no se encontró en el listado actual.</span></span></label>`).join('')}<div id="dgie-cert-os-filter-empty" class="dgie-cert-os-empty" ${rows.length?'hidden':''}>${window.__certOsOcultas?'Todas las órdenes de este establecimiento ya están certificadas.':'No se encontraron órdenes para este establecimiento y zona.'}</div></div></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Elegí una o más órdenes. Podés leer la tarea antes de seleccionarlas.</div>`;
     actualizarResumen();
   }
   const revisarPrev=window.revisarCertificadoInspector;
