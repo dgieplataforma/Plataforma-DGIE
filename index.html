@@ -25418,14 +25418,12 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   }
   function ordenes(c){
     try{
-      const zona=Number(c?.zona||0);
       const lista=typeof window.certOrdenes==='function'?(window.certOrdenes(c)||[]):[];
       return lista.map(valor=>{
         const texto=String(valor||'').trim();
         if(!texto)return '';
-        if(/^Z(?:ONA)?\s*\d+[-_]/i.test(texto))return texto.replace(/^ZONA\s*/i,'Z');
-        const numero=texto.match(/\d+/)?.[0];
-        return zona&&numero?`Z${zona}-${numero}`:texto;
+        const numeros=texto.match(/\d+/g);
+        return numeros?.length?numeros[numeros.length-1]:texto;
       }).filter(Boolean);
     }catch(_e){return []}
   }
@@ -25504,7 +25502,7 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
       </div>
       <div class="dgie-adm-datos">
         <div class="dgie-adm-dato"><span>Módulos del inspector</span><b>${mods(modulosInspector(c))}</b></div>
-        <div class="dgie-adm-dato"><span>Órdenes de servicio</span><b>${os.length?esc(os.join(', ')):'—'}</b></div>
+        <div class="dgie-adm-dato"><span>Órdenes de servicio</span><b>${os.length?esc(os.join(' · ')):'—'}</b></div>
         <div class="dgie-adm-dato"><span>Rubros</span><b>${esc(rubros(c)||'—')}</b></div>
         <div class="dgie-adm-dato"><span>Archivo vigente</span><b>${arch.url
           ? `<button type="button" class="dgie-adm-archivo" data-file-url="${esc(arch.url)}" data-file-name="${esc(arch.nombre)}" data-dgie-no-preview="1" title="Descargar ${esc(arch.nombre)}">Descargar</button>`
