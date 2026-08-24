@@ -25314,6 +25314,24 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
 .dgie-adm-migas{font-size:12.5px;font-weight:900;color:#123c69}
 .dgie-adm-fichas{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
 .dgie-adm-fichas .med-btn{min-width:0;width:100%;min-height:78px}
+.dgie-hilo{margin-top:8px}
+.dgie-hilo-msg{border-left:3px solid #cbd5e1;background:#fff;border-radius:0 8px 8px 0;padding:7px 10px;margin-top:7px}
+.dgie-hilo-msg.is-observado{border-left-color:#c2410c}
+.dgie-hilo-msg.is-respuesta{border-left-color:#005aa9;background:#eef4ff}
+.dgie-hilo-msg.is-comentario{border-left-color:#7c3aed;background:#f7f3ff}
+.dgie-hilo-msg .cab{font-size:11px;font-weight:800;color:#475569}
+.dgie-hilo-msg .txt{font-size:13px;color:#1e293b;margin-top:3px;white-space:pre-wrap;overflow-wrap:anywhere}
+.med-version-row>.dgie-obs-banner,.med-version-row>.dgie-aprobado-nota{grid-column:1/-1;width:auto}
+.dgie-obs-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.dgie-obs-acciones button{min-height:40px}
+.dgie-adm-chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.dgie-adm-chip{min-height:38px;font-size:12.5px}
+.dgie-adm-chip b{font-weight:900}
+.dgie-adm-chip.is-on{background:#123c69;border-color:#123c69;color:#fff}
+.dgie-adm-aviso{border:1px solid #b9d0f0;background:#eef4ff;border-radius:12px;padding:11px 13px;margin:10px 0;font-size:13px;color:#1e293b}
+.dgie-adm-aviso.is-obs{border-color:#f0c07a;background:#fff8ec}
+.dgie-adm-aviso-acc{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.dgie-adm-aviso-acc button{min-height:38px}
 .dgie-adm-grupo{margin-bottom:18px}
 .dgie-adm-grupo-tit{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .dgie-adm-grupo-tit span{background:#eef2f7;color:#334155;border-radius:999px;padding:1px 8px;font-size:11px;letter-spacing:0}
@@ -25327,6 +25345,7 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   .dgie-adm-fichas{grid-template-columns:1fr}
   .dgie-adm-datos{grid-template-columns:1fr}
   .dgie-adm-acciones button{flex:1 1 100%}
+  .dgie-obs-acciones button{flex:1 1 100%}
 }
 </style>
 <script id="dgie-administracion-certificados-2026-08-21">
@@ -25362,6 +25381,25 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   }
   function ultimaObservacion(c){
     return historial(c).filter(x=>x&&x.tipo==='observado').slice(-1)[0]||null;
+  }
+  // Hilo entre Administracion y el inspector. Va aparte de c.conversacion, que es
+  // el hilo con la empresa: la empresa no ve nada de esto.
+  const AUTORIA={observado:'Administración observó',respuesta:'Respuesta del inspector',comentario:'Administración'};
+  function mensajes(c){
+    return historial(c).filter(x=>x&&AUTORIA[x.tipo]);
+  }
+  function respondido(c){
+    const ms=mensajes(c);
+    const ultimo=ms[ms.length-1];
+    return ultimo&&ultimo.tipo==='respuesta'?ultimo:null;
+  }
+  function hilo(c){
+    const ms=mensajes(c);
+    if(!ms.length)return '';
+    return `<div class="dgie-hilo">${ms.map(m=>`<div class="dgie-hilo-msg is-${esc(m.tipo)}">
+      <div class="cab">${esc(AUTORIA[m.tipo])} · ${esc(m.autor||'')} · ${esc(fecha(m.fecha))}</div>
+      <div class="txt">${esc(m.texto||'')}</div>
+    </div>`).join('')}</div>`;
   }
   function aprobado(c){return estadoAdmin(c)==='aprobado'}
   function modulosInspector(c){return num(c?.modulos_inspector??c?.modulos_original)}
@@ -25454,15 +25492,16 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
           ? `<button type="button" class="dgie-adm-archivo" data-file-url="${esc(arch.url)}" data-file-name="${esc(arch.nombre)}">${esc(arch.nombre)}</button>`
           : esc(arch.nombre||'Sin archivo')}</b></div>
       </div>
-      ${est==='aprobado'?`<div class="dgie-aprobado-nota">Aprobado por ${esc(c?.aprobado_por||'Administración')} el ${esc(fecha(c?.aprobado_at))} · ${mods(c?.modulos_aprobados)} módulos</div>`:''}
-      ${est==='observado'&&obs?`<div class="dgie-obs-banner"><div class="tit">Observado</div><div class="txt">${esc(obs.texto||'')}</div><div class="pie">${esc(obs.autor||'Administración')} · ${esc(fecha(obs.fecha))}</div></div>`:''}
+      ${est==='aprobado'?`<div class="dgie-aprobado-nota">Aprobado por ${esc(c?.aprobado_por||'Administración')} el ${esc(fecha(c?.aprobado_at))}</div>`:''}
+      ${est==='observado'&&obs?`<div class="dgie-obs-banner"><div class="tit">${respondido(c)?'Observado · el inspector respondió':'Observado'}</div>${hilo(c)}</div>`:''}
       <div class="dgie-adm-acciones">
         <button type="button" class="secondary-btn" onclick="dgieAdmObservar('${esc(id)}')">Observar</button>
+        ${est==='observado'?`<button type="button" class="secondary-btn" onclick="dgieCertResponder('${esc(id)}')">Responder</button>`:''}
         <button type="button" class="primary-btn" onclick="dgieAdmAprobar('${esc(id)}')"${est==='aprobado'?' disabled':''}>${est==='aprobado'?'Aprobado':'Aprobar'}</button>
       </div>
       ${hist.length?`<details class="dgie-adm-hist"><summary>Historial administrativo (${hist.length})</summary>${
         hist.slice().reverse().map(h=>`<div class="dgie-adm-hist-item ${h.tipo==='observado'?'is-obs':h.tipo==='aprobado'?'is-apr':''}">
-          <div class="cab">${esc(h.tipo==='observado'?'Observado':h.tipo==='aprobado'?'Aprobado':'Nueva versión')} · versión ${esc(h.version||'—')} · ${esc(h.autor||'')} · ${esc(fecha(h.fecha))}</div>
+          <div class="cab">${esc(h.tipo==='observado'?'Observado':h.tipo==='aprobado'?'Aprobado':h.tipo==='respuesta'?'Respuesta del inspector':h.tipo==='comentario'?'Comentario de Administración':'Nueva versión')} · versión ${esc(h.version||'—')} · ${esc(h.autor||'')} · ${esc(fecha(h.fecha))}</div>
           ${h.texto?`<div class="txt">${esc(h.texto)}</div>`:''}
           ${h.archivo?`<div class="txt"><button type="button" class="dgie-adm-archivo" data-file-url="${esc(h.url||'')}" data-file-name="${esc(h.archivo)}">${esc(h.archivo)}</button>${h.modulos_inspector!=null?' · '+mods(h.modulos_inspector)+' módulos':''}</div>`:''}
           ${h.observaciones_inspector?`<div class="txt">Observaciones del inspector: ${esc(h.observaciones_inspector)}</div>`:''}
@@ -25706,11 +25745,11 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     if(!c||aprobado(c))return;
     const m=modulosInspector(c);
     if(!m){alert('Este certificado no tiene módulos del inspector cargados, así que no se puede aprobar.');return}
-    if(!confirm(`Aprobar la versión ${version(c)} de ${c.establecimiento_nombre||'este certificado'} por ${mods(m)} módulos.\n\nEsa cantidad pasa a ser la oficial.`))return;
+    if(!confirm(`Aprobar la versión ${version(c)} de ${c.establecimiento_nombre||'este certificado'}.\n\nEs el visto bueno administrativo: no modifica los módulos, que salen del certificado del inspector.`))return;
     const ahora=new Date().toISOString();
     const quien=usuario()?.name||'Administración';
     const nuevo=historial(c).concat([Object.assign({
-      tipo:'aprobado',texto:'',autor:quien,fecha:ahora,modulos_aprobados:m
+      tipo:'aprobado',texto:'',autor:quien,fecha:ahora
     },fotoVersion(c))]);
     try{
       await window.actualizarCertificado(c.id||c.localId,{
@@ -25718,19 +25757,70 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
         revision_admin_historial:nuevo,
         revision_admin_actualizado_at:ahora,
         revision_admin_actualizado_por:quien,
-        modulos_aprobados:m,
-        modulos_final:m,
-        monto_final:m,
         aprobado_at:ahora,
         aprobado_por:quien
       });
       Object.assign(c,{revision_admin_estado:'aprobado',revision_admin_historial:nuevo,
         revision_admin_actualizado_at:ahora,revision_admin_actualizado_por:quien,
-        modulos_aprobados:m,modulos_final:m,monto_final:m,aprobado_at:ahora,aprobado_por:quien});
+        aprobado_at:ahora,aprobado_por:quien});
       window.dgieAdmRefrescar();
     }catch(error){
       alert('No se pudo aprobar el certificado: '+(error?.message||error));
     }
+  };
+
+  // ---------- responder ----------
+  window.dgieCertResponder=function(id){
+    const c=certs().find(x=>String(x?.id||x?.localId||'')===String(id));
+    if(!c)return;
+    const esInspector=rol()==='inspector';
+    if(!esInspector&&!esAdmin())return;
+    const tipo=esInspector?'respuesta':'comentario';
+    const fondo=document.createElement('div');
+    fondo.className='dgie-adm-modal';
+    fondo.innerHTML=`<div class="dgie-adm-modal-caja">
+      <h3>${esInspector?'Responder a Administración':'Comentar al inspector'}</h3>
+      <div style="font-size:13px;color:var(--muted)">${esc(c.establecimiento_nombre||'')} · Zona ${esc(c.zona||'')} · Medición ${esc(c.medicion_numero||'')}</div>
+      ${hilo(c)}
+      <label class="form-label" style="margin-top:12px;display:block">Tu mensaje</label>
+      <textarea class="form-textarea" id="adm-resp-texto" placeholder="${esInspector?'Contá por qué el certificado está bien así, o qué vas a corregir.':'Aclaración para el inspector.'}"></textarea>
+      <div class="form-error" id="adm-resp-error" style="display:none">Escribí el mensaje.</div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="secondary-btn" type="button" id="adm-resp-cancelar">Cancelar</button>
+        <button class="primary-btn" type="button" id="adm-resp-guardar">Enviar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(fondo);
+    const cerrar=()=>fondo.remove();
+    fondo.addEventListener('click',ev=>{if(ev.target===fondo)cerrar()});
+    fondo.querySelector('#adm-resp-cancelar').onclick=cerrar;
+    setTimeout(()=>fondo.querySelector('#adm-resp-texto')?.focus(),30);
+    fondo.querySelector('#adm-resp-guardar').onclick=async()=>{
+      const texto=String(fondo.querySelector('#adm-resp-texto').value||'').trim();
+      if(!texto){fondo.querySelector('#adm-resp-error').style.display='block';return}
+      const boton=fondo.querySelector('#adm-resp-guardar');
+      boton.disabled=true;boton.textContent='Enviando...';
+      const ahora=new Date().toISOString();
+      const quien=usuario()?.name||(esInspector?'Inspector':'Administración');
+      // El estado no se toca: responder no aprueba ni desobserva nada.
+      const nuevo=historial(c).concat([{tipo,texto,autor:quien,fecha:ahora,version:version(c)}]);
+      try{
+        await window.actualizarCertificado(c.id||c.localId,{
+          revision_admin_historial:nuevo,
+          revision_admin_actualizado_at:ahora,
+          revision_admin_actualizado_por:quien
+        });
+        c.revision_admin_historial=nuevo;
+        c.revision_admin_actualizado_at=ahora;
+        c.revision_admin_actualizado_por=quien;
+        cerrar();
+        if(esAdmin())window.dgieAdmRefrescar();
+        else if(typeof window.abrirMedicionInspector==='function'&&c.medicion_numero!=null)window.abrirMedicionInspector(String(c.medicion_numero));
+      }catch(error){
+        boton.disabled=false;boton.textContent='Enviar';
+        alert('No se pudo enviar el mensaje: '+(error?.message||error));
+      }
+    };
   };
 
   // ---------- versionado del lado del inspector ----------
@@ -25769,23 +25859,6 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     return res;
   };
 
-  // ---------- modulos manuales bloqueados si esta aprobado ----------
-  function avisoAprobado(c){
-    return `Este certificado ya fue aprobado por Administración por ${mods(c?.modulos_aprobados??modulosInspector(c))} módulos. El valor oficial sale de esa aprobación.`;
-  }
-  const guardarModPrev=window.guardarModulosFinalCertificado;
-  window.guardarModulosFinalCertificado=async function(id){
-    const c=certs().find(x=>String(x?.id||x?.localId||'')===String(id));
-    if(c&&aprobado(c)){alert(avisoAprobado(c));return}
-    return typeof guardarModPrev==='function'?guardarModPrev.apply(this,arguments):undefined;
-  };
-  const limpiarModPrev=window.limpiarModulosFinalCertificado;
-  window.limpiarModulosFinalCertificado=async function(id){
-    const c=certs().find(x=>String(x?.id||x?.localId||'')===String(id));
-    if(c&&aprobado(c)){alert(avisoAprobado(c));return}
-    return typeof limpiarModPrev==='function'?limpiarModPrev.apply(this,arguments):undefined;
-  };
-
   // ---------- lo que ve el inspector ----------
   function marcarFilasInspector(){
     const detalle=byId('med-detalle');
@@ -25794,27 +25867,82 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
       const input=fila.querySelector('[id^="cert-final-mod-"]');
       const id=input?.id?.replace('cert-final-mod-','')||'';
       const c=certs().find(x=>String(x?.id||x?.localId||'').replace(/[^a-zA-Z0-9_-]/g,'_')===id);
-      if(!c||fila.dataset.dgieAdmMarcada)return;
-      fila.dataset.dgieAdmMarcada='1';
+      if(!c)return;
       const est=estadoAdmin(c);
+      fila.dataset.admEstado=est;
+      if(fila.dataset.dgieAdmMarcada)return;
+      fila.dataset.dgieAdmMarcada='1';
       if(est==='observado'){
-        const obs=ultimaObservacion(c);
-        const meta=fila.querySelector('.med-card-meta')||fila;
-        meta.insertAdjacentHTML('afterend',`<div class="dgie-obs-banner">
+        fila.insertAdjacentHTML('beforeend',`<div class="dgie-obs-banner">
           <div class="tit">Administración observó este certificado</div>
-          <div class="txt">${esc(obs?.texto||'')}</div>
-          <div class="pie">${esc(obs?.autor||'Administración')} · ${esc(fecha(obs?.fecha))} · versión observada ${esc(obs?.version||version(c))}</div>
-          <button type="button" class="primary-btn" style="margin-top:9px;min-height:40px" onclick="dgieInspectorNuevaVersion('${esc(String(c.id||c.localId))}')">Cargar nueva versión</button>
+          ${hilo(c)}
+          <div class="dgie-obs-acciones">
+            <button type="button" class="secondary-btn" onclick="dgieCertResponder('${esc(String(c.id||c.localId))}')">Responder</button>
+            <button type="button" class="primary-btn" onclick="dgieInspectorNuevaVersion('${esc(String(c.id||c.localId))}')">Cargar nueva versión</button>
+          </div>
         </div>`);
       }else if(est==='aprobado'){
-        const controles=fila.querySelector('.cert-final-modulos-row');
-        if(controles){
-          controles.querySelectorAll('input,button').forEach(el=>{el.disabled=true});
-          controles.insertAdjacentHTML('afterend',`<div class="dgie-aprobado-nota">${esc(avisoAprobado(c))}</div>`);
-        }
+        // Solo informa: los modulos los sigue manejando el inspector.
+        fila.insertAdjacentHTML('beforeend',`<div class="dgie-aprobado-nota">Administración aprobó este certificado · ${esc(fecha(c?.aprobado_at))}</div>`);
       }
     });
+    barraEstados();
   }
+  // Botones para filtrar las filas de la medicion por estado administrativo.
+  function barraEstados(){
+    const detalle=byId('med-detalle');
+    if(!detalle)return;
+    const card=detalle.querySelector('.med-card');
+    if(!card||card.querySelector('.dgie-adm-chips'))return;
+    const filas=[...detalle.querySelectorAll('.med-version-row')];
+    if(!filas.length)return;
+    const cuantos=e=>filas.filter(f=>f.dataset.admEstado===e).length;
+    const chips=GRUPOS.map(([k,t])=>`<button type="button" class="secondary-btn dgie-adm-chip" data-adm-filtro="${k}">${t} <b>${cuantos(k)}</b></button>`).join('');
+    const cabecera=card.querySelector('.card-header')||card.firstElementChild;
+    cabecera?.insertAdjacentHTML('afterend',`<div class="dgie-adm-chips">${chips}</div>`);
+    card.querySelectorAll('[data-adm-filtro]').forEach(boton=>{
+      boton.onclick=()=>{
+        const clave=boton.dataset.admFiltro;
+        const yaEstaba=boton.classList.contains('is-on');
+        card.querySelectorAll('[data-adm-filtro]').forEach(x=>x.classList.remove('is-on'));
+        if(!yaEstaba)boton.classList.add('is-on');
+        filas.forEach(f=>{f.style.display=(yaEstaba||f.dataset.admEstado===clave)?'':'none'});
+      };
+    });
+  }
+  // Aviso arriba de Certificacion para que no haya que buscar fila por fila.
+  function avisoInspector(){
+    if(rol()!=='inspector')return;
+    const card=byId('med-list')?.closest('.card');
+    if(!card)return;
+    card.querySelector('.dgie-adm-aviso')?.remove();
+    const z=Number(usuario()?.zona||0);
+    const mios=certs().filter(c=>Number(c?.zona)===z&&String(c?.estado||'').toLowerCase()==='medido');
+    const obs=mios.filter(c=>estadoAdmin(c)==='observado');
+    const apr=mios.filter(c=>estadoAdmin(c)==='aprobado');
+    if(!obs.length&&!apr.length)return;
+    const partes=[];
+    if(obs.length)partes.push(`observó ${obs.length} certificado${obs.length===1?'':'s'}`);
+    if(apr.length)partes.push(`aprobó ${apr.length}`);
+    const meds=[...new Set(obs.map(c=>String(c?.medicion_numero??'')))].filter(Boolean).sort((a,b)=>Number(a)-Number(b));
+    const acciones=meds.map(m=>`<button type="button" class="secondary-btn" onclick="dgieInspectorVerMedicion('${esc(m)}')">Ver medición Nº ${esc(m)}</button>`).join('');
+    const cabecera=card.querySelector('.card-header');
+    cabecera?.insertAdjacentHTML('afterend',`<div class="dgie-adm-aviso${obs.length?' is-obs':''}">
+      <div><strong>Administración ${partes.join(' · ')}.</strong>${obs.length?' Podés responder la observación o cargar una versión nueva.':''}</div>
+      ${acciones?`<div class="dgie-adm-aviso-acc">${acciones}</div>`:''}
+    </div>`);
+  }
+  window.dgieInspectorVerMedicion=function(numero){
+    if(typeof window.abrirMedicionInspector!=='function')return;
+    window.abrirMedicionInspector(String(numero));
+    setTimeout(()=>{byId('med-detalle')?.scrollIntoView({behavior:'smooth',block:'start'})},120);
+  };
+  const medicionesPrev=window.renderMedicionesInspector;
+  window.renderMedicionesInspector=async function(){
+    const res=await (typeof medicionesPrev==='function'?medicionesPrev.apply(this,arguments):undefined);
+    setTimeout(avisoInspector,60);
+    return res;
+  };
   window.dgieInspectorNuevaVersion=function(id){
     if(typeof window.revisarCertificadoInspector==='function')window.revisarCertificadoInspector(id);
   };
@@ -25837,8 +25965,10 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
       const cabecera=cont.querySelector('.card-header')||cont.firstElementChild;
       cabecera?.insertAdjacentHTML('afterend',`<div class="dgie-obs-banner">
         <div class="tit">Administración observó este certificado</div>
-        <div class="txt">${esc(obs?.texto||'')}</div>
-        <div class="pie">${esc(obs?.autor||'Administración')} · ${esc(fecha(obs?.fecha))} · versión observada ${esc(obs?.version||version(c))}</div>
+        ${hilo(c)}
+        <div class="dgie-obs-acciones">
+          <button type="button" class="secondary-btn" onclick="dgieCertResponder('${esc(String(c.id||c.localId))}')">Responder sin cargar versión</button>
+        </div>
       </div>`);
     },80);
     return res;
