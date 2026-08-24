@@ -25489,7 +25489,7 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
         <div class="dgie-adm-dato"><span>Órdenes de servicio</span><b>${os.length?esc(os.join(', ')):'—'}</b></div>
         <div class="dgie-adm-dato"><span>Rubros</span><b>${esc(rubros(c)||'—')}</b></div>
         <div class="dgie-adm-dato"><span>Archivo vigente</span><b>${arch.url
-          ? `<button type="button" class="dgie-adm-archivo" data-file-url="${esc(arch.url)}" data-file-name="${esc(arch.nombre)}">${esc(arch.nombre)}</button>`
+          ? `<button type="button" class="dgie-adm-archivo" data-file-url="${esc(arch.url)}" data-file-name="${esc(arch.nombre)}" data-dgie-no-preview="1" title="Descargar ${esc(arch.nombre)}">Descargar</button>`
           : esc(arch.nombre||'Sin archivo')}</b></div>
       </div>
       ${est==='aprobado'?`<div class="dgie-aprobado-nota">Aprobado por ${esc(c?.aprobado_por||'Administración')} el ${esc(fecha(c?.aprobado_at))}</div>`:''}
@@ -25503,32 +25503,38 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
         hist.slice().reverse().map(h=>`<div class="dgie-adm-hist-item ${h.tipo==='observado'?'is-obs':h.tipo==='aprobado'?'is-apr':''}">
           <div class="cab">${esc(h.tipo==='observado'?'Observado':h.tipo==='aprobado'?'Aprobado':h.tipo==='respuesta'?'Respuesta del inspector':h.tipo==='comentario'?'Comentario de Administración':'Nueva versión')} · versión ${esc(h.version||'—')} · ${esc(h.autor||'')} · ${esc(fecha(h.fecha))}</div>
           ${h.texto?`<div class="txt">${esc(h.texto)}</div>`:''}
-          ${h.archivo?`<div class="txt"><button type="button" class="dgie-adm-archivo" data-file-url="${esc(h.url||'')}" data-file-name="${esc(h.archivo)}">${esc(h.archivo)}</button>${h.modulos_inspector!=null?' · '+mods(h.modulos_inspector)+' módulos':''}</div>`:''}
+          ${h.archivo?`<div class="txt"><button type="button" class="dgie-adm-archivo" data-file-url="${esc(h.url||'')}" data-file-name="${esc(h.archivo)}" data-dgie-no-preview="1" title="Descargar ${esc(h.archivo)}">Descargar</button>${h.modulos_inspector!=null?' · '+mods(h.modulos_inspector)+' módulos':''}</div>`:''}
           ${h.observaciones_inspector?`<div class="txt">Observaciones del inspector: ${esc(h.observaciones_inspector)}</div>`:''}
         </div>`).join('')}</details>`:''}
     </div>`;
   }
-  // Los certificados son normalmente planillas. El interceptor general del visor
-  // solo captura archivos previsualizables basicos, asi que estos botones necesitan
-  // abrir el archivo explicitamente para no quedar sin accion.
-  document.addEventListener('click',event=>{
+  // En Administración los certificados se descargan directamente: no se abre el visor.
+  document.addEventListener('click',async event=>{
     const boton=event.target?.closest?.('.dgie-adm-archivo[data-file-url]');
     if(!boton)return;
     const url=String(boton.dataset.fileUrl||'').trim();
     if(!url)return;
     event.preventDefault();
-    if(typeof window.abrirArchivoDGIE==='function'){
-      window.abrirArchivoDGIE(url,boton.dataset.fileName||boton.textContent?.trim()||'Certificado');
-      return;
+    const nombre=boton.dataset.fileName||'certificado';
+    const texto=boton.textContent;
+    boton.disabled=true;
+    boton.textContent='Descargando…';
+    try{
+      const respuesta=await fetch(url);
+      if(!respuesta.ok)throw new Error(String(respuesta.status));
+      const objeto=URL.createObjectURL(await respuesta.blob());
+      const enlace=document.createElement('a');
+      enlace.href=objeto;enlace.download=nombre;enlace.dataset.dgieNativeDownload='1';
+      document.body.appendChild(enlace);enlace.click();enlace.remove();
+      setTimeout(()=>URL.revokeObjectURL(objeto),2000);
+    }catch(_){
+      const enlace=document.createElement('a');
+      enlace.href=url;enlace.download=nombre;enlace.target='_blank';enlace.rel='noopener';enlace.dataset.dgieNativeDownload='1';
+      document.body.appendChild(enlace);enlace.click();enlace.remove();
+    }finally{
+      boton.disabled=false;
+      boton.textContent=texto;
     }
-    const enlace=document.createElement('a');
-    enlace.href=url;
-    enlace.download=boton.dataset.fileName||'certificado';
-    enlace.target='_blank';
-    enlace.rel='noopener';
-    document.body.appendChild(enlace);
-    enlace.click();
-    enlace.remove();
   });
   // ---------- navegacion por fichas: zona -> medicion -> certificados ----------
   const SIN_MEDICION='sinmedicion';
