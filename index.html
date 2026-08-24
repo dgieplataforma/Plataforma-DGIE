@@ -25312,7 +25312,8 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
 .dgie-adm-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .dgie-adm-nav button{min-height:40px}
 .dgie-adm-migas{font-size:12.5px;font-weight:900;color:#123c69}
-.dgie-adm-fichas .med-btn{min-height:64px}
+.dgie-adm-fichas{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.dgie-adm-fichas .med-btn{min-width:0;width:100%;min-height:78px}
 .dgie-adm-grupo{margin-bottom:18px}
 .dgie-adm-grupo-tit{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .dgie-adm-grupo-tit span{background:#eef2f7;color:#334155;border-radius:999px;padding:1px 8px;font-size:11px;letter-spacing:0}
@@ -25323,7 +25324,7 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   .dgie-adm-filtros{flex-direction:column;align-items:stretch}
   .dgie-adm-filtros .filter-sel,.dgie-adm-filtros .estab-search{width:100%}
   .dgie-adm-contadores{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .dgie-adm-fichas .med-btn{flex:1 1 100%}
+  .dgie-adm-fichas{grid-template-columns:1fr}
   .dgie-adm-datos{grid-template-columns:1fr}
   .dgie-adm-acciones button{flex:1 1 100%}
 }
@@ -25415,8 +25416,11 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   };
 
   // ---------- bandeja ----------
+  // Administracion revisa desde esta medicion en adelante; lo anterior no se carga.
+  const MEDICION_MINIMA=6;
   function delaBandeja(){
-    return certs().filter(c=>String(c?.estado||'').toLowerCase()==='medido');
+    return certs().filter(c=>String(c?.estado||'').toLowerCase()==='medido'
+      &&Number(c?.medicion_numero)>=MEDICION_MINIMA);
   }
   function reciente(c){
     return c?.revision_admin_actualizado_at||c?.updated_at||c?.created_at||'';
