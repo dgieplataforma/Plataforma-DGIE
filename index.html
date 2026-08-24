@@ -25508,6 +25508,28 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
         </div>`).join('')}</details>`:''}
     </div>`;
   }
+  // Los certificados son normalmente planillas. El interceptor general del visor
+  // solo captura archivos previsualizables basicos, asi que estos botones necesitan
+  // abrir el archivo explicitamente para no quedar sin accion.
+  document.addEventListener('click',event=>{
+    const boton=event.target?.closest?.('.dgie-adm-archivo[data-file-url]');
+    if(!boton)return;
+    const url=String(boton.dataset.fileUrl||'').trim();
+    if(!url)return;
+    event.preventDefault();
+    if(typeof window.abrirArchivoDGIE==='function'){
+      window.abrirArchivoDGIE(url,boton.dataset.fileName||boton.textContent?.trim()||'Certificado');
+      return;
+    }
+    const enlace=document.createElement('a');
+    enlace.href=url;
+    enlace.download=boton.dataset.fileName||'certificado';
+    enlace.target='_blank';
+    enlace.rel='noopener';
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+  });
   // ---------- navegacion por fichas: zona -> medicion -> certificados ----------
   const SIN_MEDICION='sinmedicion';
   const GRUPOS=[['pendiente','Pendientes'],['observado','Observados'],['aprobado','Aprobados']];
