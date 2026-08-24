@@ -25645,6 +25645,30 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     return {titulo:`${zonaTitulo(zonaAbierta)} · ${medicionTitulo(medicionAbierta)}`,sub:'Certificados agrupados por estado de revisión.',
       buscar:'Buscar en esta medición por establecimiento, O.S. o archivo...'};
   }
+  let limpiezaPruebasZona11EnCurso=false;
+  async function limpiarPruebasZona11Confirmadas(){
+    if(limpiezaPruebasZona11EnCurso||!esAdmin())return;
+    const c=certs().find(item=>String(item?.id)==='1040'&&Number(item?.zona)===11);
+    const h=c?historial(c):[];
+    const tipos=h.map(item=>String(item?.tipo||'')).join('|');
+    const textos=h.map(item=>String(item?.texto||'').trim().toLowerCase()).join('|');
+    if(!c||h.length!==5||tipos!=='observado|observado|respuesta|aprobado|observado'||textos!=='prueba|prueba 2|prueba respuesta||prueba para subir otro archivo')return;
+    limpiezaPruebasZona11EnCurso=true;
+    try{
+      const limpio={
+        revision_admin_estado:'pendiente',revision_admin_version:1,revision_admin_historial:[],
+        revision_admin_actualizado_at:null,revision_admin_actualizado_por:null,
+        modulos_aprobados:null,aprobado_at:null,aprobado_por:null
+      };
+      await window.actualizarCertificado(c.id,limpio);
+      Object.assign(c,limpio);
+      window.dgieAdmFiltrar();
+    }catch(error){
+      alert('No se pudieron limpiar las pruebas de Zona 11: '+(error?.message||error));
+    }finally{
+      limpiezaPruebasZona11EnCurso=false;
+    }
+  }
   function renderBandeja(container){
     if(!container)return;
     leerFiltros();
@@ -25671,6 +25695,7 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     const sel=byId('adm-estado');if(sel)sel.value=filtroEstado;
     const q=byId('adm-buscar');if(q)q.value=filtroBuscar;
     window.dgieAdmFiltrar();
+    limpiarPruebasZona11Confirmadas();
     if(!window.certsLoaded&&typeof window.cargarCertificadosMedicion==='function'){
       window.cargarCertificadosMedicion().then(()=>{if(byId('adm-lista'))renderBandeja(container)}).catch(()=>{});
     }
