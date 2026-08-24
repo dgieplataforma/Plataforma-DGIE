@@ -25409,7 +25409,17 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     return {nombre:c?.archivo_original||'Archivo',url:c?.url_original||'',public_id:c?.public_id_original||''};
   }
   function ordenes(c){
-    try{return typeof window.certOrdenes==='function'?(window.certOrdenes(c)||[]):[]}catch(_e){return []}
+    try{
+      const zona=Number(c?.zona||0);
+      const lista=typeof window.certOrdenes==='function'?(window.certOrdenes(c)||[]):[];
+      return lista.map(valor=>{
+        const texto=String(valor||'').trim();
+        if(!texto)return '';
+        if(/^Z(?:ONA)?\s*\d+[-_]/i.test(texto))return texto.replace(/^ZONA\s*/i,'Z');
+        const numero=texto.match(/\d+/)?.[0];
+        return zona&&numero?`Z${zona}-${numero}`:texto;
+      }).filter(Boolean);
+    }catch(_e){return []}
   }
   function rubros(c){
     return String(c?.rubros_certificado||'').trim()||String(c?.rubro_certificado||'').trim()||'';
