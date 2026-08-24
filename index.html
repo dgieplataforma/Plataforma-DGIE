@@ -25309,10 +25309,21 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
 .dgie-obs-banner .txt{font-size:13px;color:#7c2d12;margin-top:5px;white-space:pre-wrap;overflow-wrap:anywhere}
 .dgie-obs-banner .pie{font-size:11.5px;color:#9a3412;margin-top:6px}
 .dgie-aprobado-nota{font-size:12px;color:#2e7d32;font-weight:800;margin-top:5px}
+.dgie-adm-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.dgie-adm-nav button{min-height:40px}
+.dgie-adm-migas{font-size:12.5px;font-weight:900;color:#123c69}
+.dgie-adm-fichas .med-btn{min-height:64px}
+.dgie-adm-grupo{margin-bottom:18px}
+.dgie-adm-grupo-tit{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.dgie-adm-grupo-tit span{background:#eef2f7;color:#334155;border-radius:999px;padding:1px 8px;font-size:11px;letter-spacing:0}
+.dgie-adm-grupo-tit.is-pendiente{color:#b45309}
+.dgie-adm-grupo-tit.is-observado{color:#c2410c}
+.dgie-adm-grupo-tit.is-aprobado{color:#2e7d32}
 @media(max-width:560px){
   .dgie-adm-filtros{flex-direction:column;align-items:stretch}
   .dgie-adm-filtros .filter-sel,.dgie-adm-filtros .estab-search{width:100%}
   .dgie-adm-contadores{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dgie-adm-fichas .med-btn{flex:1 1 100%}
   .dgie-adm-datos{grid-template-columns:1fr}
   .dgie-adm-acciones button{flex:1 1 100%}
 }
@@ -25415,14 +25426,6 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
             archivoVigente(c).nombre,c?.archivo_original,rubros(c),'zona '+(c?.zona||'')]
       .filter(Boolean).join(' ').toLowerCase();
   }
-  function filtradas(){
-    const z=byId('adm-zona')?.value||'';
-    const e=byId('adm-estado')?.value||'';
-    const q=String(byId('adm-buscar')?.value||'').toLowerCase().trim();
-    return delaBandeja()
-      .filter(c=>(!z||String(c?.zona)===z)&&(!e||estadoAdmin(c)===e)&&(!q||texto(c).includes(q)))
-      .sort((a,b)=>String(reciente(b)).localeCompare(String(reciente(a))));
-  }
   function tarjeta(c){
     const id=String(c?.id||c?.localId||'');
     const est=estadoAdmin(c);
@@ -25462,50 +25465,160 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
         </div>`).join('')}</details>`:''}
     </div>`;
   }
+  // ---------- navegacion por fichas: zona -> medicion -> certificados ----------
+  const SIN_MEDICION='sinmedicion';
+  const GRUPOS=[['pendiente','Pendientes'],['observado','Observados'],['aprobado','Aprobados']];
+  const PLURAL={pendiente:'pendientes de revisión',observado:'observados',aprobado:'aprobados'};
+  const SINGULAR={pendiente:'pendiente de revisión',observado:'observado',aprobado:'aprobado'};
+  let vista='zonas',zonaAbierta=null,medicionAbierta=null,filtroEstado='',filtroBuscar='';
+
+  function zonaClave(c){return String(Number(c?.zona)||0)}
+  function medicionClave(c){
+    const n=String(c?.medicion_numero??'').trim().replace(/[^0-9A-Za-z_-]/g,'');
+    return n||SIN_MEDICION;
+  }
+  function zonaTitulo(z){return Number(z)?'Zona '+Number(z):'Sin zona'}
+  function medicionTitulo(k){return String(k)===SIN_MEDICION?'Sin medición':'Medición Nº '+k}
+
+  function leerFiltros(){
+    const e=byId('adm-estado');if(e)filtroEstado=String(e.value||'');
+    const q=byId('adm-buscar');if(q)filtroBuscar=String(q.value||'');
+  }
+  function alcance(){
+    let base=delaBandeja();
+    if(vista!=='zonas')base=base.filter(c=>zonaClave(c)===String(zonaAbierta));
+    if(vista==='certificados')base=base.filter(c=>medicionClave(c)===String(medicionAbierta));
+    return base;
+  }
+  function porEstado(base){return filtroEstado?base.filter(c=>estadoAdmin(c)===filtroEstado):base}
+  function visibles(base){
+    const q=filtroBuscar.toLowerCase().trim();
+    return porEstado(base)
+      .filter(c=>!q||texto(c).includes(q))
+      .sort((a,b)=>String(reciente(b)).localeCompare(String(reciente(a))));
+  }
+  function contadores(base){
+    const n=e=>base.filter(c=>estadoAdmin(c)===e).length;
+    return `<div class="dgie-adm-contador is-pend"><b>${n('pendiente')}</b><span>Pendientes de revisión</span></div>
+      <div class="dgie-adm-contador is-obs"><b>${n('observado')}</b><span>Observados</span></div>
+      <div class="dgie-adm-contador is-apr"><b>${n('aprobado')}</b><span>Aprobados</span></div>
+      <div class="dgie-adm-contador"><b>${base.length}</b><span>Total</span></div>`;
+  }
+  function vacio(txt){return `<div class="dgie-adm-vacio">${esc(txt)}</div>`}
+  function ficha(accion,titulo,linea1,linea2,listo){
+    return `<button type="button" class="secondary-btn med-btn${listo?' is-done':''}" onclick="${accion}"><strong>${titulo}</strong><span>${linea1}<br>${linea2}</span></button>`;
+  }
+  function resumen(items){
+    if(filtroEstado)return `${items.length} ${items.length===1?SINGULAR[filtroEstado]:PLURAL[filtroEstado]}`;
+    const pend=items.filter(c=>estadoAdmin(c)!=='aprobado').length;
+    return pend?`${pend} por revisar`:'Todo aprobado';
+  }
+  function estaListo(items){return !filtroEstado&&!items.some(c=>estadoAdmin(c)!=='aprobado')}
+  function grillaZonas(base){
+    const datos=porEstado(base);
+    const zs=[...new Set(datos.map(zonaClave))].sort((a,b)=>Number(a)-Number(b));
+    if(!zs.length)return vacio('No hay certificados en medición para el estado seleccionado.');
+    return `<div class="med-btn-grid dgie-adm-fichas">${zs.map(z=>{
+      const items=datos.filter(c=>zonaClave(c)===z);
+      const meds=new Set(items.map(medicionClave)).size;
+      const insp=inspectorDeZona(z);
+      return ficha(`dgieAdmAbrirZona('${z}')`,esc(zonaTitulo(z)),
+        `${items.length} certificado${items.length===1?'':'s'} · ${meds} ${meds===1?'medición':'mediciones'}`,
+        resumen(items)+(insp?' · '+esc(insp):''),estaListo(items));
+    }).join('')}</div>`;
+  }
+  function grillaMediciones(base){
+    const datos=porEstado(base);
+    const ks=[...new Set(datos.map(medicionClave))]
+      .sort((a,b)=>a===SIN_MEDICION?1:b===SIN_MEDICION?-1:Number(a)-Number(b));
+    if(!ks.length)return vacio('Esta zona no tiene certificados para el estado seleccionado.');
+    return `<div class="med-btn-grid dgie-adm-fichas">${ks.map(k=>{
+      const items=datos.filter(c=>medicionClave(c)===k);
+      return ficha(`dgieAdmAbrirMedicion('${k}')`,esc(medicionTitulo(k)),
+        `${items.length} certificado${items.length===1?'':'s'}`,resumen(items),estaListo(items));
+    }).join('')}</div>`;
+  }
+  function grupos(data){
+    const bloques=GRUPOS.map(([k,titulo])=>{
+      const items=data.filter(c=>estadoAdmin(c)===k);
+      if(!items.length)return '';
+      return `<div class="dgie-adm-grupo"><div class="dgie-adm-grupo-tit is-${k}">${titulo}<span>${items.length}</span></div>${items.map(tarjeta).join('')}</div>`;
+    }).join('');
+    return bloques||vacio('No hay certificados para los filtros seleccionados.');
+  }
+  function cuerpo(base){
+    if(vista==='certificados'||filtroBuscar.trim())return grupos(visibles(base));
+    return vista==='zonas'?grillaZonas(base):grillaMediciones(base);
+  }
+  function migas(){
+    if(vista==='zonas')return '';
+    const partes=[zonaTitulo(zonaAbierta)];
+    if(vista==='certificados')partes.push(medicionTitulo(medicionAbierta));
+    return `<div class="dgie-adm-nav"><button type="button" class="secondary-btn" onclick="dgieAdmVolver()">← Volver</button><span class="dgie-adm-migas">${esc(partes.join(' · '))}</span></div>`;
+  }
+  function cabecera(){
+    if(vista==='zonas')return {titulo:'Certificados en medición',sub:'Elegí una zona para revisar sus certificados.',
+      buscar:'Buscar en todas las zonas por establecimiento, inspector, O.S. o archivo...'};
+    if(vista==='mediciones')return {titulo:zonaTitulo(zonaAbierta),sub:'Elegí una medición para ver sus certificados.',
+      buscar:`Buscar en ${zonaTitulo(zonaAbierta).toLowerCase()} por establecimiento, O.S. o archivo...`};
+    return {titulo:`${zonaTitulo(zonaAbierta)} · ${medicionTitulo(medicionAbierta)}`,sub:'Certificados agrupados por estado de revisión.',
+      buscar:'Buscar en esta medición por establecimiento, O.S. o archivo...'};
+  }
   function renderBandeja(container){
     if(!container)return;
-    const base=delaBandeja();
-    const zonas=[...new Set(base.map(c=>Number(c?.zona)||0).filter(Boolean))].sort((a,b)=>a-b);
+    leerFiltros();
+    const cab=cabecera();
     container.innerHTML=`<div class="section-label">Administración · Certificados</div>
       <div class="card">
+        ${migas()}
         <div class="card-header"><div>
-          <div class="card-title">Certificados en medición</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">Revisión administrativa de los certificados de todas las zonas.</div>
+          <div class="card-title">${esc(cab.titulo)}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">${esc(cab.sub)}</div>
         </div></div>
         <div class="dgie-adm-contadores" id="adm-contadores"></div>
         <div class="dgie-adm-filtros">
-          <select class="filter-sel" id="adm-zona" onchange="dgieAdmFiltrar()"><option value="">Todas las zonas</option>${zonas.map(z=>`<option value="${z}">Zona ${z}</option>`).join('')}</select>
           <select class="filter-sel" id="adm-estado" onchange="dgieAdmFiltrar()">
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente de revisión</option>
             <option value="observado">Observado</option>
             <option value="aprobado">Aprobado</option>
           </select>
-          <input class="estab-search" id="adm-buscar" placeholder="Buscar por establecimiento, inspector, O.S. o archivo..." oninput="dgieAdmFiltrar()">
+          <input class="estab-search" id="adm-buscar" placeholder="${esc(cab.buscar)}" oninput="dgieAdmFiltrar()">
         </div>
         <div id="adm-lista"></div>
       </div>`;
-    dgieAdmFiltrar();
+    const sel=byId('adm-estado');if(sel)sel.value=filtroEstado;
+    const q=byId('adm-buscar');if(q)q.value=filtroBuscar;
+    window.dgieAdmFiltrar();
     if(!window.certsLoaded&&typeof window.cargarCertificadosMedicion==='function'){
       window.cargarCertificadosMedicion().then(()=>{if(byId('adm-lista'))renderBandeja(container)}).catch(()=>{});
     }
   }
   window.dgieAdmFiltrar=function(){
-    const base=delaBandeja();
+    leerFiltros();
+    const base=alcance();
     const cont=byId('adm-contadores');
-    if(cont){
-      const n=e=>base.filter(c=>estadoAdmin(c)===e).length;
-      cont.innerHTML=`
-        <div class="dgie-adm-contador is-pend"><b>${n('pendiente')}</b><span>Pendientes de revisión</span></div>
-        <div class="dgie-adm-contador is-obs"><b>${n('observado')}</b><span>Observados</span></div>
-        <div class="dgie-adm-contador is-apr"><b>${n('aprobado')}</b><span>Aprobados</span></div>
-        <div class="dgie-adm-contador"><b>${base.length}</b><span>Total</span></div>`;
-    }
+    if(cont)cont.innerHTML=contadores(base);
     const lista=byId('adm-lista');
-    if(!lista)return;
-    const data=filtradas();
-    lista.innerHTML=data.length?data.map(tarjeta).join('')
-      :'<div class="dgie-adm-vacio">No hay certificados para los filtros seleccionados.</div>';
+    if(lista)lista.innerHTML=cuerpo(base);
+  };
+  function navegar(cambio){
+    leerFiltros();
+    cambio();
+    window.dgieAdmRefrescar();
+    try{window.scrollTo({top:0,behavior:'smooth'})}catch(_e){}
+  }
+  window.dgieAdmAbrirZona=function(z){
+    navegar(()=>{vista='mediciones';zonaAbierta=String(Number(z)||0);medicionAbierta=null});
+  };
+  window.dgieAdmAbrirMedicion=function(k){
+    navegar(()=>{vista='certificados';medicionAbierta=String(k||SIN_MEDICION)});
+  };
+  window.dgieAdmVolver=function(){
+    navegar(()=>{
+      if(vista==='certificados'){vista='mediciones';medicionAbierta=null}
+      else if(vista==='mediciones'){vista='zonas';zonaAbierta=null}
+    });
   };
   window.dgieAdmRefrescar=function(){
     const main=byId('main-content');
