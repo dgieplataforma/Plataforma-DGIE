@@ -25292,6 +25292,7 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
 .dgie-adm-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
 .dgie-adm-acciones button{min-height:40px}
 .dgie-adm-archivo{display:inline-flex;align-items:center;gap:6px;color:#0b74c9;font-weight:800;font-size:12.5px;cursor:pointer;text-decoration:underline;overflow-wrap:anywhere;background:none;border:0;padding:0;text-align:left}
+.dgie-adm-adjuntos{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}.dgie-adm-adjunto{border:1px solid #b9d0e8!important;border-radius:8px!important;background:#f3f8fd!important;padding:6px 9px!important;text-decoration:none!important}.dgie-adm-adjunto:hover{background:#e8f3fd!important}.dgie-adm-archivos-seleccionados{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45}
 .dgie-adm-hist{margin-top:11px;border-top:1px dashed var(--border);padding-top:9px}
 .dgie-adm-hist summary{cursor:pointer;font-size:12px;font-weight:800;color:#123c69}
 .dgie-adm-hist-item{border-left:3px solid var(--border);padding:6px 0 6px 10px;margin-top:8px}
@@ -25393,12 +25394,19 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     const ultimo=ms[ms.length-1];
     return ultimo&&ultimo.tipo==='respuesta'?ultimo:null;
   }
+  function adjuntosMensaje(item){return Array.isArray(item?.adjuntos)?item.adjuntos.filter(a=>a?.url):[]}
+  function adjuntosMensajeHTML(item){
+    const archivos=adjuntosMensaje(item);
+    if(!archivos.length)return '';
+    return `<div class="dgie-adm-adjuntos">${archivos.map(a=>`<button type="button" class="dgie-adm-archivo dgie-adm-adjunto" data-file-url="${esc(a.url)}" data-file-name="${esc(a.nombre||'Adjunto')}" data-dgie-no-preview="1" title="Descargar ${esc(a.nombre||'Adjunto')}">Descargar · ${esc(a.nombre||'Adjunto')}</button>`).join('')}</div>`;
+  }
   function hilo(c){
     const ms=mensajes(c);
     if(!ms.length)return '';
     return `<div class="dgie-hilo">${ms.map(m=>`<div class="dgie-hilo-msg is-${esc(m.tipo)}">
       <div class="cab">${esc(AUTORIA[m.tipo])} · ${esc(m.autor||'')} · ${esc(fecha(m.fecha))}</div>
       <div class="txt">${esc(m.texto||'')}</div>
+      ${adjuntosMensajeHTML(m)}
     </div>`).join('')}</div>`;
   }
   function aprobado(c){return estadoAdmin(c)==='aprobado'}
@@ -25513,6 +25521,7 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
         hist.slice().reverse().map(h=>`<div class="dgie-adm-hist-item ${h.tipo==='observado'?'is-obs':h.tipo==='aprobado'?'is-apr':''}">
           <div class="cab">${esc(h.tipo==='observado'?'Observado':h.tipo==='aprobado'?'Aprobado':h.tipo==='respuesta'?'Respuesta del inspector':h.tipo==='comentario'?'Comentario de Administración':'Nueva versión')} · versión ${esc(h.version||'—')} · ${esc(h.autor||'')} · ${esc(fecha(h.fecha))}</div>
           ${h.texto?`<div class="txt">${esc(h.texto)}</div>`:''}
+          ${adjuntosMensajeHTML(h)}
           ${h.archivo?`<div class="txt"><button type="button" class="dgie-adm-archivo" data-file-url="${esc(h.url||'')}" data-file-name="${esc(h.archivo)}" data-dgie-no-preview="1" title="Descargar ${esc(h.archivo)}">Descargar</button>${h.modulos_inspector!=null?' · '+mods(h.modulos_inspector)+' módulos':''}</div>`:''}
           ${h.observaciones_inspector?`<div class="txt">Observaciones del inspector: ${esc(h.observaciones_inspector)}</div>`:''}
         </div>`).join('')}</details>`:''}
@@ -25760,6 +25769,10 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
       <div style="font-size:13px;color:var(--muted)">${esc(c.establecimiento_nombre||'')} · Zona ${esc(c.zona||'')} · Medición ${esc(c.medicion_numero||'')} · Versión ${version(c)}</div>
       <label class="form-label" style="margin-top:12px;display:block">Motivo de la observación</label>
       <textarea class="form-textarea" id="adm-obs-texto" placeholder="Indicá qué hay que corregir. El inspector va a ver este texto."></textarea>
+      <label class="form-label" style="margin-top:12px;display:block" for="adm-obs-archivos">Adjuntos <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+      <input class="form-input" id="adm-obs-archivos" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.xlsm,image/jpeg,image/png,image/webp,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      <div class="dgie-adm-required-note">Capturas, imágenes, PDF o Excel · hasta 10 archivos de 10 MB cada uno.</div>
+      <div class="dgie-adm-archivos-seleccionados" id="adm-obs-archivos-lista"></div>
       <div class="form-error" id="adm-obs-error" style="display:none">Escribí el motivo de la observación.</div>
       <div class="modal-actions" style="margin-top:12px">
         <button class="secondary-btn" type="button" id="adm-obs-cancelar">Cancelar</button>
@@ -25770,18 +25783,39 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     const cerrar=()=>fondo.remove();
     fondo.addEventListener('click',ev=>{if(ev.target===fondo)cerrar()});
     fondo.querySelector('#adm-obs-cancelar').onclick=cerrar;
+    const entradaArchivos=fondo.querySelector('#adm-obs-archivos');
+    entradaArchivos.onchange=()=>{
+      const archivos=[...(entradaArchivos.files||[])];
+      fondo.querySelector('#adm-obs-archivos-lista').textContent=archivos.length?archivos.map(f=>f.name).join(' · '):'';
+    };
     setTimeout(()=>fondo.querySelector('#adm-obs-texto')?.focus(),30);
     fondo.querySelector('#adm-obs-guardar').onclick=async()=>{
       const texto=String(fondo.querySelector('#adm-obs-texto').value||'').trim();
-      if(!texto){fondo.querySelector('#adm-obs-error').style.display='block';return}
+      const archivos=[...(entradaArchivos.files||[])];
+      const error=fondo.querySelector('#adm-obs-error');
+      if(!texto){error.textContent='Escribí el motivo de la observación.';error.style.display='block';return}
+      if(archivos.length>10){error.textContent='Podés adjuntar hasta 10 archivos.';error.style.display='block';return}
+      const extensiones=/\.(?:jpe?g|png|webp|pdf|xls|xlsx|xlsm)$/i;
+      const invalido=archivos.find(file=>file.size>10*1024*1024||!extensiones.test(file.name));
+      if(invalido){error.textContent=`Revisá ${invalido.name}: debe ser imagen, PDF o Excel y pesar hasta 10 MB.`;error.style.display='block';return}
+      error.style.display='none';
       const boton=fondo.querySelector('#adm-obs-guardar');
-      boton.disabled=true;boton.textContent='Guardando...';
-      const ahora=new Date().toISOString();
-      const quien=usuario()?.name||'Administración';
-      const nuevo=historial(c).concat([Object.assign({
-        tipo:'observado',texto,autor:quien,fecha:ahora
-      },fotoVersion(c))]);
+      boton.disabled=true;boton.textContent=archivos.length?'Subiendo adjuntos...':'Guardando...';
       try{
+        const adjuntos=[];
+        for(let i=0;i<archivos.length;i++){
+          boton.textContent=`Subiendo ${i+1} de ${archivos.length}...`;
+          if(typeof subirArchivoCloudinary!=='function')throw new Error('El servicio de archivos no está disponible.');
+          const subida=await subirArchivoCloudinary(archivos[i],'certificados-observaciones');
+          if(!subida?.url)throw new Error(`No se pudo subir ${archivos[i].name}.`);
+          adjuntos.push({nombre:archivos[i].name,url:subida.url,publicId:subida.publicId||null,tipo:archivos[i].type||'',size:archivos[i].size});
+        }
+        boton.textContent='Guardando observación...';
+        const ahora=new Date().toISOString();
+        const quien=usuario()?.name||'Administración';
+        const nuevo=historial(c).concat([Object.assign({
+          tipo:'observado',texto,autor:quien,fecha:ahora,adjuntos
+        },fotoVersion(c))]);
         await window.actualizarCertificado(c.id||c.localId,{
           revision_admin_estado:'observado',
           revision_admin_historial:nuevo,
