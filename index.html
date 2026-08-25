@@ -26226,7 +26226,22 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   };
 })();
 </script>
-<script src="./dgie-file-viewer.js?v=20260803-6"></script>
+<style id="dgie-os-anexos-compuestos-style-2026-08-25">.dgie-os-presupuesto-print{width:210mm;min-height:297mm;margin:12px auto 0;padding:12mm;background:#fff;color:#111827;font:9pt/1.35 Arial;page-break-before:always;break-before:page;box-sizing:border-box}.dgie-os-presupuesto-print table{width:100%;border-collapse:collapse}.dgie-os-presupuesto-print th,.dgie-os-presupuesto-print td{border:1px solid #94a3b8;padding:2mm}.dgie-os-presupuesto-print th,.dgie-os-presupuesto-print tfoot{background:#e6f1fb;color:#123c69}.dgie-os-presupuesto-print .num{text-align:right}.dgie-os-presupuesto-print h1{color:#123c69}@media print{.dgie-os-presupuesto-print{margin:0}.dgie-os-presupuesto-print tr{break-inside:avoid}}</style>
+<script id="dgie-os-anexos-compuestos-2026-08-25">
+(function(){
+'use strict';const prev=window.descargarOSPDF;let actual=null;
+const esc=v=>typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const find=id=>{const k=String(id??'');return (typeof OS_ZONA!=='undefined'?OS_ZONA:[]).find(o=>String(o?.id)===k||String(o?.remoteId||'')===k||String(o?.numero||'')===k)};
+const fmt=(v,d)=>(Number(v)||0).toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
+function budget(os){const a=Array.isArray(os?.presupuestoItems)?os.presupuestoItems.filter(x=>x&&x.__dgie_meta!=='orden_adjuntos_v1'):[];if(!a.length)return'';const rows=a.map(x=>`<tr><td>${esc(x.rubro||'—')}</td><td>${esc(x.tipo||'GENERAL')}</td><td>${esc(x.codigo||'—')}</td><td>${esc(x.descripcion||'—')}</td><td>${esc(x.ud||'—')}</td><td class="num">${fmt(x.coef,3)}</td><td class="num">${fmt(x.cantidad,2)}</td><td class="num">${fmt(x.modulos,3)}</td></tr>`).join(''),total=a.reduce((s,x)=>s+(Number(x.modulos)||0),0);return `<section class="dgie-os-presupuesto-print"><h1>Presupuesto por ítems</h1><p>O.S. ${esc(os.numero||'—')} · ${esc(os.establecimiento||os.est||'Establecimiento')}</p><table><thead><tr><th>Rubro</th><th>Tipo</th><th>Ítem</th><th>Descripción</th><th>UD</th><th>Coef.</th><th>Cantidad</th><th>Módulos</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="7"><b>Total módulos</b></td><td class="num"><b>${fmt(total,3)}</b></td></tr></tfoot></table></section>`}
+// Deja siempre el mismo orden: orden -> presupuesto -> analisis -> adjuntos.
+// Reubica los bloques que ya estan en el documento y tolera que falte cualquiera.
+function compose(c,os){c.querySelectorAll('.dgie-os-presupuesto-print').forEach(x=>x.remove());const analisis=[...c.querySelectorAll('.dgie-os-ap-print')],adjuntos=[...c.querySelectorAll('.os-print-attachment-page')],b=budget(os);if(b)c.insertAdjacentHTML('beforeend',b);[c.querySelector('.dgie-os-presupuesto-print'),...analisis,...adjuntos].forEach(el=>{if(el)c.appendChild(el)})}
+window.descargarOSPDF=async function(id){const os=find(id);actual=null;const out=typeof prev==='function'?await prev.apply(this,arguments):undefined,c=document.getElementById('os-print-content');if(!os||!c)return out;compose(c,os);actual=os;const t=document.querySelector('#os-print-preview .print-preview-toolbar>div:first-child');if(t)t.textContent='Vista previa de Orden de Servicio completa';return out};
+window.descargarOSHTMLActual=function(){const c=document.getElementById('os-print-content');if(!actual||!c)return;compose(c,actual);const styles=[...document.querySelectorAll('style')].map(x=>x.textContent||'').join('\n'),base=typeof getOSFileBaseName==='function'?getOSFileBaseName(actual):'orden-servicio',doc=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(base)}</title><style>${styles}</style></head><body>${c.innerHTML}</body></html>`,blob=new Blob([doc],{type:'text/html;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${base}.html`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},0)};
+window.dgieComponerAnexosOrden=compose;
+})();
+</script><script src="./dgie-file-viewer.js?v=20260803-6"></script>
 <script src="./dgie-notificaciones.js?v=20260804-1"></script>
 <script id="dgie-reclamo-recibido-2026-08-19">
 (function(){
