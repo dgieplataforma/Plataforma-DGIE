@@ -16152,6 +16152,32 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <\/script>
     </body></html>`;
   }
+  function anexoAnalisisOrdenHTML(ap,index,total){
+    const c=calc(ap), mo=ap.manoObra||{};
+    const materiales=c.materiales.map((m,i)=>`<tr><td>${i+1}</td><td>${esc(m.nombre)}</td><td>${esc(m.unidad)}</td><td>${mods(m.cantidad)}</td><td>${money(m.precio)}</td><td>${money(m.total)}</td></tr>`).join('');
+    const equiposData=Array.isArray(ap.equipos)?ap.equipos:(n(ap.equipos)?[{descripcion:'Equipos / otros',monto:ap.equipos}]:[]);
+    const equipos=equiposData.map(e=>`<tr><td>${esc(e.descripcion||'Equipo / otro')}</td><td>${money(e.monto)}</td></tr>`).join('');
+    const capturas=(ap.materiales||[]).map((m,i)=>{
+      const caps=(m.capturas||[m.captura]).filter(x=>x?.url);
+      return caps.length?`<div class="dgie-os-ap-shots"><strong>${i+1}. ${esc(m.nombre||'Ítem')}</strong><div>${caps.map((x,j)=>`<figure><img src="${esc(x.url)}" alt="Captura ${i+1}.${j+1}"><figcaption>Captura ${i+1}.${j+1}</figcaption></figure>`).join('')}</div></div>`:'';
+    }).join('');
+    return `<section class="dgie-os-ap-print">
+      <div class="dgie-os-ap-print-head"><div><h1>Análisis de precios</h1><p>O.S. ${esc(ap.osNumero||'—')} · ${esc(ap.establecimiento||'Establecimiento')}</p></div><span>${index} de ${total}</span></div>
+      <div class="dgie-os-ap-print-box"><strong>Concepto:</strong> ${esc(ap.concepto||'Análisis de precios')}<br><strong>Observaciones:</strong> ${esc(ap.observaciones||'Sin observaciones')}</div>
+      <h2>Ítems</h2><table><thead><tr><th>#</th><th>Ítem</th><th>Unidad</th><th>Cantidad</th><th>Precio</th><th>Total</th></tr></thead><tbody>${materiales||'<tr><td colspan="6">Sin ítems</td></tr>'}</tbody></table>
+      <h2>Mano de obra</h2><table><tbody>${mo.modo==='horas'?`<tr><th>Oficial</th><td>${mods(mo.oficialHoras)} h × ${money(mo.oficialValor)}</td><td>${money(n(mo.oficialHoras)*n(mo.oficialValor))}</td></tr><tr><th>Ayudante</th><td>${mods(mo.ayudanteHoras)} h × ${money(mo.ayudanteValor)}</td><td>${money(n(mo.ayudanteHoras)*n(mo.ayudanteValor))}</td></tr>`:mo.modo==='sin'?`<tr><th>Modalidad</th><td>Sin mano de obra</td><td>${money(0)}</td></tr>`:`<tr><th>Modalidad</th><td>Igual al total de ítems</td><td>${money(c.manoObra)}</td></tr>`}</tbody></table>
+      ${equipos?`<h2>Equipos / otros costos directos</h2><table><thead><tr><th>Descripción</th><th>Monto</th></tr></thead><tbody>${equipos}</tbody></table>`:''}
+      <h2>Cálculo</h2><table class="dgie-os-ap-calc"><tbody>
+        <tr><td>Total ítems</td><td>${money(c.totalMateriales)}</td></tr><tr><td>Mano de obra</td><td>${money(c.manoObra)}</td></tr><tr><td>Equipos / otros</td><td>${money(c.equipos)}</td></tr><tr><td>Gastos financieros 1,8%</td><td>${money(c.gastosFinancieros)}</td></tr><tr><td>Gastos generales e indirectos 14%</td><td>${money(c.gastosGenerales)}</td></tr><tr><td>Beneficio 15%</td><td>${money(c.beneficio)}</td></tr><tr><td>IVA 21% + IB 4,75%</td><td>${money(c.ivaIb)}</td></tr><tr class="total"><td>Costo final</td><td>${money(c.costoFinal)}</td></tr><tr class="total"><td>Módulos</td><td>${mods(c.modulos)}</td></tr>
+      </tbody></table>
+      ${capturas?`<h2>Capturas de precios de mercado</h2>${capturas}`:''}
+    </section>`;
+  }
+  window.dgieAnexosAnalisisPrecioOrden=async function(numero,zona){
+    await loadStore();
+    const items=store().filter(ap=>String(ap.osNumero||'')===String(numero||'')&&(!zona||Number(ap.zona)===Number(zona)));
+    return {count:items.length,html:items.map((ap,i)=>anexoAnalisisOrdenHTML(ap,i+1,items.length)).join('')};
+  };
   window.imprimirAnalisisPrecio=async function(id){
     await loadStore();
     const ap=store().find(x=>String(x.id)===String(id));
@@ -26166,6 +26192,38 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   const st=document.createElement('style');
   st.textContent='.dgie-os-ap-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;border:1px solid #d9e2ef;border-radius:10px;background:#f8fafc}.dgie-os-ap-title{font-size:15px;font-weight:900;color:#123c69}.dgie-os-ap-help{font-size:12px;color:#64748b;margin-top:4px;max-width:680px;line-height:1.45}@media(max-width:720px){.dgie-os-ap-panel{align-items:stretch;flex-direction:column}.dgie-os-ap-panel .primary-btn{width:100%}}';
   document.head.appendChild(st);
+})();
+</script>
+<style id="dgie-os-analisis-pdf-style-2026-08-25">
+.dgie-os-ap-print{width:210mm;min-height:297mm;margin:12px auto 0;padding:12mm;background:#fff;color:#111827;font-family:Arial,Helvetica,sans-serif;font-size:10pt;line-height:1.35;page-break-before:always;break-before:page;box-sizing:border-box}
+.dgie-os-ap-print *{box-sizing:border-box}.dgie-os-ap-print-head{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #123c69;padding-bottom:7mm;margin-bottom:6mm}.dgie-os-ap-print h1{font-size:18pt;color:#123c69;margin:0 0 2mm}.dgie-os-ap-print-head p{margin:0;color:#475569}.dgie-os-ap-print-head span{font-weight:800;color:#475569}.dgie-os-ap-print h2{font-size:12pt;color:#123c69;margin:6mm 0 2mm}.dgie-os-ap-print-box{border:1px solid #94a3b8;padding:4mm;white-space:pre-wrap;overflow-wrap:anywhere}.dgie-os-ap-print table{width:100%;border-collapse:collapse;margin:0 0 4mm}.dgie-os-ap-print th{background:#e6f1fb;color:#123c69;text-align:left}.dgie-os-ap-print th,.dgie-os-ap-print td{border:1px solid #94a3b8;padding:2mm;vertical-align:top}.dgie-os-ap-print .total td{font-weight:900;background:#f1f5f9}.dgie-os-ap-shots{margin:0 0 5mm;break-inside:avoid}.dgie-os-ap-shots>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm;margin-top:2mm}.dgie-os-ap-shots figure{margin:0;border:1px solid #cbd5e1;padding:2mm}.dgie-os-ap-shots img{display:block;max-width:100%;max-height:105mm;margin:auto;object-fit:contain}.dgie-os-ap-shots figcaption{font-size:8pt;color:#64748b;margin-top:1mm;text-align:center}
+@media print{.dgie-os-ap-print{margin:0;box-shadow:none}.dgie-os-ap-print tr,.dgie-os-ap-print figure{break-inside:avoid}}
+</style>
+<script id="dgie-os-analisis-pdf-2026-08-25">
+(function(){
+  'use strict';
+  function orden(id){return (typeof OS_ZONA!=='undefined'?OS_ZONA:[]).find(o=>String(o?.id)===String(id))}
+  let actual=null;
+  const prev=window.descargarOSPDF;
+  window.descargarOSPDF=async function(id){
+    const result=typeof prev==='function'?await prev.apply(this,arguments):undefined;
+    const os=orden(id), content=document.getElementById('os-print-content');
+    actual=null;
+    if(!os||!content||typeof window.dgieAnexosAnalisisPrecioOrden!=='function')return result;
+    const zona=typeof zonaEstablecimiento==='function'?zonaEstablecimiento(os.estId):currentUser?.zona;
+    const anexos=await window.dgieAnexosAnalisisPrecioOrden(os.numero,zona);
+    if(anexos?.html){content.insertAdjacentHTML('beforeend',anexos.html);actual=os;const title=document.querySelector('#os-print-preview .print-preview-toolbar>div:first-child');if(title)title.textContent=`Vista previa de Orden de Servicio con análisis (${anexos.count})`;}
+    return result;
+  };
+  const downloadPrev=window.descargarOSHTMLActual;
+  window.descargarOSHTMLActual=function(){
+    const content=document.getElementById('os-print-content');
+    if(!actual||!content?.querySelector('.dgie-os-ap-print'))return typeof downloadPrev==='function'?downloadPrev.apply(this,arguments):undefined;
+    const styles=[...document.querySelectorAll('style')].map(s=>s.textContent||'').join('\n');
+    const doc=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${typeof getOSFileBaseName==='function'?getOSFileBaseName(actual):'orden-servicio'}</title><style>${styles}</style></head><body>${content.innerHTML}</body></html>`;
+    const blob=new Blob([doc],{type:'text/html;charset=utf-8'}), a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=`${typeof getOSFileBaseName==='function'?getOSFileBaseName(actual):'orden-servicio'}.html`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},0);
+  };
 })();
 </script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
