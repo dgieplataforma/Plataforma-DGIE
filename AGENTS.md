@@ -52,14 +52,52 @@ Equipamiento (DGIE), Córdoba.
 
 ## Validación obligatoria después de cada cambio en index.html
 
-Antes de dar nada por terminado, correr (Node, sin instalar nada):
+Antes de dar nada por terminado:
 
 ```
-node -e "const fs=require('fs');const html=fs.readFileSync('index.html','utf8');const scripts=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);for(let i=0;i<scripts.length;i++){try{new Function(scripts[i]);}catch(e){console.error('Script',i,'ERROR',e.message);process.exit(1)}}console.log('scripts ok',scripts.length);"
+npm run verificar
 ```
 
-Esto valida sintaxis JS de todos los `<script>` inline. Si falla, hay que arreglarlo antes de
-seguir. También correr `git diff --check` antes de commitear.
+Valida la sintaxis de todos los `<script>` embebidos y después abre la aplicación en un
+navegador, en ancho de escritorio y de celular, y revisa que la información cargue y que no
+haya errores de consola. No escribe nada en la base: sólo lee.
+
+Lo que devuelve:
+
+| Salida | Qué significa | Qué hacer |
+|---|---|---|
+| `0` | Todo bien | Seguir con el protocolo |
+| `1` | Algo falló | Arreglarlo. No publicar |
+| `2` | **No hay navegador en este entorno** | Ver abajo |
+
+`git diff --check` también, antes de comitear.
+
+### Si no hay navegador (salida 2)
+
+Pasa en entornos aislados que no pueden instalar Chromium. No es un motivo para abandonar el
+trabajo ni para publicar a ciegas:
+
+1. Dejar el cambio implementado y **sin comitear**.
+2. Decirlo de forma explícita al cerrar: qué se cambió, qué quedó sin probar y qué habría que
+   ejercitar en el navegador.
+3. Que lo verifique y publique quien sí tenga navegador.
+
+Un cambio que sólo se leyó no está probado. Ya pasó que un armado de páginas parecía correcto
+leyendo el código y en el navegador ordenaba mal las secciones.
+
+### Instalar el navegador
+
+Sólo hace falta una vez por máquina. **Global, nunca dentro del repo**: la carpeta está en
+Google Drive y npm no puede escribir `node_modules` ahí — la sincronización pisa los archivos
+a mitad de la instalación y falla con `EBADF`/`EPERM`.
+
+```
+npm install -g playwright
+npx playwright install chromium --only-shell
+```
+
+El verificador busca Playwright primero en el proyecto y después en la instalación global, así
+que con eso alcanza.
 
 ## Protocolo para cada pedido
 
@@ -72,10 +110,12 @@ seguir. También correr `git diff --check` antes de commitear.
    confirmar cosas obvias).
 4. Implementar conservando las demás funciones — no reemplazar ni simplificar flujos
    existentes que no fueron pedidos, no borrar botones/permisos/comentarios/formularios.
-5. Probar como usuario real: iniciar sesión con un usuario de prueba del rol correspondiente,
-   ejercitar el flujo, revisar consola del navegador por errores. Probar tanto en ancho de
-   escritorio como en un ancho angosto (~375–450px) — la app se usa mucho como PWA instalada
-   en Windows y como app en el celular, así que el layout angosto importa tanto como el ancho.
+5. Correr `npm run verificar` y después probar como usuario real: iniciar sesión con un usuario
+   de prueba del rol correspondiente, ejercitar el flujo, revisar consola del navegador por
+   errores. Probar tanto en ancho de escritorio como en un ancho angosto (~375–450px) — la app
+   se usa mucho como PWA instalada en Windows y como app en el celular, así que el layout
+   angosto importa tanto como el ancho. Si `verificar` devuelve 2, seguir lo que dice la
+   sección "Si no hay navegador" en vez de publicar.
 6. Confirmar que no haya regresiones en otros perfiles/roles.
 7. Crear un commit descriptivo (mensaje corto, en español, explicando el motivo del cambio).
 8. Subir a `main` en GitHub (`git push origin main`).
