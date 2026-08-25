@@ -15808,6 +15808,53 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   window.nuevoAnalisisPrecioCertificacion=function(z,tipo){renderForm({zona:zonaActual(z),tipo:'cert-list'})};
   window.nuevoAnalisisPrecio=function(z,tipo){renderForm({zona:zonaActual(z),tipo})};
   window.editarAnalisisPrecio=async function(id,tipo){await loadStore();const ap=store().find(x=>String(x.id)===String(id));if(ap)renderForm({...ap,tipo})};
+  function ordenInspectorPorNumero(numero){
+    const zona=zonaActual(currentUser?.zona);
+    return osZona(zona).find(o=>String(o?.numero||'')===String(numero||''))||osByNumero(numero);
+  }
+  function mismoEstablecimientoAnalisis(ap,os){
+    const apId=Number(ap?.establecimientoId||0), osId=Number(os?.estId||os?.establecimiento_id||0);
+    if(apId&&osId)return apId===osId;
+    return norm(ap?.establecimiento)===norm(os?.establecimiento||estNombre(osId));
+  }
+  window.abrirAnalisisPreciosDesdeOrden=async function(numero){
+    if(currentUser?.role!=='inspector')return;
+    const os=ordenInspectorPorNumero(numero), main=$('main-content');
+    if(!os||!main){alert('No se encontró la orden de servicio.');return}
+    const zona=zonaActual(os?.zona||currentUser?.zona);
+    await loadStore();
+    const data=store().filter(ap=>Number(ap.zona)===zona&&mismoEstablecimientoAnalisis(ap,os)&&(!ap.certId||String(ap.osNumero||'')===String(os.numero||''))).sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
+    main.innerHTML=`<button class="back-btn" onclick="renderOSZona($('main-content'))">‹ Volver a órdenes</button>
+      <div class="section-label">O.S. ${esc(os.numero||'')} · Análisis de precios</div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">${esc(os.establecimiento||estNombre(os.estId))}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Podés vincular un análisis existente de este establecimiento o crear uno nuevo para esta orden.</div></div>
+          <button class="primary-btn" onclick="nuevoAnalisisPrecioDesdeOrden('${esc(os.numero||'')}')">+ Crear nuevo</button>
+        </div>
+        <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Concepto</th><th>O.S. actual</th><th>Costo final</th><th>Módulos</th><th>Acciones</th></tr></thead><tbody>
+          ${data.length?data.map(ap=>{const c=calc(ap), vinculado=String(ap.osNumero||'')===String(os.numero||'');return `<tr><td>${esc(ap.concepto||'Análisis')}</td><td>${vinculado?`<span class="badge b-ok">${esc(os.numero)}</span>`:(ap.osNumero?esc(ap.osNumero):'<span class="badge b-neutral">Sin vincular</span>')}</td><td>${money(c.costoFinal)}</td><td>${mods(c.modulos)}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">${vinculado?'<span class="badge b-ok">Vinculado</span>':`<button class="primary-btn" style="padding:7px 10px" onclick="vincularAnalisisPrecioAOrden('${esc(ap.id)}','${esc(os.numero||'')}')">Vincular</button>`}<button class="edit-btn" onclick="editarAnalisisPrecio('${esc(ap.id)}','inspector')">Editar</button><button class="edit-btn" onclick="imprimirAnalisisPrecio('${esc(ap.id)}')">PDF/JPG</button></div></td></tr>`}).join(''):`<tr><td colspan="5" class="os-empty">No hay análisis disponibles para este establecimiento. Podés crear uno nuevo.</td></tr>`}
+        </tbody></table></div>
+      </div>`;
+  };
+  window.nuevoAnalisisPrecioDesdeOrden=function(numero){
+    const os=ordenInspectorPorNumero(numero);
+    if(!os){alert('No se encontró la orden de servicio.');return}
+    renderForm({zona:zonaActual(os?.zona||currentUser?.zona),tipo:'inspector',osNumero:os.numero||'',establecimientoId:os.estId||os.establecimiento_id||'',establecimiento:os.establecimiento||estNombre(os.estId),concepto:os.tarea||''});
+  };
+  window.vincularAnalisisPrecioAOrden=async function(apId,numero){
+    const os=ordenInspectorPorNumero(numero);
+    await loadStore();
+    const ap=store().find(x=>String(x.id)===String(apId));
+    if(!os||!ap){alert('No se pudo vincular el análisis.');return}
+    if(ap.osNumero&&String(ap.osNumero)!==String(numero)&&!confirm(`Este análisis está vinculado a la O.S. ${ap.osNumero}. ¿Querés vincularlo a la O.S. ${numero}?`))return;
+    ap.osNumero=String(os.numero||numero);
+    ap.zona=zonaActual(os?.zona||currentUser?.zona);
+    ap.establecimientoId=os.estId||os.establecimiento_id||ap.establecimientoId||'';
+    ap.establecimiento=os.establecimiento||estNombre(os.estId)||ap.establecimiento||'';
+    ap.updatedAt=new Date().toISOString();
+    try{await persistAnalisisItem(ap)}catch(error){alert('No se pudo vincular el análisis: '+dbMsg(error));return}
+    abrirAnalisisPreciosDesdeOrden(numero);
+  };
   function certById(id){return (window.CERTIFICADOS_MEDICION||[]).find(c=>String(c.id)===String(id)||String(c.localId)===String(id))}
   function analisisByCertId(id){return store().find(x=>String(x.certId||'')===String(id))}
   function osCertPrincipal(c){return (typeof certOrdenes==='function'?certOrdenes(c):[])[0]||''}
@@ -26068,6 +26115,30 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     },80);
     return res;
   };
+})();
+</script>
+<script id="dgie-analisis-precios-desde-orden-inspector-2026-08-25">
+(function(){
+  'use strict';
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function boton(o){return `<button type="button" class="secondary-btn dgie-os-analisis-btn" onclick="abrirAnalisisPreciosDesdeOrden('${esc(o?.numero||'')}')">Análisis de precios</button>`}
+  function mejorar(){
+    if(currentUser?.role!=='inspector'||typeof window.abrirAnalisisPreciosDesdeOrden!=='function')return;
+    const body=document.getElementById('os-table-body'), data=Array.isArray(window.dgieOSVisibleInspector)?window.dgieOSVisibleInspector:[];
+    if(!body)return;
+    [...body.querySelectorAll('tr')].forEach((tr,idx)=>{
+      const o=data[idx], acciones=tr.querySelector('.os-download-actions');
+      if(!o||!acciones||acciones.querySelector('.dgie-os-analisis-btn'))return;
+      acciones.insertAdjacentHTML('beforeend',boton(o));
+    });
+  }
+  const prev=window.renderOSTable;
+  if(typeof prev==='function'){
+    window.renderOSTable=function(){const res=prev.apply(this,arguments);setTimeout(mejorar,0);return res};
+  }
+  const st=document.createElement('style');
+  st.textContent='.dgie-os-analisis-btn{padding:6px 9px!important;font-size:11px!important;white-space:nowrap}@media(max-width:760px){.dgie-os-analisis-btn{width:100%}}';
+  document.head.appendChild(st);
 })();
 </script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
