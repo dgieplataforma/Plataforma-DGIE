@@ -26141,6 +26141,33 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   document.head.appendChild(st);
 })();
 </script>
+<script id="dgie-analisis-precios-pestana-orden-inspector-2026-08-25">
+(function(){
+  'use strict';
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function instalar(os){
+    if(currentUser?.role!=='inspector'||!os?.numero||typeof window.abrirAnalisisPreciosDesdeOrden!=='function')return;
+    const tabs=document.querySelector('.os-form-tabs'), fixed=document.querySelector('.fixed-zone-box');
+    if(!tabs||!fixed||byId('os-tab-analisis-precios'))return;
+    tabs.insertAdjacentHTML('beforeend','<button type="button" class="os-form-tab" id="os-tab-analisis-precios" onclick="switchOSFormTab(\'analisis-precios\')">Análisis de precios</button>');
+    fixed.insertAdjacentHTML('beforebegin',`<div id="os-analisis-precios" class="os-form-section hidden"><div class="dgie-os-ap-panel"><div><div class="dgie-os-ap-title">Análisis de precios · O.S. ${esc(os.numero)}</div><div class="dgie-os-ap-help">Vinculá un análisis existente de este establecimiento o creá uno nuevo con los datos de esta orden.</div></div><button type="button" class="primary-btn" onclick="abrirAnalisisPreciosDesdeOrden('${esc(os.numero)}')">Vincular o crear análisis</button></div></div>`);
+  }
+  const renderPrev=window.renderOSForm;
+  if(typeof renderPrev==='function'){
+    window.renderOSForm=function(os=null){const result=renderPrev.apply(this,arguments);instalar(os);return result};
+  }
+  const switchPrev=window.switchOSFormTab;
+  window.switchOSFormTab=function(tab){
+    if(typeof switchPrev==='function')switchPrev(tab);
+    byId('os-tab-analisis-precios')?.classList.toggle('active',tab==='analisis-precios');
+    byId('os-analisis-precios')?.classList.toggle('hidden',tab!=='analisis-precios');
+  };
+  const st=document.createElement('style');
+  st.textContent='.dgie-os-ap-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;border:1px solid #d9e2ef;border-radius:10px;background:#f8fafc}.dgie-os-ap-title{font-size:15px;font-weight:900;color:#123c69}.dgie-os-ap-help{font-size:12px;color:#64748b;margin-top:4px;max-width:680px;line-height:1.45}@media(max-width:720px){.dgie-os-ap-panel{align-items:stretch;flex-direction:column}.dgie-os-ap-panel .primary-btn{width:100%}}';
+  document.head.appendChild(st);
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
 <script src="./dgie-notificaciones.js?v=20260804-1"></script>
 <script id="dgie-reclamo-recibido-2026-08-19">
