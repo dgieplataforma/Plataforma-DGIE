@@ -4,6 +4,12 @@ Plataforma web de gestión de infraestructura educativa (reclamos, órdenes de s
 intervenciones, certificaciones) para la Dirección de Jurisdicción de Infraestructura y
 Equipamiento (DGIE), Córdoba.
 
+> **Este repo lo trabajan dos herramientas: Claude Code y Codex.** El usuario elige cuál usa
+> en cada momento. Para no perder el hilo entre una y otra, `ESTADO.md` es la libreta
+> compartida: **leerla antes de empezar** y **actualizarla al cerrar cada tarea**, en el
+> mismo commit del cambio. Ahí está en qué se estaba trabajando, qué quedó pendiente y qué
+> se hizo último.
+
 ## Ubicación y publicación
 
 - Repositorio local válido: `I:\Mi unidad\PLATAFORMA DGIE`. No trabajar sobre ninguna otra
@@ -101,8 +107,9 @@ que con eso alcanza.
 
 ## Protocolo para cada pedido
 
-1. Entrar al repo y correr `git status` + revisar los últimos commits (`git log --oneline`)
-   para saber en qué estado está todo — especialmente si empezás sin contexto previo.
+1. Entrar al repo, leer `ESTADO.md` y correr `git status` + revisar los últimos commits
+   (`git log --oneline`) para saber en qué estado está todo — especialmente si empezás sin
+   contexto previo.
 2. Localizar el flujo afectado y sus variantes por rol (inspector, coordinador, empresa,
    call center, dirección) — los permisos y la UI difieren bastante entre roles.
 3. Si el pedido es claro, implementar directamente. Si hay ambigüedad real sobre el
@@ -120,7 +127,10 @@ que con eso alcanza.
 7. Crear un commit descriptivo (mensaje corto, en español, explicando el motivo del cambio).
 8. Subir a `main` en GitHub (`git push origin main`).
 9. Verificar que Netlify haya publicado ese commit exacto en producción.
-10. Cerrar con un resumen claro de qué se cambió, qué se probó, y cualquier acción manual
+10. Actualizar `ESTADO.md` en el mismo commit del cambio: mover lo terminado a "Hecho
+    recientemente" (con fecha, commit, qué y con qué herramienta), actualizar en qué se está
+    trabajando y agregar lo que haya aparecido en el camino.
+11. Cerrar con un resumen claro de qué se cambió, qué se probó, y cualquier acción manual
     pendiente del lado del usuario (por ejemplo correr un script SQL en Supabase).
 
 El protocolo estándar actual es implementar, probar, comitear y publicar en cada pedido sin
