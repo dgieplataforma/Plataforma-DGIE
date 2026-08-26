@@ -7,30 +7,13 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-08-25** · commit `a5e7b03`
+Última actualización: **2026-08-26** · commit `este commit`
 
 ---
 
 ## En qué se está trabajando ahora
 
-### Sesión Administración — navegación por fichas
-
-La sesión existe y funciona, pero muestra los certificados en una lista plana.
-Falta reorganizarla en tres niveles, igual que la sesión de inspector:
-
-1. fichas de zona
-2. dentro de cada zona, fichas de medición
-3. dentro de cada medición, los certificados en Pendientes / Observados / Aceptados
-
-Con botón de volver en cada nivel.
-
-- Hay que reescribir `renderBandeja`, en el bloque
-  `<script id="dgie-administracion-certificados-2026-08-21">` de `index.html`.
-- **No tocar** `tarjeta()`, `dgieAdmObservar`, `dgieAdmAprobar`, el versionado del
-  inspector ni el bloqueo de módulos manuales: ya están probados y funcionando.
-- El patrón a copiar es el del inspector: `renderBotonesMediciones`, que usa la
-  grilla `med-btn-grid` con botones `secondary-btn med-btn` y renderiza el detalle
-  abajo en un contenedor propio.
+Sin tareas de implementación abiertas. El hilo Administración–inspector de certificados quedó unificado y validado.
 
 ---
 
@@ -88,6 +71,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-08-26 | `este commit` | Conversación visible Administración–inspector: respuesta, nueva versión vigente y paso a medición en un solo flujo | Codex |
 | 2026-08-25 | `a5e7b03` | `npm run verificar`: un solo comando de validación, con navegador | Claude Code |
 | 2026-08-25 | `faf15fc` | La orden de servicio se descarga completa y en orden | Claude Code (terminó algo empezado por Codex) |
 | 2026-08-24 | `a9db973` | Anexar análisis al PDF de la orden | Codex |
