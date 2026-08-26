@@ -13,7 +13,7 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
-Sin tareas de implementación abiertas. Administración ve un aviso general y por certificado cuando el inspector responde, cambia la versión vigente o finaliza una observación.
+Sin tareas de implementación abiertas. Los certificados distinguen Original, Inspector y Observado; la versión observada vigente aporta módulos y puede verse o descargarse desde el historial.
 
 ---
 
@@ -71,7 +71,8 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-26 | `este commit` | Administración: avisos de novedades cuando el inspector responde, deja una versión vigente o finaliza una observación | Codex |
+| 2026-08-26 | `este commit` | Certificados observados: etapas Original/Inspector/Observado, módulos de la versión vigente y apertura/descarga funcional desde el historial | Codex |
+| 2026-08-26 | `d998bfc` | Administración: avisos de novedades cuando el inspector responde, deja una versión vigente o finaliza una observación | Codex |
 | 2026-08-26 | `72770d0` | Certificados observados: se eliminó el formulario duplicado y se separaron los botones de antecedentes del bloque operativo | Codex |
 | 2026-08-26 | `46262b0` | Certificados observados: mensajes ilimitados, versión vigente y cierre independientes; historiales de conversaciones y archivos preservados según el rol | Codex |
 | 2026-08-25 | `a5e7b03` | `npm run verificar`: un solo comando de validación, con navegador | Claude Code |
