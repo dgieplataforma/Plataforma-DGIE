@@ -13,7 +13,7 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
-Sin tareas de implementación abiertas. El hilo Administración–inspector de certificados quedó unificado y validado.
+Sin tareas de implementación abiertas. El hilo de certificados quedó con mensaje separado, nueva versión vigente y ambos historiales visibles.
 
 ---
 
@@ -71,7 +71,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-26 | `este commit` | Conversación visible Administración–inspector: respuesta, nueva versión vigente y paso a medición en un solo flujo | Codex |
+| 2026-08-26 | `este commit` | Certificados observados: enviar mensaje o dejar nueva versión vigente, sin controles de medición, con ambos historiales visibles | Codex |
 | 2026-08-25 | `a5e7b03` | `npm run verificar`: un solo comando de validación, con navegador | Claude Code |
 | 2026-08-25 | `faf15fc` | La orden de servicio se descarga completa y en orden | Claude Code (terminó algo empezado por Codex) |
 | 2026-08-24 | `a9db973` | Anexar análisis al PDF de la orden | Codex |
