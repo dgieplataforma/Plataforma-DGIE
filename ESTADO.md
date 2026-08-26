@@ -13,7 +13,7 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
-Sin tareas de implementación abiertas. En certificados observados hay un único bloque operativo; los accesos a conversaciones y archivos quedan separados como antecedentes.
+Sin tareas de implementación abiertas. Administración ve un aviso general y por certificado cuando el inspector responde, cambia la versión vigente o finaliza una observación.
 
 ---
 
@@ -71,7 +71,8 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-26 | `este commit` | Certificados observados: se eliminó el formulario duplicado y se separaron los botones de antecedentes del bloque operativo | Codex |
+| 2026-08-26 | `este commit` | Administración: avisos de novedades cuando el inspector responde, deja una versión vigente o finaliza una observación | Codex |
+| 2026-08-26 | `72770d0` | Certificados observados: se eliminó el formulario duplicado y se separaron los botones de antecedentes del bloque operativo | Codex |
 | 2026-08-26 | `46262b0` | Certificados observados: mensajes ilimitados, versión vigente y cierre independientes; historiales de conversaciones y archivos preservados según el rol | Codex |
 | 2026-08-25 | `a5e7b03` | `npm run verificar`: un solo comando de validación, con navegador | Claude Code |
 | 2026-08-25 | `faf15fc` | La orden de servicio se descarga completa y en orden | Claude Code (terminó algo empezado por Codex) |
