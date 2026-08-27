@@ -7,13 +7,13 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-08-26** · commit `este commit`
+Última actualización: **2026-08-27** · commit `este commit`
 
 ---
 
 ## En qué se está trabajando ahora
 
-Sin tareas de implementación abiertas. Original, Inspector y Observado se descargan directamente desde el historial; la versión observada vigente aporta los módulos actuales.
+Sin tareas de implementación abiertas. En Tableros, los listados y exportaciones de Reclamos y Órdenes de servicio muestran el CUE antes del establecimiento.
 
 ---
 
@@ -71,6 +71,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-08-27 | `este commit` | Tableros: CUE antes del establecimiento en los listados de Reclamos y O.S., incluidos PDF y Excel | Codex |
 | 2026-08-26 | `este commit` | Historial de certificados: descarga directa de Original, Inspector y Observado, sin abrir el visor | Codex |
 | 2026-08-26 | `589db0d` | Certificados observados: etapas Original/Inspector/Observado, módulos de la versión vigente y descarga funcional desde el historial | Codex |
 | 2026-08-26 | `d998bfc` | Administración: avisos de novedades cuando el inspector responde, deja una versión vigente o finaliza una observación | Codex |
@@ -80,7 +81,7 @@ tiró el proyecto el 21/08. Falta:
 | 2026-08-25 | `faf15fc` | La orden de servicio se descarga completa y en orden | Claude Code (terminó algo empezado por Codex) |
 | 2026-08-24 | `a9db973` | Anexar análisis al PDF de la orden | Codex |
 | 2026-08-21 | `71a95bf` | Sesión Administración: revisar, observar y aprobar certificados | Claude Code |
-| 2026-08-20 | `c52bdd6` | El selector de O.S. del certificado no ofrece las ya certificadas | Claude Code |
+
 
 ---
 

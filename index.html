@@ -26311,6 +26311,116 @@ const openPrev=window.abrirMedicionInspector;window.abrirMedicionInspector=funct
 const observer=new MutationObserver(()=>setTimeout(enhance,0));observer.observe(document.body,{childList:true,subtree:true});window.dgieCertSeguimientoDefinitivo=enhance;
 })();
 </script>
+<style id="dgie-tableros-cue-style-2026-08-27">
+body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;color:#123c69;white-space:nowrap}
+</style>
+<script id="dgie-tableros-cue-listados-exportaciones-2026-08-27">
+(function(){
+  'use strict';
+  function esTableros(){return String(currentUser?.role||'')==='tableros'}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+  function establecimientos(){return typeof ESTABS!=='undefined'&&Array.isArray(ESTABS)?ESTABS:[]}
+  function establecimiento(item){
+    const id=Number(item?.estId||item?.establecimiento_id||item?.establecimientoId||0);
+    if(id){const e=establecimientos().find(x=>Number(x?.id)===id);if(e)return e}
+    const nombre=norm(item?.est||item?.establecimiento||item?.establecimiento_nombre||'');
+    return nombre?establecimientos().find(e=>norm(e?.n||e?.nombre||e?.establecimiento||'')===nombre):null;
+  }
+  function cue(item){return String(item?.cue||establecimiento(item)?.cue||'').trim()||'—'}
+  function zona(item){
+    const directa=Number(item?.zona||0);if(directa)return directa;
+    const e=establecimiento(item);return Number(e?.zona||0)||'—';
+  }
+  function prioridad(v){
+    const k=norm(v);if(k.startsWith('critic'))return 'Crítico';if(k.startsWith('alt'))return 'Alto';if(k.startsWith('baj'))return 'Bajo';return 'Medio';
+  }
+  function estadoOS(o){return typeof estadoOSLabel==='function'?estadoOSLabel(o?.estado):String(o?.estado||'Pendiente')}
+  function osReclamo(r){
+    const ref=String(r?.os||'').trim();
+    if(!ref||['Sin OS','Pendiente','En trámite','En tramite'].includes(ref))return null;
+    return (typeof OS_ZONA!=='undefined'?OS_ZONA:[]).find(o=>String(o?.numero||'').trim()===ref)||{numero:ref,estado:'pendiente'};
+  }
+  function estadoReclamo(r){
+    const manual=typeof window.estadoInspectorReclamoKey==='function'?window.estadoInspectorReclamoKey(r):'';
+    if(manual==='anulado')return 'Anulado';
+    if(manual==='derivado')return typeof window.reclamoDerivadoLabel==='function'?window.reclamoDerivadoLabel(r):'Derivado';
+    const raw=String(r?.estado||r?.estado_reclamo||'').toLowerCase();
+    if(raw==='anulado')return 'Anulado';if(raw==='derivado')return 'Derivado';
+    const os=osReclamo(r);return os?estadoOS(os):'Pendiente';
+  }
+  function tituloReclamo(r){
+    const raw=String(r?.titulo||r?.descripcion||'');
+    return typeof window.limpiarMetaEstadoInspectorReclamo==='function'?window.limpiarMetaEstadoInspectorReclamo(raw):raw;
+  }
+  function numeroReclamo(r){return typeof reclamoNumeroVisible==='function'?reclamoNumeroVisible(r):(r?.numero||'')}
+  function rubroReclamo(r){return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,r?.titulo||r?.descripcion||''):(r?.rubro||'')}
+  function medicionesOS(o){
+    const certs=typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[];
+    const num=String(o?.numero||'').trim();
+    return [...new Set(certs.filter(c=>String(c?.estado||'')!=='eliminado'&&String(c?.ordenes_servicio_certificado||c?.ordenes_certificado||'').split(',').map(x=>x.trim()).includes(num)).map(c=>String(c?.medicion_numero||'')).filter(Boolean))];
+  }
+  function insertarCue(tablaId,bodyId,rows){
+    if(!esTableros())return;
+    document.body.classList.add('dgie-tableros-cue');
+    const body=document.getElementById(bodyId), table=body?.closest('table')||document.querySelector(tablaId);
+    const head=table?.querySelector('thead tr');
+    if(head&&!head.querySelector('[data-dgie-cue-head]')){
+      const th=document.createElement('th');th.dataset.dgieCueHead='1';th.textContent='CUE';
+      head.insertBefore(th,head.children[2]||null);
+    }
+    if(!body)return;
+    [...body.querySelectorAll('tr')].forEach((tr,index)=>{
+      if(tr.querySelector('.os-empty')||tr.querySelector('[data-dgie-cue-cell]'))return;
+      const td=document.createElement('td');td.dataset.dgieCueCell='1';td.className='dgie-cue-cell';td.textContent=cue(rows[index]);
+      tr.insertBefore(td,tr.children[2]||null);
+    });
+  }
+  function mejorarReclamos(){const rows=window.DGIE_SMART_FILTER_LAST?.['coord-rec']?.rows||[];insertarCue('#coord-rec-body','coord-rec-body',rows)}
+  function mejorarOrdenes(){const rows=window.DGIE_SMART_FILTER_LAST?.['coord-os']?.rows||[];const visible=window.matchMedia?.('(max-width:760px)').matches?rows.slice(0,Math.max(25,Number(window.DGIE_MOBILE_COORD_OS_LIMIT)||25)):rows;insertarCue('#coord-os-body','coord-os-body',visible)}
+  const renderRecPrev=window.renderReclamosCoordinador;
+  if(typeof renderRecPrev==='function')window.renderReclamosCoordinador=function(){const out=renderRecPrev.apply(this,arguments);setTimeout(mejorarReclamos,0);return out};
+  const filterRecPrev=window.filterReclamosCoord;
+  if(typeof filterRecPrev==='function')window.filterReclamosCoord=function(){const out=filterRecPrev.apply(this,arguments);setTimeout(mejorarReclamos,0);return out};
+  const renderOsPrev=window.renderOSGeneral;
+  if(typeof renderOsPrev==='function')window.renderOSGeneral=function(){const out=renderOsPrev.apply(this,arguments);setTimeout(mejorarOrdenes,0);return out};
+  const filterOsPrev=window.filterOSCoord;
+  if(typeof filterOsPrev==='function')window.filterOSCoord=function(){const out=filterOsPrev.apply(this,arguments);setTimeout(mejorarOrdenes,0);return out};
+  const morePrev=window.dgieMostrarMasOSCoord;
+  if(typeof morePrev==='function')window.dgieMostrarMasOSCoord=function(){const out=morePrev.apply(this,arguments);setTimeout(mejorarOrdenes,0);return out};
+  function filas(tipo){return window.DGIE_SMART_FILTER_LAST?.[tipo==='reclamos'?'coord-rec':'coord-os']?.rows||[]}
+  function datos(tipo){
+    if(tipo==='reclamos')return {titulo:'Tableros · Reclamos',headers:['N° Reclamo','Zona','CUE','Establecimiento','Descripción','Rubro','Fecha','Prioridad','Estado','O.S.','Recibido'],rows:filas(tipo).map(r=>{const os=osReclamo(r);return [numeroReclamo(r),zona(r),cue(r),r?.est||r?.establecimiento||'',tituloReclamo(r),rubroReclamo(r),r?.fecha||'',prioridad(r?.prio||r?.prioridad),estadoReclamo(r),os?.numero||'—',(r?.recibidoEn||r?.recibido_en)?'Recibido':'Sin recibir']})};
+    return {titulo:'Tableros · Órdenes de servicio',headers:['Orden de servicio','Zona','N° reclamo','CUE','Establecimiento','Tarea','Rubro','Prioridad','Fecha de envío','Estado','Estado s/ empresa','Fecha finalización','Certificado','Presupuesto'],rows:filas(tipo).map(o=>[o?.numero||'',zona(o),o?.reclamoNumero||'',cue(o),o?.establecimiento||'',o?.tarea||'',o?.rubro||'',prioridad(o?.prio),o?.fecha||'',estadoOS(o),o?.empresaFinalizo?'Finalizada por empresa':'Sin informar',o?.fechaFinalizacion||'',medicionesOS(o).length?`Medición ${medicionesOS(o).join(', ')}`:'—',o?.presupuesto??o?.monto??''])};
+  }
+  function resumenFiltros(tipo){
+    const ctx=tipo==='reclamos'?'coord-rec':'coord-os', filters=window.DGIE_SMART_FILTERS?.[ctx]||[];
+    return filters.length?filters.map(f=>`${f.label||f.value}`).join(' · '):'Sin filtros acumulados';
+  }
+  function exportarPDF(tipo){
+    const d=datos(tipo);if(!d.rows.length){alert('No hay registros visibles para exportar.');return}
+    const th=d.headers.map(h=>`<th>${esc(h)}</th>`).join(''), body=d.rows.map(row=>`<tr>${row.map(v=>`<td>${esc(v||'—')}</td>`).join('')}</tr>`).join('');
+    const w=window.open('','_blank');if(!w){alert('No se pudo abrir la vista de PDF. Permití ventanas emergentes para esta página.');return}
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.titulo)}</title><style>@page{size:A4 landscape;margin:7mm}body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;font-size:7.5pt}h1{font-size:15pt;color:#123c69;margin:0 0 4px}.meta{color:#475569;margin-bottom:8px}.summary{font-weight:bold;color:#334155;margin:6px 0 10px}table{width:100%;border-collapse:collapse}th{background:#0f172a;color:#fff;padding:5px;text-align:left}td{border:1px solid #cbd5e1;padding:4px;vertical-align:top;overflow-wrap:anywhere}tr:nth-child(even) td{background:#f8fafc}.actions{margin-bottom:10px}@media print{.actions{display:none}}</style></head><body><div class="actions"><button onclick="print()">Imprimir / Guardar PDF</button></div><h1>${esc(d.titulo)}</h1><div class="meta">Generado: ${esc(new Date().toLocaleString('es-AR'))} · ${d.rows.length} registros visibles</div><div class="summary">${esc(resumenFiltros(tipo))}</div><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></body></html>`);w.document.close();setTimeout(()=>w.print(),300);
+  }
+  function exportarExcel(tipo){
+    const d=datos(tipo);if(!d.rows.length){alert('No hay registros visibles para exportar con los filtros actuales.');return}
+    const prefix=tipo==='reclamos'?'DGIE_Reclamos_Tableros':'DGIE_Ordenes_Servicio_Tableros', aoa=[d.headers,...d.rows];
+    if(window.XLSX){
+      const ws=XLSX.utils.aoa_to_sheet(aoa);const ref=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:aoa.length-1,c:d.headers.length-1}});ws['!autofilter']={ref};ws['!cols']=d.headers.map(h=>({wch:h==='Descripción'||h==='Tarea'?58:h==='Establecimiento'?38:h==='CUE'?14:18}));
+      const resumen=XLSX.utils.aoa_to_sheet([['Reporte',d.titulo],['Generado',new Date().toLocaleString('es-AR')],['Registros visibles',d.rows.length],['Filtros',resumenFiltros(tipo)]]);resumen['!cols']=[{wch:20},{wch:90}];
+      const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,tipo==='reclamos'?'Reclamos':'Órdenes de servicio');XLSX.utils.book_append_sheet(wb,resumen,'Resumen');XLSX.writeFile(wb,`${prefix}_${new Date().toISOString().slice(0,10)}.xlsx`);return;
+    }
+    const csv=aoa.map(row=>row.map(v=>`"${String(v??'').replace(/\r?\n/g,' ').replace(/"/g,'""')}"`).join(';')).join('\r\n'),url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a');a.href=url;a.download=`${prefix}_${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
+  }
+  const pdfPrev=window.dgieSmartExportPDF;
+  window.dgieSmartExportPDF=function(ctx){if(esTableros()&&ctx==='coord-rec')return exportarPDF('reclamos');if(esTableros()&&ctx==='coord-os')return exportarPDF('ordenes');return typeof pdfPrev==='function'?pdfPrev.apply(this,arguments):undefined};
+  const excelRecPrev=window.exportarReclamosExcel;
+  window.exportarReclamosExcel=function(){if(esTableros())return exportarExcel('reclamos');return typeof excelRecPrev==='function'?excelRecPrev.apply(this,arguments):undefined};
+  const excelOsPrev=window.exportarOrdenesServicioExcel;
+  window.exportarOrdenesServicioExcel=function(){if(esTableros())return exportarExcel('ordenes');return typeof excelOsPrev==='function'?excelOsPrev.apply(this,arguments):undefined};
+})();
+</script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
 <script src="./dgie-notificaciones.js?v=20260804-1"></script>
 <script id="dgie-reclamo-recibido-2026-08-19">
