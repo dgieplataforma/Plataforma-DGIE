@@ -26571,7 +26571,7 @@ body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Me
 .dgie-liq-wrap{overflow:auto;margin-top:12px}
 .dgie-liq{border-collapse:collapse;font-size:11px;min-width:1100px}
 .dgie-liq th,.dgie-liq td{border:1px solid #9aa5b1;padding:4px 6px;white-space:nowrap}
-.dgie-liq thead th{background:#123c69;color:#fff;font-weight:800;text-align:center;vertical-align:middle}
+.dgie-liq thead th{background:#92D050;color:#1a2b12;font-weight:800;text-align:center;vertical-align:middle}
 .dgie-liq .est{white-space:normal;min-width:230px;text-align:left}
 .dgie-liq .num{text-align:right}
 .dgie-liq tfoot td{font-weight:900;background:#e8eef6}
@@ -26596,7 +26596,11 @@ body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Me
 // archivo y se guarda en `modulos_por_rubro`.
 // ────────────────────────────────────────────────────────────────────
 
-const DESDE_MEDICION = 7;   // la liquidacion automatica rige a partir de aca
+// La planilla se ofrece en todas las mediciones, para poder cotejarla contra
+// las liquidaciones ya firmadas. El desglose por rubro sale completo recien
+// desde la medicion 7, que es cuando los certificados empiezan a subirse con
+// ese dato guardado; en las anteriores se avisa en pantalla lo que falta.
+const DESDE_MEDICION = 1;
 
 // Los cinco rubros del pliego. No son los de la plataforma: aca pintura,
 // albañileria y herreria van juntas, y no existen pluvial, vidrios ni poda.
@@ -26609,7 +26613,10 @@ const RUBROS_LIQ = [
 ];
 
 // Un color por medicion, como en la planilla firmada.
-const COLORES_MEDICION = ['#fde8e8','#e7f3ea','#e6eefb','#fdf1e0','#f0e9f7','#e4f5f7','#f7f0e4','#eef0f2'];
+// Los mismos colores de la planilla firmada, leidos del PDF oficial:
+// 1ra amarillo, 2da celeste, 3ra naranja, 4ta verde. De la quinta en
+// adelante se sigue con colores del mismo juego.
+const COLORES_MEDICION = ['#FFE699','#BDD7EE','#FFC000','#92D050','#F8CBAD','#D9D2E9','#C6E0B4','#FFD966','#B4C7E7','#E2A9A9','#A9D5D5','#D5C2A9'];
 function colorMedicion(n){return COLORES_MEDICION[(Math.max(1,Number(n)||1)-1)%COLORES_MEDICION.length]}
 
 const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
@@ -26881,13 +26888,21 @@ function desgloseDe(c){
 function ordenDe(item){
   return typeof window.dgieOrdenEstablecimiento==='function'?window.dgieOrdenEstablecimiento(item):0;
 }
-function filasDeMedicion(z,n){
-  const lista=certsDeMedicion(z,n);
+// La planilla es acumulativa: lista los certificados de todas las mediciones
+// hasta la que se esta mirando, y el monto de cada uno cae en la columna de
+// su propia medicion. Asi esta armada la planilla firmada.
+function filasHasta(z,n){
+  const lista=certsDeZona(z).filter(c=>
+    String(c?.estado||'')==='medido' &&
+    c?.medicion_numero!=null &&
+    Number(c.medicion_numero)>0 &&
+    Number(c.medicion_numero)<=Number(n));
   const ordenada=typeof window.dgieOrdenarPorPlanilla==='function'?window.dgieOrdenarPorPlanilla(lista):lista;
   const filas=ordenada.map(c=>{
     const d=desgloseDe(c);
     return {
       cert:c,
+      medicion:Number(c.medicion_numero),
       nro:ordenDe(c),
       establecimiento:c?.establecimiento_nombre||'',
       os:ordenesDe(c).join('-'),
@@ -26897,8 +26912,8 @@ function filasDeMedicion(z,n){
     };
   });
 
-  // La planilla oficial lista todos los establecimientos de la zona: los que
-  // no tuvieron trabajos en el mes aparecen igual, con 0,00.
+  // La planilla lista todos los establecimientos de la zona: los que no
+  // tuvieron ningun trabajo aparecen igual, con 0,00.
   const conCertificado=new Set(filas.map(f=>Number(f.cert?.establecimiento_id)).filter(Boolean));
   const todos=(typeof ESTABS!=='undefined'&&Array.isArray(ESTABS)?ESTABS:[]).filter(e=>Number(e?.zona)===Number(z));
   const vacios={};
@@ -26906,7 +26921,7 @@ function filasDeMedicion(z,n){
   todos.forEach(e=>{
     if(conCertificado.has(Number(e.id)))return;
     filas.push({
-      cert:null, nro:ordenDe(e),
+      cert:null, medicion:0, nro:ordenDe(e),
       establecimiento:e?.n||e?.nombre||'',
       os:'', rubros:vacios, completo:true, total:0, sinTrabajos:true
     });
@@ -26915,21 +26930,23 @@ function filasDeMedicion(z,n){
   return filas.sort((a,b)=>
     (a.nro-b.nro) ||
     String(a.establecimiento).localeCompare(String(b.establecimiento),'es') ||
+    (a.medicion-b.medicion) ||
     String(a.os).localeCompare(String(b.os),'es',{numeric:true})
   );
 }
 
-function totalesDeMedicion(z,n){
-  const filas=filasDeMedicion(z,n);
+function totalesDeMedicion(z,n,filas){
+  const propias=(filas||filasHasta(z,n)).filter(f=>Number(f.medicion)===Number(n));
   const rubros={};
   RUBROS_LIQ.forEach(r=>{rubros[r.key]=0});
   let total=0;
-  filas.forEach(f=>{
+  propias.forEach(f=>{
     RUBROS_LIQ.forEach(r=>{rubros[r.key]+=num(f.rubros[r.key])});
     total+=f.total;
   });
+  RUBROS_LIQ.forEach(r=>{rubros[r.key]=Math.round(rubros[r.key]*1e6)/1e6});
   const precio=precioModulo(certsDeMedicion(z,n),z);
-  return {medicion:n, rubros, total:Math.round(total*1e6)/1e6, monto:total*precio, precio, filas};
+  return {medicion:n, rubros, total:Math.round(total*1e6)/1e6, monto:total*precio, precio, filas:propias};
 }
 
 function medicionesHasta(z,n){
@@ -26942,11 +26959,13 @@ function medicionesHasta(z,n){
 
 function planillaHTML(z,n){
   const info=datosZona(z);
-  const acumulado=medicionesHasta(z,n).map(m=>totalesDeMedicion(z,m));
-  const actual=acumulado.find(x=>Number(x.medicion)===Number(n))||totalesDeMedicion(z,n);
+  const filas=filasHasta(z,n);
+  const acumulado=medicionesHasta(z,n).map(m=>totalesDeMedicion(z,m,filas));
+  const actual=acumulado.find(x=>Number(x.medicion)===Number(n))||totalesDeMedicion(z,n,filas);
   const periodo=periodoDe(certsDeMedicion(z,n));
-  const incompletos=actual.filas.filter(f=>!f.completo).length;
+  const incompletos=filas.filter(f=>!f.completo).length;
   const colDe=m=>colorMedicion(m);
+  const precioDe=m=>(acumulado.find(x=>Number(x.medicion)===Number(m))||{}).precio||actual.precio||0;
 
   const cabecera=`<div class="dgie-liq-cabecera">
     <div><b>LICITACIÓN PÚBLICA N° 04/2024 - PRÓRROGA</b> · "Contratación para el servicio de mantenimiento y reparaciones generales en establecimientos educativos de Córdoba Capital"</div>
@@ -26955,20 +26974,23 @@ function planillaHTML(z,n){
     <div><b>Valor del módulo:</b> ${actual.precio?pesos(actual.precio):'—'} · <b>Medición N° ${esc(n)}</b>${periodo?' · '+esc(periodo):''}</div>
   </div>`;
 
-  const aviso=incompletos?`<div class="dgie-liq-aviso">${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro: abarcan más de un rubro y el reparto sólo está dentro del Excel. Al volver a cargar el archivo, el desglose se guarda solo y la planilla se completa.</div>`:'';
+  const aviso=incompletos?`<div class="dgie-liq-aviso">${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. El reparto está dentro del Excel de cada certificado: con "Completar desglose" se leen los archivos ya subidos y la planilla queda completa.</div>`:'';
 
   const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
-  const thMontos=acumulado.map(m=>`<th style="background:${colDe(m.medicion)};color:#123c69">MONTO TOTAL<br>MEDICIÓN N° ${esc(m.medicion)}</th>`).join('');
+  const mesDe=m=>{const p=periodoDe(certsDeMedicion(z,m.medicion));return p?'<br>'+esc(p):''};
+  const thMontos=acumulado.map(m=>`<th style="background:${colDe(m.medicion)};color:#1a2b12">MONTO TOTAL<br>MEDICIÓN N° ${esc(m.medicion)}${mesDe(m)}</th>`).join('');
 
-  const cuerpo=actual.filas.map(f=>{
+  // Cada fila lleva sus propios modulos y su monto cae en la columna de la
+  // medicion a la que pertenece el certificado.
+  const cuerpo=filas.map(f=>{
     const cero=f.total<=0;
     return `<tr${cero?' class="sin-trabajos"':''}>
       <td class="num">${f.nro&&f.nro<9999?esc(f.nro):''}</td>
       <td class="est">${esc(f.establecimiento)}</td>
       <td class="num">${esc(f.os)}</td>
       ${RUBROS_LIQ.map(r=>`<td class="num">${num(f.rubros[r.key])?fmt(f.rubros[r.key]):''}</td>`).join('')}
-      <td class="num" style="background:${colDe(n)}"><b>${fmt(f.total)}</b></td>
-      ${acumulado.map(m=>`<td class="num">${Number(m.medicion)===Number(n)?pesos(f.total*actual.precio):''}</td>`).join('')}
+      <td class="num"${f.medicion?` style="background:${colDe(f.medicion)}"`:''}><b>${fmt(f.total)}</b></td>
+      ${acumulado.map(m=>`<td class="num">${Number(m.medicion)===Number(f.medicion)?pesos(f.total*precioDe(m.medicion)):''}</td>`).join('')}
     </tr>`;
   }).join('');
 
@@ -26988,7 +27010,7 @@ function planillaHTML(z,n){
       <tr>
         <th rowspan="2">NRO</th><th rowspan="2">ESTABLECIMIENTO</th><th rowspan="2">ORDEN DE<br>SERVICIO</th>
         <th colspan="${RUBROS_LIQ.length}">CANTIDAD DE MÓDULOS POR RUBRO</th>
-        <th rowspan="2" style="background:${colDe(n)};color:#123c69">MEDICIÓN N° ${esc(n)}${periodo?'<br>'+esc(periodo):''}</th>
+        <th rowspan="2" style="background:${colDe(n)};color:#1a2b12">MEDICIÓN N° ${esc(n)}${periodo?'<br>'+esc(periodo):''}</th>
         <th colspan="${acumulado.length}">MONTOS</th>
       </tr>
       <tr>${thRubros}${thMontos}</tr>
@@ -27029,11 +27051,68 @@ window.dgieVerLiquidacion=function(numero,zona){
                  value="${precioModulo(certsDeMedicion(z,numero),z)||''}" placeholder="0,00"
                  onchange="dgieFijarPrecioModulo(${Number(z)},this.value);dgieVerLiquidacion('${esc(numero)}',${Number(z)})">
         </label>
+        <button class="secondary-btn" onclick="dgieCompletarDesglose('${esc(numero)}',${Number(z)})">Completar desglose</button>
         <button class="primary-btn" onclick="dgieDescargarLiquidacion('${esc(numero)}',${Number(z)})">Descargar Excel</button>
         <button class="secondary-btn" onclick="document.getElementById('dgie-liq-caja')?.remove()">Cerrar</button>
       </div>
-    </div>${planillaHTML(z,numero)}`;
+    </div><div id="dgie-liq-progreso" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>${planillaHTML(z,numero)}`;
   caja.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+// ────────────────────────────────────────────────────────────────────
+// Completar el desglose de los certificados ya cargados
+// ────────────────────────────────────────────────────────────────────
+// Los certificados anteriores se subieron cuando el desglose por rubro
+// todavia no se guardaba. Para poder cotejar la planilla contra las
+// liquidaciones firmadas hay que leerlo de los archivos ya subidos, con el
+// mismo redondeo que muestra el Excel.
+function archivoVigenteDe(c){
+  if(c?.url_final)return {url:c.url_final, nombre:c.archivo_final||''};
+  if(c?.url_inspector)return {url:c.url_inspector, nombre:c.archivo_inspector||''};
+  if(c?.url_original)return {url:c.url_original, nombre:c.archivo_original||''};
+  return null;
+}
+function sinDesgloseAun(c){
+  const d=c?.modulos_por_rubro;
+  return !(d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0));
+}
+
+window.dgieCompletarDesglose=async function(numero,zona){
+  const z=Number(zona||zonaActual());
+  const pendientes=filasHasta(z,numero)
+    .filter(f=>f.cert&&sinDesgloseAun(f.cert)&&archivoVigenteDe(f.cert))
+    .map(f=>f.cert);
+
+  const panel=document.getElementById('dgie-liq-progreso');
+  const avisar=t=>{ if(panel)panel.textContent=t; };
+  if(!pendientes.length){ avisar('Todos los certificados ya tienen el desglose por rubro.'); return; }
+
+  let listos=0, fallados=0;
+  for(let i=0;i<pendientes.length;i++){
+    const c=pendientes[i];
+    avisar(`Leyendo ${i+1} de ${pendientes.length}: ${c.establecimiento_nombre||''}`);
+    try{
+      const arch=archivoVigenteDe(c);
+      const resp=await fetch(arch.url);
+      if(!resp.ok)throw new Error('no se pudo descargar');
+      const buf=await resp.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const ws=wb.Sheets['ANEXO - ITEM Y C.C.']||wb.Sheets[wb.SheetNames[0]];
+      const d=desgloseDeHoja(ws);
+      if(!d)throw new Error('sin rubros reconocibles');
+      await window.actualizarCertificado(c.id||c.localId,{
+        modulos_por_rubro:d.rubros,
+        precio_modulo:d.precio_modulo??null
+      });
+      Object.assign(c,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
+      listos++;
+    }catch(e){
+      fallados++;
+      console.warn('No se pudo leer el desglose de',c?.establecimiento_nombre,e);
+    }
+  }
+  avisar(`Listo: ${listos} certificado${listos!==1?'s':''} con desglose${fallados?`, ${fallados} sin poder leerse`:''}.`);
+  setTimeout(()=>window.dgieVerLiquidacion(numero,z),900);
 };
 
 window.dgieDescargarLiquidacion=function(numero,zona){
