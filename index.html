@@ -6758,15 +6758,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       return Number.isFinite(n)?n:0;
     }
     // La planilla muestra el total redondeado pero guarda por debajo todos los
-    // decimales. Desde la sexta medición se toma el número tal como se ve en la
-    // celda; las mediciones anteriores quedan con el valor con el que se
-    // cargaron, para no alterar lo ya certificado.
-    const MEDICION_DESDE_VALOR_VISIBLE=6;
-    function medicionDelFormulario(){
-      return Number(document.getElementById('insp-cert-medicion')?.value||0)||0;
-    }
+    // decimales. Se toma el número tal como figura en la celda.
+    //
+    // No se condiciona por número de medición: la empresa sube el certificado
+    // sin ese dato, lo asigna después el inspector, así que al leer el archivo
+    // todavía no se sabe a qué medición va. Los certificados ya guardados no se
+    // ven afectados, porque esto solo corre al subir un archivo nuevo.
     function valorModulos(cell){
-      if(medicionDelFormulario()>=MEDICION_DESDE_VALOR_VISIBLE&&cell?.w!=null&&String(cell.w).trim()!==''){
+      if(cell?.w!=null&&String(cell.w).trim()!==''){
         const visto=numCert(cell.w);
         if(Number.isFinite(visto)&&visto>0)return visto;
       }
