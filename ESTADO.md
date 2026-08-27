@@ -13,7 +13,22 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
-Sin tareas de implementación abiertas. En Tableros, los listados y exportaciones de Reclamos y Órdenes de servicio muestran el CUE antes del establecimiento.
+Sin tareas de implementación abiertas.
+
+La nueva clasificación de rubros quedó aplicada en toda la plataforma. La regla es
+una sola: **el dato detallado siempre se guarda como está; agrupar es solo una forma
+de mostrar.**
+
+- Inspector, coordinación, dirección y portada: **once rubros detallados**.
+- Tableros: **seis rubros generales**. Pluvial entra en sanitaria; herrería, vidrios,
+  poda y pintura entran en albañilería.
+- Estado edilicio: **seis generales en todas las sesiones**, tanto para cargar los
+  porcentajes como para consultarlos.
+- Presupuesto: **no se tocó**, y no debe tocarse. Sus familias están atadas a
+  coeficientes y módulos.
+
+Verificado contra los datos reales: los totales coinciden en los dos niveles
+(3.668 reclamos y 3.687 órdenes), así que agrupar no pierde ningún registro.
 
 ---
 
@@ -71,7 +86,8 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-27 | `este commit` | Tableros: CUE antes del establecimiento en los listados de Reclamos y O.S., incluidos PDF y Excel | Codex |
+| 2026-08-27 | `este commit` | Nueva clasificación de rubros en toda la plataforma; se corrigió el promedio del estado edilicio, que había caído de 65% a 54% por contar como cero un rubro que nadie midió | Claude Code (terminó lo que venía haciendo Codex) |
+| 2026-08-27 | `24d8aee` | Tableros: CUE antes del establecimiento en los listados de Reclamos y O.S., incluidos PDF y Excel | Codex |
 | 2026-08-26 | `este commit` | Historial de certificados: descarga directa de Original, Inspector y Observado, sin abrir el visor | Codex |
 | 2026-08-26 | `589db0d` | Certificados observados: etapas Original/Inspector/Observado, módulos de la versión vigente y descarga funcional desde el historial | Codex |
 | 2026-08-26 | `d998bfc` | Administración: avisos de novedades cuando el inspector responde, deja una versión vigente o finaliza una observación | Codex |

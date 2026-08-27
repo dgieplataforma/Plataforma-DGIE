@@ -590,7 +590,7 @@ function renderRelevamientoFicha(estId){
     </div>
   `:rels.slice().reverse().map((rel,idx)=>{
     const isUltimo = idx===0;
-    const promRel = Math.round(RUBROS_RELEVAMIENTO.map(r=>valorRubroEstadoEdilicio(rel,r.key)).reduce((a,b)=>a+b,0)/RUBROS_RELEVAMIENTO.length);
+    const promRel = promedioRubrosEstadoEdilicio(rel) ?? 0;
     return `<div class="card" style="margin-bottom:12px;${isUltimo?'border:1.5px solid #005aa9':''}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
@@ -796,30 +796,36 @@ function renderOSEmpresa(container, zona){
 // ─── BASE DE DATOS RELEVAMIENTOS ────────────────────────────────────
 const RELEVAMIENTOS = {};
 const RUBROS_RELEVAMIENTO = [
-  {key:'sanitarios',   label:'Sanitarios',    color:'#0f766e'},
-  {key:'electricidad', label:'Electricidad',  color:'#f59e0b'},
-  {key:'cubierta',     label:'Cubierta',      color:'#2563eb'},
-  {key:'albanileria_herreria', label:'Albañilería', color:'#64748b'},
-  {key:'pintura',      label:'Pintura',       color:'#db2777'},
-  {key:'gas',          label:'Gas',           color:'#dc2626'},
-  {key:'carpinteria',  label:'Carpintería',   color:'#92400e'},
+  {key:'sanitarios',   label:'Instalación sanitaria', color:'#0f766e'},
+  {key:'electricidad', label:'Instalación eléctrica', color:'#f59e0b'},
+  {key:'gas',          label:'Instalación de gas',    color:'#dc2626'},
+  {key:'albanileria_herreria', label:'Albañilería',   color:'#64748b'},
+  {key:'cubierta',     label:'Cubierta de techos',    color:'#2563eb'},
+  {key:'otros',        label:'Otros',                  color:'#475569'},
 ];
 
+function clavesRubroEstadoEdilicio(key){
+  if(key==='sanitarios')return ['sanitarios','instalacion_sanitaria','pluviales','instalacion_pluvial'];
+  if(key==='albanileria_herreria')return ['albanileria_herreria','albanileria','herreria','vidrios','poda','pintura','carpinteria'];
+  return [key];
+}
+function tieneDatoRubroEstadoEdilicio(rel,key){
+  const rubros=rel?.rubros||{};
+  return clavesRubroEstadoEdilicio(key).some(k=>Object.prototype.hasOwnProperty.call(rubros,k)&&Number.isFinite(Number(rubros[k])));
+}
 function valorRubroEstadoEdilicio(rel,key){
   const rubros=rel?.rubros||{};
-  if(key==='albanileria_herreria'){
-    const combinado=Number(rubros.albanileria_herreria);
-    if(Object.prototype.hasOwnProperty.call(rubros,'albanileria_herreria')&&Number.isFinite(combinado)){
-      return Math.max(0,Math.min(100,combinado));
-    }
-    const historicos=['albanileria','herreria']
-      .filter(k=>Object.prototype.hasOwnProperty.call(rubros,k))
-      .map(k=>Number(rubros[k]))
-      .filter(Number.isFinite);
-    if(historicos.length)return Math.round(historicos.reduce((a,b)=>a+b,0)/historicos.length);
+  const claves=clavesRubroEstadoEdilicio(key);
+  if(Object.prototype.hasOwnProperty.call(rubros,key)&&Number.isFinite(Number(rubros[key]))){
+    return Math.max(0,Math.min(100,Number(rubros[key])));
   }
-  const valor=Number(rubros[key]);
-  return Number.isFinite(valor)?Math.max(0,Math.min(100,valor)):0;
+  const historicos=claves.filter(k=>k!==key&&Object.prototype.hasOwnProperty.call(rubros,k)).map(k=>Number(rubros[k])).filter(Number.isFinite);
+  if(historicos.length)return Math.round(historicos.reduce((a,b)=>a+b,0)/historicos.length);
+  return 0;
+}
+function promedioRubrosEstadoEdilicio(rel){
+  const valores=RUBROS_RELEVAMIENTO.filter(r=>tieneDatoRubroEstadoEdilicio(rel,r.key)).map(r=>valorRubroEstadoEdilicio(rel,r.key));
+  return valores.length?Math.round(valores.reduce((a,b)=>a+b,0)/valores.length):null;
 }
 
 function getUltimoRelevamiento(estId){
@@ -830,8 +836,10 @@ function getUltimoRelevamiento(estId){
 function getPromedioEstab(estId){
   const rel=getUltimoRelevamiento(estId);
   if(!rel) return null;
-  const vals=RUBROS_RELEVAMIENTO.map(r=>valorRubroEstadoEdilicio(rel,r.key));
-  return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+  // Promedia solo los rubros que tienen dato cargado. Si se promediaran todos,
+  // los rubros que un relevamiento viejo nunca completó entrarían como 0 y
+  // hundirían el porcentaje del establecimiento sin que nadie lo haya medido.
+  return promedioRubrosEstadoEdilicio(rel);
 }
 function getPromedioZona(zona){
   const estabs=ESTABS.filter(e=>e.zona===zona);
@@ -4148,7 +4156,7 @@ function renderChartInsp(){
 <script id="fix-inspector-charts-chatgpt-final-script">
 (function(){
   const INSPECTOR_CHART_IDS = ['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos','chart-insp-estado-os','chart-insp-modulos-presupuesto'];
-  const RUBROS_FIX = ['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
+  const RUBROS_FIX = ['Instalación sanitaria','Instalación pluvial','Instalación eléctrica','Instalación de gas','Albañilería','Cubierta de techos','Herrería','Vidrios','Poda','Pintura','Otros'];
   const chartStore = window.__inspChartsFix || (window.__inspChartsFix = {});
 
   function ready(){
@@ -5472,8 +5480,8 @@ function renderChartInsp(){
   }
   window.getUltimoRelevamiento=function(estId){return estadoEdilicioActual(estId)}
   window.renderEstadoEdilicioFicha=function(estId){
-    const rel=estadoEdilicioActual(estId), vals=RUBROS_RELEVAMIENTO.map(r=>valorRubroEstadoEdilicio(rel,r.key));
-    const prom=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+    const rel=estadoEdilicioActual(estId);
+    const prom=promedioRubrosEstadoEdilicio(rel) ?? 0;
     const can=currentUser?.role==='inspector';
     return `<div class="card-header"><div><div class="card-title">Estado Edilicio</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Porcentajes editables por rubro. Última actualización: ${escapeHtml(rel.fecha||'—')}</div></div>${can?`<button class="primary-btn" onclick="openEditarEstadoEdilicio(${Number(estId)})">Editar porcentajes</button>`:''}</div><div style="background:#e6f1fb;border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:30px;font-weight:900;color:#005aa9">${prom}%</div><div style="font-size:12px;color:#64748b;font-weight:800">Promedio del establecimiento</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">${RUBROS_RELEVAMIENTO.map(r=>{const v=valorRubroEstadoEdilicio(rel,r.key);return `<div style="background:#f8fafc;border:1px solid #e5edf6;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px"><b style="font-size:12px;color:#334155">${r.label}</b><b style="color:${r.color}">${v}%</b></div><div style="height:7px;background:#e2e8f0;border-radius:999px;overflow:hidden"><div style="height:100%;width:${v}%;background:${r.color}"></div></div></div>`}).join('')}</div>${rel.comentarios?`<div style="margin-top:12px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;color:#475569"><b>Observaciones:</b> ${escapeHtml(rel.comentarios)}</div>`:''}`;
   };
@@ -6795,7 +6803,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!txt)return '';
     if(txt.includes('sanit'))return 'Instalación sanitaria';
     if(txt.includes('elect'))return 'Instalación eléctrica';
-    if(txt.includes('gas'))return 'Gas';
+    if(txt.includes('gas'))return 'Instalacion de gas';
     if(txt.includes('cub')||txt.includes('tech'))return 'Cubierta de techos';
     if(txt.includes('alban')||txt.includes('albañ'))return 'Albañilería';
     if(txt.includes('herr'))return 'Herrería';
@@ -13061,13 +13069,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 <script id="dgie-rubros-oficiales">
 (function(){
   const RUBROS_OFICIALES = [
-    'Cubierta de techos',
-    'Pintura',
-    'Albañileria',
-    'Herreria',
-    'Instalacion electrica',
     'Instalacion sanitaria',
-    'Gas'
+    'Instalacion pluvial',
+    'Instalacion electrica',
+    'Instalacion de gas',
+    'Albañileria',
+    'Cubierta de techos',
+    'Herreria',
+    'Vidrios',
+    'Poda',
+    'Pintura',
+    'Otros'
   ];
 
   function claveRubro(valor){
@@ -13084,10 +13096,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(!k) return '';
     if(k.includes('PINTURA') || k.includes('PINTAR')) return 'Pintura';
     if(k.includes('AIRE ACONDICIONADO') || k.includes('SPLIT') || k.includes('ELECTRIC') || k.includes('ILUMINACION') || k.includes('LUMINARIA')) return 'Instalacion electrica';
+    if(k.includes('PLUVIAL') || k.includes('CANALETA') || k.includes('BAJADA DE AGUA')) return 'Instalacion pluvial';
     if(k.includes('BOMBA') || k.includes('CISTERNA') || k.includes('SANITAR') || k.includes('INODOR') || k.includes('CLOAC') || k.includes('DESOBSTRU') || k.includes('GRIFER') || k.includes('CANILLA')) return 'Instalacion sanitaria';
-    if(k.includes('CUBIERTA') || k.includes('TECHO') || k.includes('FILTRACION') || k.includes('IMPERMEABIL') || k.includes('CANALETA') || k.includes('PLUVIAL')) return 'Cubierta de techos';
+    if(k.includes('CUBIERTA') || k.includes('TECHO') || k.includes('FILTRACION') || k.includes('IMPERMEABIL')) return 'Cubierta de techos';
     if(k.includes('REJA') || k.includes('PORTON') || k.includes('CERRADURA') || k.includes('PICAPORTE') || k.includes('BISAGRA') || k.includes('METALIC') || k.includes('HERRER')) return 'Herreria';
-    if(k.includes('VIDRIO') || k.includes('ESPEJO') || k.includes('POLICARBONATO') || k.includes('PODA') || k.includes('ARBOL') || k.includes('ESTRUCTUR') || k.includes('DINTEL') || k.includes('NIVEL OPTICO') || k.includes('PIZARRON')) return 'Albañileria';
+    if(k.includes('VIDRIO') || k.includes('ESPEJO') || k.includes('POLICARBONATO')) return 'Vidrios';
+    if(k.includes('PODA') || k.includes('ARBOL')) return 'Poda';
+    if(k.includes('ESTRUCTUR') || k.includes('DINTEL') || k.includes('NIVEL OPTICO') || k.includes('PIZARRON')) return 'Albañileria';
     return '';
   }
 
@@ -13099,9 +13114,13 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(k === 'PINTURA ALBANILERIA HERRERIA') return inferirRubroPorTexto(texto) || 'Albañileria';
     if(k === 'ALBANILERIA') return 'Albañileria';
     if(k === 'HERRERIA') return 'Herreria';
+    if(k === 'VIDRIO' || k === 'VIDRIOS' || k === 'CARPINTERIA DE ALUMINIO') return 'Vidrios';
+    if(k === 'PODA' || k === 'PODAS') return 'Poda';
     if(k === 'ELECTRICIDAD' || k === 'INSTALACION ELECTRICA') return 'Instalacion electrica';
     if(k === 'SANITARIOS' || k === 'PLOMERIA' || k === 'INSTALACION SANITARIA') return 'Instalacion sanitaria';
-    if(k === 'GAS' || k === 'INSTALACION DE GAS') return 'Gas';
+    if(k === 'PLUVIALES' || k === 'INSTALACION PLUVIAL') return 'Instalacion pluvial';
+    if(k === 'GAS' || k === 'INSTALACION DE GAS') return 'Instalacion de gas';
+    if(k === 'OTRO' || k === 'OTROS' || k === 'SIN CLASIFICAR') return 'Otros';
     return String(valor || '').trim();
   }
 
@@ -13115,10 +13134,21 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       'Cubierta de techos': '#2563eb',
       'Pintura': '#db2777',
       'Albañileria': '#64748b',
+      'Albañilería': '#64748b',
       'Herreria': '#7c3aed',
+      'Herrería': '#7c3aed',
       'Instalacion electrica': '#f59e0b',
+      'Instalación eléctrica': '#f59e0b',
       'Instalacion sanitaria': '#0f766e',
+      'Instalación sanitaria': '#0f766e',
+      'Instalacion pluvial': '#0891b2',
+      'Instalación pluvial': '#0891b2',
       'Gas': '#dc2626',
+      'Instalacion de gas': '#dc2626',
+      'Instalación de gas': '#dc2626',
+      'Vidrios': '#0ea5e9',
+      'Poda': '#16a34a',
+      'Otros': '#475569',
       'Sin clasificar': '#475569'
     };
   }
@@ -13147,18 +13177,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const rubrosRel = typeof RUBROS_RELEVAMIENTO !== 'undefined' ? RUBROS_RELEVAMIENTO : window.RUBROS_RELEVAMIENTO;
     if(Array.isArray(rubrosRel)){
       const labels = {
-        sanitarios: 'Instalacion sanitaria',
-        electricidad: 'Instalacion electrica',
+        sanitarios: 'Instalación sanitaria',
+        electricidad: 'Instalación eléctrica',
+        gas: 'Instalación de gas',
+        albanileria_herreria: 'Albañilería',
         cubierta: 'Cubierta de techos',
-        albanileria: 'Albañileria',
-        herreria: 'Herreria',
-        pintura: 'Pintura',
-        gas: 'Gas'
+        otros: 'Otros'
       };
       for(let i = rubrosRel.length - 1; i >= 0; i--){
         const r = rubrosRel[i];
-        if(r.key === 'carpinteria') rubrosRel.splice(i, 1);
-        else if(labels[r.key]) r.label = labels[r.key];
+        if(labels[r.key]) r.label = labels[r.key];
       }
     }
   }
@@ -13170,6 +13198,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const original = el.dataset.rubroOriginal || '';
       const exacto = preservarValores[id] || (original && el.value === original ? original : '');
       el.innerHTML = opcionesRubrosHTML(exacto || el.value, !!exacto);
+      Array.from(el.options).forEach(o=>{if(typeof window.mostrarRubroDGIE==='function')o.textContent=window.mostrarRubroDGIE(o.value)});
       if(exacto) el.value = exacto;
     });
   }
@@ -13286,8 +13315,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       if(counts[rubro] == null) sinClasificar++;
       else counts[rubro]++;
     });
-    const labels = RUBROS_OFICIALES.slice();
-    const data = labels.map(label => counts[label] || 0);
+    const claves = RUBROS_OFICIALES.slice();
+    const labels = claves.map(mostrarRubro);
+    const data = claves.map(clave => counts[clave] || 0);
     if(sinClasificar){
       labels.push('Sin clasificar');
       data.push(sinClasificar);
@@ -13451,6 +13481,45 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     envolverDashboards.__done = true;
   }
 
+  const RUBROS_TABLEROS = [
+    'Instalacion sanitaria',
+    'Instalacion electrica',
+    'Instalacion de gas',
+    'Albañileria',
+    'Cubierta de techos',
+    'Otros'
+  ];
+  function agruparRubroTableros(valor,texto){
+    const detallado=normalizarRubro(valor,texto);
+    const k=claveRubro(detallado);
+    if(k==='INSTALACION PLUVIAL')return 'Instalacion sanitaria';
+    if(['ALBANILERIA','HERRERIA','VIDRIO','VIDRIOS','PODA','PINTURA','CARPINTERIA'].includes(k))return 'Albañileria';
+    if(k==='INSTALACION SANITARIA')return 'Instalacion sanitaria';
+    if(k==='INSTALACION ELECTRICA')return 'Instalacion electrica';
+    if(k==='GAS'||k==='INSTALACION DE GAS')return 'Instalacion de gas';
+    if(k==='CUBIERTA'||k==='CUBIERTA DE TECHOS')return 'Cubierta de techos';
+    return 'Otros';
+  }
+  function mostrarRubro(valor){
+    const normal=normalizarRubro(valor);
+    return {
+      'Instalacion sanitaria':'Instalación sanitaria',
+      'Instalacion pluvial':'Instalación pluvial',
+      'Instalacion electrica':'Instalación eléctrica',
+      'Instalacion de gas':'Instalación de gas',
+      'Albañileria':'Albañilería',
+      'Herreria':'Herrería'
+    }[normal]||normal||String(valor||'');
+  }
+  function rubroVisibleSesion(valor,texto,usuario){
+    const user=usuario||(typeof currentUser!=='undefined'?currentUser:null);
+    const rubro=user?.role==='tableros'?agruparRubroTableros(valor,texto):normalizarRubro(valor,texto);
+    return mostrarRubro(rubro);
+  }
+  window.rubroVisibleSesionDGIE=rubroVisibleSesion;
+  window.DGIE_RUBROS_TABLEROS=RUBROS_TABLEROS;
+  window.agruparRubroTablerosDGIE=agruparRubroTableros;
+  window.mostrarRubroDGIE=mostrarRubro;
   window.DGIE_RUBROS_OFICIALES = RUBROS_OFICIALES;
   window.normalizarRubroDGIE = normalizarRubro;
   window.rubroParaGraficoDGIE = rubroParaGrafico;
@@ -13789,7 +13858,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const r = buscarReclamoCallcenter(key);
     if(!r){ alert('No se encontró el reclamo para editar.'); return; }
     const rubros = (window.DGIE_RUBROS_OFICIALES || [])
-      .map(rb => `<option value="${escapeHtml(rb)}" ${rb === (typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : r.rubro) ? 'selected' : ''}>${escapeHtml(rb)}</option>`)
+      .map(rb => `<option value="${escapeHtml(rb)}" ${rb === (typeof window.normalizarRubroDGIE === 'function' ? window.normalizarRubroDGIE(r.rubro, r.titulo || r.descripcion || '') : r.rubro) ? 'selected' : ''}>${escapeHtml(window.mostrarRubroDGIE?.(rb)||rb)}</option>`)
       .join('');
     const bd = document.createElement('div');
     bd.id = 'cc-edit-reclamo-modal';
@@ -16237,18 +16306,23 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 
   const RUBROS_CERT = [
     ['Instalacion sanitaria','SAN'],
+    ['Instalacion pluvial','PLU'],
     ['Instalacion electrica','ELEC'],
-    ['Gas','GAS'],
-    ['Cubierta de techos','CUB'],
+    ['Instalacion de gas','GAS'],
     ['Albañileria','ALB'],
+    ['Cubierta de techos','CUB'],
     ['Herreria','HER'],
-    ['Pintura','PIN']
+    ['Vidrios','VID'],
+    ['Poda','POD'],
+    ['Pintura','PIN'],
+    ['Otros','OTR']
   ];
   function normRubro(v){
     const txt=String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    if(txt.includes('pluvial'))return 'Instalacion pluvial';
     if(txt.includes('sanit'))return 'Instalacion sanitaria';
     if(txt.includes('elect'))return 'Instalacion electrica';
-    if(txt.includes('gas'))return 'Gas';
+    if(txt.includes('gas'))return 'Instalacion de gas';
     if(txt.includes('cub')||txt.includes('tech'))return 'Cubierta de techos';
     if(txt.includes('alban')||txt.includes('albañ'))return 'Albañileria';
     if(txt.includes('herr'))return 'Herreria';
@@ -16258,7 +16332,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function displayRubro(r){
     return {
       'Instalacion sanitaria':'Instalación sanitaria',
+      'Instalacion pluvial':'Instalación pluvial',
       'Instalacion electrica':'Instalación eléctrica',
+      'Instalacion de gas':'Instalación de gas',
       'Cubierta de techos':'Cubierta de techos',
       'Albañileria':'Albañilería',
       'Herreria':'Herrería'
@@ -16270,12 +16346,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const key=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     const alias={
       IS:'Instalacion sanitaria',SAN:'Instalacion sanitaria',SANITARIA:'Instalacion sanitaria',INSTALACIONSANITARIA:'Instalacion sanitaria',
+      PL:'Instalacion pluvial',PLU:'Instalacion pluvial',PLUVIALES:'Instalacion pluvial',INSTALACIONPLUVIAL:'Instalacion pluvial',
       IE:'Instalacion electrica',ELEC:'Instalacion electrica',ELECTRICA:'Instalacion electrica',ELECTRICIDAD:'Instalacion electrica',INSTALACIONELECTRICA:'Instalacion electrica',
-      GA:'Gas',GAS:'Gas',
+      GA:'Instalacion de gas',GAS:'Instalacion de gas',INSTALACIONDEGAS:'Instalacion de gas',
       CU:'Cubierta de techos',CUB:'Cubierta de techos',CUBIERTA:'Cubierta de techos',TECHOS:'Cubierta de techos',CUBIERTADETECHOS:'Cubierta de techos',
       AL:'Albañileria',ALB:'Albañileria',ALBANILERIA:'Albañileria',
       HE:'Herreria',HER:'Herreria',HERRERIA:'Herreria',
-      PI:'Pintura',PIN:'Pintura',PINTURA:'Pintura'
+      VI:'Vidrios',VID:'Vidrios',VIDRIO:'Vidrios',VIDRIOS:'Vidrios',
+      PO:'Poda',POD:'Poda',PODA:'Poda',
+      PI:'Pintura',PIN:'Pintura',PINTURA:'Pintura',
+      OT:'Otros',OTR:'Otros',OTRO:'Otros',OTROS:'Otros'
     };
     if(alias[key])return alias[key];
     const byAbbr=RUBROS_CERT.find(([,abbr])=>abbr===key);
@@ -17419,7 +17499,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <td>${esc(o?.reclamoNumero||'—')}</td>
       <td>${esc(o?.establecimiento||'')}</td>
       <td>${esc(o?.tarea||'')}</td>
-      <td>${esc(o?.rubro||'')}</td>
+      <td>${esc(typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):(o?.rubro||''))}</td>
       <td>${esc(prioridadTexto(o))}</td>
       <td>${esc(o?.fecha||'—')}</td>
       <td>${esc(textoPlanoPDF(estadoLabel(o))||'—')}</td>
@@ -17535,7 +17615,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <td>${esc(o?.reclamoNumero||'—')}</td>
       <td>${esc(o?.establecimiento||'')}</td>
       <td><div class="os-task" tabindex="0">${esc(o?.tarea||'')}</div></td>
-      <td>${esc(o?.rubro||'')}</td>
+      <td>${esc(typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):(o?.rubro||''))}</td>
       <td>${prioridad}</td>
       <td>${esc(o?.fecha||'—')}</td>
       <td>${estado}</td>
@@ -18917,7 +18997,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   window.dgieReclamoCumpleDemora=reclamoCumpleDemora;
   function rubroRec(r){
-    return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,r?.titulo||r?.descripcion||''):String(r?.rubro||'');
+    return typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(r?.rubro,r?.titulo||r?.descripcion||'',currentUser):String(r?.rubro||'');
   }
   function textoRec(r){
     return `${reclamoNumero(r)} ${r?.numero||''} ${r?.est||r?.establecimiento||''} ${r?.titulo||''} ${r?.descripcion||''} ${r?.rubro||''} ${r?.os||''} ${osReclamoLabel(r)||''}`.toLowerCase();
@@ -19181,7 +19261,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(o,v)=>estadoOS(o)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(o,v)=>prioKey(o)===v},
       {key:'empresa',label:'Estado s/ empresa',options:()=>[opt('finalizada','Finalizada por empresa'),opt('sin','Sin informar')],test:(o,v)=>v==='finalizada'?empresaFin(o):!empresaFin(o)},
-      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(o=>o?.rubro)),test:(o,v)=>norm(o?.rubro)===norm(v)},
+      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(o=>typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):o?.rubro)),test:(o,v)=>norm(typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):o?.rubro)===norm(v)},
       {key:'cert',label:'Certificación',options:()=>[opt('certificado','Certificadas'),opt('sin','Sin certificar')],test:(o,v)=>v==='certificado'?osCertificado(o):!osCertificado(o)},
       {key:'medicion',label:'Medición',options:()=>uniqOptions((base||[]).flatMap(osMediciones).map(m=>`Medición Nº ${m}`)).map(o=>opt(o.value.replace(/\D+/g,''),o.label)),test:(o,v)=>osMediciones(o).includes(String(v))}
     );
@@ -19200,7 +19280,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <td>${esc(o?.reclamoNumero||'—')}</td>
       <td>${esc(o?.establecimiento||'')}</td>
       <td><div class="os-task" tabindex="0">${esc(o?.tarea||'')}</div></td>
-      <td>${esc(o?.rubro||'')}</td>
+      <td>${esc(typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):(o?.rubro||''))}</td>
       <td>${prioOSHtml(o)}</td>
       <td>${esc(o?.fecha||'—')}</td>
       <td>${estadoOSHtml(o,editable)}</td>
@@ -20401,7 +20481,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 </script>
 <script id="dgie-inspector-dashboard-charts-estables-2026-07-02">
 (function(){
-  const RUBROS_INSP=['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
+  const RUBROS_INSP=['Instalación sanitaria','Instalación pluvial','Instalación eléctrica','Instalación de gas','Albañilería','Cubierta de techos','Herrería','Vidrios','Poda','Pintura','Otros'];
   const IDS_INSP=['chart-insp-prioridad','chart-insp-estado-reclamos','chart-insp-estado-os','chart-insp-modulos-presupuesto','chart-insp-rubro-reclamos','chart-insp-rubro-mantenimientos'];
   const store=window.__dgieInspectorDashboardCharts||(window.__dgieInspectorDashboardCharts={});
   const chartSigs=window.__dgieInspectorDashboardChartSigs||(window.__dgieInspectorDashboardChartSigs={});
@@ -20431,18 +20511,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return 'medio';
   }
   function rubroLocal(item){
-    const txt=String(item?.rubro||item?.titulo||item?.tipo||item?.tarea||'Otro').trim();
-    const k=norm(txt);
-    if(k.includes('sanit')||k.includes('ban')||k.includes('cloac'))return 'Sanitarios';
-    if(k.includes('electric')||k.includes('ilumin'))return 'Electricidad';
-    if(k.includes('gas'))return 'Gas';
-    if(k.includes('cubierta')||k.includes('techo'))return 'Cubierta';
-    if(k.includes('alban')||k.includes('mampost')||k.includes('revoq'))return 'Albañilería';
-    if(k.includes('herrer')||k.includes('porton')||k.includes('reja'))return 'Herrería';
-    if(k.includes('pint'))return 'Pintura';
-    if(k.includes('carpint')||k.includes('puerta')||k.includes('cerradura'))return 'Carpintería';
-    if(k.includes('pluvial')||k.includes('canaleta')||k.includes('desague'))return 'Pluviales';
-    return RUBROS_INSP.includes(txt)?txt:'Otro';
+    if(typeof window.rubroVisibleSesionDGIE==='function')return window.rubroVisibleSesionDGIE(item?.rubro,item?.tarea||item?.titulo||item?.descripcion||'',currentUser)||'Otros';
+    return String(item?.rubro||'Otros');
   }
   function osDeReclamo(r,oss){
     if(typeof window.findOSForReclamo==='function'){
@@ -20612,7 +20682,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 </style>
 <script id="dgie-coord-dashboard-charts-estables-2026-07-02">
 (function(){
-  const RUBROS_COORD=['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
+  const RUBROS_COORD=['Instalación sanitaria','Instalación pluvial','Instalación eléctrica','Instalación de gas','Albañilería','Cubierta de techos','Herrería','Vidrios','Poda','Pintura','Otros'];
   const chartStore=window.__dgieCoordDashboardCharts||(window.__dgieCoordDashboardCharts={});
   const CHART_IDS_COORD=['chart-coord-prioridad','chart-coord-estado-reclamos','chart-coord-estado-os','chart-coord-modulos-presupuesto','chart-coord-rubro-reclamos','chart-coord-rubro-mantenimientos'];
   let lastCoordSig='';
@@ -20643,76 +20713,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return 'medio';
   }
   function rubroLocal(item){
-    const txt=String(item?.rubro||item?.titulo||item?.tipo||item?.tarea||'Otro').trim();
-    const k=norm(txt);
-    if(k.includes('sanit')||k.includes('ban')||k.includes('cloac'))return 'Sanitarios';
-    if(k.includes('electric')||k.includes('ilumin'))return 'Electricidad';
-    if(k.includes('gas'))return 'Gas';
-    if(k.includes('cubierta')||k.includes('techo'))return 'Cubierta';
-    if(k.includes('alban')||k.includes('mampost')||k.includes('revoq'))return 'Albañilería';
-    if(k.includes('herrer')||k.includes('porton')||k.includes('reja'))return 'Herrería';
-    if(k.includes('pint'))return 'Pintura';
-    if(k.includes('carpint')||k.includes('puerta')||k.includes('cerradura'))return 'Carpintería';
-    if(k.includes('pluvial')||k.includes('canaleta')||k.includes('desague'))return 'Pluviales';
-    return RUBROS_COORD.includes(txt)?txt:'Otro';
-  }
-  function datosCoord(){
-    try{
-      if(typeof coordDashboardData==='function')return coordDashboardData();
-    }catch(_e){}
-    const scope=Number(document.getElementById('coord-dashboard-zona')?.value||0);
-    const recs=(typeof RECLAMOS_ZONA!=='undefined'?RECLAMOS_ZONA:[]).filter(r=>!scope||zonaDe(r)===scope);
-    const oss=(typeof OS_ZONA!=='undefined'?OS_ZONA:[]).filter(o=>!scope||zonaDe(o)===scope);
-    return {zona:scope||null,label:scope?`Zona ${scope}`:'Todas las zonas',recs,oss,finalizadas:oss.filter(o=>estadoOSLocal(o)==='finalizado')};
-  }
-  function destruir(id){
-    const el=document.getElementById(id);
-    if(chartStore[id]&&typeof chartStore[id].destroy==='function')chartStore[id].destroy();
-    if(window.Chart&&el&&typeof Chart.getChart==='function'){
-      const prev=Chart.getChart(el);
-      if(prev&&typeof prev.destroy==='function')prev.destroy();
-    }
-    if(typeof chartInstances!=='undefined'&&chartInstances)chartInstances[id]=null;
-    chartStore[id]=null;
-  }
-  function chartsActivos(){
-    if(!window.Chart)return false;
-    return CHART_IDS_COORD.every(id=>{
-      const el=document.getElementById(id);
-      if(!el)return false;
-      if(typeof Chart.getChart==='function'&&Chart.getChart(el))return true;
-      return !!chartStore[id];
-    });
-  }
-  function donut(id,labels,data,colors){
-    const el=document.getElementById(id);
-    if(!el||!window.Chart)return;
-    destruir(id);
-    const clean=(data||[]).map(n=>Number(n)||0);
-    const has=clean.some(n=>n>0);
-    chartStore[id]=new Chart(el,{
-      type:'doughnut',
-      data:{labels:has?labels:['Sin datos'],datasets:[{data:has?clean:[1],backgroundColor:has?colors:['#e2e8f0'],borderWidth:0,hoverOffset:0}]},
-      options:{responsive:true,maintainAspectRatio:false,resizeDelay:120,animation:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:11,padding:10,color:'#64748b',font:{size:11,weight:'700'}}},tooltip:{enabled:has}}}
-    });
-  }
-  function hbar(id,labels,data){
-    const el=document.getElementById(id);
-    if(!el||!window.Chart)return;
-    destruir(id);
-    const cleanLabels=(labels||[]).length?labels:['Sin datos'];
-    const cleanData=(data||[]).length?data.map(n=>Number(n)||0):[0];
-    const has=cleanData.some(n=>n>0);
-    chartStore[id]=new Chart(el,{
-      type:'bar',
-      data:{labels:has?cleanLabels:['Sin datos'],datasets:[{data:has?cleanData:[1],backgroundColor:(has?cleanLabels:['Sin datos']).map(l=>typeof rubroColor==='function'?rubroColor(l):'#005aa9'),borderRadius:8,barThickness:18,maxBarThickness:22}]},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,resizeDelay:120,animation:false,plugins:{legend:{display:false},tooltip:{enabled:has}},scales:{x:{beginAtZero:true,ticks:{precision:0,color:'#64748b'},grid:{color:'rgba(15,23,42,.06)'}},y:{ticks:{color:'#334155',font:{weight:'700',size:11}},grid:{display:false}}}}
-    });
-  }
-  function contar(labels,items,getter){
-    const out=Object.fromEntries(labels.map(l=>[l,0]));
-    (items||[]).forEach(item=>{const k=getter(item);out[k]=Number(out[k]||0)+1});
-    return labels.map(l=>out[l]||0);
+    if(typeof window.rubroVisibleSesionDGIE==='function')return window.rubroVisibleSesionDGIE(item?.rubro,item?.tarea||item?.titulo||item?.descripcion||'',currentUser)||'Otros';
+    return String(item?.rubro||'Otros');
   }
   function osDeReclamo(r,oss){
     if(typeof window.findOSForReclamo==='function'){
@@ -20922,7 +20924,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
 <script id="dgie-inspector-charts-render-final-2026-07-02">
 (function(){
   'use strict';
-  const RUBROS=['Sanitarios','Electricidad','Gas','Cubierta','Albañilería','Herrería','Pintura','Carpintería','Pluviales','Otro'];
+  const RUBROS=['Instalación sanitaria','Instalación pluvial','Instalación eléctrica','Instalación de gas','Albañilería','Cubierta de techos','Herrería','Vidrios','Poda','Pintura','Otros'];
   const COLORS={prio:['#b91c1c','#ea580c','#2563eb','#16a34a'],estado:['#f59e0b','#7dd3fc','#2563eb','#16a34a','#dc2626'],os:['#16a34a','#2563eb','#f59e0b','#dc2626'],mod:['#005aa9','#dbe6f2']};
   const store=window.__dgieInspectorChartsFinal||(window.__dgieInspectorChartsFinal={});
   function norm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
@@ -20931,17 +20933,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function estadoOS(o){if(typeof getEstadoOS==='function')return norm(getEstadoOS(o));const e=norm(o?.estado);if(e.includes('final'))return 'finalizado';if(e.includes('trabaj'))return 'trabajando';if(e.includes('anul'))return 'anulado';return 'pendiente'}
   function prioridad(r){const p=norm(r?.prio||r?.prioridad||'medio');if(p.includes('critic'))return 'critico';if(p.includes('alt'))return 'alto';if(p.includes('baj'))return 'bajo';return 'medio'}
   function rubro(x){
-    const t=String(x?.rubro||x?.titulo||x?.tipo||x?.tarea||'Otro').trim(),k=norm(t);
-    if(k.includes('sanit')||k.includes('plomer')||k.includes('cloac')||k.includes('ban'))return 'Sanitarios';
-    if(k.includes('electric')||k.includes('luz')||k.includes('ilumin'))return 'Electricidad';
-    if(k.includes('gas'))return 'Gas';
-    if(k.includes('cubierta')||k.includes('techo'))return 'Cubierta';
-    if(k.includes('alban')||k.includes('mampost')||k.includes('revoq'))return 'Albañilería';
-    if(k.includes('herrer')||k.includes('porton')||k.includes('reja'))return 'Herrería';
-    if(k.includes('pint'))return 'Pintura';
-    if(k.includes('carpint')||k.includes('puerta')||k.includes('cerradura'))return 'Carpintería';
-    if(k.includes('pluvial')||k.includes('canaleta')||k.includes('desague'))return 'Pluviales';
-    return RUBROS.includes(t)?t:'Otro';
+    if(typeof window.rubroVisibleSesionDGIE==='function')return window.rubroVisibleSesionDGIE(x?.rubro,x?.tarea||x?.titulo||x?.descripcion||'',currentUser)||'Otros';
+    return String(x?.rubro||'Otros');
   }
   function osReclamo(r,oss){
     if(typeof findOSForReclamo==='function'){try{return findOSForReclamo(r,oss)||null}catch(_e){}}
@@ -22530,7 +22523,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function promedioRel(rel){
     if(!rel)return null;
-    const vals=RUBROS_RELEVAMIENTO.map(r=>rubroNum(rel,r.key));
+    // Solo entran los rubros que tienen dato cargado: si se promediaran todos,
+    // los que un relevamiento viejo nunca completó contarían como 0 y bajarían
+    // el porcentaje del establecimiento sin que nadie los haya medido.
+    const vals=RUBROS_RELEVAMIENTO.filter(r=>tieneDatoRubroEstadoEdilicio(rel,r.key)).map(r=>rubroNum(rel,r.key));
     return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
   }
   function promedioEstabReal(estId){
@@ -25322,17 +25318,17 @@ function zonas(){const el=document.getElementById('te-zonas');if(!el)return;el.i
 window.seleccionarZonaTablerosEstado=z=>{zona=zona===Number(z)?null:Number(z);zonas();detalle()};
 window.seleccionarNivelTablerosEstado=n=>{nivel=n;document.querySelectorAll('[data-te-nivel]').forEach(b=>b.classList.toggle('active',b.dataset.teNivel===n));detalle()};
 const CTX='tab-estado-edilicio';
-function filasEstado(){return ESTABS.map(e=>{const rel=getUltimoRelevamiento(e.id),p=getPromedioEstab(e.id);return {establecimiento:e.n||e.nombre||'',zona:Number(e.zona)||'',nivel:e.nivel||'Sin nivel',estado:rel?'Con relevamiento':'Sin datos',fecha:rel?.fecha||'',promedio:p,sanitarios:rel?valorRubroEstadoEdilicio(rel,'sanitarios'):null,electricidad:rel?valorRubroEstadoEdilicio(rel,'electricidad'):null,cubierta:rel?valorRubroEstadoEdilicio(rel,'cubierta'):null,albanileria:rel?valorRubroEstadoEdilicio(rel,'albanileria_herreria'):null,pintura:rel?valorRubroEstadoEdilicio(rel,'pintura'):null,gas:rel?valorRubroEstadoEdilicio(rel,'gas'):null,carpinteria:rel?valorRubroEstadoEdilicio(rel,'carpinteria'):null}})}
+function filasEstado(){return ESTABS.map(e=>{const rel=getUltimoRelevamiento(e.id),p=getPromedioEstab(e.id);const fila={establecimiento:e.n||e.nombre||'',zona:Number(e.zona)||'',nivel:e.nivel||'Sin nivel',estado:rel?'Con relevamiento':'Sin datos',fecha:rel?.fecha||'',promedio:p};RUBROS_RELEVAMIENTO.forEach(r=>{fila[r.key]=rel&&tieneDatoRubroEstadoEdilicio(rel,r.key)?valorRubroEstadoEdilicio(rel,r.key):null});return fila})}
 function opcionesUnicas(rows,key){return [...new Set(rows.map(x=>String(x[key]??'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).map(v=>({value:v,label:v}))}
 function rangoPromedio(item,value){if(item.promedio===null)return false;const [a,b]=String(value).split('-').map(Number);return item.promedio>=a&&item.promedio<=b}
 function camposTabla(rows){return [{key:'zona',label:'Zona',options:Array.from({length:17},(_,i)=>({value:String(i+1),label:'Zona '+(i+1)})),test:(x,v)=>String(x.zona)===String(v)},{key:'establecimiento',label:'Establecimiento',options:opcionesUnicas(rows,'establecimiento')},{key:'nivel',label:'Nivel',options:opcionesUnicas(rows,'nivel')},{key:'estado',label:'Estado de carga',options:[{value:'Con relevamiento',label:'Con relevamiento'},{value:'Sin datos',label:'Sin datos'}]},{key:'promedio',label:'Promedio',options:[{value:'0-20',label:'0% a 20%'},{value:'21-40',label:'21% a 40%'},{value:'41-60',label:'41% a 60%'},{value:'61-80',label:'61% a 80%'},{value:'81-100',label:'81% a 100%'}],test:rangoPromedio}]}
 function isoFecha(v){const s=String(v||'');if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);const p=s.split('/');return p.length>=3?`${String(p[2]).length===2?'20'+p[2]:p[2]}-${String(p[1]).padStart(2,'0')}-${String(p[0]).padStart(2,'0')}`:''}
 function pct(v){return v===null?'S/D':v+'%'}
-window.filtrarTablaEstadoEdilicio=function(){const base=filasEstado(),q=normal(document.getElementById('te-tabla-q')?.value),desde=document.getElementById('te-tabla-desde')?.value||'',hasta=document.getElementById('te-tabla-hasta')?.value||'';const rows=base.filter(x=>{if(q&&!normal(Object.values(x).join(' ')).includes(q))return false;if(!window.dgieSmartMatches?.(CTX,x))return false;const f=isoFecha(x.fecha);if(desde&&(!f||f<desde))return false;if(hasta&&(!f||f>hasta))return false;return true});window.DGIE_SMART_FILTER_LAST=window.DGIE_SMART_FILTER_LAST||{};window.DGIE_SMART_FILTER_LAST[CTX]={title:'Estado edilicio de establecimientos',type:'estado-edilicio',rows:rows.slice(),total:base.length};const count=document.getElementById('te-tabla-count');if(count)count.textContent=`${rows.length} visibles de ${base.length}`;const body=document.getElementById('te-tabla-body');if(body)body.innerHTML=rows.length?rows.map(x=>`<tr><td>${E(x.zona)}</td><td class="te-estab">${E(x.establecimiento)}</td><td>${E(x.nivel)}</td><td>${E(x.estado)}</td><td>${pct(x.sanitarios)}</td><td>${pct(x.electricidad)}</td><td>${pct(x.cubierta)}</td><td>${pct(x.albanileria)}</td><td>${pct(x.pintura)}</td><td>${pct(x.gas)}</td><td>${pct(x.carpinteria)}</td><td><b>${pct(x.promedio)}</b></td><td>${E(x.fecha||'—')}</td></tr>`).join(''):'<tr><td colspan="13" class="te-empty">No hay establecimientos para los filtros seleccionados</td></tr>'};
+window.filtrarTablaEstadoEdilicio=function(){const base=filasEstado(),q=normal(document.getElementById('te-tabla-q')?.value),desde=document.getElementById('te-tabla-desde')?.value||'',hasta=document.getElementById('te-tabla-hasta')?.value||'';const rows=base.filter(x=>{if(q&&!normal(Object.values(x).join(' ')).includes(q))return false;if(!window.dgieSmartMatches?.(CTX,x))return false;const f=isoFecha(x.fecha);if(desde&&(!f||f<desde))return false;if(hasta&&(!f||f>hasta))return false;return true});window.DGIE_SMART_FILTER_LAST=window.DGIE_SMART_FILTER_LAST||{};window.DGIE_SMART_FILTER_LAST[CTX]={title:'Estado edilicio de establecimientos',type:'estado-edilicio',rows:rows.slice(),total:base.length};const count=document.getElementById('te-tabla-count');if(count)count.textContent=`${rows.length} visibles de ${base.length}`;const body=document.getElementById('te-tabla-body');if(body)body.innerHTML=rows.length?rows.map(x=>`<tr><td>${E(x.zona)}</td><td class="te-estab">${E(x.establecimiento)}</td><td>${E(x.nivel)}</td><td>${E(x.estado)}</td>${RUBROS_RELEVAMIENTO.map(r=>`<td>${pct(x[r.key])}</td>`).join('')}<td><b>${pct(x.promedio)}</b></td><td>${E(x.fecha||'—')}</td></tr>`).join(''):`<tr><td colspan="${headersEstado.length}" class="te-empty">No hay establecimientos para los filtros seleccionados</td></tr>`};
 function filasExport(){return window.DGIE_SMART_FILTER_LAST?.[CTX]?.rows||[]}
-const headersEstado=['Zona','Establecimiento','Nivel','Estado','Sanitarios','Electricidad','Cubierta','Albañilería','Pintura','Gas','Carpintería','Promedio','Última actualización'];
-function valoresEstado(x){return [x.zona,x.establecimiento,x.nivel,x.estado,pct(x.sanitarios),pct(x.electricidad),pct(x.cubierta),pct(x.albanileria),pct(x.pintura),pct(x.gas),pct(x.carpinteria),pct(x.promedio),x.fecha||'']}
-window.exportarEstadoEdilicioExcel=function(){const rows=filasExport();if(!rows.length){alert('No hay establecimientos visibles para exportar.');return}const aoa=[headersEstado,...rows.map(valoresEstado)];if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:headersEstado.length-1}})};ws['!cols']=[{wch:7},{wch:42},{wch:16},{wch:18},...Array(8).fill({wch:14}),{wch:20}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Estado edilicio');XLSX.writeFile(wb,`DGIE_Estado_Edilicio_${new Date().toISOString().slice(0,10)}.xlsx`);return}const csv=aoa.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');const u=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download='DGIE_Estado_Edilicio.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),500)};
+const headersEstado=['Zona','Establecimiento','Nivel','Estado',...RUBROS_RELEVAMIENTO.map(r=>r.label),'Promedio','Última actualización'];
+function valoresEstado(x){return [x.zona,x.establecimiento,x.nivel,x.estado,...RUBROS_RELEVAMIENTO.map(r=>pct(x[r.key])),pct(x.promedio),x.fecha||'']}
+window.exportarEstadoEdilicioExcel=function(){const rows=filasExport();if(!rows.length){alert('No hay establecimientos visibles para exportar.');return}const aoa=[headersEstado,...rows.map(valoresEstado)];if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:headersEstado.length-1}})};ws['!cols']=[{wch:7},{wch:42},{wch:16},{wch:18},...Array(RUBROS_RELEVAMIENTO.length+1).fill({wch:14}),{wch:20}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Estado edilicio');XLSX.writeFile(wb,`DGIE_Estado_Edilicio_${new Date().toISOString().slice(0,10)}.xlsx`);return}const csv=aoa.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');const u=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download='DGIE_Estado_Edilicio.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),500)};
 window.exportarEstadoEdilicioPDF=function(){const rows=filasExport();if(!rows.length){alert('No hay establecimientos visibles para exportar.');return}const th=headersEstado.map(x=>`<th>${E(x)}</th>`).join(''),tr=rows.map(x=>`<tr>${valoresEstado(x).map(v=>`<td>${E(v||'—')}</td>`).join('')}</tr>`).join(''),w=window.open('','_blank');if(!w){alert('Permití ventanas emergentes para generar el PDF.');return}w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Estado edilicio</title><style>@page{size:A4 landscape;margin:7mm}body{font-family:Arial;font-size:7.5pt;color:#0f172a}h1{font-size:15pt;color:#123c69;margin:0 0 4px}.meta{color:#64748b;margin-bottom:10px}table{width:100%;border-collapse:collapse}th{background:#123c69;color:#fff;padding:5px;text-align:left}td{border:1px solid #cbd5e1;padding:4px}tr:nth-child(even){background:#f8fafc}.actions{margin-bottom:10px}@media print{.actions{display:none}}</style></head><body><div class="actions"><button onclick="print()">Imprimir / Guardar PDF</button></div><h1>Estado edilicio de establecimientos</h1><div class="meta">${rows.length} visibles de ${window.DGIE_SMART_FILTER_LAST?.[CTX]?.total||rows.length} · ${E(new Date().toLocaleString('es-AR'))}</div><table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></body></html>`);w.document.close();setTimeout(()=>w.print(),300)};
 function tablaEstadoHTML(){const rows=filasEstado(),smart=window.dgieSmartSetup?.(CTX,camposTabla(rows),'filtrarTablaEstadoEdilicio')||'',chips=window.dgieSmartChipsSlot?.(CTX)||'';return `<div class="card te-tabla-card"><div class="card-header"><div><div class="card-title">Estado edilicio de todos los establecimientos</div><div class="te-sub">Filtros acumulables por zona, establecimiento, nivel, estado de carga y promedio.</div></div><div class="dgie-smart-head-actions"><span class="badge b-info" id="te-tabla-count">${rows.length} visibles de ${rows.length}</span><button class="secondary-btn" onclick="exportarEstadoEdilicioPDF()">PDF filtrado</button><button class="secondary-btn" onclick="exportarEstadoEdilicioExcel()">Excel</button></div></div><div class="os-filters"><input class="estab-search" id="te-tabla-q" placeholder="Buscar establecimiento, zona, nivel, porcentaje o fecha..." oninput="filtrarTablaEstadoEdilicio()">${smart}<div class="dgie-date-range"><label class="dgie-date-field"><span>Desde</span><input class="filter-sel" id="te-tabla-desde" type="date" onchange="filtrarTablaEstadoEdilicio()"></label><label class="dgie-date-field"><span>Hasta</span><input class="filter-sel" id="te-tabla-hasta" type="date" onchange="filtrarTablaEstadoEdilicio()"></label></div></div>${chips}<div class="te-table-wrap"><table class="os-table te-table"><thead><tr>${headersEstado.map(x=>`<th>${E(x)}</th>`).join('')}</tr></thead><tbody id="te-tabla-body"></tbody></table></div></div>`}
 window.renderTablerosEstadoEdilicio=main=>{if(!main)return;const p=promedioPublico(ESTABS);main.innerHTML=`<div class="section-label">Tableros · Estado edilicio</div><div class="te-wrap"><div class="landing-row2"><div class="landing-promedio-card"><div class="landing-promedio-val">${p===null?'—':p+'%'}</div><div class="landing-promedio-lbl">% Promedio<br>general</div></div><div class="landing-zonas-card"><div class="landing-zonas-title">Situación por zona · % de rubros intervenidos</div><div class="landing-zonas-scroll"><div id="te-zonas"></div></div><div class="zona-bar-legend"><div class="zona-bar-legend-item"><i style="background:linear-gradient(90deg,#1a6b3c,#3da86e)"></i>Con relevamiento real</div><div class="zona-bar-legend-item"><i style="background:#e2e8f0"></i>Sin datos</div></div></div></div><div class="landing-row3"><div class="landing-detail-card"><div class="landing-detail-title">Ranking de escuelas <span class="landing-detail-zone-tag" data-te-tag>todas las zonas</span></div><div class="te-niveles">${N.map(([k,l])=>`<button class="landing-zone-btn ${k==='general'?'active':''}" data-te-nivel="${k}" onclick="seleccionarNivelTablerosEstado('${k}')">${l}</button>`).join('')}</div><div id="te-resumen"></div><div id="te-ranking"></div></div><div class="landing-detail-card"><div class="landing-detail-title">Situación por rubro <span class="landing-detail-zone-tag" data-te-tag>todas las zonas</span></div><div id="te-rubros"></div></div></div><div id="te-tabla-slot">${tablaEstadoHTML()}</div></div>`;zonas();detalle();filtrarTablaEstadoEdilicio()};
@@ -26354,7 +26350,7 @@ body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Me
     return typeof window.limpiarMetaEstadoInspectorReclamo==='function'?window.limpiarMetaEstadoInspectorReclamo(raw):raw;
   }
   function numeroReclamo(r){return typeof reclamoNumeroVisible==='function'?reclamoNumeroVisible(r):(r?.numero||'')}
-  function rubroReclamo(r){return typeof window.normalizarRubroDGIE==='function'?window.normalizarRubroDGIE(r?.rubro,r?.titulo||r?.descripcion||''):(r?.rubro||'')}
+  function rubroReclamo(r){return typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(r?.rubro,r?.titulo||r?.descripcion||'',currentUser):(r?.rubro||'')}
   function medicionesOS(o){
     const certs=typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[];
     const num=String(o?.numero||'').trim();
@@ -26391,7 +26387,7 @@ body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Me
   function filas(tipo){return window.DGIE_SMART_FILTER_LAST?.[tipo==='reclamos'?'coord-rec':'coord-os']?.rows||[]}
   function datos(tipo){
     if(tipo==='reclamos')return {titulo:'Tableros · Reclamos',headers:['N° Reclamo','Zona','CUE','Establecimiento','Descripción','Rubro','Fecha','Prioridad','Estado','O.S.','Recibido'],rows:filas(tipo).map(r=>{const os=osReclamo(r);return [numeroReclamo(r),zona(r),cue(r),r?.est||r?.establecimiento||'',tituloReclamo(r),rubroReclamo(r),r?.fecha||'',prioridad(r?.prio||r?.prioridad),estadoReclamo(r),os?.numero||'—',(r?.recibidoEn||r?.recibido_en)?'Recibido':'Sin recibir']})};
-    return {titulo:'Tableros · Órdenes de servicio',headers:['Orden de servicio','Zona','N° reclamo','CUE','Establecimiento','Tarea','Rubro','Prioridad','Fecha de envío','Estado','Estado s/ empresa','Fecha finalización','Certificado','Presupuesto'],rows:filas(tipo).map(o=>[o?.numero||'',zona(o),o?.reclamoNumero||'',cue(o),o?.establecimiento||'',o?.tarea||'',o?.rubro||'',prioridad(o?.prio),o?.fecha||'',estadoOS(o),o?.empresaFinalizo?'Finalizada por empresa':'Sin informar',o?.fechaFinalizacion||'',medicionesOS(o).length?`Medición ${medicionesOS(o).join(', ')}`:'—',o?.presupuesto??o?.monto??''])};
+    return {titulo:'Tableros · Órdenes de servicio',headers:['Orden de servicio','Zona','N° reclamo','CUE','Establecimiento','Tarea','Rubro','Prioridad','Fecha de envío','Estado','Estado s/ empresa','Fecha finalización','Certificado','Presupuesto'],rows:filas(tipo).map(o=>[o?.numero||'',zona(o),o?.reclamoNumero||'',cue(o),o?.establecimiento||'',o?.tarea||'',(typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):(o?.rubro||'')),prioridad(o?.prio),o?.fecha||'',estadoOS(o),o?.empresaFinalizo?'Finalizada por empresa':'Sin informar',o?.fechaFinalizacion||'',medicionesOS(o).length?`Medición ${medicionesOS(o).join(', ')}`:'—',o?.presupuesto??o?.monto??''])};
   }
   function resumenFiltros(tipo){
     const ctx=tipo==='reclamos'?'coord-rec':'coord-os', filters=window.DGIE_SMART_FILTERS?.[ctx]||[];
