@@ -13,7 +13,18 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
-Sin tareas de implementación abiertas.
+**Planilla de liquidación mensual.** Primera versión publicada, se sigue afinando.
+
+- Botón "Liquidación" en la medición, a partir de la **medición 7**.
+- Necesitaba un dato que no existía: los módulos por rubro. Se lee del Excel al subir
+  el certificado y se guarda en `modulos_por_rubro`. Falta correr
+  `supabase-liquidacion-modulos-por-rubro.sql`.
+- Los cinco rubros de la liquidación son los del pliego (cubierta, electricidad,
+  albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
+- El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
+  carga a mano en el panel y queda recordado por zona.
+- Pendiente de definir con el usuario: si el acumulado debe arrastrar los montos de las
+  mediciones anteriores tal como figuran en la planilla firmada.
 
 La nueva clasificación de rubros quedó aplicada en toda la plataforma. La regla es
 una sola: **el dato detallado siempre se guarda como está; agrupar es solo una forma
@@ -90,7 +101,8 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-27 | `este commit` | Los certificados toman los módulos tal como se ven en la planilla, no con todos los decimales de fondo. Rige en toda carga nueva; lo ya guardado no se toca | Claude Code |
+| 2026-08-27 | `este commit` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
+| 2026-08-27 | `cd02025` | Los certificados toman los módulos tal como se ven en la planilla, no con todos los decimales de fondo. Rige en toda carga nueva; lo ya guardado no se toca | Claude Code |
 | 2026-08-27 | `b1c93f0` | Primera versión de lo anterior, condicionada a la medición 6. No servía: la empresa sube sin número de medición | Claude Code |
 | 2026-08-27 | `408e74a` | Cerrajería como rubro detallado y filtros de rubro con el catálogo completo; en certificados el filtro ofrecía combinaciones y escondía registros | Claude Code |
 | 2026-08-27 | `e15747c` | Nueva clasificación de rubros en toda la plataforma; se corrigió el promedio del estado edilicio, que había caído de 65% a 54% por contar como cero un rubro que nadie midió | Claude Code (terminó lo que venía haciendo Codex) |

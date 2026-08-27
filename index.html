@@ -26567,5 +26567,490 @@ body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Me
   setTimeout(enganchar,2000);
 })();
 </script>
+<style id="dgie-liquidacion-estilos">
+.dgie-liq-wrap{overflow:auto;margin-top:12px}
+.dgie-liq{border-collapse:collapse;font-size:11px;min-width:1100px}
+.dgie-liq th,.dgie-liq td{border:1px solid #9aa5b1;padding:4px 6px;white-space:nowrap}
+.dgie-liq thead th{background:#123c69;color:#fff;font-weight:800;text-align:center;vertical-align:middle}
+.dgie-liq .est{white-space:normal;min-width:230px;text-align:left}
+.dgie-liq .num{text-align:right}
+.dgie-liq tfoot td{font-weight:900;background:#e8eef6}
+.dgie-liq .sin-trabajos{color:#94a3b8}
+.dgie-liq-cabecera{font-size:12px;line-height:1.5;margin-bottom:10px}
+.dgie-liq-cabecera b{color:#123c69}
+.dgie-liq-aviso{margin:10px 0;padding:9px 11px;border:1px solid #e2b36a;border-left:4px solid #d97706;border-radius:9px;background:#fdf5e7;color:#8a5300;font-size:12px;font-weight:700}
+</style>
+<script id="dgie-liquidacion-mensual-2026-08-27">
+(function(){
+'use strict';
+
+// ────────────────────────────────────────────────────────────────────
+// Planilla de liquidacion mensual.
+//
+// Replica la planilla oficial: una fila por orden de servicio, con los
+// modulos abiertos en los cinco rubros del pliego, y al pie el acumulado
+// de todas las mediciones hasta la que se esta mirando.
+//
+// El desglose por rubro no estaba en la base: vive dentro del Excel del
+// certificado, en la celda de total de cada rubro. Se lee al subir el
+// archivo y se guarda en `modulos_por_rubro`.
+// ────────────────────────────────────────────────────────────────────
+
+const DESDE_MEDICION = 7;   // la liquidacion automatica rige a partir de aca
+
+// Los cinco rubros del pliego. No son los de la plataforma: aca pintura,
+// albañileria y herreria van juntas, y no existen pluvial, vidrios ni poda.
+const RUBROS_LIQ = [
+  {key:'cubierta',     etiqueta:'CUBIERTA',     nro:1},
+  {key:'electricidad', etiqueta:'ELECTRICIDAD', nro:2},
+  {key:'albanileria',  etiqueta:'ALBAÑILERIA',  nro:3},
+  {key:'sanitaria',    etiqueta:'SANITARIA',    nro:4},
+  {key:'gas',          etiqueta:'GAS',          nro:5}
+];
+
+// Un color por medicion, como en la planilla firmada.
+const COLORES_MEDICION = ['#fde8e8','#e7f3ea','#e6eefb','#fdf1e0','#f0e9f7','#e4f5f7','#f7f0e4','#eef0f2'];
+function colorMedicion(n){return COLORES_MEDICION[(Math.max(1,Number(n)||1)-1)%COLORES_MEDICION.length]}
+
+const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const ORDINALES = ['1RA','2DA','3RA','4TA','5TA','6TA','7MA','8VA','9NA','10MA','11VA','12VA'];
+function ordinal(n){return ORDINALES[Math.max(1,Number(n)||1)-1]||`${n}°`}
+
+const esc=v=>typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const num=v=>Number(String(v??'').replace(',','.'))||0;
+const certs=()=>typeof CERTIFICADOS_MEDICION!=='undefined'&&Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[];
+const usuario=()=>typeof currentUser!=='undefined'?currentUser:null;
+function fmt(v,dec=2){return Number(v||0).toLocaleString('es-AR',{minimumFractionDigits:dec,maximumFractionDigits:dec})}
+function pesos(v){return '$ '+fmt(v,2)}
+
+// ────────────────────────────────────────────────────────────────────
+// 1. Leer el desglose por rubro del Excel
+// ────────────────────────────────────────────────────────────────────
+// Los rubros se ubican por el numero de item (1 a 5) y el nombre en
+// mayusculas, no por el color: la libreria que usa la plataforma no lee
+// los rellenos, y ademas el numero es mas estable que el formato.
+function normTexto(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+
+function desgloseDeHoja(ws){
+  if(!ws||!ws['!ref'])return null;
+  const rango=XLSX.utils.decode_range(ws['!ref']);
+  const celda=(r,c)=>ws[XLSX.utils.encode_cell({r,c})];
+
+  // El bloque del ultimo rubro termina donde empiezan los totales generales.
+  let limite=rango.e.r, filaTotal=-1;
+  for(let r=rango.s.r;r<=rango.e.r&&filaTotal<0;r++){
+    for(let c=rango.s.c;c<=rango.e.c;c++){
+      const t=normTexto(celda(r,c)?.v);
+      if(t.includes('TOTAL')&&t.includes('MODULOS')&&t.includes('MEDIDOS')){filaTotal=r;limite=r-1;break}
+    }
+  }
+
+  const bloques=[];
+  for(let r=rango.s.r;r<=limite;r++){
+    const nro=String(celda(r,0)?.v??'').trim();
+    const nombre=String(celda(r,1)?.v??'').trim();
+    if(/^[1-5]$/.test(nro)&&nombre.length>5&&nombre===nombre.toUpperCase())
+      bloques.push({nro:Number(nro),desde:r});
+  }
+  if(!bloques.length)return null;
+
+  const rubros={};
+  RUBROS_LIQ.forEach(r=>{rubros[r.key]=0});
+  bloques.forEach((bl,i)=>{
+    const hasta=i+1<bloques.length?bloques[i+1].desde-1:limite;
+    for(let r=bl.desde;r<=hasta;r++){
+      const g=celda(r,6);
+      if(typeof g?.v==='number'){
+        const def=RUBROS_LIQ.find(x=>x.nro===bl.nro);
+        if(def)rubros[def.key]=g.v;
+        break;   // el total del rubro es el primer valor de la columna TOTAL del bloque
+      }
+    }
+  });
+
+  // Debajo de "TOTAL DE MODULOS MEDIDOS" van el total, el precio del modulo
+  // y el monto. Se toma el precio para dejarlo guardado con el certificado.
+  let precio=null;
+  if(filaTotal>=0){
+    const valores=[];
+    for(let r=filaTotal;r<=Math.min(filaTotal+4,rango.e.r);r++){
+      const g=celda(r,6);
+      if(typeof g?.v==='number')valores.push(g.v);
+    }
+    if(valores.length>=2)precio=valores[1];
+  }
+
+  const total=RUBROS_LIQ.reduce((a,r)=>a+num(rubros[r.key]),0);
+  return {rubros, total:Math.round(total*1e6)/1e6, precio_modulo:precio};
+}
+
+window.dgieLeerDesgloseCertificado=async function(file){
+  if(!file||!window.XLSX||!/\.(xls|xlsx|xlsm)$/i.test(file.name||''))return null;
+  try{
+    const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+    const ws=wb.Sheets['ANEXO - ITEM Y C.C.']||wb.Sheets[wb.SheetNames[0]];
+    return desgloseDeHoja(ws);
+  }catch(e){
+    console.warn('No se pudo leer el desglose por rubro del certificado',e);
+    return null;
+  }
+};
+
+// El desglose se guarda al subir cualquier archivo, sin condicionar por
+// numero de medicion: la empresa sube el certificado antes de que ese dato
+// exista, lo asigna despues el inspector.
+function recordarDesglose(file){
+  if(!file)return;
+  window.dgieLeerDesgloseCertificado(file).then(d=>{ if(d)window.__DGIE_ULTIMO_DESGLOSE__={archivo:file.name,...d}; });
+}
+document.addEventListener('change',ev=>{
+  const input=ev.target;
+  if(input?.type!=='file')return;
+  const f=input.files?.[0];
+  if(f&&/\.(xls|xlsx|xlsm)$/i.test(f.name||''))recordarDesglose(f);
+},true);
+
+// Se adjunta al guardado, sin reemplazarlo. Si la columna todavia no existe
+// en la base, el guardado del desglose se descarta en silencio y el resto
+// del certificado se guarda igual.
+function conDesglose(patch,file){
+  const d=window.__DGIE_ULTIMO_DESGLOSE__;
+  if(!d)return patch;
+  if(file&&d.archivo&&d.archivo!==file.name)return patch;
+  return Object.assign({},patch,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
+}
+window.dgieAdjuntarDesglose=conDesglose;
+
+function sinDesglose(patch){const p=Object.assign({},patch);delete p.modulos_por_rubro;delete p.precio_modulo;return p}
+function faltaLaColumna(e){return /modulos_por_rubro|precio_modulo|does not exist|PGRST204|schema cache/i.test(String(e?.message||e||''))}
+function usado(){window.__DGIE_ULTIMO_DESGLOSE__=null}
+
+// Al guardar un certificado que trae archivo nuevo, se adjunta el desglose.
+const actualizarPrev=window.actualizarCertificado;
+if(typeof actualizarPrev==='function'){
+  window.actualizarCertificado=async function(id,patch){
+    const traeArchivo=patch&&(patch.url_inspector||patch.url_original||patch.url_final);
+    if(!traeArchivo||!window.__DGIE_ULTIMO_DESGLOSE__)return actualizarPrev.apply(this,arguments);
+    const conD=conDesglose(patch);
+    try{ const r=await actualizarPrev.call(this,id,conD); usado(); return r; }
+    catch(e){
+      if(!faltaLaColumna(e))throw e;
+      return actualizarPrev.call(this,id,sinDesglose(conD));
+    }
+  };
+}
+
+// Lo mismo para la primera carga, la que hace la empresa.
+const crearPrev=window.DGIE_DB&&window.DGIE_DB.crearCertificadoMedicion;
+if(typeof crearPrev==='function'){
+  window.DGIE_DB.crearCertificadoMedicion=async function(row){
+    if(!window.__DGIE_ULTIMO_DESGLOSE__)return crearPrev.apply(this,arguments);
+    const conD=conDesglose(row);
+    const res=await crearPrev.call(this,conD);
+    if(res&&res.error&&faltaLaColumna(res.error))return crearPrev.call(this,sinDesglose(conD));
+    usado();
+    return res;
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 2. Datos para armar la planilla
+// ────────────────────────────────────────────────────────────────────
+function zonaActual(){return Number(usuario()?.zona||0)}
+function datosZona(z){
+  const emp=(typeof EMPRESAS_DATA!=='undefined'&&EMPRESAS_DATA[z])||{};
+  const insp=(typeof INSPECTORS!=='undefined'&&INSPECTORS[Number(z)-1])||'';
+  return {
+    zona:z,
+    empresa:emp.razonSocial||'',
+    expediente:emp.expediente||'',
+    inspector:insp
+  };
+}
+function certsDeZona(z){
+  return certs().filter(c=>String(c?.estado||'')!=='eliminado'&&Number(c?.zona)===Number(z));
+}
+function certsDeMedicion(z,n){
+  return certsDeZona(z).filter(c=>String(c?.estado||'')==='medido'&&String(c?.medicion_numero||'')===String(n));
+}
+function modulosFinales(c){
+  return typeof window.modulosCertificadoFinal==='function'
+    ? num(window.modulosCertificadoFinal(c))
+    : num(c?.modulos_final??c?.modulos_inspector??c?.modulos_original);
+}
+// El precio del modulo viene dentro del Excel del certificado. Mientras no
+// haya certificados con ese dato guardado, se usa el ultimo que se haya
+// indicado a mano para la zona, para que los montos no queden en cero.
+function clavePrecio(z){return 'dgie_precio_modulo_zona_'+Number(z)}
+function precioGuardadoZona(z){
+  try{return num(localStorage.getItem(clavePrecio(z)))}catch(_){return 0}
+}
+window.dgieFijarPrecioModulo=function(z,valor){
+  const v=num(valor);
+  try{ v>0?localStorage.setItem(clavePrecio(z),String(v)):localStorage.removeItem(clavePrecio(z)); }catch(_){}
+};
+function precioModulo(lista,z){
+  const p=(lista||[]).map(c=>num(c?.precio_modulo)).find(v=>v>0);
+  if(p)return p;
+  const enLaZona=certsDeZona(z).map(c=>num(c?.precio_modulo)).find(v=>v>0);
+  return enLaZona||precioGuardadoZona(z);
+}
+function ordenesDe(c){
+  return typeof window.certOrdenes==='function'
+    ? (window.certOrdenes(c)||[])
+    : String(c?.ordenes_servicio_certificado||'').split(',').map(x=>x.trim()).filter(Boolean);
+}
+function periodoDe(lista){
+  const p=lista.map(c=>String(c?.periodo||'').trim()).find(Boolean);
+  if(p)return p.toUpperCase();
+  const f=lista.map(c=>c?.fecha_medicion||c?.updated_at).filter(Boolean).sort()[0];
+  if(!f)return '';
+  const d=new Date(f);
+  return isNaN(d)?'':MESES[d.getMonth()];
+}
+
+// Desglose de un certificado. Si no esta guardado, se reparte de la unica
+// forma segura: cuando el certificado declara un solo rubro, el total va
+// entero ahi. Si declara varios, no se puede repartir sin el Excel y se
+// devuelve incompleto para avisarlo en pantalla.
+const MAPA_CODIGOS={
+  CUB:'cubierta', ELEC:'electricidad', ALB:'albanileria', HER:'albanileria',
+  PIN:'albanileria', VID:'albanileria', POD:'albanileria', CER:'albanileria',
+  SAN:'sanitaria', PLU:'sanitaria', GAS:'gas'
+};
+function desgloseDe(c){
+  const guardado=c?.modulos_por_rubro;
+  if(guardado&&typeof guardado==='object'){
+    const r={};
+    RUBROS_LIQ.forEach(x=>{r[x.key]=num(guardado[x.key])});
+    if(RUBROS_LIQ.some(x=>r[x.key]>0))return {rubros:r,completo:true};
+  }
+  const codigos=(typeof window.certRubrosCodigos==='function'?(window.certRubrosCodigos(c)||[]):[])
+    .map(x=>MAPA_CODIGOS[String(x).toUpperCase()]).filter(Boolean);
+  const unicos=[...new Set(codigos)];
+  const r={};
+  RUBROS_LIQ.forEach(x=>{r[x.key]=0});
+  if(unicos.length===1){ r[unicos[0]]=modulosFinales(c); return {rubros:r,completo:true}; }
+  return {rubros:r,completo:false};
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 3. Armar la planilla
+// ────────────────────────────────────────────────────────────────────
+function ordenDe(item){
+  return typeof window.dgieOrdenEstablecimiento==='function'?window.dgieOrdenEstablecimiento(item):0;
+}
+function filasDeMedicion(z,n){
+  const lista=certsDeMedicion(z,n);
+  const ordenada=typeof window.dgieOrdenarPorPlanilla==='function'?window.dgieOrdenarPorPlanilla(lista):lista;
+  const filas=ordenada.map(c=>{
+    const d=desgloseDe(c);
+    return {
+      cert:c,
+      nro:ordenDe(c),
+      establecimiento:c?.establecimiento_nombre||'',
+      os:ordenesDe(c).join('-'),
+      rubros:d.rubros,
+      completo:d.completo,
+      total:modulosFinales(c)
+    };
+  });
+
+  // La planilla oficial lista todos los establecimientos de la zona: los que
+  // no tuvieron trabajos en el mes aparecen igual, con 0,00.
+  const conCertificado=new Set(filas.map(f=>Number(f.cert?.establecimiento_id)).filter(Boolean));
+  const todos=(typeof ESTABS!=='undefined'&&Array.isArray(ESTABS)?ESTABS:[]).filter(e=>Number(e?.zona)===Number(z));
+  const vacios={};
+  RUBROS_LIQ.forEach(r=>{vacios[r.key]=0});
+  todos.forEach(e=>{
+    if(conCertificado.has(Number(e.id)))return;
+    filas.push({
+      cert:null, nro:ordenDe(e),
+      establecimiento:e?.n||e?.nombre||'',
+      os:'', rubros:vacios, completo:true, total:0, sinTrabajos:true
+    });
+  });
+
+  return filas.sort((a,b)=>
+    (a.nro-b.nro) ||
+    String(a.establecimiento).localeCompare(String(b.establecimiento),'es') ||
+    String(a.os).localeCompare(String(b.os),'es',{numeric:true})
+  );
+}
+
+function totalesDeMedicion(z,n){
+  const filas=filasDeMedicion(z,n);
+  const rubros={};
+  RUBROS_LIQ.forEach(r=>{rubros[r.key]=0});
+  let total=0;
+  filas.forEach(f=>{
+    RUBROS_LIQ.forEach(r=>{rubros[r.key]+=num(f.rubros[r.key])});
+    total+=f.total;
+  });
+  const precio=precioModulo(certsDeMedicion(z,n),z);
+  return {medicion:n, rubros, total:Math.round(total*1e6)/1e6, monto:total*precio, precio, filas};
+}
+
+function medicionesHasta(z,n){
+  const nums=[...new Set(certsDeZona(z)
+    .filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero!=null)
+    .map(c=>Number(c.medicion_numero)))]
+    .filter(x=>x>0&&x<=Number(n)).sort((a,b)=>a-b);
+  return nums.length?nums:[Number(n)];
+}
+
+function planillaHTML(z,n){
+  const info=datosZona(z);
+  const acumulado=medicionesHasta(z,n).map(m=>totalesDeMedicion(z,m));
+  const actual=acumulado.find(x=>Number(x.medicion)===Number(n))||totalesDeMedicion(z,n);
+  const periodo=periodoDe(certsDeMedicion(z,n));
+  const incompletos=actual.filas.filter(f=>!f.completo).length;
+  const colDe=m=>colorMedicion(m);
+
+  const cabecera=`<div class="dgie-liq-cabecera">
+    <div><b>LICITACIÓN PÚBLICA N° 04/2024 - PRÓRROGA</b> · "Contratación para el servicio de mantenimiento y reparaciones generales en establecimientos educativos de Córdoba Capital"</div>
+    <div><b>Expediente:</b> ${esc(info.expediente||'—')} · <b>Renglón:</b> ${esc(z)} · <b>Zona:</b> ${esc(z)}</div>
+    <div><b>Empresa:</b> ${esc(info.empresa||'—')} · <b>Inspector:</b> ${esc(info.inspector||'—')}</div>
+    <div><b>Valor del módulo:</b> ${actual.precio?pesos(actual.precio):'—'} · <b>Medición N° ${esc(n)}</b>${periodo?' · '+esc(periodo):''}</div>
+  </div>`;
+
+  const aviso=incompletos?`<div class="dgie-liq-aviso">${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro: abarcan más de un rubro y el reparto sólo está dentro del Excel. Al volver a cargar el archivo, el desglose se guarda solo y la planilla se completa.</div>`:'';
+
+  const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
+  const thMontos=acumulado.map(m=>`<th style="background:${colDe(m.medicion)};color:#123c69">MONTO TOTAL<br>MEDICIÓN N° ${esc(m.medicion)}</th>`).join('');
+
+  const cuerpo=actual.filas.map(f=>{
+    const cero=f.total<=0;
+    return `<tr${cero?' class="sin-trabajos"':''}>
+      <td class="num">${f.nro&&f.nro<9999?esc(f.nro):''}</td>
+      <td class="est">${esc(f.establecimiento)}</td>
+      <td class="num">${esc(f.os)}</td>
+      ${RUBROS_LIQ.map(r=>`<td class="num">${num(f.rubros[r.key])?fmt(f.rubros[r.key]):''}</td>`).join('')}
+      <td class="num" style="background:${colDe(n)}"><b>${fmt(f.total)}</b></td>
+      ${acumulado.map(m=>`<td class="num">${Number(m.medicion)===Number(n)?pesos(f.total*actual.precio):''}</td>`).join('')}
+    </tr>`;
+  }).join('');
+
+  const pie=acumulado.map(m=>`<tr>
+      <td colspan="2" style="background:${colDe(m.medicion)}">${esc(ordinal(m.medicion))} MEDICIÓN</td>
+      <td></td>
+      ${RUBROS_LIQ.map(r=>`<td class="num">${fmt(m.rubros[r.key])}</td>`).join('')}
+      <td class="num" style="background:${colDe(m.medicion)}">${fmt(m.total)}</td>
+      ${acumulado.map(x=>`<td class="num">${Number(x.medicion)===Number(m.medicion)?pesos(m.monto):''}</td>`).join('')}
+    </tr>`).join('');
+
+  const totalAcumulado=acumulado.reduce((a,m)=>a+m.total,0);
+  const montoAcumulado=acumulado.reduce((a,m)=>a+m.monto,0);
+
+  return `${cabecera}${aviso}<div class="dgie-liq-wrap"><table class="dgie-liq">
+    <thead>
+      <tr>
+        <th rowspan="2">NRO</th><th rowspan="2">ESTABLECIMIENTO</th><th rowspan="2">ORDEN DE<br>SERVICIO</th>
+        <th colspan="${RUBROS_LIQ.length}">CANTIDAD DE MÓDULOS POR RUBRO</th>
+        <th rowspan="2" style="background:${colDe(n)};color:#123c69">MEDICIÓN N° ${esc(n)}${periodo?'<br>'+esc(periodo):''}</th>
+        <th colspan="${acumulado.length}">MONTOS</th>
+      </tr>
+      <tr>${thRubros}${thMontos}</tr>
+    </thead>
+    <tbody>${cuerpo||`<tr><td colspan="${RUBROS_LIQ.length+4+acumulado.length}" style="text-align:center;padding:18px;color:#64748b">No hay certificados en esta medición.</td></tr>`}</tbody>
+    <tfoot>
+      ${pie}
+      <tr>
+        <td colspan="${RUBROS_LIQ.length+3}">ACUMULADO HASTA LA MEDICIÓN N° ${esc(n)}</td>
+        <td class="num">${fmt(totalAcumulado)}</td>
+        <td class="num" colspan="${acumulado.length}">${pesos(montoAcumulado)}</td>
+      </tr>
+    </tfoot>
+  </table></div>`;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 4. Pantalla y descarga
+// ────────────────────────────────────────────────────────────────────
+window.dgieVerLiquidacion=function(numero,zona){
+  const z=Number(zona||zonaActual());
+  const cont=document.getElementById('med-detalle')||document.getElementById('coord-cert-medicion-detalle')||document.getElementById('main-content');
+  if(!cont)return;
+  let caja=document.getElementById('dgie-liq-caja');
+  if(!caja){
+    caja=document.createElement('div');
+    caja.id='dgie-liq-caja';
+    caja.className='card';
+    caja.style.marginTop='14px';
+    cont.appendChild(caja);
+  }
+  caja.innerHTML=`<div class="card-header">
+      <div><div class="card-title">Liquidación · Medición N° ${esc(numero)} · Zona ${esc(z)}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">Planilla mensual con los módulos abiertos por rubro y el acumulado de todas las mediciones.</div></div>
+      <div class="med-actions">
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px">Valor del módulo
+          <input class="form-input" id="dgie-liq-precio" type="number" min="0" step="0.01" style="width:130px"
+                 value="${precioModulo(certsDeMedicion(z,numero),z)||''}" placeholder="0,00"
+                 onchange="dgieFijarPrecioModulo(${Number(z)},this.value);dgieVerLiquidacion('${esc(numero)}',${Number(z)})">
+        </label>
+        <button class="primary-btn" onclick="dgieDescargarLiquidacion('${esc(numero)}',${Number(z)})">Descargar Excel</button>
+        <button class="secondary-btn" onclick="document.getElementById('dgie-liq-caja')?.remove()">Cerrar</button>
+      </div>
+    </div>${planillaHTML(z,numero)}`;
+  caja.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+window.dgieDescargarLiquidacion=function(numero,zona){
+  const z=Number(zona||zonaActual());
+  const html=`<html><head><meta charset="utf-8"></head><body>${planillaHTML(z,numero)}</body></html>`;
+  const blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`liquidacion-zona-${z}-medicion-${numero}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},0);
+};
+
+// ────────────────────────────────────────────────────────────────────
+// 5. Botones en la tarjeta de la medicion
+// ────────────────────────────────────────────────────────────────────
+function medicionDeLaTarjeta(cabecera){
+  const t=cabecera?.querySelector('.card-title')?.textContent||'';
+  const m=t.match(/Medici[óo]n\s*N[°º]?\s*([\d]+)/i);
+  return m?m[1]:'';
+}
+function agregarBotones(){
+  document.querySelectorAll('#med-detalle .med-card > .card-header, #coord-cert-medicion-detalle .med-card > .card-header').forEach(cab=>{
+    const acciones=cab.querySelector('.med-actions');
+    if(!acciones||acciones.querySelector('[data-dgie-liq]'))return;
+    const numero=medicionDeLaTarjeta(cab);
+    if(!numero||Number(numero)<DESDE_MEDICION)return;
+    const z=zonaActual()||Number(String(cab.querySelector('.card-title')?.textContent||'').match(/Zona\s*(\d+)/i)?.[1]||0);
+    const excel=[...acciones.querySelectorAll('button')].find(b=>/Descargar Excel/i.test(b.textContent||''));
+    if(excel&&!excel.dataset.dgieRenombrado){
+      excel.dataset.dgieRenombrado='1';
+      excel.textContent='Resumen mensual';
+      excel.title='Resumen empresa – inspector';
+    }
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='primary-btn';
+    btn.dataset.dgieLiq='1';
+    btn.textContent='Liquidación';
+    btn.onclick=()=>window.dgieVerLiquidacion(numero,z);
+    acciones.appendChild(btn);
+  });
+}
+window.dgieAgregarBotonLiquidacion=agregarBotones;
+
+['abrirMedicionInspector','abrirMedicionCoord','verMedicionCoord'].forEach(nombre=>{
+  const previo=window[nombre];
+  if(typeof previo!=='function')return;
+  window[nombre]=function(){
+    const res=previo.apply(this,arguments);
+    setTimeout(agregarBotones,120);
+    setTimeout(agregarBotones,520);
+    return res;
+  };
+});
+new MutationObserver(()=>setTimeout(agregarBotones,0)).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 </body>
 </html>
