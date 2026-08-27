@@ -6757,6 +6757,21 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const n=Number(s);
       return Number.isFinite(n)?n:0;
     }
+    // La planilla muestra el total redondeado pero guarda por debajo todos los
+    // decimales. Desde la sexta medición se toma el número tal como se ve en la
+    // celda; las mediciones anteriores quedan con el valor con el que se
+    // cargaron, para no alterar lo ya certificado.
+    const MEDICION_DESDE_VALOR_VISIBLE=6;
+    function medicionDelFormulario(){
+      return Number(document.getElementById('insp-cert-medicion')?.value||0)||0;
+    }
+    function valorModulos(cell){
+      if(medicionDelFormulario()>=MEDICION_DESDE_VALOR_VISIBLE&&cell?.w!=null&&String(cell.w).trim()!==''){
+        const visto=numCert(cell.w);
+        if(Number.isFinite(visto)&&visto>0)return visto;
+      }
+      return cell?.v;
+    }
     // Intento 1: buscar la etiqueta "TOTAL DE MODULOS MEDIDOS" y leer la celda adyacente a la derecha.
     // En algunas planillas G720 es el monto en pesos (= modulos * valor modulo), no la cantidad de modulos.
     const ref=ws['!ref'];
@@ -6771,7 +6786,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         if(txt.includes('TOTAL')&&txt.includes('MODULOS')&&txt.includes('MEDIDOS')){
           for(let dc=1;dc<=5;dc++){
             const adj=ws[XLSX.utils.encode_cell({r,c:c+dc})];
-            if(adj?.v!=null&&adj.v!=='')return adj.v;
+            if(adj?.v!=null&&adj.v!=='')return valorModulos(adj);
           }
         }
       }
@@ -6782,7 +6797,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(monto>0&&valorModulo>0&&monto>valorModulo)return monto/valorModulo;
     // Intento 3: compatibilidad con planillas viejas donde G720 si era la cantidad de modulos.
     const fijo=ws?.G720?.v;
-    if(fijo!=null&&fijo!=='')return fijo;
+    if(fijo!=null&&fijo!=='')return valorModulos(ws.G720);
     return '';
   }
   window.leerModulosCertificadoArchivo=leerG720;
