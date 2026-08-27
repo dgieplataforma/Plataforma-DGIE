@@ -13076,6 +13076,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     'Albañileria',
     'Cubierta de techos',
     'Herreria',
+    'Cerrajeria',
     'Vidrios',
     'Poda',
     'Pintura',
@@ -13099,7 +13100,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(k.includes('PLUVIAL') || k.includes('CANALETA') || k.includes('BAJADA DE AGUA')) return 'Instalacion pluvial';
     if(k.includes('BOMBA') || k.includes('CISTERNA') || k.includes('SANITAR') || k.includes('INODOR') || k.includes('CLOAC') || k.includes('DESOBSTRU') || k.includes('GRIFER') || k.includes('CANILLA')) return 'Instalacion sanitaria';
     if(k.includes('CUBIERTA') || k.includes('TECHO') || k.includes('FILTRACION') || k.includes('IMPERMEABIL')) return 'Cubierta de techos';
-    if(k.includes('REJA') || k.includes('PORTON') || k.includes('CERRADURA') || k.includes('PICAPORTE') || k.includes('BISAGRA') || k.includes('METALIC') || k.includes('HERRER')) return 'Herreria';
+    if(k.includes('CERRAJ') || k.includes('CERRADURA') || k.includes('PICAPORTE') || k.includes('CANDADO') || k.includes('LLAVE')) return 'Cerrajeria';
+    if(k.includes('REJA') || k.includes('PORTON') || k.includes('BISAGRA') || k.includes('METALIC') || k.includes('HERRER')) return 'Herreria';
     if(k.includes('VIDRIO') || k.includes('ESPEJO') || k.includes('POLICARBONATO')) return 'Vidrios';
     if(k.includes('PODA') || k.includes('ARBOL')) return 'Poda';
     if(k.includes('ESTRUCTUR') || k.includes('DINTEL') || k.includes('NIVEL OPTICO') || k.includes('PIZARRON')) return 'Albañileria';
@@ -13114,6 +13116,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(k === 'PINTURA ALBANILERIA HERRERIA') return inferirRubroPorTexto(texto) || 'Albañileria';
     if(k === 'ALBANILERIA') return 'Albañileria';
     if(k === 'HERRERIA') return 'Herreria';
+    if(k === 'CERRAJERIA') return 'Cerrajeria';
     if(k === 'VIDRIO' || k === 'VIDRIOS' || k === 'CARPINTERIA DE ALUMINIO') return 'Vidrios';
     if(k === 'PODA' || k === 'PODAS') return 'Poda';
     if(k === 'ELECTRICIDAD' || k === 'INSTALACION ELECTRICA') return 'Instalacion electrica';
@@ -13137,6 +13140,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       'Albañilería': '#64748b',
       'Herreria': '#7c3aed',
       'Herrería': '#7c3aed',
+      'Cerrajeria': '#a855f7',
+      'Cerrajería': '#a855f7',
       'Instalacion electrica': '#f59e0b',
       'Instalación eléctrica': '#f59e0b',
       'Instalacion sanitaria': '#0f766e',
@@ -13493,7 +13498,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const detallado=normalizarRubro(valor,texto);
     const k=claveRubro(detallado);
     if(k==='INSTALACION PLUVIAL')return 'Instalacion sanitaria';
-    if(['ALBANILERIA','HERRERIA','VIDRIO','VIDRIOS','PODA','PINTURA','CARPINTERIA'].includes(k))return 'Albañileria';
+    if(['ALBANILERIA','HERRERIA','CERRAJERIA','VIDRIO','VIDRIOS','PODA','PINTURA','CARPINTERIA'].includes(k))return 'Albañileria';
     if(k==='INSTALACION SANITARIA')return 'Instalacion sanitaria';
     if(k==='INSTALACION ELECTRICA')return 'Instalacion electrica';
     if(k==='GAS'||k==='INSTALACION DE GAS')return 'Instalacion de gas';
@@ -13508,7 +13513,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       'Instalacion electrica':'Instalación eléctrica',
       'Instalacion de gas':'Instalación de gas',
       'Albañileria':'Albañilería',
-      'Herreria':'Herrería'
+      'Herreria':'Herrería',
+      'Cerrajeria':'Cerrajería'
     }[normal]||normal||String(valor||'');
   }
   function rubroVisibleSesion(valor,texto,usuario){
@@ -18692,6 +18698,18 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     });
     return [...map.values()].sort((a,b)=>a.label.localeCompare(b.label,'es'));
   }
+  // Opciones de rubro para los filtros. Se ofrece el catálogo completo que
+  // corresponde a la sesión, aunque todavía no haya ningún registro con ese
+  // rubro: si sólo se listara lo presente, un rubro recién incorporado sería
+  // imposible de filtrar. Se agrega además cualquier valor que aparezca en los
+  // datos y no esté en el catálogo, para que nada quede sin poder filtrarse.
+  function opcionesRubro(valores){
+    const catalogo=(currentUser?.role==='tableros'
+      ? (window.DGIE_RUBROS_TABLEROS||[])
+      : (window.DGIE_RUBROS_OFICIALES||[])
+    ).map(v=>window.mostrarRubroDGIE?.(v)||v);
+    return uniqOptions(catalogo.concat(valores||[]));
+  }
   function injectSmartStyle(){
     if(byId('dgie-smart-filters-style'))return;
     const st=document.createElement('style');
@@ -19042,7 +19060,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):(!reclamoTieneOS(r)&&!['anulado','derivado'].includes(estadoReclamo(r)))},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'antiguedad',label:'Demora',options:()=>[opt('reclamo_mas_15','Reclamo pendiente hace más de 15 días'),opt('os_mas_15','O.S. activa enviada hace más de 15 días')],test:reclamoCumpleDemora},
-      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)},
+      {key:'rubro',label:'Rubro',options:()=>opcionesRubro((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)},
       {key:'recibido',label:'Recibido',options:()=>[opt('si','Recibido'),opt('no','Sin recibir')],test:(r,v)=>v==='si'?reclamoRecibido(r):!reclamoRecibido(r)}
     );
     return fields;
@@ -19261,7 +19279,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('trabajando','Trabajando'),opt('finalizado','Finalizado'),opt('anulado','Anulado')],test:(o,v)=>estadoOS(o)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(o,v)=>prioKey(o)===v},
       {key:'empresa',label:'Estado s/ empresa',options:()=>[opt('finalizada','Finalizada por empresa'),opt('sin','Sin informar')],test:(o,v)=>v==='finalizada'?empresaFin(o):!empresaFin(o)},
-      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(o=>typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):o?.rubro)),test:(o,v)=>norm(typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):o?.rubro)===norm(v)},
+      {key:'rubro',label:'Rubro',options:()=>opcionesRubro((base||[]).map(o=>typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):o?.rubro)),test:(o,v)=>norm(typeof window.rubroVisibleSesionDGIE==='function'?window.rubroVisibleSesionDGIE(o?.rubro,o?.tarea||'',currentUser):o?.rubro)===norm(v)},
       {key:'cert',label:'Certificación',options:()=>[opt('certificado','Certificadas'),opt('sin','Sin certificar')],test:(o,v)=>v==='certificado'?osCertificado(o):!osCertificado(o)},
       {key:'medicion',label:'Medición',options:()=>uniqOptions((base||[]).flatMap(osMediciones).map(m=>`Medición Nº ${m}`)).map(o=>opt(o.value.replace(/\D+/g,''),o.label)),test:(o,v)=>osMediciones(o).includes(String(v))}
     );
@@ -19377,6 +19395,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function certsZonaSmart(z){return (window.CERTIFICADOS_MEDICION||[]).filter(c=>String(c?.estado||'')!=='eliminado'&&Number(zonaCert(c))===Number(z))}
   function certRubros(c){return typeof window.certRubroVisible==='function'?String(window.certRubroVisible(c)||''):String(c?.rubro_certificado||'')}
+  function rubrosCertLista(c){return certRubros(c).split(',').map(x=>x.trim()).filter(Boolean)}
   function certOrdenesSmart(c){return typeof window.certOrdenes==='function'?(window.certOrdenes(c)||[]):String(c?.orden_servicio||c?.os||'').split(/[,\s]+/).filter(Boolean)}
   function num(v){return Number(String(v??'').replace(',','.'))||0}
   function mods(v){return num(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3})}
@@ -19384,7 +19403,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function certFields(base){
     return [
       {key:'estado',label:'Estado',options:()=>[opt('pendiente','Pendiente'),opt('devuelto','Devuelto'),opt('medido','En medición')],test:(c,v)=>v==='pendiente'?['pendiente','revision'].includes(String(c?.estado||'pendiente')):String(c?.estado||'pendiente')===v},
-      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(certRubros)),test:(c,v)=>norm(certRubros(c))===norm(v)},
+      // Un certificado puede abarcar varios rubros. Se ofrecen sueltos y se
+      // busca dentro de la lista del certificado, para poder pedir "Herrería"
+      // y que aparezcan también los que la incluyen junto con otros rubros.
+      {key:'rubro',label:'Rubro',options:()=>opcionesRubro((base||[]).flatMap(c=>rubrosCertLista(c))),test:(c,v)=>rubrosCertLista(c).some(x=>norm(x)===norm(v))},
       {key:'medicion',label:'Medición',options:()=>uniqOptions((base||[]).map(c=>c?.medicion_numero).filter(Boolean).map(n=>`Medición Nº ${n}`)).map(o=>opt(o.value.replace(/\D+/g,''),o.label)),test:(c,v)=>String(c?.medicion_numero||'')===String(v)},
       {key:'orden',label:'Orden de servicio',options:()=>uniqOptions((base||[]).flatMap(certOrdenesSmart).map(o=>`O.S. ${o}`)).map(o=>opt(o.value.replace(/[^\dA-Za-z-]/g,''),o.label)),test:(c,v)=>certOrdenesSmart(c).some(o=>String(o)===String(v)||String(o).endsWith(String(v)))}
     ];
@@ -19544,7 +19566,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):(!reclamoTieneOS(r)&&!['anulado','derivado'].includes(estadoCallcenter(r).key))},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
-      {key:'rubro',label:'Rubro',options:()=>uniqOptions((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
+      {key:'rubro',label:'Rubro',options:()=>opcionesRubro((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
     ];
   }
   function callcenterRows(){
