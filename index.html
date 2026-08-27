@@ -26821,10 +26821,14 @@ function certsDeZona(z){
 function certsDeMedicion(z,n){
   return certsDeZona(z).filter(c=>String(c?.estado||'')==='medido'&&String(c?.medicion_numero||'')===String(n));
 }
+// Los modulos se toman redondeados a dos decimales, tal como salen del
+// certificado, y el monto se calcula con ese mismo numero. Lo que se ve en la
+// planilla es lo que se cobra: no se liquida sobre decimales que no figuran.
 function modulosFinales(c){
-  return typeof window.modulosCertificadoFinal==='function'
+  const v=typeof window.modulosCertificadoFinal==='function'
     ? num(window.modulosCertificadoFinal(c))
     : num(c?.modulos_final??c?.modulos_inspector??c?.modulos_original);
+  return Math.round(v*100)/100;
 }
 // El precio del modulo viene dentro del Excel del certificado. Mientras no
 // haya certificados con ese dato guardado, se usa el ultimo que se haya
@@ -27051,7 +27055,8 @@ window.dgieVerLiquidacion=function(numero,zona){
                  value="${precioModulo(certsDeMedicion(z,numero),z)||''}" placeholder="0,00"
                  onchange="dgieFijarPrecioModulo(${Number(z)},this.value);dgieVerLiquidacion('${esc(numero)}',${Number(z)})">
         </label>
-        <button class="secondary-btn" onclick="dgieCompletarDesglose('${esc(numero)}',${Number(z)})">Completar desglose</button>
+        <button class="secondary-btn" onclick="dgieCompletarDesglose('${esc(numero)}',${Number(z)})" title="Lee el archivo de cada certificado y guarda cuántos módulos corresponden a cada rubro">Completar desglose</button>
+        <button class="secondary-btn" style="color:var(--danger)" onclick="window.dgieDetenerDesglose=true">Detener</button>
         <button class="primary-btn" onclick="dgieDescargarLiquidacion('${esc(numero)}',${Number(z)})">Descargar Excel</button>
         <button class="secondary-btn" onclick="document.getElementById('dgie-liq-caja')?.remove()">Cerrar</button>
       </div>
@@ -27077,42 +27082,61 @@ function sinDesgloseAun(c){
   return !(d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0));
 }
 
+// Recorre todos los certificados medidos que la sesion puede ver y les
+// completa el desglose leyendolo del archivo ya subido. Se puede cortar en
+// cualquier momento; lo hecho queda guardado.
+window.dgieDetenerDesglose=false;
+
 window.dgieCompletarDesglose=async function(numero,zona){
   const z=Number(zona||zonaActual());
-  const pendientes=filasHasta(z,numero)
-    .filter(f=>f.cert&&sinDesgloseAun(f.cert)&&archivoVigenteDe(f.cert))
-    .map(f=>f.cert);
+  const pendientes=certs().filter(c=>
+    String(c?.estado||'')==='medido' &&
+    c?.medicion_numero!=null &&
+    sinDesgloseAun(c) &&
+    archivoVigenteDe(c)
+  );
 
   const panel=document.getElementById('dgie-liq-progreso');
-  const avisar=t=>{ if(panel)panel.textContent=t; };
-  if(!pendientes.length){ avisar('Todos los certificados ya tienen el desglose por rubro.'); return; }
+  const avisar=(t,color)=>{ if(panel){panel.textContent=t; panel.style.color=color||'var(--muted)';} };
+  if(!pendientes.length){ avisar('Todos los certificados ya tienen el desglose por rubro.','#176b32'); return; }
 
-  let listos=0, fallados=0;
+  const zonas=[...new Set(pendientes.map(c=>Number(c.zona)))].sort((a,b)=>a-b);
+  if(!confirm(`Se van a leer ${pendientes.length} certificados de ${zonas.length===1?'la zona '+zonas[0]:zonas.length+' zonas'} para completar el desglose por rubro.\n\nPuede demorar varios minutos. ¿Seguimos?`))return;
+
+  window.dgieDetenerDesglose=false;
+  let listos=0, sinLeer=0, sinPermiso=0;
   for(let i=0;i<pendientes.length;i++){
+    if(window.dgieDetenerDesglose){ avisar(`Detenido: ${listos} certificados completados.`); break; }
     const c=pendientes[i];
-    avisar(`Leyendo ${i+1} de ${pendientes.length}: ${c.establecimiento_nombre||''}`);
+    avisar(`Leyendo ${i+1} de ${pendientes.length} · zona ${c.zona} · ${String(c.establecimiento_nombre||'').slice(0,40)}`);
     try{
-      const arch=archivoVigenteDe(c);
-      const resp=await fetch(arch.url);
-      if(!resp.ok)throw new Error('no se pudo descargar');
-      const buf=await resp.arrayBuffer();
-      const wb=XLSX.read(buf,{type:'array'});
+      const resp=await fetch(archivoVigenteDe(c).url);
+      if(!resp.ok)throw new Error('no se pudo descargar el archivo');
+      const wb=XLSX.read(await resp.arrayBuffer(),{type:'array'});
       const ws=wb.Sheets['ANEXO - ITEM Y C.C.']||wb.Sheets[wb.SheetNames[0]];
       const d=desgloseDeHoja(ws);
-      if(!d)throw new Error('sin rubros reconocibles');
-      await window.actualizarCertificado(c.id||c.localId,{
-        modulos_por_rubro:d.rubros,
-        precio_modulo:d.precio_modulo??null
-      });
-      Object.assign(c,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
-      listos++;
+      if(!d)throw new Error('no se reconocieron los rubros');
+      try{
+        await window.actualizarCertificado(c.id||c.localId,{
+          modulos_por_rubro:d.rubros,
+          precio_modulo:d.precio_modulo??null
+        });
+        Object.assign(c,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
+        listos++;
+      }catch(err){
+        sinPermiso++;
+        console.warn('Sin permiso para guardar el desglose de',c?.establecimiento_nombre,err);
+      }
     }catch(e){
-      fallados++;
+      sinLeer++;
       console.warn('No se pudo leer el desglose de',c?.establecimiento_nombre,e);
     }
   }
-  avisar(`Listo: ${listos} certificado${listos!==1?'s':''} con desglose${fallados?`, ${fallados} sin poder leerse`:''}.`);
-  setTimeout(()=>window.dgieVerLiquidacion(numero,z),900);
+  const notas=[`${listos} completados`];
+  if(sinLeer)notas.push(`${sinLeer} sin poder leerse`);
+  if(sinPermiso)notas.push(`${sinPermiso} sin permiso para guardar`);
+  avisar('Listo: '+notas.join(' · '), listos?'#176b32':'var(--danger)');
+  setTimeout(()=>window.dgieVerLiquidacion(numero,z),1200);
 };
 
 window.dgieDescargarLiquidacion=function(numero,zona){
