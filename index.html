@@ -26882,13 +26882,11 @@ function medicionCerrada(z,n){
   try{ return typeof window.esMedicionFinalizada==='function'?!!window.esMedicionFinalizada(n,z):true }
   catch(_){ return true }
 }
-// Los modulos se toman redondeados a dos decimales, tal como salen del
-// certificado, y el monto se calcula con ese mismo numero. Lo que se ve en la
-// planilla es lo que se cobra: no se liquida sobre decimales que no figuran.
-// El procedimiento nuevo — tomar el numero completo del certificado — rige
-// desde la septima medicion. Lo anterior queda como historia: se liquida con
-// lo que dejo cargado el inspector, sin tocar su trabajo.
-const DESDE_MEDICION_EXACTA = 7;
+// La liquidacion sale SIEMPRE de la planilla firmada, en todas las mediciones.
+// Los certificados sirven para armar y revisar el trabajo, pero lo que se
+// liquida es lo que dice el papel: es el documento que se firma y se cobra.
+// Por eso no hay ninguna medicion que se calcule desde los certificados.
+const DESDE_MEDICION_EXACTA = Infinity;
 function usaCertificado(c){
   return Number(c?.medicion_numero||0) >= DESDE_MEDICION_EXACTA;
 }
@@ -27238,12 +27236,10 @@ function planillaHTML(z,n){
     return `${cabecera}<div class="dgie-liq-aviso">Esta medición todavía no está finalizada, así que no se liquida: los certificados pueden cambiar. Marcá la certificación como finalizada y la planilla se arma sola.${acumulado.length?`<br><br>Ya hay ${acumulado.length} medición${acumulado.length!==1?'es':''} cerrada${acumulado.length!==1?'s':''} en esta zona: abrí cualquiera de ellas para ver su liquidación.`:''}</div>`;
   }
 
-  const historica=Number(n)<DESDE_MEDICION_EXACTA;
   const noCuadran=filas.filter(f=>f.cert&&!f.cuadra).length;
   const avisos=[];
   if(incompletos)avisos.push(`${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. Se está leyendo el archivo de cada uno para completarlo.`);
-  if(historica)avisos.push(`Medición anterior a la séptima: se liquida con los módulos que dejó cargados el inspector, tal como quedaron. El procedimiento nuevo rige desde la medición ${DESDE_MEDICION_EXACTA}.`);
-  if(noCuadran)avisos.push(`En ${noCuadran} certificado${noCuadran!==1?'s':''} el reparto por rubro no suma el total cargado: el inspector ajustó el total a mano y el desglose sigue siendo el del certificado.`);
+  if(noCuadran)avisos.push(`En ${noCuadran} certificado${noCuadran!==1?'s':''} el reparto por rubro no suma el total cargado.`);
   const aviso=avisos.length?`<div class="dgie-liq-aviso">${avisos.join('<br><br>')}</div>`:'';
 
   const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
@@ -27918,6 +27914,27 @@ async function tokenSesion(){
     const t=await window.DGIE_DB?.tokenAccesoPush?.();
     return t?.data||window.DGIE_SUPABASE.anonKey;
   }catch(_){ return window.DGIE_SUPABASE.anonKey }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Sin la planilla firmada no se puede finalizar
+// ────────────────────────────────────────────────────────────────────
+// Lo que se liquida sale del PDF firmado, y los módulos consumidos se leen al
+// finalizar la medición. Si se pudiera finalizar sin el papel, la medición
+// quedaría cerrada sin nada que liquidar y sin consumir presupuesto.
+const finalizarSinPdf=window.finalizarCertificacion;
+if(typeof finalizarSinPdf==='function'){
+  window.finalizarCertificacion=async function(numero){
+    const z=Number((typeof currentUser!=='undefined'?currentUser:{})?.zona||0);
+    const dela=(typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[])
+      .filter(c=>Number(c?.zona)===z&&String(c?.medicion_numero||'')===String(numero)&&String(c?.estado||'')==='medido');
+    if(dela.length&&!dela.some(c=>c?.medicion_firmada_url)){
+      alert('Para marcar la certificación finalizada hay que subir antes el PDF de la planilla firmada.\n\n'+
+            'De ese papel salen los módulos que consume la medición y la liquidación que se muestra.');
+      return;
+    }
+    return finalizarSinPdf.apply(this,arguments);
+  };
 }
 
 // ────────────────────────────────────────────────────────────────────

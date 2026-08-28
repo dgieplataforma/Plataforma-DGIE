@@ -36,9 +36,11 @@ sepa dónde quedó todo sin tener que preguntar.
   papel: si no coinciden, no guarda nada.
 - **Sin PDF cargado no se muestra ninguna planilla** para esas mediciones: se pide el
   papel. Mostrar una calculada daría números distintos a los que se cobraron.
-- **Desde la medición 7 la liquidación se arma con los certificados**, que es el
-  procedimiento nuevo. En una misma planilla conviven las dos formas: las columnas de las
-  mediciones 1 a 6 traen los montos del papel firmado, y la 7 en adelante se calcula.
+- **La liquidación sale del PDF firmado en TODAS las mediciones.** No hay ninguna que se
+  calcule desde los certificados. Los certificados sirven para armar y revisar el trabajo;
+  el número que se cobra sale del papel.
+- **Sin el PDF no se puede marcar la certificación finalizada.** De ese papel salen los
+  módulos que consume la medición.
 - **Desde la medición 7 no se pueden cargar módulos a mano.** El campo "módulos
   certificado final" desaparece y se muestra el número del certificado. Si el número está
   mal, se corrige el certificado y se vuelve a subir.
