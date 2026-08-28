@@ -7288,7 +7288,11 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(typeof esMedicionFinalizada==='function')return esMedicionFinalizada(c.medicion_numero,zonaCertificado(c));
     return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''));
   }
+  // El presupuesto se calcula en una capa posterior, desde las liquidaciones
+  // firmadas. Esta version quedo como respaldo: si aquella esta cargada, manda.
   function renderResumenPresupuestoModulos(data){
+    if(typeof window.dgieRenderPresupuestoModulos==='function')
+      return window.dgieRenderPresupuestoModulos(data);
     const finalizados=certsMedidos(data).filter(certPresupuestoFinalizado);
     const consumidoTotal=finalizados.reduce((a,c)=>a+modPresupuestoCert(c),0);
     let consumido2026=0,consumido2027=0;
@@ -27734,6 +27738,9 @@ function renderResumenPresupuestoLiquidado(data){
   return '<div class="med-card" id="'+id+'" style="margin-bottom:14px"><div style="text-align:center;padding:20px;color:var(--muted)">Cargando liquidaciones reconocidas...</div></div>';
 }
 
+// Nombre propio, para que las capas anteriores puedan delegar aca aunque su
+// funcion este declarada dentro de un bloque cerrado y no se pueda reemplazar.
+window.dgieRenderPresupuestoModulos=renderResumenPresupuestoLiquidado;
 window.renderResumenPresupuestoModulos=renderResumenPresupuestoLiquidado;
 renderResumenPresupuestoModulos=renderResumenPresupuestoLiquidado;
 })();
