@@ -28,10 +28,12 @@ sepa dónde quedó todo sin tener que preguntar.
   completo; se decidió que acá lo que se ve es lo que se cobra.
 - Cada zona elige el color de sus mediciones. Falta correr
   `supabase-liquidacion-colores.sql`.
+- **Sólo se liquidan las mediciones finalizadas.** Una medición abierta todavía puede
+  cambiar, así que no entra ni en la planilla ni en el acumulado.
 - **El desglose por rubro se fija al marcar la certificación finalizada**, que es cuando
-  los certificados quedan quietos. No hay que releer archivos después. El botón
-  "Completar desglose" queda sólo para las mediciones cerradas antes de esto, y
-  desaparece cuando no falta ninguna.
+  los certificados quedan quietos. No hay botón: los certificados nuevos lo traen al
+  subirse, y las mediciones cerradas antes de esto se completan solas la primera vez que
+  se mira su liquidación.
 
 ### Pendiente de revisar por el inspector
 

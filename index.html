@@ -26877,6 +26877,12 @@ function certsDeZona(z){
 function certsDeMedicion(z,n){
   return certsDeZona(z).filter(c=>String(c?.estado||'')==='medido'&&String(c?.medicion_numero||'')===String(n));
 }
+// Solo se liquida lo que esta cerrado: una medicion sin finalizar todavia puede
+// cambiar, asi que no entra en la planilla.
+function medicionCerrada(z,n){
+  try{ return typeof window.esMedicionFinalizada==='function'?!!window.esMedicionFinalizada(n,z):true }
+  catch(_){ return true }
+}
 // Los modulos se toman redondeados a dos decimales, tal como salen del
 // certificado, y el monto se calcula con ese mismo numero. Lo que se ve en la
 // planilla es lo que se cobra: no se liquida sobre decimales que no figuran.
@@ -26956,7 +26962,8 @@ function filasHasta(z,n){
     String(c?.estado||'')==='medido' &&
     c?.medicion_numero!=null &&
     Number(c.medicion_numero)>0 &&
-    Number(c.medicion_numero)<=Number(n));
+    Number(c.medicion_numero)<=Number(n) &&
+    medicionCerrada(z,c.medicion_numero));
   const ordenada=typeof window.dgieOrdenarPorPlanilla==='function'?window.dgieOrdenarPorPlanilla(lista):lista;
   const filas=ordenada.map(c=>{
     const d=desgloseDe(c);
@@ -27010,11 +27017,11 @@ function totalesDeMedicion(z,n,filas){
 }
 
 function medicionesHasta(z,n){
-  const nums=[...new Set(certsDeZona(z)
+  return [...new Set(certsDeZona(z)
     .filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero!=null)
     .map(c=>Number(c.medicion_numero)))]
-    .filter(x=>x>0&&x<=Number(n)).sort((a,b)=>a-b);
-  return nums.length?nums:[Number(n)];
+    .filter(x=>x>0&&x<=Number(n)&&medicionCerrada(z,x))
+    .sort((a,b)=>a-b);
 }
 
 function planillaHTML(z,n){
@@ -27035,7 +27042,13 @@ function planillaHTML(z,n){
     <div><b>Valor del módulo:</b> ${actual.precio?pesos(actual.precio):'—'} · <b>Medición N° ${esc(n)}</b>${periodo?' · '+esc(periodo):''}</div>
   </div>`;
 
-  const aviso=incompletos?`<div class="dgie-liq-aviso">${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. El reparto está dentro del Excel de cada certificado: con "Completar desglose" se leen los archivos ya subidos y la planilla queda completa.</div>`:'';
+  // Solo se liquida lo cerrado. Si la medicion abierta todavia no se finalizo,
+  // se dice sin rodeos y no se muestran numeros que despues pueden cambiar.
+  if(!medicionCerrada(z,n)){
+    return `${cabecera}<div class="dgie-liq-aviso">Esta medición todavía no está finalizada, así que no se liquida: los certificados pueden cambiar. Marcá la certificación como finalizada y la planilla se arma sola.${acumulado.length?`<br><br>Ya hay ${acumulado.length} medición${acumulado.length!==1?'es':''} cerrada${acumulado.length!==1?'s':''} en esta zona: abrí cualquiera de ellas para ver su liquidación.`:''}</div>`;
+  }
+
+  const aviso=incompletos?`<div class="dgie-liq-aviso">${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. Se está leyendo el archivo de cada uno para completarlo.</div>`:'';
 
   const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
   const mesDe=m=>{const p=periodoDe(certsDeMedicion(z,m.medicion));return p?'<br>'+esc(p):''};
@@ -27098,6 +27111,22 @@ function planillaHTML(z,n){
 // ────────────────────────────────────────────────────────────────────
 // 4. Pantalla y descarga
 // ────────────────────────────────────────────────────────────────────
+// Las mediciones cerradas antes de que existiera esta pantalla no tienen el
+// desglose guardado. Se completa solo la primera vez que se mira la
+// liquidacion, sin que nadie tenga que apretar nada.
+async function completarLoQueFalte(z,numero,avisar){
+  const pendientes=certs().filter(c=>
+    Number(c?.zona)===Number(z) &&
+    String(c?.estado||'')==='medido' &&
+    c?.medicion_numero!=null &&
+    Number(c.medicion_numero)<=Number(numero) &&
+    medicionCerrada(z,c.medicion_numero) &&
+    sinDesgloseAun(c) && archivoVigenteDe(c));
+  if(!pendientes.length)return null;
+  window.dgieDetenerDesglose=false;
+  return guardarDesgloseDe(pendientes,avisar);
+}
+
 window.dgieVerLiquidacion=async function(numero,zona){
   const z=Number(zona||zonaActual());
   await cargarColores(z);
@@ -27120,13 +27149,30 @@ window.dgieVerLiquidacion=async function(numero,zona){
                  value="${precioModulo(certsDeMedicion(z,numero),z)||''}" placeholder="0,00"
                  onchange="dgieFijarPrecioModulo(${Number(z)},this.value);dgieVerLiquidacion('${esc(numero)}',${Number(z)})">
         </label>
-        ${faltanDesglose()?`<button class="secondary-btn" onclick="dgieCompletarDesglose('${esc(numero)}',${Number(z)})" title="Lee el archivo de cada certificado y guarda cuántos módulos corresponden a cada rubro">Completar desglose (${faltanDesglose()})</button>
-        <button class="secondary-btn" style="color:var(--danger)" onclick="window.dgieDetenerDesglose=true">Detener</button>`:''}
         <button class="primary-btn" onclick="dgieDescargarLiquidacion('${esc(numero)}',${Number(z)})">Descargar Excel</button>
         <button class="secondary-btn" onclick="document.getElementById('dgie-liq-caja')?.remove()">Cerrar</button>
       </div>
-    </div><div id="dgie-liq-progreso" style="font-size:12px;color:${window.__DGIE_RESULTADO_DESGLOSE__?'#176b32':'var(--muted)'};margin-bottom:8px">${esc(window.__DGIE_RESULTADO_DESGLOSE__||'')}</div>${planillaHTML(z,numero)}`;
+    </div><div id="dgie-liq-progreso" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>${planillaHTML(z,numero)}`;
   caja.scrollIntoView({behavior:'smooth',block:'start'});
+
+  // Si quedan certificados sin desglose de mediciones ya cerradas, se completan
+  // en el momento y la planilla se vuelve a dibujar con los datos completos.
+  const panel=document.getElementById('dgie-liq-progreso');
+  const avisar=(t,color)=>{ if(panel){panel.textContent=t; panel.style.color=color||'var(--muted)';} };
+  const r=await completarLoQueFalte(z,numero,avisar);
+  if(!r)return;
+  if(r.listos){
+    // Se vuelve a dibujar con los datos completos. La segunda pasada ya no
+    // encuentra pendientes, asi que no se repite.
+    await window.dgieVerLiquidacion(numero,z);
+    const notas=[`${r.listos} certificado${r.listos!==1?'s':''} completado${r.listos!==1?'s':''}`];
+    if(r.sinLeer)notas.push(`${r.sinLeer} sin poder leerse`);
+    if(r.sinPermiso)notas.push(`${r.sinPermiso} sin permiso para guardar`);
+    const p=document.getElementById('dgie-liq-progreso');
+    if(p){p.textContent=notas.join(' · '); p.style.color='#176b32'}
+  }else{
+    avisar(`No se pudo completar el desglose de ${r.sinLeer+r.sinPermiso} certificado${(r.sinLeer+r.sinPermiso)!==1?'s':''}.`,'var(--danger)');
+  }
 };
 
 // ────────────────────────────────────────────────────────────────────
@@ -27145,14 +27191,6 @@ function archivoVigenteDe(c){
 function sinDesgloseAun(c){
   const d=c?.modulos_por_rubro;
   return !(d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0));
-}
-// Cuantos certificados quedan sin desglose. El boton para completarlo se
-// muestra solo si hay algo pendiente, para que nadie lo dispare de mas.
-function faltanDesglose(){
-  return certs().filter(c=>
-    String(c?.estado||'')==='medido' && c?.medicion_numero!=null &&
-    sinDesgloseAun(c) && archivoVigenteDe(c)
-  ).length;
 }
 
 // Recorre todos los certificados medidos que la sesion puede ver y les
@@ -27207,34 +27245,6 @@ window.dgieFijarDesgloseMedicion=async function(numero,zona){
     console.warn(`Desglose de la medición ${numero}: ${r.listos} guardados, ${r.sinLeer} sin leer, ${r.sinPermiso} sin permiso`);
   }
   return r;
-};
-
-window.dgieCompletarDesglose=async function(numero,zona){
-  const z=Number(zona||zonaActual());
-  const pendientes=certs().filter(c=>
-    String(c?.estado||'')==='medido' &&
-    c?.medicion_numero!=null &&
-    sinDesgloseAun(c) &&
-    archivoVigenteDe(c)
-  );
-
-  const panel=document.getElementById('dgie-liq-progreso');
-  const avisar=(t,color)=>{ if(panel){panel.textContent=t; panel.style.color=color||'var(--muted)';} };
-  if(!pendientes.length){ avisar('Todos los certificados ya tienen el desglose por rubro.','#176b32'); return; }
-
-  const zonas=[...new Set(pendientes.map(c=>Number(c.zona)))].sort((a,b)=>a-b);
-  if(!confirm(`Se van a leer ${pendientes.length} certificados de ${zonas.length===1?'la zona '+zonas[0]:zonas.length+' zonas'} para completar el desglose por rubro.\n\nPuede demorar varios minutos. ¿Seguimos?`))return;
-
-  window.dgieDetenerDesglose=false;
-  const {listos,sinLeer,sinPermiso}=await guardarDesgloseDe(pendientes,avisar);
-  const notas=[`${listos} completados`];
-  if(sinLeer)notas.push(`${sinLeer} sin poder leerse`);
-  if(sinPermiso)notas.push(`${sinPermiso} sin permiso para guardar`);
-  // El resultado se guarda para volver a mostrarlo despues de redibujar la
-  // planilla: si no, el mensaje se pierde y parece que no hizo nada.
-  window.__DGIE_RESULTADO_DESGLOSE__='Listo: '+notas.join(' · ');
-  avisar(window.__DGIE_RESULTADO_DESGLOSE__, listos?'#176b32':'var(--danger)');
-  setTimeout(()=>window.dgieVerLiquidacion(numero,z),1200);
 };
 
 window.dgieDescargarLiquidacion=function(numero,zona){
