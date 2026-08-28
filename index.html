@@ -27160,6 +27160,55 @@ function faltanDesglose(){
 // cualquier momento; lo hecho queda guardado.
 window.dgieDetenerDesglose=false;
 
+// Lee y guarda el desglose de una lista de certificados. Devuelve el resumen.
+// Es lo que se usa al finalizar una medicion y tambien al completar lo viejo.
+async function guardarDesgloseDe(lista,avisar){
+  let listos=0, sinLeer=0, sinPermiso=0;
+  for(let i=0;i<lista.length;i++){
+    if(window.dgieDetenerDesglose)break;
+    const c=lista[i];
+    if(avisar)avisar(`Leyendo ${i+1} de ${lista.length} · zona ${c.zona} · ${String(c.establecimiento_nombre||'').slice(0,40)}`);
+    try{
+      const resp=await fetch(archivoVigenteDe(c).url);
+      if(!resp.ok)throw new Error('no se pudo descargar el archivo');
+      const wb=XLSX.read(await resp.arrayBuffer(),{type:'array'});
+      const ws=wb.Sheets['ANEXO - ITEM Y C.C.']||wb.Sheets[wb.SheetNames[0]];
+      const d=desgloseDeHoja(ws);
+      if(!d)throw new Error('no se reconocieron los rubros');
+      try{
+        await window.actualizarCertificado(c.id||c.localId,{
+          modulos_por_rubro:d.rubros,
+          precio_modulo:d.precio_modulo??null
+        });
+        Object.assign(c,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
+        listos++;
+      }catch(err){ sinPermiso++; console.warn('Sin permiso para guardar el desglose de',c?.establecimiento_nombre,err) }
+    }catch(e){ sinLeer++; console.warn('No se pudo leer el desglose de',c?.establecimiento_nombre,e) }
+  }
+  return {listos,sinLeer,sinPermiso};
+}
+
+// Al finalizar una medicion los certificados quedan fijos, asi que ese es el
+// momento de calcular el desglose por rubro y dejarlo guardado. Despues no hay
+// que volver a leer ningun archivo.
+window.dgieFijarDesgloseMedicion=async function(numero,zona){
+  const z=Number(zona||zonaActual());
+  const lista=certs().filter(c=>
+    Number(c?.zona)===z &&
+    String(c?.estado||'')==='medido' &&
+    String(c?.medicion_numero||'')===String(numero) &&
+    sinDesgloseAun(c) &&
+    archivoVigenteDe(c)
+  );
+  if(!lista.length)return {listos:0,sinLeer:0,sinPermiso:0};
+  window.dgieDetenerDesglose=false;
+  const r=await guardarDesgloseDe(lista);
+  if(r.sinLeer||r.sinPermiso){
+    console.warn(`Desglose de la medición ${numero}: ${r.listos} guardados, ${r.sinLeer} sin leer, ${r.sinPermiso} sin permiso`);
+  }
+  return r;
+};
+
 window.dgieCompletarDesglose=async function(numero,zona){
   const z=Number(zona||zonaActual());
   const pendientes=certs().filter(c=>
@@ -27177,34 +27226,7 @@ window.dgieCompletarDesglose=async function(numero,zona){
   if(!confirm(`Se van a leer ${pendientes.length} certificados de ${zonas.length===1?'la zona '+zonas[0]:zonas.length+' zonas'} para completar el desglose por rubro.\n\nPuede demorar varios minutos. ¿Seguimos?`))return;
 
   window.dgieDetenerDesglose=false;
-  let listos=0, sinLeer=0, sinPermiso=0;
-  for(let i=0;i<pendientes.length;i++){
-    if(window.dgieDetenerDesglose){ avisar(`Detenido: ${listos} certificados completados.`); break; }
-    const c=pendientes[i];
-    avisar(`Leyendo ${i+1} de ${pendientes.length} · zona ${c.zona} · ${String(c.establecimiento_nombre||'').slice(0,40)}`);
-    try{
-      const resp=await fetch(archivoVigenteDe(c).url);
-      if(!resp.ok)throw new Error('no se pudo descargar el archivo');
-      const wb=XLSX.read(await resp.arrayBuffer(),{type:'array'});
-      const ws=wb.Sheets['ANEXO - ITEM Y C.C.']||wb.Sheets[wb.SheetNames[0]];
-      const d=desgloseDeHoja(ws);
-      if(!d)throw new Error('no se reconocieron los rubros');
-      try{
-        await window.actualizarCertificado(c.id||c.localId,{
-          modulos_por_rubro:d.rubros,
-          precio_modulo:d.precio_modulo??null
-        });
-        Object.assign(c,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
-        listos++;
-      }catch(err){
-        sinPermiso++;
-        console.warn('Sin permiso para guardar el desglose de',c?.establecimiento_nombre,err);
-      }
-    }catch(e){
-      sinLeer++;
-      console.warn('No se pudo leer el desglose de',c?.establecimiento_nombre,e);
-    }
-  }
+  const {listos,sinLeer,sinPermiso}=await guardarDesgloseDe(pendientes,avisar);
   const notas=[`${listos} completados`];
   if(sinLeer)notas.push(`${sinLeer} sin poder leerse`);
   if(sinPermiso)notas.push(`${sinPermiso} sin permiso para guardar`);
@@ -27258,6 +27280,40 @@ function agregarBotones(){
   });
 }
 window.dgieAgregarBotonLiquidacion=agregarBotones;
+
+// Al marcar la certificación finalizada, los certificados de esa medición
+// quedan fijos: se calcula el desglose por rubro y se guarda ahí mismo, para
+// no tener que volver a leer los archivos nunca más.
+const finalizarPrevLiq=window.finalizarCertificacion;
+if(typeof finalizarPrevLiq==='function'){
+  window.finalizarCertificacion=async function(numero){
+    const res=await finalizarPrevLiq.apply(this,arguments);
+    const z=zonaActual();
+    const cuantos=certs().filter(c=>
+      Number(c?.zona)===Number(z) &&
+      String(c?.estado||'')==='medido' &&
+      String(c?.medicion_numero||'')===String(numero) &&
+      sinDesgloseAun(c) && archivoVigenteDe(c)).length;
+    if(cuantos){
+      const cartel=document.createElement('div');
+      cartel.className='dgie-liq-aviso';
+      cartel.textContent=`Guardando los módulos por rubro de ${cuantos} certificado${cuantos!==1?'s':''}...`;
+      document.getElementById('med-detalle')?.prepend(cartel);
+      try{
+        const r=await window.dgieFijarDesgloseMedicion(numero,z);
+        const notas=[`${r.listos} certificado${r.listos!==1?'s':''} con los módulos por rubro guardados`];
+        if(r.sinLeer)notas.push(`${r.sinLeer} sin poder leerse`);
+        if(r.sinPermiso)notas.push(`${r.sinPermiso} sin permiso`);
+        cartel.textContent=notas.join(' · ');
+        setTimeout(()=>cartel.remove(),9000);
+      }catch(e){
+        cartel.textContent='No se pudieron guardar los módulos por rubro. Se pueden completar desde la liquidación.';
+        console.warn('Desglose al finalizar la medición',e);
+      }
+    }
+    return res;
+  };
+}
 
 ['abrirMedicionInspector','abrirMedicionCoord','verMedicionCoord'].forEach(nombre=>{
   const previo=window[nombre];
