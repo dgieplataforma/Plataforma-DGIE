@@ -27144,8 +27144,13 @@ function planillaFirmadaHTML(z,n){
     </tr>`;
   }).join('');
 
-  const totMod=meds.reduce((a,m)=>a+num((d.totales[m]||{}).modulos||hasta.filter(f=>Number(f.medicion)===m).reduce((s,f)=>s+num(f.modulos),0)),0);
-  const totMonto=hasta.reduce((a,f)=>a+num(f.monto),0);
+  // El acumulado suma los totales del papel, no las filas.
+  const delPie=(m,campo)=>{
+    const t=d.totales[m]||{};
+    return num(t[campo])||hasta.filter(f=>Number(f.medicion)===m).reduce((s,f)=>s+num(f[campo]),0);
+  };
+  const totMod=meds.reduce((a,m)=>a+delPie(m,'modulos'),0);
+  const totMonto=meds.reduce((a,m)=>a+delPie(m,'monto'),0);
 
   return `${cabecera}<div class="dgie-liq-wrap"><table class="dgie-liq" style="--liq-cab:${colDe(n)}">
     <thead>
@@ -27610,7 +27615,22 @@ const num=s=>Number(String(s).replace(/\./g,'').replace(',','.'))||0;
 function armarTabla(contenido){
   const ancho=(X_RUB_FIN-X_RUB_INI)/RUBROS.length;
   const filas=[], pie={};
-  bandas(piezas(contenido)).forEach(([y,celdas])=>{
+  const grupos=bandas(piezas(contenido));
+
+  // Los montos totales del papel van todos en una misma línea del pie, uno por
+  // columna de medición. Se recogen aparte, por columna, no por fila.
+  const montosPie={};
+  grupos.forEach(([y,celdas])=>{
+    if(y>=150)return;
+    celdas.forEach(([x,t])=>{
+      if(!ES_NUM.test(t)||x<X_MONTO_INI)return;
+      const m=Math.floor((x-X_MONTO_INI)/ANCHO_MONTO)+1;
+      const v=num(t);
+      if(v>0&&(montosPie[m]==null||v>montosPie[m]))montosPie[m]=v;
+    });
+  });
+
+  grupos.forEach(([y,celdas])=>{
     celdas.sort((a,b)=>a[0]-b[0]);
     const rubrosDe=()=>{
       const r={}; RUBROS.forEach(k=>r[k]=0);
@@ -27643,6 +27663,10 @@ function armarTabla(contenido){
       medicion:mon?Math.floor((mon[0]-X_MONTO_INI)/ANCHO_MONTO)+1:null,
       monto:mon?num(mon[1]):0
     });
+  });
+  Object.keys(montosPie).forEach(m=>{
+    pie[m]=pie[m]||{rubros:{},total:null};
+    pie[m].monto=montosPie[m];
   });
   return {filas,pie};
 }
@@ -27717,7 +27741,12 @@ window.dgieGuardarPlanillaFirmada=async function(zona,lectura,archivo){
     return {zona:z, medicion:m,
       cubierta:p.rubros.cubierta||0, electricidad:p.rubros.electricidad||0,
       albanileria:p.rubros.albanileria||0, sanitaria:p.rubros.sanitaria||0, gas:p.rubros.gas||0,
-      modulos:p.total!=null?p.total:(c.total||0), monto:c.monto||0, archivo:archivo||null};
+      // Los dos totales salen del pie del papel. Sumar las filas daría otro
+      // número, porque la planilla firmada ajusta el redondeo en el último
+      // certificado.
+      modulos:p.total!=null?p.total:(c.total||0),
+      monto:p.monto!=null?p.monto:(c.monto||0),
+      archivo:archivo||null};
   });
   const r2=await fetch(`${cfg.url}/rest/v1/liquidacion_firmada_totales`,{method:'POST',headers:h,body:JSON.stringify(totales)});
   if(!r2.ok)throw new Error('No se pudieron guardar los totales: '+(await r2.text()).slice(0,140));
