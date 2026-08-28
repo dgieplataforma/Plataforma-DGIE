@@ -27006,14 +27006,18 @@ function totalesDeMedicion(z,n,filas){
   const propias=(filas||filasHasta(z,n)).filter(f=>Number(f.medicion)===Number(n));
   const rubros={};
   RUBROS_LIQ.forEach(r=>{rubros[r.key]=0});
-  let total=0;
+  const precio=precioModulo(certsDeMedicion(z,n),z);
+  // El monto del pie es la suma de los montos de cada fila, ya redondeados a
+  // centavos. Si se multiplicara el total de modulos por el valor del modulo,
+  // el pie podria quedar a un centavo de lo que suma la columna.
+  let total=0, monto=0;
   propias.forEach(f=>{
     RUBROS_LIQ.forEach(r=>{rubros[r.key]+=num(f.rubros[r.key])});
     total+=f.total;
+    monto+=Math.round(f.total*precio*100)/100;
   });
   RUBROS_LIQ.forEach(r=>{rubros[r.key]=Math.round(rubros[r.key]*1e6)/1e6});
-  const precio=precioModulo(certsDeMedicion(z,n),z);
-  return {medicion:n, rubros, total:Math.round(total*1e6)/1e6, monto:total*precio, precio, filas:propias};
+  return {medicion:n, rubros, total:Math.round(total*100)/100, monto:Math.round(monto*100)/100, precio, filas:propias};
 }
 
 function medicionesHasta(z,n){
