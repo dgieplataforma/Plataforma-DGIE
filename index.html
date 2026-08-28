@@ -27219,9 +27219,14 @@ function archivoVigenteDe(c){
   if(c?.url_original)return {url:c.url_original, nombre:c.archivo_original||''};
   return null;
 }
+// Le falta algo por leer del Excel: o el reparto por rubro, o el total sin
+// redondear con el que se calcula el monto. Cualquiera de los dos alcanza para
+// volver a leer el archivo.
 function sinDesgloseAun(c){
   const d=c?.modulos_por_rubro;
-  return !(d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0));
+  const tieneRubros=d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0);
+  const tieneExacto=num(c?.modulos_exacto)>0;
+  return !tieneRubros||!tieneExacto;
 }
 
 // Recorre todos los certificados medidos que la sesion puede ver y les
