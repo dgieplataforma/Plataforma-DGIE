@@ -23,8 +23,20 @@ sepa dónde quedó todo sin tener que preguntar.
   albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
 - El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
   carga a mano en el panel y queda recordado por zona.
-- Pendiente de definir con el usuario: si el acumulado debe arrastrar los montos de las
-  mediciones anteriores tal como figuran en la planilla firmada.
+- Los montos se calculan con los módulos **redondeados a dos decimales**, tal como salen
+  del certificado. La planilla firmada muestra el redondeo pero calcula sobre el número
+  completo; se decidió que acá lo que se ve es lo que se cobra.
+- Cada zona elige el color de sus mediciones. Falta correr
+  `supabase-liquidacion-colores.sql`.
+
+### Pendiente de revisar por el inspector
+
+**90 certificados donde el total del Excel no coincide con el que tiene la plataforma.**
+No es un error de lectura: el archivo dice una cosa y el registro otra. Los más
+llamativos: Alejandro Carbó zona 2 medición 1 (Excel 52,13 / plataforma 161,61), Alas
+Argentinas zona 15 medición 1 (28,98 / 25,88), Rosario Vera Peñaloza zona 15 medición 2
+(10,69 / 9,71). Puede ser que el archivo vigente no sea el que corresponde, o que se
+corrigió el número sin actualizar el Excel.
 
 La nueva clasificación de rubros quedó aplicada en toda la plataforma. La regla es
 una sola: **el dato detallado siempre se guarda como está; agrupar es solo una forma

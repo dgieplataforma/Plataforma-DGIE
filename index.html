@@ -26571,7 +26571,10 @@ body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Me
 .dgie-liq-wrap{overflow:auto;margin-top:12px}
 .dgie-liq{border-collapse:collapse;font-size:11px;min-width:1100px}
 .dgie-liq th,.dgie-liq td{border:1px solid #9aa5b1;padding:4px 6px;white-space:nowrap}
-.dgie-liq thead th{background:#92D050;color:#1a2b12;font-weight:800;text-align:center;vertical-align:middle}
+.dgie-liq thead th{background:var(--liq-cab,#92D050);color:#1a2b12;font-weight:800;text-align:center;vertical-align:middle}
+.dgie-liq-paleta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:8px 0}
+.dgie-liq-paleta label{display:flex;align-items:center;gap:5px;font-weight:700;color:#123c69}
+.dgie-liq-paleta input[type=color]{width:34px;height:24px;padding:0;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer}
 .dgie-liq .est{white-space:normal;min-width:230px;text-align:left}
 .dgie-liq .num{text-align:right}
 .dgie-liq tfoot td{font-weight:900;background:#e8eef6}
@@ -26617,7 +26620,53 @@ const RUBROS_LIQ = [
 // 1ra amarillo, 2da celeste, 3ra naranja, 4ta verde. De la quinta en
 // adelante se sigue con colores del mismo juego.
 const COLORES_MEDICION = ['#FFE699','#BDD7EE','#FFC000','#92D050','#F8CBAD','#D9D2E9','#C6E0B4','#FFD966','#B4C7E7','#E2A9A9','#A9D5D5','#D5C2A9'];
-function colorMedicion(n){return COLORES_MEDICION[(Math.max(1,Number(n)||1)-1)%COLORES_MEDICION.length]}
+function colorPorDefecto(n){return COLORES_MEDICION[(Math.max(1,Number(n)||1)-1)%COLORES_MEDICION.length]}
+
+// Cada zona elige el color de sus mediciones y queda guardado para todos. Lo
+// que no se elige usa el color de la planilla firmada.
+let COLORES_ELEGIDOS={};
+window.dgieColoresLiquidacion=COLORES_ELEGIDOS;
+// Guardar exige sesion iniciada; leer funciona igual con la clave publica.
+async function tokenSesion(){
+  try{
+    const t=await window.DGIE_DB?.tokenAccesoPush?.();
+    return t?.data||window.DGIE_SUPABASE.anonKey;
+  }catch(_){ return window.DGIE_SUPABASE.anonKey }
+}
+function claveColor(z,m){return Number(z)+'|'+Number(m)}
+function colorMedicion(m,z){
+  const zz=Number(z||zonaActual());
+  return COLORES_ELEGIDOS[claveColor(zz,m)]||colorPorDefecto(m);
+}
+async function cargarColores(z){
+  const cfg=window.DGIE_SUPABASE;
+  if(!cfg?.url)return;
+  try{
+    const r=await fetch(`${cfg.url}/rest/v1/liquidacion_colores?select=zona,medicion,color&zona=eq.${Number(z)}`,
+      {headers:{apikey:cfg.anonKey,Authorization:'Bearer '+(await tokenSesion())}});
+    if(!r.ok)return;                       // si la tabla no existe todavia, se usan los colores por defecto
+    (await r.json()).forEach(x=>{COLORES_ELEGIDOS[claveColor(x.zona,x.medicion)]=x.color});
+  }catch(_){}
+}
+window.dgieGuardarColorMedicion=async function(z,m,color){
+  const zz=Number(z), mm=Number(m), c=String(color||'').trim();
+  if(!/^#[0-9a-fA-F]{6}$/.test(c))return;
+  COLORES_ELEGIDOS[claveColor(zz,mm)]=c;
+  const cfg=window.DGIE_SUPABASE;
+  try{
+    const r=await fetch(`${cfg.url}/rest/v1/liquidacion_colores?on_conflict=zona,medicion`,{
+      method:'POST',
+      headers:{
+        apikey:cfg.anonKey,
+        Authorization:'Bearer '+(await tokenSesion()),
+        'Content-Type':'application/json',
+        Prefer:'resolution=merge-duplicates'
+      },
+      body:JSON.stringify([{zona:zz,medicion:mm,color:c,creado_por:usuario()?.name||null}])
+    });
+    if(!r.ok)console.warn('No se pudo guardar el color de la medición:',await r.text());
+  }catch(e){ console.warn('No se pudo guardar el color de la medición',e) }
+};
 
 const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 const ORDINALES = ['1RA','2DA','3RA','4TA','5TA','6TA','7MA','8VA','9NA','10MA','11VA','12VA'];
@@ -26671,6 +26720,8 @@ function desgloseDeHoja(ws){
   const celda=(r,c)=>ws[XLSX.utils.encode_cell({r,c})];
 
   // El bloque del ultimo rubro termina donde empiezan los totales generales.
+  // Sin esa referencia no se puede saber donde corta, y el ultimo rubro se
+  // llevaria el total del certificado: mejor no devolver nada que devolver mal.
   let limite=rango.e.r, filaTotal=-1;
   for(let r=rango.s.r;r<=rango.e.r&&filaTotal<0;r++){
     for(let c=rango.s.c;c<=rango.e.c;c++){
@@ -26678,6 +26729,7 @@ function desgloseDeHoja(ws){
       if(t.includes('TOTAL')&&t.includes('MODULOS')&&t.includes('MEDIDOS')){filaTotal=r;limite=r-1;break}
     }
   }
+  if(filaTotal<0)return null;
 
   const bloques=[];
   for(let r=rango.s.r;r<=limite;r++){
@@ -26690,15 +26742,19 @@ function desgloseDeHoja(ws){
 
   const rubros={};
   RUBROS_LIQ.forEach(r=>{rubros[r.key]=0});
+  // El total del rubro es el ULTIMO valor de la columna TOTAL dentro del
+  // bloque. Hay planillas donde esa columna trae un cero por cada item y el
+  // total recien aparece al final: quedarse con el primero daria cero.
   bloques.forEach((bl,i)=>{
     const hasta=i+1<bloques.length?bloques[i+1].desde-1:limite;
+    let valor=null;
     for(let r=bl.desde;r<=hasta;r++){
       const g=celda(r,6);
-      if(typeof g?.v==='number'){
-        const def=RUBROS_LIQ.find(x=>x.nro===bl.nro);
-        if(def)rubros[def.key]=comoSeVe(g);
-        break;   // el total del rubro es el primer valor de la columna TOTAL del bloque
-      }
+      if(typeof g?.v==='number')valor=g;
+    }
+    if(valor){
+      const def=RUBROS_LIQ.find(x=>x.nro===bl.nro);
+      if(def)rubros[def.key]=comoSeVe(valor);
     }
   });
 
@@ -26968,7 +27024,8 @@ function planillaHTML(z,n){
   const actual=acumulado.find(x=>Number(x.medicion)===Number(n))||totalesDeMedicion(z,n,filas);
   const periodo=periodoDe(certsDeMedicion(z,n));
   const incompletos=filas.filter(f=>!f.completo).length;
-  const colDe=m=>colorMedicion(m);
+  const colDe=m=>colorMedicion(m,z);
+  const colorActual=colDe(n);
   const precioDe=m=>(acumulado.find(x=>Number(x.medicion)===Number(m))||{}).precio||actual.precio||0;
 
   const cabecera=`<div class="dgie-liq-cabecera">
@@ -27009,7 +27066,14 @@ function planillaHTML(z,n){
   const totalAcumulado=acumulado.reduce((a,m)=>a+m.total,0);
   const montoAcumulado=acumulado.reduce((a,m)=>a+m.monto,0);
 
-  return `${cabecera}${aviso}<div class="dgie-liq-wrap"><table class="dgie-liq">
+  // El encabezado toma el color de la medicion que se esta mirando.
+  const paleta=`<div class="dgie-liq-paleta">Color de cada medición${acumulado.map(m=>`
+      <label>N° ${esc(m.medicion)}
+        <input type="color" value="${esc(colDe(m.medicion))}"
+               onchange="dgieGuardarColorMedicion(${Number(z)},${Number(m.medicion)},this.value);dgieVerLiquidacion('${esc(n)}',${Number(z)})">
+      </label>`).join('')}</div>`;
+
+  return `${cabecera}${aviso}${paleta}<div class="dgie-liq-wrap"><table class="dgie-liq" style="--liq-cab:${colorActual}">
     <thead>
       <tr>
         <th rowspan="2">NRO</th><th rowspan="2">ESTABLECIMIENTO</th><th rowspan="2">ORDEN DE<br>SERVICIO</th>
@@ -27034,8 +27098,9 @@ function planillaHTML(z,n){
 // ────────────────────────────────────────────────────────────────────
 // 4. Pantalla y descarga
 // ────────────────────────────────────────────────────────────────────
-window.dgieVerLiquidacion=function(numero,zona){
+window.dgieVerLiquidacion=async function(numero,zona){
   const z=Number(zona||zonaActual());
+  await cargarColores(z);
   const cont=document.getElementById('med-detalle')||document.getElementById('coord-cert-medicion-detalle')||document.getElementById('main-content');
   if(!cont)return;
   let caja=document.getElementById('dgie-liq-caja');
@@ -27055,12 +27120,12 @@ window.dgieVerLiquidacion=function(numero,zona){
                  value="${precioModulo(certsDeMedicion(z,numero),z)||''}" placeholder="0,00"
                  onchange="dgieFijarPrecioModulo(${Number(z)},this.value);dgieVerLiquidacion('${esc(numero)}',${Number(z)})">
         </label>
-        <button class="secondary-btn" onclick="dgieCompletarDesglose('${esc(numero)}',${Number(z)})" title="Lee el archivo de cada certificado y guarda cuántos módulos corresponden a cada rubro">Completar desglose</button>
-        <button class="secondary-btn" style="color:var(--danger)" onclick="window.dgieDetenerDesglose=true">Detener</button>
+        ${faltanDesglose()?`<button class="secondary-btn" onclick="dgieCompletarDesglose('${esc(numero)}',${Number(z)})" title="Lee el archivo de cada certificado y guarda cuántos módulos corresponden a cada rubro">Completar desglose (${faltanDesglose()})</button>
+        <button class="secondary-btn" style="color:var(--danger)" onclick="window.dgieDetenerDesglose=true">Detener</button>`:''}
         <button class="primary-btn" onclick="dgieDescargarLiquidacion('${esc(numero)}',${Number(z)})">Descargar Excel</button>
         <button class="secondary-btn" onclick="document.getElementById('dgie-liq-caja')?.remove()">Cerrar</button>
       </div>
-    </div><div id="dgie-liq-progreso" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>${planillaHTML(z,numero)}`;
+    </div><div id="dgie-liq-progreso" style="font-size:12px;color:${window.__DGIE_RESULTADO_DESGLOSE__?'#176b32':'var(--muted)'};margin-bottom:8px">${esc(window.__DGIE_RESULTADO_DESGLOSE__||'')}</div>${planillaHTML(z,numero)}`;
   caja.scrollIntoView({behavior:'smooth',block:'start'});
 };
 
@@ -27080,6 +27145,14 @@ function archivoVigenteDe(c){
 function sinDesgloseAun(c){
   const d=c?.modulos_por_rubro;
   return !(d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0));
+}
+// Cuantos certificados quedan sin desglose. El boton para completarlo se
+// muestra solo si hay algo pendiente, para que nadie lo dispare de mas.
+function faltanDesglose(){
+  return certs().filter(c=>
+    String(c?.estado||'')==='medido' && c?.medicion_numero!=null &&
+    sinDesgloseAun(c) && archivoVigenteDe(c)
+  ).length;
 }
 
 // Recorre todos los certificados medidos que la sesion puede ver y les
@@ -27135,7 +27208,10 @@ window.dgieCompletarDesglose=async function(numero,zona){
   const notas=[`${listos} completados`];
   if(sinLeer)notas.push(`${sinLeer} sin poder leerse`);
   if(sinPermiso)notas.push(`${sinPermiso} sin permiso para guardar`);
-  avisar('Listo: '+notas.join(' · '), listos?'#176b32':'var(--danger)');
+  // El resultado se guarda para volver a mostrarlo despues de redibujar la
+  // planilla: si no, el mensaje se pierde y parece que no hizo nada.
+  window.__DGIE_RESULTADO_DESGLOSE__='Listo: '+notas.join(' · ');
+  avisar(window.__DGIE_RESULTADO_DESGLOSE__, listos?'#176b32':'var(--danger)');
   setTimeout(()=>window.dgieVerLiquidacion(numero,z),1200);
 };
 
