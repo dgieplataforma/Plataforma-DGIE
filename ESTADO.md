@@ -21,10 +21,12 @@ sepa dónde quedó todo sin tener que preguntar.
   `supabase-liquidacion-modulos-por-rubro.sql`.
 - Los cinco rubros de la liquidación son los del pliego (cubierta, electricidad,
   albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
-- El panel **Presupuesto de módulos** muestra ahora cuánto se consumió en cada uno de
-  esos cinco rubros. Conserva el total vigente anterior; usa `modulos_por_rubro`, asigna
-  el total sólo si el certificado tiene un único rubro y deja explícitamente sin distribuir
-  los certificados multirrubro que todavía no tienen desglose.
+- El panel **Presupuesto de módulos** toma como única fuente las liquidaciones firmadas:
+  una medición consume recién cuando está finalizada, conserva el PDF firmado vigente,
+  ese PDF fue reconocido y quedaron guardadas tanto sus filas como los totales del pie.
+  El total general y los cinco rubros salen de esa liquidación; nunca de los certificados.
+  Si falta el PDF o el reconocimiento no corresponde al archivo vigente, la medición queda
+  informada como pendiente y no consume presupuesto.
 - El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
   carga a mano en el panel y queda recordado por zona.
 - **De la medición 6 para atrás, en todas las zonas, la planilla es la del PDF firmado.**
@@ -107,9 +109,9 @@ de mostrar.**
   poda y pintura entran en albañilería.
 - Estado edilicio: **seis generales en todas las sesiones**, tanto para cargar los
   porcentajes como para consultarlos.
-- Presupuesto: sus familias, coeficientes y cálculo general **no se tocaron**. Sólo se
-  agregó al resumen el consumo por los cinco rubros del pliego, sin estimar distribuciones
-  cuando falta el desglose.
+- Presupuesto: sus familias y coeficientes **no se tocaron**. El consumo general y por
+  rubro se computa exclusivamente desde las liquidaciones reconocidas de mediciones
+  finalizadas con PDF vigente; las mediciones incompletas no consumen.
 
 Verificado contra los datos reales: los totales coinciden en los dos niveles
 (3.668 reclamos y 3.687 órdenes), así que agrupar no pierde ningún registro.
@@ -173,23 +175,16 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-28 | `este commit` | Presupuesto de módulos: desglose de módulos consumidos por los cinco rubros del pliego, conservando el total vigente y señalando los certificados todavía sin distribución | Codex |
+| 2026-08-28 | `este commit` | Presupuesto de módulos: el consumo total y por rubro sale únicamente de mediciones finalizadas con PDF vigente reconocido y liquidación armada | Codex |
+| 2026-08-28 | `38757f0` | Primera versión del desglose por rubro; tomaba certificados finalizados y fue reemplazada por la fuente correcta de liquidaciones reconocidas | Codex |
 | 2026-08-27 | `ac867b8` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
 | 2026-08-27 | `cd02025` | Los certificados toman los módulos tal como se ven en la planilla, no con todos los decimales de fondo. Rige en toda carga nueva; lo ya guardado no se toca | Claude Code |
 | 2026-08-27 | `b1c93f0` | Primera versión de lo anterior, condicionada a la medición 6. No servía: la empresa sube sin número de medición | Claude Code |
 | 2026-08-27 | `408e74a` | Cerrajería como rubro detallado y filtros de rubro con el catálogo completo; en certificados el filtro ofrecía combinaciones y escondía registros | Claude Code |
 | 2026-08-27 | `e15747c` | Nueva clasificación de rubros en toda la plataforma; se corrigió el promedio del estado edilicio, que había caído de 65% a 54% por contar como cero un rubro que nadie midió | Claude Code (terminó lo que venía haciendo Codex) |
 | 2026-08-27 | `24d8aee` | Tableros: CUE antes del establecimiento en los listados de Reclamos y O.S., incluidos PDF y Excel | Codex |
-| 2026-08-26 | `este commit` | Historial de certificados: descarga directa de Original, Inspector y Observado, sin abrir el visor | Codex |
+| 2026-08-26 | `96f3bef` | Historial de certificados: descarga directa de Original, Inspector y Observado, sin abrir el visor | Codex |
 | 2026-08-26 | `589db0d` | Certificados observados: etapas Original/Inspector/Observado, módulos de la versión vigente y descarga funcional desde el historial | Codex |
-| 2026-08-26 | `d998bfc` | Administración: avisos de novedades cuando el inspector responde, deja una versión vigente o finaliza una observación | Codex |
-| 2026-08-26 | `72770d0` | Certificados observados: se eliminó el formulario duplicado y se separaron los botones de antecedentes del bloque operativo | Codex |
-| 2026-08-26 | `46262b0` | Certificados observados: mensajes ilimitados, versión vigente y cierre independientes; historiales de conversaciones y archivos preservados según el rol | Codex |
-| 2026-08-25 | `a5e7b03` | `npm run verificar`: un solo comando de validación, con navegador | Claude Code |
-| 2026-08-25 | `faf15fc` | La orden de servicio se descarga completa y en orden | Claude Code (terminó algo empezado por Codex) |
-| 2026-08-24 | `a9db973` | Anexar análisis al PDF de la orden | Codex |
-| 2026-08-21 | `71a95bf` | Sesión Administración: revisar, observar y aprobar certificados | Claude Code |
-
 
 ---
 
