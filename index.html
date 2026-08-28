@@ -27077,6 +27077,32 @@ function hayFirmada(z,n){
   const d=FIRMADA['z'+z];
   return !!(d&&d.filas.some(f=>Number(f.medicion)===Number(n)));
 }
+
+// Si la medicion todavia no tiene su planilla guardada, se reconoce del PDF
+// firmado y se guarda. Se usa el PDF de la medicion mas alta de la zona, que
+// es acumulativo y trae todas las anteriores.
+async function asegurarFirmada(z,n,avisar){
+  if(hayFirmada(z,n))return null;
+  if(typeof window.dgieLeerPlanillaFirmada!=='function')return null;
+  const conPdf=certsDeZona(z)
+    .filter(c=>c?.medicion_firmada_url&&Number(c.medicion_numero)>=Number(n))
+    .sort((a,b)=>Number(b.medicion_numero)-Number(a.medicion_numero));
+  if(!conPdf.length)return {sinPdf:true};
+  const fuente=conPdf[0];
+  if(avisar)avisar('Leyendo la planilla firmada...');
+  try{
+    const lectura=await window.dgieLeerPlanillaFirmada(fuente.medicion_firmada_url);
+    if(lectura.error)return {error:lectura.error};
+    if(lectura.problemas&&lectura.problemas.length)
+      return {error:'La lectura no coincide con los totales del papel: '+lectura.problemas.join(' · ')};
+    const r=await window.dgieGuardarPlanillaFirmada(z,lectura,fuente.medicion_firmada_archivo);
+    delete FIRMADA['z'+z];
+    await cargarFirmada(z);
+    return {guardado:r};
+  }catch(e){
+    return {error:String(e?.message||e)};
+  }
+}
 function planillaFirmadaHTML(z,n){
   const d=FIRMADA['z'+z]||{filas:[],totales:{}};
   const info=datosZona(z);
@@ -27286,6 +27312,22 @@ window.dgieVerLiquidacion=async function(numero,zona){
   // en el momento y la planilla se vuelve a dibujar con los datos completos.
   const panel=document.getElementById('dgie-liq-progreso');
   const avisar=(t,color)=>{ if(panel){panel.textContent=t; panel.style.color=color||'var(--muted)';} };
+  // De la sexta para atras, la planilla sale del papel firmado. Si todavia no
+  // se reconocio, se hace ahora y se vuelve a dibujar con los datos.
+  if(Number(numero)<DESDE_MEDICION_EXACTA&&!hayFirmada(z,numero)){
+    const f=await asegurarFirmada(z,numero,avisar);
+    if(f&&f.guardado){
+      await window.dgieVerLiquidacion(numero,z);
+      const p=document.getElementById('dgie-liq-progreso');
+      if(p){p.textContent=`Planilla firmada reconocida: ${f.guardado.filas} filas de ${f.guardado.mediciones.length} medición${f.guardado.mediciones.length!==1?'es':''}.`; p.style.color='#176b32'}
+      return;
+    }
+    if(f&&f.error)avisar('No se pudo leer la planilla firmada: '+f.error,'var(--danger)');
+    else if(f&&f.sinPdf)avisar('Esta medición no tiene cargado el PDF de la planilla firmada.','var(--danger)');
+    else avisar('');
+    return;
+  }
+
   const r=await completarLoQueFalte(z,numero,avisar);
   if(!r)return;
   if(r.listos){
@@ -27466,6 +27508,216 @@ if(typeof finalizarPrevLiq==='function'){
   };
 });
 new MutationObserver(()=>setTimeout(agregarBotones,0)).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+<script id="dgie-lector-planilla-firmada-2026-08-28">
+(function(){
+'use strict';
+
+// ────────────────────────────────────────────────────────────────────
+// Reconocer la planilla de liquidación firmada
+// ────────────────────────────────────────────────────────────────────
+// Las mediciones anteriores a la séptima ya se liquidaron y se firmaron. La
+// fuente de verdad de esas es el papel, no un recálculo. Acá se lee la tabla
+// del PDF y se guarda fila por fila, para poder mostrarla y consultarla.
+//
+// No hace falta ninguna librería: el navegador sabe descomprimir, y el texto
+// del PDF se lee de sus propios operadores de dibujo.
+
+const RUBROS=['cubierta','electricidad','albanileria','sanitaria','gas'];
+// Geometría de la planilla oficial, medida sobre el PDF.
+const X_EST=40, X_OS=480, X_RUB_INI=525, X_RUB_FIN=1057;
+const X_TOT_INI=1057, X_TOT_FIN=1156, X_MONTO_INI=1156, ANCHO_MONTO=141.5;
+
+async function inflar(bytes){
+  const ds=new DecompressionStream('deflate');
+  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer());
+}
+
+function limpiar(t){
+  return String(t).replace(/\\\(/g,'(').replace(/\\\)/g,')').replace(/\\\\/g,'\\').trim();
+}
+// El texto va partido letra por letra con el interletrado en el medio, así que
+// hay que juntar las partes de cada operador.
+function juntar(bloque){
+  return limpiar([...String(bloque).matchAll(/\((?:[^()\\]|\\.)*\)/g)].map(z=>z[0].slice(1,-1)).join(''));
+}
+function textoPlano(s){
+  return [...s.matchAll(/\[((?:[^\[\]\\]|\\.)*)\]\s*TJ|\(((?:[^()\\]|\\.)*)\)\s*Tj/g)]
+    .map(m=>m[2]!==undefined?limpiar(m[2]):juntar(m[1])).join(' ');
+}
+
+// Cada pieza de texto con la posición donde se dibuja.
+function piezas(s){
+  const out=[]; let x=0,y=0;
+  const tok=/([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+Tm|([-\d.]+)\s+([-\d.]+)\s+Td|\(((?:[^()\\]|\\.)*)\)\s*Tj|\[((?:[^\[\]\\]|\\.)*)\]\s*TJ/g;
+  let m;
+  while((m=tok.exec(s))){
+    if(m[1]!==undefined){ x=parseFloat(m[5]); y=parseFloat(m[6]); }
+    else if(m[7]!==undefined){ x+=parseFloat(m[7]); y+=parseFloat(m[8]); }
+    else if(m[9]!==undefined){ const t=limpiar(m[9]); if(t)out.push([x,y,t]); }
+    else if(m[10]!==undefined){ const t=juntar(m[10]); if(t)out.push([x,y,t]); }
+  }
+  return out;
+}
+
+// Las piezas de una misma fila caen en alturas casi iguales.
+function bandas(lista){
+  const filas={};
+  lista.forEach(([x,y,t])=>{ const k=Math.round(y); (filas[k]=filas[k]||[]).push([x,t]) });
+  const ys=Object.keys(filas).map(Number).sort((a,b)=>b-a);
+  const out=[];
+  ys.forEach(y=>{
+    if(out.length&&Math.abs(out[out.length-1][0]-y)<=6)out[out.length-1][1].push(...filas[y]);
+    else out.push([y,filas[y].slice()]);
+  });
+  return out;
+}
+
+async function hojaDeLaPlanilla(bytes){
+  const txt=new TextDecoder('latin1').decode(bytes);
+  let i=0, mejor=null;
+  while(true){
+    const a=txt.indexOf('stream',i);
+    if(a<0)break;
+    i=a+6;
+    if(txt.slice(a-3,a)==='end')continue;
+    let ini=a+6;
+    if(bytes[ini]===13)ini++;
+    if(bytes[ini]===10)ini++;
+    if(bytes[ini]!==0x78)continue;              // sólo los comprimidos
+    let fin=txt.indexOf('endstream',ini);
+    if(fin<=ini)continue;
+    // El salto de línea final no es parte de los datos y rompe la descompresión.
+    while(fin>ini&&(bytes[fin-1]===10||bytes[fin-1]===13))fin--;
+    let salida;
+    try{ salida=await inflar(bytes.slice(ini,fin)); }catch(_){ continue }
+    const t=new TextDecoder('latin1').decode(salida);
+    if(!/\bTJ\b|\bTj\b/.test(t))continue;
+    if(/TOTAL DE MODULOS|ORDEN DE|ESTABLECIMIENTO/i.test(textoPlano(t))&&(!mejor||t.length>mejor.length))mejor=t;
+  }
+  return mejor;
+}
+
+const ES_NUM=/^[\d.]*\d,\d{2}$/;
+const num=s=>Number(String(s).replace(/\./g,'').replace(',','.'))||0;
+
+function armarTabla(contenido){
+  const ancho=(X_RUB_FIN-X_RUB_INI)/RUBROS.length;
+  const filas=[], pie={};
+  bandas(piezas(contenido)).forEach(([y,celdas])=>{
+    celdas.sort((a,b)=>a[0]-b[0]);
+    const rubrosDe=()=>{
+      const r={}; RUBROS.forEach(k=>r[k]=0);
+      celdas.forEach(([x,t])=>{ if(ES_NUM.test(t)&&x>=X_RUB_INI&&x<X_RUB_FIN)
+        r[RUBROS[Math.min(Math.floor((x-X_RUB_INI)/ancho),RUBROS.length-1)]]=num(t) });
+      return r;
+    };
+    const totalDe=()=>{
+      const c=celdas.find(([x,t])=>ES_NUM.test(t)&&x>=X_TOT_INI&&x<X_TOT_FIN);
+      return c?num(c[1]):null;
+    };
+
+    const ordinal=celdas.find(([,t])=>/^\d+(RA|DA|TA|MA|VA|NA)$/.test(t));
+    if(ordinal){
+      pie[Number(String(ordinal[1]).match(/^\d+/)[0])]={rubros:rubrosDe(),total:totalDe()};
+      return;
+    }
+    if(y<150||y>1812)return;
+
+    const est=celdas.filter(([x,t])=>x>=X_EST&&x<X_OS&&!/^\d+$/.test(t)).map(([,t])=>t).join(' ').trim();
+    if(!est)return;
+    const nro=(celdas.find(([x,t])=>x<X_EST&&/^\d+$/.test(t))||[])[1]||'';
+    const os=(celdas.find(([x,t])=>x>=X_OS&&x<X_RUB_INI&&/^\d+(-\d+)?$/.test(t))||[])[1]||'';
+    const mon=celdas.find(([x,t])=>ES_NUM.test(t)&&x>=X_MONTO_INI);
+
+    filas.push({
+      nro:/^\d+$/.test(nro)?Number(nro):null,
+      establecimiento:est, orden_servicio:os, rubros:rubrosDe(),
+      modulos:totalDe()||0,
+      medicion:mon?Math.floor((mon[0]-X_MONTO_INI)/ANCHO_MONTO)+1:null,
+      monto:mon?num(mon[1]):0
+    });
+  });
+  return {filas,pie};
+}
+
+// Se comprueba contra los totales del pie del propio papel: si no los
+// reproduce, la lectura no sirve y no se guarda nada.
+function validar(filas,pie){
+  const calc={};
+  filas.forEach(f=>{
+    if(!f.medicion)return;
+    const d=calc[f.medicion]=calc[f.medicion]||{total:0,monto:0,filas:0};
+    d.filas++; d.total+=f.modulos; d.monto+=f.monto;
+  });
+  const problemas=[];
+  Object.keys(pie).forEach(m=>{
+    const esperado=pie[m].total;
+    if(esperado==null)return;
+    const leido=calc[m]?Math.round(calc[m].total*100)/100:null;
+    if(leido==null)problemas.push(`medición ${m}: no se leyó ninguna fila`);
+    else if(Math.abs(leido-esperado)>0.05)problemas.push(`medición ${m}: leído ${leido} contra ${esperado} del pie`);
+  });
+  return {calc,problemas};
+}
+
+window.dgieLeerPlanillaFirmada=async function(url){
+  const bytes=new Uint8Array(await (await fetch(url)).arrayBuffer());
+  const contenido=await hojaDeLaPlanilla(bytes);
+  if(!contenido)return {error:'No se reconoció la planilla dentro del PDF.'};
+  const {filas,pie}=armarTabla(contenido);
+  const conMonto=filas.filter(f=>f.medicion);
+  if(!conMonto.length)return {error:'No se encontraron filas con monto en la planilla.'};
+  const {calc,problemas}=validar(conMonto,pie);
+  return {filas:conMonto, pie, resumen:calc, problemas};
+};
+
+// ────────────────────────────────────────────────────────────────────
+// Guardar lo reconocido
+// ────────────────────────────────────────────────────────────────────
+async function tokenSesion(){
+  try{
+    const t=await window.DGIE_DB?.tokenAccesoPush?.();
+    return t?.data||window.DGIE_SUPABASE.anonKey;
+  }catch(_){ return window.DGIE_SUPABASE.anonKey }
+}
+
+window.dgieGuardarPlanillaFirmada=async function(zona,lectura,archivo){
+  const cfg=window.DGIE_SUPABASE;
+  const z=Number(zona);
+  const h={apikey:cfg.anonKey,Authorization:'Bearer '+(await tokenSesion()),'Content-Type':'application/json'};
+  const meds=[...new Set(lectura.filas.map(f=>Number(f.medicion)))].sort((a,b)=>a-b);
+  const enLista=`(${meds.join(',')})`;
+
+  // Se reemplaza lo que hubiera de esta zona y estas mediciones.
+  await fetch(`${cfg.url}/rest/v1/liquidacion_firmada?zona=eq.${z}&medicion=in.${enLista}`,{method:'DELETE',headers:h});
+  await fetch(`${cfg.url}/rest/v1/liquidacion_firmada_totales?zona=eq.${z}&medicion=in.${enLista}`,{method:'DELETE',headers:h});
+
+  const porMedicion={};
+  const filas=lectura.filas.map(f=>{
+    const m=Number(f.medicion);
+    porMedicion[m]=(porMedicion[m]||0)+1;
+    return {zona:z, medicion:m, orden:porMedicion[m], nro:f.nro,
+      establecimiento:f.establecimiento, orden_servicio:f.orden_servicio,
+      cubierta:f.rubros.cubierta, electricidad:f.rubros.electricidad,
+      albanileria:f.rubros.albanileria, sanitaria:f.rubros.sanitaria, gas:f.rubros.gas,
+      modulos:f.modulos, monto:f.monto, archivo:archivo||null};
+  });
+  const r1=await fetch(`${cfg.url}/rest/v1/liquidacion_firmada`,{method:'POST',headers:h,body:JSON.stringify(filas)});
+  if(!r1.ok)throw new Error('No se pudieron guardar las filas: '+(await r1.text()).slice(0,140));
+
+  const totales=meds.map(m=>{
+    const p=lectura.pie[m]||{rubros:{}}, c=lectura.resumen[m]||{};
+    return {zona:z, medicion:m,
+      cubierta:p.rubros.cubierta||0, electricidad:p.rubros.electricidad||0,
+      albanileria:p.rubros.albanileria||0, sanitaria:p.rubros.sanitaria||0, gas:p.rubros.gas||0,
+      modulos:p.total!=null?p.total:(c.total||0), monto:c.monto||0, archivo:archivo||null};
+  });
+  const r2=await fetch(`${cfg.url}/rest/v1/liquidacion_firmada_totales`,{method:'POST',headers:h,body:JSON.stringify(totales)});
+  if(!r2.ok)throw new Error('No se pudieron guardar los totales: '+(await r2.text()).slice(0,140));
+  return {filas:filas.length, mediciones:meds};
+};
 })();
 </script>
 </body>

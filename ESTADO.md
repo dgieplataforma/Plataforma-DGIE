@@ -23,10 +23,11 @@ sepa dónde quedó todo sin tener que preguntar.
   albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
 - El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
   carga a mano en el panel y queda recordado por zona.
-- **De la medición 6 para atrás, la planilla es la del PDF firmado.** Se lee su tabla, se
-  guarda fila por fila en `liquidacion_firmada` y se muestra tal cual, sin recalcular: es
-  lo que efectivamente se cobró. La lectura se valida contra los totales del pie del
-  propio papel. Falta correr `supabase-liquidacion-firmada.sql` y cargar cada zona.
+- **De la medición 6 para atrás, la planilla es la del PDF firmado.** La plataforma lo
+  reconoce sola la primera vez que se abre esa liquidación: lee la tabla del papel y la
+  guarda fila por fila en `liquidacion_firmada`. Usa el PDF de la medición más alta de la
+  zona, que es acumulativo. La lectura se valida contra los totales del pie: si no
+  coinciden, no guarda nada. Falta correr `supabase-liquidacion-firmada.sql`.
 - **Desde la medición 7 la liquidación se arma con los certificados**, que es el
   procedimiento nuevo.
 - Hay **35 mediciones finalizadas con PDF firmado y 13 sin PDF**. Las que no lo tienen no
