@@ -27363,8 +27363,13 @@ function archivoVigenteDe(c){
 function sinDesgloseAun(c){
   const d=c?.modulos_por_rubro;
   const tieneRubros=d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0);
-  const tieneExacto=num(c?.modulos_exacto)>0;
-  return !tieneRubros||!tieneExacto;
+  const exacto=num(c?.modulos_exacto);
+  if(!tieneRubros||exacto<=0)return true;
+  // Los rubros tienen que sumar exactamente el total del certificado. Si no
+  // cierran es porque se guardaron redondeados, y hay que volver a leerlos con
+  // todos sus decimales.
+  const suma=RUBROS_LIQ.reduce((a,r)=>a+num(d[r.key]),0);
+  return Math.abs(suma-exacto)>0.0001;
 }
 
 // Recorre todos los certificados medidos que la sesion puede ver y les
