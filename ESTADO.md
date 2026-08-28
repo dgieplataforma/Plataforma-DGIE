@@ -31,7 +31,15 @@ sepa dónde quedó todo sin tener que preguntar.
 - **Sin PDF cargado no se muestra ninguna planilla** para esas mediciones: se pide el
   papel. Mostrar una calculada daría números distintos a los que se cobraron.
 - **Desde la medición 7 la liquidación se arma con los certificados**, que es el
-  procedimiento nuevo.
+  procedimiento nuevo. En una misma planilla conviven las dos formas: las columnas de las
+  mediciones 1 a 6 traen los montos del papel firmado, y la 7 en adelante se calcula.
+- **Desde la medición 7 no se pueden cargar módulos a mano.** El campo "módulos
+  certificado final" desaparece y se muestra el número del certificado. Si el número está
+  mal, se corrige el certificado y se vuelve a subir.
+- Las cuentas de la 7 en adelante van **en bruto**: los rubros y el total salen del Excel
+  con todos sus decimales, el monto se calcula con el valor de módulo del propio
+  certificado, y sólo se redondea al mostrar. Si los rubros no suman el total, el
+  certificado se relee solo.
 - Hay **35 mediciones finalizadas con PDF firmado y 13 sin PDF**. Las que no lo tienen no
   van a poder mostrar la planilla histórica hasta que se cargue.
 - **Las cuentas se hacen en bruto y la pantalla muestra dos decimales.** Los módulos, el
@@ -46,6 +54,29 @@ sepa dónde quedó todo sin tener que preguntar.
   los certificados quedan quietos. No hay botón: los certificados nuevos lo traen al
   subirse, y las mediciones cerradas antes de esto se completan solas la primera vez que
   se mira su liquidación.
+
+### Lo que hay que hacer a continuación
+
+1. **Correr el borrado** para que la planilla firmada se relea con la última versión del
+   lector, que toma también el monto del pie:
+   `delete from public.liquidacion_firmada; delete from public.liquidacion_firmada_totales;`
+2. **Abrir la liquidación de zona 15, medición 4.** Lee el PDF y guarda las 68 filas.
+3. **Abrir la medición 7 de zona 15**, que es la de práctica: 26 certificados copiados de
+   la 4 con las órdenes con 1000 sumado y el nombre con "PRÁCTICA ·" adelante. Ahí se ve
+   el procedimiento nuevo conviviendo con las cuatro columnas históricas.
+4. **Faltan PDF en 13 mediciones finalizadas**: zona 4 la 1 a la 3, zona 7 la 4 y 5,
+   zona 9 la 2, 4 y 5, zona 13 la 4 y 5, zona 14 la 4 y 5. Hasta que se suban, esas
+   mediciones piden el papel y no muestran planilla.
+5. **Borrar la práctica** cuando ya no sirva:
+   `delete from public.certificados_medicion where zona=15 and medicion_numero=7 and establecimiento_nombre like 'PRÁCTICA ·%';`
+
+### Diferencias conocidas, para no volver a investigarlas
+
+- **Zona 15, medición 4, O.S. 166** (J. de Inf. República del Ecuador): el papel se firmó
+  con 12,46247 módulos y el Excel que hoy está adjunto dice 12,465. Son $345,14. El
+  certificado se reemplazó después de la firma. Los otros 25 de esa medición dan idénticos.
+- **Zona 15, medición 4, O.S. 158**: el inspector había cargado 4,87 a mano contra 4,968
+  del certificado; ya fue corregido a 4,97.
 
 ### Pendiente de revisar por el inspector
 

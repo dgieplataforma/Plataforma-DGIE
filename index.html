@@ -27754,6 +27754,56 @@ async function tokenSesion(){
   }catch(_){ return window.DGIE_SUPABASE.anonKey }
 }
 
+// ────────────────────────────────────────────────────────────────────
+// Desde la séptima medición los módulos salen sólo del certificado
+// ────────────────────────────────────────────────────────────────────
+// La carga manual de "módulos certificado final" queda deshabilitada: si el
+// número se pudiera escribir a mano, la planilla dejaría de reflejar lo que
+// dicen los certificados y volveríamos al problema de las mediciones viejas.
+const DESDE_MEDICION_SIN_CARGA_MANUAL=7;
+function certPorId(id){
+  const lista=typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[];
+  return lista.find(c=>String(c?.id||c?.localId||'')===String(id));
+}
+function sinCargaManual(c){
+  return Number(c?.medicion_numero||0)>=DESDE_MEDICION_SIN_CARGA_MANUAL;
+}
+window.dgieCertSinCargaManual=sinCargaManual;
+
+const AVISO_SIN_MANUAL='Desde la medición '+DESDE_MEDICION_SIN_CARGA_MANUAL+
+  ' los módulos salen del certificado y no se cargan a mano.\n\n'+
+  'Si el número no es el correcto, hay que corregir el certificado y volver a subirlo.';
+
+['guardarModulosFinalCertificado','limpiarModulosFinalCertificado'].forEach(nombre=>{
+  const previo=window[nombre];
+  if(typeof previo!=='function')return;
+  window[nombre]=async function(id){
+    if(sinCargaManual(certPorId(id))){ alert(AVISO_SIN_MANUAL); return }
+    return previo.apply(this,arguments);
+  };
+});
+
+// En pantalla se muestra el número del certificado, sin campo para escribirlo.
+function quitarCargaManual(){
+  document.querySelectorAll('.cert-final-modulos-row').forEach(fila=>{
+    const input=fila.querySelector('[id^="cert-final-mod-"]');
+    if(!input||fila.dataset.dgieSinManual)return;
+    const c=certPorId(input.id.replace('cert-final-mod-',''))
+      ||(typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[])
+        .find(x=>String(x?.id||x?.localId||'').replace(/[^a-zA-Z0-9_-]/g,'_')===input.id.replace('cert-final-mod-',''));
+    if(!c||!sinCargaManual(c))return;
+    fila.dataset.dgieSinManual='1';
+    const valor=input.value;
+    input.remove();
+    fila.querySelectorAll('button').forEach(b=>b.remove());
+    fila.insertAdjacentHTML('beforeend',
+      `<strong style="font-size:12px;color:#123c69">${valor?esc(valor):'—'}</strong>`+
+      `<span style="font-size:11px;color:var(--muted)">del certificado</span>`);
+  });
+}
+window.dgieQuitarCargaManualModulos=quitarCargaManual;
+new MutationObserver(()=>setTimeout(quitarCargaManual,0)).observe(document.body,{childList:true,subtree:true});
+
 // Reconoce el PDF recién subido y deja la planilla guardada. Se usa al cargar
 // el papel firmado, para que no haya que esperar a que alguien abra la
 // liquidación.
