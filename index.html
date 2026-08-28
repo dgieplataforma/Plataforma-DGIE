@@ -27047,7 +27047,101 @@ function medicionesHasta(z,n){
     .sort((a,b)=>a-b);
 }
 
+// ────────────────────────────────────────────────────────────────────
+// La planilla firmada, para las mediciones anteriores a la septima
+// ────────────────────────────────────────────────────────────────────
+// Esas mediciones ya se liquidaron y se firmaron. Recalcularlas daria numeros
+// que no son los que se cobraron, asi que se muestra la planilla del papel,
+// leida y guardada tal cual. Desde la septima se arma con los certificados.
+let FIRMADA={};
+async function cargarFirmada(z){
+  if(FIRMADA['z'+z])return FIRMADA['z'+z];
+  const cfg=window.DGIE_SUPABASE;
+  const vacio={filas:[],totales:{}};
+  if(!cfg?.url)return vacio;
+  try{
+    const h={apikey:cfg.anonKey,Authorization:'Bearer '+(await tokenSesion())};
+    const [rf,rt]=await Promise.all([
+      fetch(`${cfg.url}/rest/v1/liquidacion_firmada?select=*&zona=eq.${Number(z)}&order=medicion,orden`,{headers:h}),
+      fetch(`${cfg.url}/rest/v1/liquidacion_firmada_totales?select=*&zona=eq.${Number(z)}`,{headers:h})
+    ]);
+    if(!rf.ok)return vacio;                 // si la tabla no existe todavia, se calcula como siempre
+    const filas=await rf.json();
+    const totales={};
+    if(rt.ok)(await rt.json()).forEach(t=>{totales[Number(t.medicion)]=t});
+    FIRMADA['z'+z]={filas,totales};
+    return FIRMADA['z'+z];
+  }catch(_){ return vacio }
+}
+function hayFirmada(z,n){
+  const d=FIRMADA['z'+z];
+  return !!(d&&d.filas.some(f=>Number(f.medicion)===Number(n)));
+}
+function planillaFirmadaHTML(z,n){
+  const d=FIRMADA['z'+z]||{filas:[],totales:{}};
+  const info=datosZona(z);
+  const hasta=d.filas.filter(f=>Number(f.medicion)<=Number(n));
+  const meds=[...new Set(hasta.map(f=>Number(f.medicion)))].sort((a,b)=>a-b);
+  const colDe=m=>colorMedicion(m,z);
+  const archivo=(hasta[0]||{}).archivo||'';
+
+  const cabecera=`<div class="dgie-liq-cabecera">
+    <div><b>LICITACIÓN PÚBLICA N° 04/2024 - PRÓRROGA</b> · "Contratación para el servicio de mantenimiento y reparaciones generales en establecimientos educativos de Córdoba Capital"</div>
+    <div><b>Expediente:</b> ${esc(info.expediente||'—')} · <b>Renglón:</b> ${esc(z)} · <b>Zona:</b> ${esc(z)}</div>
+    <div><b>Empresa:</b> ${esc(info.empresa||'—')} · <b>Inspector:</b> ${esc(info.inspector||'—')}</div>
+    <div><b>Medición N° ${esc(n)}</b> · tomada de la planilla firmada${archivo?' · '+esc(archivo):''}</div>
+  </div>
+  <div class="dgie-liq-aviso">Esta es la planilla tal como se firmó, leída del PDF. No se recalcula: es lo que efectivamente se liquidó.</div>`;
+
+  const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
+  const thMontos=meds.map(m=>`<th style="background:${colDe(m)};color:#1a2b12">MONTO TOTAL<br>MEDICIÓN N° ${esc(m)}</th>`).join('');
+
+  const cuerpo=hasta.map(f=>`<tr>
+      <td class="num">${f.nro?esc(f.nro):''}</td>
+      <td class="est">${esc(f.establecimiento)}</td>
+      <td class="num">${esc(f.orden_servicio||'')}</td>
+      ${RUBROS_LIQ.map(r=>`<td class="num">${num(f[r.key])?fmt(f[r.key]):''}</td>`).join('')}
+      <td class="num" style="background:${colDe(f.medicion)}"><b>${fmt(f.modulos)}</b></td>
+      ${meds.map(m=>`<td class="num">${Number(m)===Number(f.medicion)?pesos(f.monto):''}</td>`).join('')}
+    </tr>`).join('');
+
+  const pie=meds.map(m=>{
+    const t=d.totales[m]||{};
+    const propias=hasta.filter(f=>Number(f.medicion)===m);
+    const suma=k=>propias.reduce((a,f)=>a+num(f[k]),0);
+    return `<tr>
+      <td colspan="2" style="background:${colDe(m)}">${esc(ordinal(m))} MEDICIÓN</td>
+      <td></td>
+      ${RUBROS_LIQ.map(r=>`<td class="num">${fmt(num(t[r.key])||suma(r.key))}</td>`).join('')}
+      <td class="num" style="background:${colDe(m)}">${fmt(num(t.modulos)||suma('modulos'))}</td>
+      ${meds.map(x=>`<td class="num">${Number(x)===Number(m)?pesos(num(t.monto)||suma('monto')):''}</td>`).join('')}
+    </tr>`;
+  }).join('');
+
+  const totMod=meds.reduce((a,m)=>a+num((d.totales[m]||{}).modulos||hasta.filter(f=>Number(f.medicion)===m).reduce((s,f)=>s+num(f.modulos),0)),0);
+  const totMonto=hasta.reduce((a,f)=>a+num(f.monto),0);
+
+  return `${cabecera}<div class="dgie-liq-wrap"><table class="dgie-liq" style="--liq-cab:${colDe(n)}">
+    <thead>
+      <tr>
+        <th rowspan="2">NRO</th><th rowspan="2">ESTABLECIMIENTO</th><th rowspan="2">ORDEN DE<br>SERVICIO</th>
+        <th colspan="${RUBROS_LIQ.length}">CANTIDAD DE MÓDULOS POR RUBRO</th>
+        <th rowspan="2" style="background:${colDe(n)};color:#1a2b12">MEDICIÓN N° ${esc(n)}</th>
+        <th colspan="${meds.length}">MONTOS</th>
+      </tr>
+      <tr>${thRubros}${thMontos}</tr>
+    </thead>
+    <tbody>${cuerpo}</tbody>
+    <tfoot>${pie}
+      <tr><td colspan="${RUBROS_LIQ.length+3}">ACUMULADO HASTA LA MEDICIÓN N° ${esc(n)}</td>
+        <td class="num">${fmt(totMod)}</td>
+        <td class="num" colspan="${meds.length}">${pesos(totMonto)}</td></tr>
+    </tfoot>
+  </table></div>`;
+}
+
 function planillaHTML(z,n){
+  if(Number(n)<DESDE_MEDICION_EXACTA&&hayFirmada(z,n))return planillaFirmadaHTML(z,n);
   const info=datosZona(z);
   const filas=filasHasta(z,n);
   const acumulado=medicionesHasta(z,n).map(m=>totalesDeMedicion(z,m,filas));
@@ -27144,10 +27238,13 @@ function planillaHTML(z,n){
 // desglose guardado. Se completa solo la primera vez que se mira la
 // liquidacion, sin que nadie tenga que apretar nada.
 async function completarLoQueFalte(z,numero,avisar){
+  // Solo desde la septima: las anteriores salen de la planilla firmada, asi que
+  // no tiene sentido bajar sus archivos.
   const pendientes=certs().filter(c=>
     Number(c?.zona)===Number(z) &&
     String(c?.estado||'')==='medido' &&
     c?.medicion_numero!=null &&
+    Number(c.medicion_numero)>=DESDE_MEDICION_EXACTA &&
     Number(c.medicion_numero)<=Number(numero) &&
     medicionCerrada(z,c.medicion_numero) &&
     sinDesgloseAun(c) && archivoVigenteDe(c));
@@ -27159,6 +27256,7 @@ async function completarLoQueFalte(z,numero,avisar){
 window.dgieVerLiquidacion=async function(numero,zona){
   const z=Number(zona||zonaActual());
   await cargarColores(z);
+  await cargarFirmada(z);
   const cont=document.getElementById('med-detalle')||document.getElementById('coord-cert-medicion-detalle')||document.getElementById('main-content');
   if(!cont)return;
   let caja=document.getElementById('dgie-liq-caja');
