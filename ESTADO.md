@@ -23,6 +23,10 @@ sepa dónde quedó todo sin tener que preguntar.
   albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
 - El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
   carga a mano en el panel y queda recordado por zona.
+- **El procedimiento nuevo rige desde la medición 7.** Las anteriores se liquidan con los
+  módulos que dejaron cargados los inspectores, tal como quedaron: son historia y no se
+  tocan. Por eso pueden no coincidir con los PDF firmados, que se calcularon con los
+  decimales completos mientras que el inspector cargó el número redondeado.
 - **Las cuentas se hacen en bruto y la pantalla muestra dos decimales.** Los módulos, el
   total y la multiplicación por el valor del módulo usan el número completo del
   certificado; el redondeo es sólo al mostrar. Cada fila usa el valor de módulo de su

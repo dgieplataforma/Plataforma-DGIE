@@ -26879,14 +26879,21 @@ function medicionCerrada(z,n){
 // Los modulos se toman redondeados a dos decimales, tal como salen del
 // certificado, y el monto se calcula con ese mismo numero. Lo que se ve en la
 // planilla es lo que se cobra: no se liquida sobre decimales que no figuran.
-// Todo en bruto: los modulos salen del certificado con todos sus decimales y
-// asi se usan, tanto en pantalla como para calcular la plata.
+// El procedimiento nuevo — tomar el numero completo del certificado — rige
+// desde la septima medicion. Lo anterior queda como historia: se liquida con
+// lo que dejo cargado el inspector, sin tocar su trabajo.
+const DESDE_MEDICION_EXACTA = 7;
+function usaCertificado(c){
+  return Number(c?.medicion_numero||0) >= DESDE_MEDICION_EXACTA;
+}
+// Lo que quedo cargado en la plataforma.
 function modulosSinRedondear(c){
   return typeof window.modulosCertificadoFinal==='function'
     ? num(window.modulosCertificadoFinal(c))
     : num(c?.modulos_final??c?.modulos_inspector??c?.modulos_original);
 }
 function modulosExactos(c){
+  if(!usaCertificado(c))return modulosSinRedondear(c);
   const e=num(c?.modulos_exacto);
   return e>0?e:modulosSinRedondear(c);
 }
@@ -26936,15 +26943,22 @@ function desgloseDe(c){
   if(guardado&&typeof guardado==='object'){
     const r={};
     RUBROS_LIQ.forEach(x=>{r[x.key]=num(guardado[x.key])});
-    if(RUBROS_LIQ.some(x=>r[x.key]>0))return {rubros:r,completo:true};
+    if(RUBROS_LIQ.some(x=>r[x.key]>0)){
+      // En las mediciones anteriores a la septima el total es el que dejo el
+      // inspector, y el reparto por rubro sale del certificado: pueden no
+      // coincidir. Se marca para avisarlo, no se toca ninguno de los dos.
+      const suma=RUBROS_LIQ.reduce((a,x)=>a+num(r[x.key]),0);
+      const cuadra=Math.abs(suma-modulosExactos(c))<0.005;
+      return {rubros:r,completo:true,cuadra};
+    }
   }
   const codigos=(typeof window.certRubrosCodigos==='function'?(window.certRubrosCodigos(c)||[]):[])
     .map(x=>MAPA_CODIGOS[String(x).toUpperCase()]).filter(Boolean);
   const unicos=[...new Set(codigos)];
   const r={};
   RUBROS_LIQ.forEach(x=>{r[x.key]=0});
-  if(unicos.length===1){ r[unicos[0]]=modulosFinales(c); return {rubros:r,completo:true}; }
-  return {rubros:r,completo:false};
+  if(unicos.length===1){ r[unicos[0]]=modulosFinales(c); return {rubros:r,completo:true,cuadra:true}; }
+  return {rubros:r,completo:false,cuadra:true};
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -26974,6 +26988,7 @@ function filasHasta(z,n){
       os:ordenesDe(c).join('-'),
       rubros:d.rubros,
       completo:d.completo,
+      cuadra:d.cuadra!==false,
       total:modulosFinales(c),
       exacto:modulosExactos(c),
       // El valor del modulo con el que se emitio ESTE certificado. Usando el
@@ -27056,7 +27071,13 @@ function planillaHTML(z,n){
     return `${cabecera}<div class="dgie-liq-aviso">Esta medición todavía no está finalizada, así que no se liquida: los certificados pueden cambiar. Marcá la certificación como finalizada y la planilla se arma sola.${acumulado.length?`<br><br>Ya hay ${acumulado.length} medición${acumulado.length!==1?'es':''} cerrada${acumulado.length!==1?'s':''} en esta zona: abrí cualquiera de ellas para ver su liquidación.`:''}</div>`;
   }
 
-  const aviso=incompletos?`<div class="dgie-liq-aviso">${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. Se está leyendo el archivo de cada uno para completarlo.</div>`:'';
+  const historica=Number(n)<DESDE_MEDICION_EXACTA;
+  const noCuadran=filas.filter(f=>f.cert&&!f.cuadra).length;
+  const avisos=[];
+  if(incompletos)avisos.push(`${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. Se está leyendo el archivo de cada uno para completarlo.`);
+  if(historica)avisos.push(`Medición anterior a la séptima: se liquida con los módulos que dejó cargados el inspector, tal como quedaron. El procedimiento nuevo rige desde la medición ${DESDE_MEDICION_EXACTA}.`);
+  if(noCuadran)avisos.push(`En ${noCuadran} certificado${noCuadran!==1?'s':''} el reparto por rubro no suma el total cargado: el inspector ajustó el total a mano y el desglose sigue siendo el del certificado.`);
+  const aviso=avisos.length?`<div class="dgie-liq-aviso">${avisos.join('<br><br>')}</div>`:'';
 
   const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
   const mesDe=m=>{const p=periodoDe(certsDeMedicion(z,m.medicion));return p?'<br>'+esc(p):''};
