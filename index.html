@@ -15445,6 +15445,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           actualizado_por:currentUser?.name||'Inspector'
         });
       }
+      // Hasta la sexta medición la planilla de liquidación sale de este papel,
+      // así que se lee apenas se sube y queda lista.
+      if(typeof window.dgieReconocerPlanillaFirmada==='function'){
+        try{ await window.dgieReconocerPlanillaFirmada(currentUser?.zona,numero,subida?.url||'',nombre); }
+        catch(e){ console.warn('No se pudo reconocer la planilla firmada al subirla',e); }
+      }
       if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(numero);
     }catch(error){
       alert('No se pudo guardar el PDF de medición firmada: '+msgSupabaseMedicion(error));
@@ -27054,6 +27060,8 @@ function medicionesHasta(z,n){
 // que no son los que se cobraron, asi que se muestra la planilla del papel,
 // leida y guardada tal cual. Desde la septima se arma con los certificados.
 let FIRMADA={};
+// Para que al subir un PDF nuevo la planilla se vuelva a leer de la base.
+window.dgieOlvidarPlanillaFirmada=function(z){ delete FIRMADA['z'+Number(z)] };
 async function cargarFirmada(z){
   if(FIRMADA['z'+z])return FIRMADA['z'+z];
   const cfg=window.DGIE_SUPABASE;
@@ -27189,6 +27197,16 @@ function planillaHTML(z,n){
     <div><b>Empresa:</b> ${esc(info.empresa||'—')} · <b>Inspector:</b> ${esc(info.inspector||'—')}</div>
     <div><b>Valor del módulo:</b> ${actual.precio?pesos(actual.precio):'—'} · <b>Medición N° ${esc(n)}</b>${periodo?' · '+esc(periodo):''}</div>
   </div>`;
+
+  // Hasta la sexta medicion la planilla es la del papel firmado. Si todavia no
+  // se cargo ese PDF no se muestra nada calculado: seria un numero distinto al
+  // que se cobro, y eso confunde mas de lo que ayuda.
+  if(Number(n)<DESDE_MEDICION_EXACTA&&!hayFirmada(z,n)){
+    const tienePdf=certsDeZona(z).some(c=>c?.medicion_firmada_url&&Number(c.medicion_numero)>=Number(n));
+    return `${cabecera}<div class="dgie-liq-aviso">${tienePdf
+      ? 'Leyendo la planilla firmada del PDF...'
+      : `Esta medición se liquidó y se firmó en papel, así que su planilla sale de ese PDF. Todavía no está cargado: subilo desde la medición y la planilla se arma sola.<br><br>No se muestra una planilla calculada porque daría números distintos a los que se cobraron.`}</div>`;
+  }
 
   // Solo se liquida lo cerrado. Si la medicion abierta todavia no se finalizo,
   // se dice sin rodeos y no se muestran numeros que despues pueden cambiar.
@@ -27711,6 +27729,24 @@ async function tokenSesion(){
     return t?.data||window.DGIE_SUPABASE.anonKey;
   }catch(_){ return window.DGIE_SUPABASE.anonKey }
 }
+
+// Reconoce el PDF recién subido y deja la planilla guardada. Se usa al cargar
+// el papel firmado, para que no haya que esperar a que alguien abra la
+// liquidación.
+window.dgieReconocerPlanillaFirmada=async function(zona,numero,url,archivo){
+  if(!zona||!url)return null;
+  const lectura=await window.dgieLeerPlanillaFirmada(url);
+  if(lectura.error){ console.warn('Planilla firmada:',lectura.error); return null; }
+  if(lectura.problemas&&lectura.problemas.length){
+    console.warn('Planilla firmada, la lectura no coincide con el papel:',lectura.problemas.join(' · '));
+    alert('El PDF se guardó, pero la planilla que trae no pudo leerse con seguridad:\n\n'+
+          lectura.problemas.join('\n')+'\n\nNo se cargó ninguna liquidación.');
+    return null;
+  }
+  const r=await window.dgieGuardarPlanillaFirmada(zona,lectura,archivo);
+  if(window.dgieOlvidarPlanillaFirmada)window.dgieOlvidarPlanillaFirmada(zona);
+  return r;
+};
 
 window.dgieGuardarPlanillaFirmada=async function(zona,lectura,archivo){
   const cfg=window.DGIE_SUPABASE;
