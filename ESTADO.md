@@ -23,11 +23,10 @@ sepa dónde quedó todo sin tener que preguntar.
   albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
 - El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
   carga a mano en el panel y queda recordado por zona.
-- **Los montos se calculan como en la planilla que se firma:** en pantalla los módulos van
-  redondeados a dos decimales, pero el monto en pesos sale del número completo leído del
-  Excel. La diferencia entre la suma de esos montos y el total que corresponde a los
-  módulos redondeados se le carga al **último certificado de la lista**, y así el total
-  cierra. Falta correr `supabase-liquidacion-modulos-exactos.sql`.
+- **Las cuentas se hacen en bruto y la pantalla muestra dos decimales.** Los módulos, el
+  total y la multiplicación por el valor del módulo usan el número completo del
+  certificado; el redondeo es sólo al mostrar. Cada fila usa el valor de módulo de su
+  propio certificado, así el monto da exactamente el que figura ahí.
 - Cada zona elige el color de sus mediciones. Falta correr
   `supabase-liquidacion-colores.sql`.
 - **Sólo se liquidan las mediciones finalizadas.** Una medición abierta todavía puede

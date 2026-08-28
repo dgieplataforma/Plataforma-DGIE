@@ -26676,6 +26676,8 @@ const esc=v=>typeof escapeHtml==='function'?escapeHtml(v):String(v??'').replace(
 const num=v=>Number(String(v??'').replace(',','.'))||0;
 const certs=()=>typeof CERTIFICADOS_MEDICION!=='undefined'&&Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[];
 const usuario=()=>typeof currentUser!=='undefined'?currentUser:null;
+// En pantalla se muestran dos decimales. Las cuentas se hacen siempre con el
+// numero completo del certificado: se redondea al mostrar, nunca al calcular.
 function fmt(v,dec=2){return Number(v||0).toLocaleString('es-AR',{minimumFractionDigits:dec,maximumFractionDigits:dec})}
 function pesos(v){return '$ '+fmt(v,2)}
 
@@ -26745,32 +26747,21 @@ function desgloseDeHoja(ws){
   // El total del rubro es el ULTIMO valor de la columna TOTAL dentro del
   // bloque. Hay planillas donde esa columna trae un cero por cada item y el
   // total recien aparece al final: quedarse con el primero daria cero.
+  //
+  // Se toma el valor tal cual esta en la celda, con todos sus decimales. No se
+  // redondea en ningun paso: la planilla de liquidacion trabaja en bruto.
   bloques.forEach((bl,i)=>{
     const hasta=i+1<bloques.length?bloques[i+1].desde-1:limite;
     let valor=null;
     for(let r=bl.desde;r<=hasta;r++){
       const g=celda(r,6);
-      if(typeof g?.v==='number')valor=g;
+      if(typeof g?.v==='number')valor=g.v;
     }
-    if(valor){
+    if(valor!=null){
       const def=RUBROS_LIQ.find(x=>x.nro===bl.nro);
-      if(def)rubros[def.key]=comoSeVe(valor);
+      if(def)rubros[def.key]=valor;
     }
   });
-
-  // Los rubros se toman como se ven en la planilla, igual que el total. Al
-  // redondear cada uno por separado la suma puede quedar a un centesimo del
-  // total, asi que la diferencia se carga al rubro mas grande y las columnas
-  // cierran exactamente contra el total.
-  const totalVisible=filaTotal>=0?comoSeVe(celda(filaTotal,6)):null;
-  if(totalVisible!=null){
-    const suma=RUBROS_LIQ.reduce((a,r)=>a+num(rubros[r.key]),0);
-    const dif=Math.round((totalVisible-suma)*1e6)/1e6;
-    if(dif){
-      const mayor=RUBROS_LIQ.slice().sort((a,b)=>num(rubros[b.key])-num(rubros[a.key]))[0];
-      if(mayor&&num(rubros[mayor.key])>0)rubros[mayor.key]=Math.round((num(rubros[mayor.key])+dif)*1e6)/1e6;
-    }
-  }
 
   // Debajo de "TOTAL DE MODULOS MEDIDOS" van el total, el precio del modulo
   // y el monto. Se toma el precio para dejarlo guardado con el certificado.
@@ -26784,13 +26775,10 @@ function desgloseDeHoja(ws){
     if(valores.length>=2)precio=valores[1];
   }
 
-  // El total sin redondear: la planilla muestra el redondeado pero el monto en
-  // pesos se calcula con este, igual que en la liquidacion que se firma.
   const celdaTotal=celda(filaTotal,6);
   const exacto=typeof celdaTotal?.v==='number'?celdaTotal.v:null;
-
   const total=RUBROS_LIQ.reduce((a,r)=>a+num(rubros[r.key]),0);
-  return {rubros, total:Math.round(total*1e6)/1e6, exacto, precio_modulo:precio};
+  return {rubros, total, exacto, precio_modulo:precio};
 }
 
 window.dgieLeerDesgloseCertificado=async function(file){
@@ -26891,22 +26879,18 @@ function medicionCerrada(z,n){
 // Los modulos se toman redondeados a dos decimales, tal como salen del
 // certificado, y el monto se calcula con ese mismo numero. Lo que se ve en la
 // planilla es lo que se cobra: no se liquida sobre decimales que no figuran.
+// Todo en bruto: los modulos salen del certificado con todos sus decimales y
+// asi se usan, tanto en pantalla como para calcular la plata.
 function modulosSinRedondear(c){
-  const v=typeof window.modulosCertificadoFinal==='function'
+  return typeof window.modulosCertificadoFinal==='function'
     ? num(window.modulosCertificadoFinal(c))
     : num(c?.modulos_final??c?.modulos_inspector??c?.modulos_original);
-  return v;
 }
-function modulosFinales(c){
-  return Math.round(modulosSinRedondear(c)*100)/100;
-}
-// El total con todos sus decimales, leido del Excel. Es el que manda para el
-// monto en pesos: la planilla firmada calcula asi, aunque muestre el
-// redondeado. Si todavia no se leyo, se cae en lo que haya guardado.
 function modulosExactos(c){
   const e=num(c?.modulos_exacto);
   return e>0?e:modulosSinRedondear(c);
 }
+function modulosFinales(c){ return modulosExactos(c); }
 // El precio del modulo viene dentro del Excel del certificado. Mientras no
 // haya certificados con ese dato guardado, se usa el ultimo que se haya
 // indicado a mano para la zona, para que los montos no queden en cero.
@@ -26990,8 +26974,11 @@ function filasHasta(z,n){
       os:ordenesDe(c).join('-'),
       rubros:d.rubros,
       completo:d.completo,
-      total:modulosFinales(c),        // el redondeado, que es el que se muestra
-      exacto:modulosExactos(c)        // el completo, con el que se calcula la plata
+      total:modulosFinales(c),
+      exacto:modulosExactos(c),
+      // El valor del modulo con el que se emitio ESTE certificado. Usando el
+      // suyo, el monto de la fila da exactamente el que dice el certificado.
+      precio:num(c?.precio_modulo)
     };
   });
 
@@ -27024,27 +27011,17 @@ function totalesDeMedicion(z,n,filas){
   RUBROS_LIQ.forEach(r=>{rubros[r.key]=0});
   const precio=precioModulo(certsDeMedicion(z,n),z);
 
-  // Asi cierra la planilla que se firma: el monto de cada certificado se
-  // calcula con los modulos completos, aunque en pantalla se muestre el
-  // redondeado. Como la suma de esos montos no coincide con el total que
-  // corresponde a los modulos redondeados, la diferencia se le carga al ultimo
-  // certificado de la lista y el total cierra.
-  let total=0, montoExacto=0;
+  // Nada se redondea en las cuentas. El monto de cada fila usa el valor del
+  // modulo del propio certificado, para que dé exactamente el que ahí figura.
+  let total=0, monto=0;
   propias.forEach(f=>{
     RUBROS_LIQ.forEach(r=>{rubros[r.key]+=num(f.rubros[r.key])});
     total+=f.total;
-    f.monto=Math.round(f.exacto*precio*100)/100;
-    montoExacto+=f.monto;
+    f.monto=f.exacto*(f.precio||precio);
+    monto+=f.monto;
   });
-  RUBROS_LIQ.forEach(r=>{rubros[r.key]=Math.round(rubros[r.key]*1e6)/1e6});
 
-  total=Math.round(total*100)/100;
-  const montoOficial=Math.round(total*precio*100)/100;
-  const ajuste=Math.round((montoOficial-montoExacto)*100)/100;
-  const ultima=propias[propias.length-1];
-  if(ultima&&ajuste){ ultima.monto=Math.round((ultima.monto+ajuste)*100)/100; ultima.ajustada=ajuste; }
-
-  return {medicion:n, rubros, total, monto:montoOficial, precio, ajuste, filas:propias};
+  return {medicion:n, rubros, total, monto, precio, filas:propias};
 }
 
 function medicionesHasta(z,n){
@@ -27095,7 +27072,7 @@ function planillaHTML(z,n){
       <td class="num">${esc(f.os)}</td>
       ${RUBROS_LIQ.map(r=>`<td class="num">${num(f.rubros[r.key])?fmt(f.rubros[r.key]):''}</td>`).join('')}
       <td class="num"${f.medicion?` style="background:${colDe(f.medicion)}"`:''}><b>${fmt(f.total)}</b></td>
-      ${acumulado.map(m=>`<td class="num"${f.ajustada&&Number(m.medicion)===Number(f.medicion)?` title="Incluye ${fmt(f.ajustada)} de ajuste por redondeo, para que el total de la medición cierre"`:''}>${Number(m.medicion)===Number(f.medicion)?pesos(f.monto??(f.exacto*precioDe(m.medicion))):''}</td>`).join('')}
+      ${acumulado.map(m=>`<td class="num">${Number(m.medicion)===Number(f.medicion)?pesos(f.monto??(f.exacto*precioDe(m.medicion))):''}</td>`).join('')}
     </tr>`;
   }).join('');
 
