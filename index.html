@@ -26977,14 +26977,34 @@ function ordenDe(item){
 // hasta la que se esta mirando, y el monto de cada uno cae en la columna de
 // su propia medicion. Asi esta armada la planilla firmada.
 function filasHasta(z,n){
+  // Las mediciones anteriores a la septima salen de la planilla firmada, no de
+  // los certificados: es lo que efectivamente se liquido. Solo las de la
+  // septima en adelante se arman con los certificados.
+  const firmadas=((FIRMADA['z'+z]||{}).filas||[])
+    .filter(f=>Number(f.medicion)<DESDE_MEDICION_EXACTA&&Number(f.medicion)<=Number(n))
+    .map(f=>{
+      const rubros={};
+      RUBROS_LIQ.forEach(r=>{rubros[r.key]=num(f[r.key])});
+      return {
+        cert:null, firmada:true,
+        medicion:Number(f.medicion),
+        nro:Number(f.nro)||9999,
+        establecimiento:f.establecimiento||'',
+        os:f.orden_servicio||'',
+        rubros, completo:true, cuadra:true,
+        total:num(f.modulos), exacto:num(f.modulos),
+        precio:0, monto:num(f.monto)
+      };
+    });
+
   const lista=certsDeZona(z).filter(c=>
     String(c?.estado||'')==='medido' &&
     c?.medicion_numero!=null &&
-    Number(c.medicion_numero)>0 &&
+    Number(c.medicion_numero)>=DESDE_MEDICION_EXACTA &&
     Number(c.medicion_numero)<=Number(n) &&
     medicionCerrada(z,c.medicion_numero));
   const ordenada=typeof window.dgieOrdenarPorPlanilla==='function'?window.dgieOrdenarPorPlanilla(lista):lista;
-  const filas=ordenada.map(c=>{
+  const filas=firmadas.concat(ordenada.map(c=>{
     const d=desgloseDe(c);
     return {
       cert:c,
@@ -27001,16 +27021,19 @@ function filasHasta(z,n){
       // suyo, el monto de la fila da exactamente el que dice el certificado.
       precio:num(c?.precio_modulo)
     };
-  });
+  }));
 
   // La planilla lista todos los establecimientos de la zona: los que no
   // tuvieron ningun trabajo aparecen igual, con 0,00.
   const conCertificado=new Set(filas.map(f=>Number(f.cert?.establecimiento_id)).filter(Boolean));
+  const normal=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().trim();
+  const conFila=new Set(filas.map(f=>normal(f.establecimiento)));
   const todos=(typeof ESTABS!=='undefined'&&Array.isArray(ESTABS)?ESTABS:[]).filter(e=>Number(e?.zona)===Number(z));
   const vacios={};
   RUBROS_LIQ.forEach(r=>{vacios[r.key]=0});
   todos.forEach(e=>{
     if(conCertificado.has(Number(e.id)))return;
+    if(conFila.has(normal(e?.n||e?.nombre)))return;
     filas.push({
       cert:null, medicion:0, nro:ordenDe(e),
       establecimiento:e?.n||e?.nombre||'',
@@ -27038,8 +27061,9 @@ function totalesDeMedicion(z,n,filas){
   propias.forEach(f=>{
     RUBROS_LIQ.forEach(r=>{rubros[r.key]+=num(f.rubros[r.key])});
     total+=f.total;
-    f.monto=f.exacto*(f.precio||precio);
-    monto+=f.monto;
+    // Las filas que vienen de la planilla firmada ya traen su monto del papel.
+    if(!f.firmada)f.monto=f.exacto*(f.precio||precio);
+    monto+=num(f.monto);
   });
 
   return {medicion:n, rubros, total, monto, precio, filas:propias};
