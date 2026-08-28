@@ -7288,6 +7288,64 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     if(typeof esMedicionFinalizada==='function')return esMedicionFinalizada(c.medicion_numero,zonaCertificado(c));
     return /\[MEDICION_FINALIZADA:[^\]]+\]/.test(String(c?.observaciones_inspector||''));
   }
+  const RUBROS_CONSUMO_PRESUPUESTO=[
+    {key:'cubierta',label:'Cubierta'},
+    {key:'electricidad',label:'Electricidad'},
+    {key:'albanileria',label:'Albañilería'},
+    {key:'sanitaria',label:'Sanitaria'},
+    {key:'gas',label:'Gas'}
+  ];
+  const MAPA_RUBROS_CONSUMO={
+    CUB:'cubierta',ELEC:'electricidad',ALB:'albanileria',HER:'albanileria',
+    PIN:'albanileria',VID:'albanileria',POD:'albanileria',CER:'albanileria',
+    SAN:'sanitaria',PLU:'sanitaria',GAS:'gas'
+  };
+  function objetoRubrosConsumo(c){
+    const raw=c?.modulos_por_rubro;
+    if(raw&&typeof raw==='object'&&!Array.isArray(raw))return raw;
+    if(typeof raw==='string')try{const p=JSON.parse(raw);return p&&typeof p==='object'?p:null}catch(_e){}
+    return null;
+  }
+  function desglosePresupuestoCert(c){
+    const valores={};RUBROS_CONSUMO_PRESUPUESTO.forEach(r=>{valores[r.key]=0});
+    const guardado=objetoRubrosConsumo(c);
+    if(guardado){
+      RUBROS_CONSUMO_PRESUPUESTO.forEach(r=>{valores[r.key]=n(guardado[r.key])});
+      if(RUBROS_CONSUMO_PRESUPUESTO.some(r=>valores[r.key]>0))return {valores,completo:true,fuente:'archivo'};
+    }
+    const codigos=(typeof window.certRubrosCodigos==='function'?(window.certRubrosCodigos(c)||[]):[])
+      .map(x=>MAPA_RUBROS_CONSUMO[String(x).toUpperCase()]).filter(Boolean);
+    const unicos=[...new Set(codigos)];
+    if(unicos.length===1){valores[unicos[0]]=modPresupuestoCert(c);return {valores,completo:true,fuente:'rubro-unico'}}
+    return {valores,completo:false,fuente:'sin-desglose'};
+  }
+  function consumoRubrosPresupuesto(finalizados,consumidoTotal){
+    const totales={};RUBROS_CONSUMO_PRESUPUESTO.forEach(r=>{totales[r.key]=0});
+    let faltantes=0,modulosSinDesglose=0,diferencia=0;
+    finalizados.forEach(c=>{
+      const d=desglosePresupuestoCert(c),total=modPresupuestoCert(c);
+      if(!d.completo){faltantes++;modulosSinDesglose+=total;return}
+      let suma=0;RUBROS_CONSUMO_PRESUPUESTO.forEach(r=>{const v=n(d.valores[r.key]);totales[r.key]+=v;suma+=v});
+      diferencia+=total-suma;
+    });
+    const identificado=RUBROS_CONSUMO_PRESUPUESTO.reduce((a,r)=>a+totales[r.key],0);
+    return {totales,identificado,faltantes,modulosSinDesglose,diferencia,consumidoTotal:n(consumidoTotal)};
+  }
+  window.dgieConsumoRubrosPresupuesto=consumoRubrosPresupuesto;
+  function renderConsumoRubrosPresupuesto(finalizados,consumidoTotal){
+    const d=consumoRubrosPresupuesto(finalizados,consumidoTotal);
+    const rows=RUBROS_CONSUMO_PRESUPUESTO.map(r=>{
+      const valor=d.totales[r.key],pct=d.identificado?Math.round(valor/d.identificado*100):0;
+      return `<tr><td>${escapeHtml(r.label)}</td><td>${mods(valor)}</td><td>${pct}%${barraPresupuesto(valor,d.identificado,'#0b74c9')}</td></tr>`;
+    }).join('');
+    const diferenciaVisible=Math.abs(d.diferencia)>=0.005;
+    return `<div style="margin:4px 0 16px">
+      <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Módulos consumidos por rubro</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Desglose del certificado vigente para los cinco rubros del pliego. Sólo incluye mediciones finalizadas.</div></div><span class="badge b-info">${mods(d.identificado)} identificados</span></div>
+      <div class="os-table-wrap"><table class="os-table"><thead><tr><th>Rubro</th><th>Módulos consumidos</th><th>% identificado</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th>Total identificado</th><th>${mods(d.identificado)}</th><th>${d.identificado?100:0}%</th></tr></tfoot></table></div>
+      ${d.faltantes?`<div class="dgie-liq-aviso">${d.faltantes} certificado${d.faltantes===1?'':'s'} con varios rubros todavía no ${d.faltantes===1?'tiene':'tienen'} desglose: ${mods(d.modulosSinDesglose)} módulos no se distribuyen para evitar estimaciones.</div>`:''}
+      ${diferenciaVisible?`<div style="font-size:12px;color:var(--muted);margin-top:7px">Diferencia entre el desglose de los archivos y el total vigente: ${mods(d.diferencia)} módulos. El presupuesto general conserva el total vigente de ${mods(d.consumidoTotal)} módulos.</div>`:''}
+    </div>`;
+  }
   function renderResumenPresupuestoModulos(data){
     const finalizados=certsMedidos(data).filter(certPresupuestoFinalizado);
     const consumidoTotal=finalizados.reduce((a,c)=>a+modPresupuestoCert(c),0);
@@ -7325,6 +7383,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <div class="metric-card" style="padding:14px"><div class="metric-lbl">Restante 2026</div><div class="metric-val ${restante2026>=0?'v-ok':'v-danger'}" style="font-size:26px">${mods(restante2026)}</div><div style="font-size:12px;color:var(--muted)">Disponible: ${mods(PRESUPUESTO_MODULOS_CERT.y2026)}</div></div>
         <div class="metric-card" style="padding:14px"><div class="metric-lbl">Restante 2027</div><div class="metric-val ${restante2027>=0?'v-ok':'v-danger'}" style="font-size:26px">${mods(restante2027)}</div><div style="font-size:12px;color:var(--muted)">Disponible: ${mods(PRESUPUESTO_MODULOS_CERT.y2027)}</div></div>
       </div>
+      ${renderConsumoRubrosPresupuesto(finalizados,consumidoTotal)}
       <div class="os-table-wrap">
         <table class="os-table">
           <thead><tr><th>Medición / mes</th><th>Certificados</th><th>Módulos consumidos</th><th>% del presupuesto</th></tr></thead>

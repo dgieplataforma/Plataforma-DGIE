@@ -7,7 +7,7 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-08-27** · commit `este commit`
+Última actualización: **2026-08-28** · commit `este commit`
 
 ---
 
@@ -21,6 +21,10 @@ sepa dónde quedó todo sin tener que preguntar.
   `supabase-liquidacion-modulos-por-rubro.sql`.
 - Los cinco rubros de la liquidación son los del pliego (cubierta, electricidad,
   albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
+- El panel **Presupuesto de módulos** muestra ahora cuánto se consumió en cada uno de
+  esos cinco rubros. Conserva el total vigente anterior; usa `modulos_por_rubro`, asigna
+  el total sólo si el certificado tiene un único rubro y deja explícitamente sin distribuir
+  los certificados multirrubro que todavía no tienen desglose.
 - El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
   carga a mano en el panel y queda recordado por zona.
 - **De la medición 6 para atrás, en todas las zonas, la planilla es la del PDF firmado.**
@@ -103,8 +107,9 @@ de mostrar.**
   poda y pintura entran en albañilería.
 - Estado edilicio: **seis generales en todas las sesiones**, tanto para cargar los
   porcentajes como para consultarlos.
-- Presupuesto: **no se tocó**, y no debe tocarse. Sus familias están atadas a
-  coeficientes y módulos.
+- Presupuesto: sus familias, coeficientes y cálculo general **no se tocaron**. Sólo se
+  agregó al resumen el consumo por los cinco rubros del pliego, sin estimar distribuciones
+  cuando falta el desglose.
 
 Verificado contra los datos reales: los totales coinciden en los dos niveles
 (3.668 reclamos y 3.687 órdenes), así que agrupar no pierde ningún registro.
@@ -168,7 +173,8 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-27 | `este commit` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
+| 2026-08-28 | `este commit` | Presupuesto de módulos: desglose de módulos consumidos por los cinco rubros del pliego, conservando el total vigente y señalando los certificados todavía sin distribución | Codex |
+| 2026-08-27 | `ac867b8` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
 | 2026-08-27 | `cd02025` | Los certificados toman los módulos tal como se ven en la planilla, no con todos los decimales de fondo. Rige en toda carga nueva; lo ya guardado no se toca | Claude Code |
 | 2026-08-27 | `b1c93f0` | Primera versión de lo anterior, condicionada a la medición 6. No servía: la empresa sube sin número de medición | Claude Code |
 | 2026-08-27 | `408e74a` | Cerrajería como rubro detallado y filtros de rubro con el catálogo completo; en certificados el filtro ofrecía combinaciones y escondía registros | Claude Code |
