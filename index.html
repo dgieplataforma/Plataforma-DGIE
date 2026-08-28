@@ -26784,8 +26784,13 @@ function desgloseDeHoja(ws){
     if(valores.length>=2)precio=valores[1];
   }
 
+  // El total sin redondear: la planilla muestra el redondeado pero el monto en
+  // pesos se calcula con este, igual que en la liquidacion que se firma.
+  const celdaTotal=celda(filaTotal,6);
+  const exacto=typeof celdaTotal?.v==='number'?celdaTotal.v:null;
+
   const total=RUBROS_LIQ.reduce((a,r)=>a+num(rubros[r.key]),0);
-  return {rubros, total:Math.round(total*1e6)/1e6, precio_modulo:precio};
+  return {rubros, total:Math.round(total*1e6)/1e6, exacto, precio_modulo:precio};
 }
 
 window.dgieLeerDesgloseCertificado=async function(file){
@@ -26821,12 +26826,12 @@ function conDesglose(patch,file){
   const d=window.__DGIE_ULTIMO_DESGLOSE__;
   if(!d)return patch;
   if(file&&d.archivo&&d.archivo!==file.name)return patch;
-  return Object.assign({},patch,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
+  return Object.assign({},patch,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null,modulos_exacto:d.exacto??null});
 }
 window.dgieAdjuntarDesglose=conDesglose;
 
-function sinDesglose(patch){const p=Object.assign({},patch);delete p.modulos_por_rubro;delete p.precio_modulo;return p}
-function faltaLaColumna(e){return /modulos_por_rubro|precio_modulo|does not exist|PGRST204|schema cache/i.test(String(e?.message||e||''))}
+function sinDesglose(patch){const p=Object.assign({},patch);delete p.modulos_por_rubro;delete p.precio_modulo;delete p.modulos_exacto;return p}
+function faltaLaColumna(e){return /modulos_por_rubro|precio_modulo|modulos_exacto|does not exist|PGRST204|schema cache/i.test(String(e?.message||e||''))}
 function usado(){window.__DGIE_ULTIMO_DESGLOSE__=null}
 
 // Al guardar un certificado que trae archivo nuevo, se adjunta el desglose.
@@ -26886,11 +26891,21 @@ function medicionCerrada(z,n){
 // Los modulos se toman redondeados a dos decimales, tal como salen del
 // certificado, y el monto se calcula con ese mismo numero. Lo que se ve en la
 // planilla es lo que se cobra: no se liquida sobre decimales que no figuran.
-function modulosFinales(c){
+function modulosSinRedondear(c){
   const v=typeof window.modulosCertificadoFinal==='function'
     ? num(window.modulosCertificadoFinal(c))
     : num(c?.modulos_final??c?.modulos_inspector??c?.modulos_original);
-  return Math.round(v*100)/100;
+  return v;
+}
+function modulosFinales(c){
+  return Math.round(modulosSinRedondear(c)*100)/100;
+}
+// El total con todos sus decimales, leido del Excel. Es el que manda para el
+// monto en pesos: la planilla firmada calcula asi, aunque muestre el
+// redondeado. Si todavia no se leyo, se cae en lo que haya guardado.
+function modulosExactos(c){
+  const e=num(c?.modulos_exacto);
+  return e>0?e:modulosSinRedondear(c);
 }
 // El precio del modulo viene dentro del Excel del certificado. Mientras no
 // haya certificados con ese dato guardado, se usa el ultimo que se haya
@@ -26975,7 +26990,8 @@ function filasHasta(z,n){
       os:ordenesDe(c).join('-'),
       rubros:d.rubros,
       completo:d.completo,
-      total:modulosFinales(c)
+      total:modulosFinales(c),        // el redondeado, que es el que se muestra
+      exacto:modulosExactos(c)        // el completo, con el que se calcula la plata
     };
   });
 
@@ -27007,17 +27023,28 @@ function totalesDeMedicion(z,n,filas){
   const rubros={};
   RUBROS_LIQ.forEach(r=>{rubros[r.key]=0});
   const precio=precioModulo(certsDeMedicion(z,n),z);
-  // El monto del pie es la suma de los montos de cada fila, ya redondeados a
-  // centavos. Si se multiplicara el total de modulos por el valor del modulo,
-  // el pie podria quedar a un centavo de lo que suma la columna.
-  let total=0, monto=0;
+
+  // Asi cierra la planilla que se firma: el monto de cada certificado se
+  // calcula con los modulos completos, aunque en pantalla se muestre el
+  // redondeado. Como la suma de esos montos no coincide con el total que
+  // corresponde a los modulos redondeados, la diferencia se le carga al ultimo
+  // certificado de la lista y el total cierra.
+  let total=0, montoExacto=0;
   propias.forEach(f=>{
     RUBROS_LIQ.forEach(r=>{rubros[r.key]+=num(f.rubros[r.key])});
     total+=f.total;
-    monto+=Math.round(f.total*precio*100)/100;
+    f.monto=Math.round(f.exacto*precio*100)/100;
+    montoExacto+=f.monto;
   });
   RUBROS_LIQ.forEach(r=>{rubros[r.key]=Math.round(rubros[r.key]*1e6)/1e6});
-  return {medicion:n, rubros, total:Math.round(total*100)/100, monto:Math.round(monto*100)/100, precio, filas:propias};
+
+  total=Math.round(total*100)/100;
+  const montoOficial=Math.round(total*precio*100)/100;
+  const ajuste=Math.round((montoOficial-montoExacto)*100)/100;
+  const ultima=propias[propias.length-1];
+  if(ultima&&ajuste){ ultima.monto=Math.round((ultima.monto+ajuste)*100)/100; ultima.ajustada=ajuste; }
+
+  return {medicion:n, rubros, total, monto:montoOficial, precio, ajuste, filas:propias};
 }
 
 function medicionesHasta(z,n){
@@ -27068,7 +27095,7 @@ function planillaHTML(z,n){
       <td class="num">${esc(f.os)}</td>
       ${RUBROS_LIQ.map(r=>`<td class="num">${num(f.rubros[r.key])?fmt(f.rubros[r.key]):''}</td>`).join('')}
       <td class="num"${f.medicion?` style="background:${colDe(f.medicion)}"`:''}><b>${fmt(f.total)}</b></td>
-      ${acumulado.map(m=>`<td class="num">${Number(m.medicion)===Number(f.medicion)?pesos(f.total*precioDe(m.medicion)):''}</td>`).join('')}
+      ${acumulado.map(m=>`<td class="num"${f.ajustada&&Number(m.medicion)===Number(f.medicion)?` title="Incluye ${fmt(f.ajustada)} de ajuste por redondeo, para que el total de la medición cierre"`:''}>${Number(m.medicion)===Number(f.medicion)?pesos(f.monto??(f.exacto*precioDe(m.medicion))):''}</td>`).join('')}
     </tr>`;
   }).join('');
 
@@ -27218,11 +27245,9 @@ async function guardarDesgloseDe(lista,avisar){
       const d=desgloseDeHoja(ws);
       if(!d)throw new Error('no se reconocieron los rubros');
       try{
-        await window.actualizarCertificado(c.id||c.localId,{
-          modulos_por_rubro:d.rubros,
-          precio_modulo:d.precio_modulo??null
-        });
-        Object.assign(c,{modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null});
+        const guardar={modulos_por_rubro:d.rubros,precio_modulo:d.precio_modulo??null,modulos_exacto:d.exacto??null};
+        await window.actualizarCertificado(c.id||c.localId,guardar);
+        Object.assign(c,guardar);
         listos++;
       }catch(err){ sinPermiso++; console.warn('Sin permiso para guardar el desglose de',c?.establecimiento_nombre,err) }
     }catch(e){ sinLeer++; console.warn('No se pudo leer el desglose de',c?.establecimiento_nombre,e) }

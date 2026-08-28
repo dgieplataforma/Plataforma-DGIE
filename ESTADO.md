@@ -23,9 +23,11 @@ sepa dónde quedó todo sin tener que preguntar.
   albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
 - El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
   carga a mano en el panel y queda recordado por zona.
-- Los montos se calculan con los módulos **redondeados a dos decimales**, tal como salen
-  del certificado. La planilla firmada muestra el redondeo pero calcula sobre el número
-  completo; se decidió que acá lo que se ve es lo que se cobra.
+- **Los montos se calculan como en la planilla que se firma:** en pantalla los módulos van
+  redondeados a dos decimales, pero el monto en pesos sale del número completo leído del
+  Excel. La diferencia entre la suma de esos montos y el total que corresponde a los
+  módulos redondeados se le carga al **último certificado de la lista**, y así el total
+  cierra. Falta correr `supabase-liquidacion-modulos-exactos.sql`.
 - Cada zona elige el color de sus mediciones. Falta correr
   `supabase-liquidacion-colores.sql`.
 - **Sólo se liquidan las mediciones finalizadas.** Una medición abierta todavía puede
@@ -36,6 +38,12 @@ sepa dónde quedó todo sin tener que preguntar.
   se mira su liquidación.
 
 ### Pendiente de revisar por el inspector
+
+**Zona 15, medición 4, O.S. 158 · Escuela República Argentina.** El inspector midió
+4,968 módulos, que es lo que se firmó (4,97), pero el "módulos final" quedó cargado a
+mano en 4,87 con la observación "No corresponde desobstrucción manual". Esos 0,10
+módulos son toda la diferencia entre la planilla firmada (484,92) y la plataforma
+(484,84). Hay que definir cuál vale.
 
 **90 certificados donde el total del Excel no coincide con el que tiene la plataforma.**
 No es un error de lectura: el archivo dice una cosa y el registro otra. Los más
