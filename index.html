@@ -26894,11 +26894,12 @@ function medicionCerrada(z,n){
   try{ return typeof window.esMedicionFinalizada==='function'?!!window.esMedicionFinalizada(n,z):true }
   catch(_){ return true }
 }
-// La liquidacion sale SIEMPRE de la planilla firmada, en todas las mediciones.
-// Los certificados sirven para armar y revisar el trabajo, pero lo que se
-// liquida es lo que dice el papel: es el documento que se firma y se cobra.
-// Por eso no hay ninguna medicion que se calcule desde los certificados.
-const DESDE_MEDICION_EXACTA = Infinity;
+// De la septima medicion en adelante la planilla se arma con los archivos de
+// certificado: de ahi salen los modulos por rubro con todos sus decimales, y el
+// monto se calcula con ese mismo numero.
+// Lo anterior queda como historia y se liquida con la planilla firmada, que es
+// el papel que ya se firmo y se cobro: no se recalcula ni se toca.
+const DESDE_MEDICION_EXACTA = 7;
 function usaCertificado(c){
   return Number(c?.medicion_numero||0) >= DESDE_MEDICION_EXACTA;
 }
@@ -27079,6 +27080,19 @@ function totalesDeMedicion(z,n,filas){
   return {medicion:n, rubros, total, monto, precio, filas:propias};
 }
 
+// Lo que liquida una medicion es lo que consume del presupuesto. El presupuesto
+// no vuelve a calcularlo por su cuenta: usa esta misma, para que lo que muestra
+// la planilla y lo que se descuenta no puedan discrepar. De la septima en
+// adelante sale de los archivos de certificado; antes, del papel firmado.
+window.dgieDesdeMedicionCertificados=DESDE_MEDICION_EXACTA;
+window.dgieLiquidacionDeMedicion=function(z,n){
+  const zona=Number(z), numero=Number(n);
+  if(!numero||!medicionCerrada(zona,numero))return null;
+  const t=totalesDeMedicion(zona,numero);
+  if(!t.filas.length)return null;
+  return {medicion:numero, total:t.total, monto:t.monto, rubros:t.rubros};
+};
+
 function medicionesHasta(z,n){
   return [...new Set(certsDeZona(z)
     .filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero!=null)
@@ -27248,10 +27262,12 @@ function planillaHTML(z,n){
     return `${cabecera}<div class="dgie-liq-aviso">Esta medición todavía no está finalizada, así que no se liquida: los certificados pueden cambiar. Marcá la certificación como finalizada y la planilla se arma sola.${acumulado.length?`<br><br>Ya hay ${acumulado.length} medición${acumulado.length!==1?'es':''} cerrada${acumulado.length!==1?'s':''} en esta zona: abrí cualquiera de ellas para ver su liquidación.`:''}</div>`;
   }
 
+  const historica=Number(n)<DESDE_MEDICION_EXACTA;
   const noCuadran=filas.filter(f=>f.cert&&!f.cuadra).length;
   const avisos=[];
   if(incompletos)avisos.push(`${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. Se está leyendo el archivo de cada uno para completarlo.`);
-  if(noCuadran)avisos.push(`En ${noCuadran} certificado${noCuadran!==1?'s':''} el reparto por rubro no suma el total cargado.`);
+  if(historica)avisos.push(`Medición anterior a la séptima: se liquida con la planilla firmada, tal como se firmó y se cobró. El procedimiento nuevo, que toma los datos de los archivos de certificado, rige desde la medición ${DESDE_MEDICION_EXACTA}.`);
+  if(noCuadran)avisos.push(`En ${noCuadran} certificado${noCuadran!==1?'s':''} el reparto por rubro no suma el total cargado: el inspector ajustó el total a mano y el desglose sigue siendo el del certificado.`);
   const aviso=avisos.length?`<div class="dgie-liq-aviso">${avisos.join('<br><br>')}</div>`:'';
 
   const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
@@ -27568,10 +27584,12 @@ if(typeof finalizarPrevLiq==='function'){
   };
 });
 new MutationObserver(()=>setTimeout(agregarBotones,0)).observe(document.body,{childList:true,subtree:true});
-// Presupuesto consumido: la única fuente es la liquidación reconocida
+// Presupuesto consumido: la única fuente es lo que liquidó cada medición
 // ────────────────────────────────────────────────────────────────────
-// Una medición consume presupuesto solamente si está finalizada, conserva el
-// PDF firmado y ese PDF ya fue reconocido en filas + totales de liquidación.
+// Una medición consume presupuesto solamente si está finalizada y su
+// liquidación está armada. De la séptima en adelante esa liquidación sale de
+// los archivos de certificado; en las anteriores, del PDF firmado, que además
+// tiene que estar cargado y reconocido en filas + totales.
 const CARGAS_PRESUPUESTO_LIQUIDADO={};
 let SECUENCIA_PRESUPUESTO_LIQUIDADO=0;
 const RUBROS_PRESUPUESTO_LIQUIDADO=[
@@ -27623,10 +27641,30 @@ function estadoPresupuestoLiquidado(data,z,firmada){
   const filas=Array.isArray(firmada?.filas)?firmada.filas:[];
   const totales=firmada?.totales&&typeof firmada.totales==='object'?firmada.totales:{};
   const liquidaciones=[];
-  let sinPdf=0,sinReconocer=0;
+  let sinPdf=0,sinReconocer=0,sinCertificados=0;
+  const desdeCertificados=Number(window.dgieDesdeMedicionCertificados||Infinity);
 
   numeros.forEach(numero=>{
     if(!medicionCerrada(z,numero))return;
+
+    // De la septima en adelante la planilla se arma con los archivos de
+    // certificado, sin papel de por medio: lo consumido se toma de ahi mismo.
+    if(numero>=desdeCertificados){
+      const liq=typeof window.dgieLiquidacionDeMedicion==='function'
+        ? window.dgieLiquidacionDeMedicion(z,numero) : null;
+      if(!liq){sinCertificados++;return}
+      const suyos={};
+      RUBROS_PRESUPUESTO_LIQUIDADO.forEach(r=>{suyos[r.key]=num(liq.rubros?.[r.key])});
+      liquidaciones.push({
+        medicion:numero,
+        total:num(liq.total),
+        rubros:suyos,
+        periodo:periodoPresupuestoLiquidado(numero),
+        archivo:''
+      });
+      return;
+    }
+
     const grupo=medidos.filter(c=>Number(c.medicion_numero)===numero);
     // Las planillas firmadas son acumulativas: un PDF posterior reconocido
     // también acredita las mediciones anteriores que contiene.
@@ -27656,7 +27694,7 @@ function estadoPresupuestoLiquidado(data,z,firmada){
       archivo
     });
   });
-  return {liquidaciones,sinPdf,sinReconocer,finalizadas:numeros.filter(numero=>medicionCerrada(z,numero)).length};
+  return {liquidaciones,sinPdf,sinReconocer,sinCertificados,finalizadas:numeros.filter(numero=>medicionCerrada(z,numero)).length};
 }
 window.dgieEstadoPresupuestoLiquidado=estadoPresupuestoLiquidado;
 
@@ -27690,16 +27728,17 @@ function renderPresupuestoDesdeLiquidaciones(data,z,firmada){
   const pendientes=[];
   if(estado.sinPdf)pendientes.push(estado.sinPdf+(estado.sinPdf===1?' medición finalizada no tiene':' mediciones finalizadas no tienen')+' PDF firmado cargado');
   if(estado.sinReconocer)pendientes.push(estado.sinReconocer+(estado.sinReconocer===1?' medición tiene':' mediciones tienen')+' PDF, pero todavía no '+(estado.sinReconocer===1?'tiene':'tienen')+' la liquidación reconocida y armada');
+  if(estado.sinCertificados)pendientes.push(estado.sinCertificados+(estado.sinCertificados===1?' medición no tiene':' mediciones no tienen')+' certificados con los que armar la liquidación');
   const avisoPendientes=pendientes.length
     ? '<div class="dgie-liq-aviso">'+pendientes.join(' · ')+'. No consumen presupuesto hasta completar ese proceso.</div>'
     : '';
   const avisoDiferencia=Math.abs(diferenciaRubros)>=0.005
-    ? '<div class="dgie-liq-aviso">El total por rubros de las liquidaciones difiere en '+modsPresupuestoLiquidado(diferenciaRubros)+' módulos del total liquidado. Se conserva cada valor tal como fue reconocido del PDF.</div>'
+    ? '<div class="dgie-liq-aviso">El total por rubros de las liquidaciones difiere en '+modsPresupuestoLiquidado(diferenciaRubros)+' módulos del total liquidado. Se conserva cada valor tal como lo liquidó su planilla.</div>'
     : '';
 
   return '<div class="med-card" style="margin-bottom:14px" data-presupuesto-liquidado-z="'+Number(z)+'">'+
     '<div class="card-header" style="align-items:flex-start"><div><div class="card-title">Presupuesto de módulos</div>'+
-    '<div style="font-size:13px;color:var(--muted);margin-top:4px">Sólo computa mediciones finalizadas con PDF firmado cargado, reconocido y con la liquidación armada. Los módulos salen de esa liquidación.</div></div>'+
+    '<div style="font-size:13px;color:var(--muted);margin-top:4px">Sólo computa mediciones finalizadas con la liquidación armada, y los módulos salen de esa liquidación. Desde la séptima se arma con los archivos de certificado; las anteriores necesitan además el PDF firmado cargado y reconocido.</div></div>'+
     '<span class="badge '+(restanteTotal>=0?'b-ok':'b-danger')+'">'+modsPresupuestoLiquidado(restanteTotal)+' restantes</span></div>'+
     '<div class="metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px">'+
       '<div class="metric-card" style="padding:14px"><div class="metric-lbl">Módulos totales</div><div class="metric-val" style="font-size:26px">'+modsPresupuestoLiquidado(PRESUPUESTO_MODULOS_LIQUIDADO.total)+'</div></div>'+
@@ -27939,27 +27978,6 @@ async function tokenSesion(){
     const t=await window.DGIE_DB?.tokenAccesoPush?.();
     return t?.data||window.DGIE_SUPABASE.anonKey;
   }catch(_){ return window.DGIE_SUPABASE.anonKey }
-}
-
-// ────────────────────────────────────────────────────────────────────
-// Sin la planilla firmada no se puede finalizar
-// ────────────────────────────────────────────────────────────────────
-// Lo que se liquida sale del PDF firmado, y los módulos consumidos se leen al
-// finalizar la medición. Si se pudiera finalizar sin el papel, la medición
-// quedaría cerrada sin nada que liquidar y sin consumir presupuesto.
-const finalizarSinPdf=window.finalizarCertificacion;
-if(typeof finalizarSinPdf==='function'){
-  window.finalizarCertificacion=async function(numero){
-    const z=Number((typeof currentUser!=='undefined'?currentUser:{})?.zona||0);
-    const dela=(typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[])
-      .filter(c=>Number(c?.zona)===z&&String(c?.medicion_numero||'')===String(numero)&&String(c?.estado||'')==='medido');
-    if(dela.length&&!dela.some(c=>c?.medicion_firmada_url)){
-      alert('Para marcar la certificación finalizada hay que subir antes el PDF de la planilla firmada.\n\n'+
-            'De ese papel salen los módulos que consume la medición y la liquidación que se muestra.');
-      return;
-    }
-    return finalizarSinPdf.apply(this,arguments);
-  };
 }
 
 // ────────────────────────────────────────────────────────────────────
