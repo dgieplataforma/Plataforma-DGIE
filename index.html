@@ -27630,17 +27630,21 @@ function estadoPresupuestoLiquidado(data,z,firmada){
     const grupo=medidos.filter(c=>Number(c.medicion_numero)===numero);
     // Las planillas firmadas son acumulativas: un PDF posterior reconocido
     // también acredita las mediciones anteriores que contiene.
-    const fuentePdf=medidos.filter(c=>c?.medicion_firmada_url&&Number(c.medicion_numero)>=numero)
-      .sort((a,b)=>Number(a.medicion_numero)-Number(b.medicion_numero))[0];
-    if(!fuentePdf){sinPdf++;return}
+    // Cualquiera de esos papeles sirve como origen: la liquidacion de esta
+    // medicion pudo haberse leido del PDF de una posterior, que la contiene.
+    const fuentes=medidos.filter(c=>c?.medicion_firmada_url&&Number(c.medicion_numero)>=numero)
+      .sort((a,b)=>Number(a.medicion_numero)-Number(b.medicion_numero));
+    if(!fuentes.length){sinPdf++;return}
     const propias=filas.filter(f=>Number(f.medicion)===numero);
     const total=totales[numero]||totales[String(numero)]||null;
     const archivo=String(total?.archivo||propias.find(f=>f?.archivo)?.archivo||'').trim();
-    const archivoPdf=String(fuentePdf?.medicion_firmada_archivo||'').trim();
-    const fechaPdf=Date.parse(fuentePdf?.medicion_firmada_fecha||'');
     const fechaLiquidacion=Date.parse(total?.creado_at||propias.find(f=>f?.creado_at)?.creado_at||'');
-    const correspondeAlPdf=(!archivoPdf||archivo===archivoPdf)&&
-      (!Number.isFinite(fechaPdf)||(Number.isFinite(fechaLiquidacion)&&fechaLiquidacion>=fechaPdf));
+    const origen=fuentes.find(c=>String(c?.medicion_firmada_archivo||'').trim()===archivo);
+    const fechaPdf=Date.parse(origen?.medicion_firmada_fecha||'');
+    // Vale si el archivo del que se leyo es alguno de esos papeles y la lectura
+    // no es anterior a la carga de ese PDF.
+    const correspondeAlPdf=!!origen&&
+      (!Number.isFinite(fechaPdf)||!Number.isFinite(fechaLiquidacion)||fechaLiquidacion>=fechaPdf);
     if(!propias.length||!total||!archivo||!correspondeAlPdf){sinReconocer++;return}
     const rubros={};
     RUBROS_PRESUPUESTO_LIQUIDADO.forEach(r=>{rubros[r.key]=num(total[r.key])});
