@@ -7,92 +7,68 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-08-28** · commit `este commit`
+Última actualización: **2026-08-31** · commit `este commit`
 
 ---
 
 ## En qué se está trabajando ahora
 
-**Planilla de liquidación mensual.** Primera versión publicada, se sigue afinando.
+**Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
-- Botón "Liquidación" en la medición, a partir de la **medición 7**.
-- Necesitaba un dato que no existía: los módulos por rubro. Se lee del Excel al subir
-  el certificado y se guarda en `modulos_por_rubro`. Falta correr
-  `supabase-liquidacion-modulos-por-rubro.sql`.
-- Los cinco rubros de la liquidación son los del pliego (cubierta, electricidad,
-  albañilería, sanitaria, gas) y **no** son los doce de la plataforma.
-- El panel **Presupuesto de módulos** toma como única fuente la liquidación de cada
-  medición, y no la recalcula por su cuenta: usa la misma cuenta que arma la planilla
-  (`window.dgieLiquidacionDeMedicion`), para que lo que muestra la planilla y lo que se
-  descuenta del presupuesto no puedan discrepar. Una medición consume recién cuando está
-  finalizada y su liquidación está armada. De la 7 en adelante eso significa tener los
-  certificados; en las anteriores, además, el PDF firmado vigente cargado, reconocido y
-  con sus filas y totales del pie guardados. Lo que no cumple queda informado como
-  pendiente y no consume presupuesto.
-- El precio del módulo sale del Excel; mientras no haya certificados con ese dato, se
-  carga a mano en el panel y queda recordado por zona.
-- **De la medición 6 para atrás, en todas las zonas, la planilla es la del PDF firmado.**
-  Se reconoce al subir el papel, y también la primera vez que se abre la liquidación si
-  ya estaba cargado. Se lee fila por fila a `liquidacion_firmada`, con los módulos y el
-  monto tal como figuran, incluidos los del pie. Se valida contra los totales del propio
-  papel: si no coinciden, no guarda nada.
-- **Sin PDF cargado no se muestra ninguna planilla** para esas mediciones: se pide el
-  papel. Mostrar una calculada daría números distintos a los que se cobraron.
-- **De la medición 7 en adelante la liquidación se arma con los archivos de certificado.**
-  El formato de la planilla es el mismo en todas; lo que cambia es de dónde salen los
-  números. Antes de la 7, del papel firmado; de la 7 en adelante, del Excel de cada
-  certificado. Se probó tener todo saliendo del PDF y se dio marcha atrás: la 7 en
-  adelante se calcula.
-- **El PDF no es obligatorio para marcar la certificación finalizada.** Se llegó a exigir
-  y se revirtió, porque de la 7 en adelante los módulos no salen del papel.
-- **Desde la medición 7 no se pueden cargar módulos a mano.** El campo "módulos
-  certificado final" desaparece y se muestra el número del certificado. Si el número está
-  mal, se corrige el certificado y se vuelve a subir.
-- Las cuentas de la 7 en adelante van **en bruto**: los rubros y el total salen del Excel
-  con todos sus decimales, el monto se calcula con el valor de módulo del propio
-  certificado, y sólo se redondea al mostrar. Si los rubros no suman el total, el
-  certificado se relee solo.
-- Hay **35 mediciones finalizadas con PDF firmado y 13 sin PDF**. Las que no lo tienen no
-  van a poder mostrar la planilla histórica hasta que se cargue.
-- **Las cuentas se hacen en bruto y la pantalla muestra dos decimales.** Los módulos, el
-  total y la multiplicación por el valor del módulo usan el número completo del
-  certificado; el redondeo es sólo al mostrar. Cada fila usa el valor de módulo de su
-  propio certificado, así el monto da exactamente el que figura ahí.
-- Cada zona elige el color de sus mediciones. Falta correr
-  `supabase-liquidacion-colores.sql`.
-- **Sólo se liquidan las mediciones finalizadas.** Una medición abierta todavía puede
-  cambiar, así que no entra ni en la planilla ni en el acumulado.
-- **El desglose por rubro se fija al marcar la certificación finalizada**, que es cuando
-  los certificados quedan quietos. No hay botón: los certificados nuevos lo traen al
-  subirse, y las mediciones cerradas antes de esto se completan solas la primera vez que
-  se mira su liquidación.
+- La planilla se arma siempre y dinámicamente con el archivo vigente de cada
+  certificado, sin distinción por número de medición.
+- El PDF firmado queda como respaldo visible y es obligatorio para finalizar la
+  medición, pero no aporta módulos, rubros ni montos.
+- Una medición abierta muestra su liquidación preliminar y se actualiza al
+  asignar, mover, reemplazar o quitar certificados. No consume presupuesto.
+- Antes de finalizar se leen y guardan el total exacto, el precio y los cinco
+  rubros del pliego de todos los certificados. Si falta el PDF o un archivo no
+  se puede leer, la finalización queda bloqueada.
+- Los indicadores, gráficos, comparativos, presupuesto por rubro y exportaciones
+  de coordinación usan la misma función de liquidación. Sólo computan mediciones
+  finalizadas, con PDF y certificados completos.
+- Se eliminó la carga manual de módulos en todas las mediciones. En pantalla se
+  muestra el valor leído del archivo vigente.
+- Al reemplazar un archivo se invalidan los números de la versión anterior; si
+  la lectura asíncrona todavía no terminó, la liquidación relee el archivo nuevo.
+- Las cuentas se hacen con todos los decimales del certificado y se redondean
+  únicamente al mostrar.
+- Validado con datos simulados e interceptando toda escritura: escritorio 1280
+  px, móvil 375 y 450 px, inspector, coordinación, empresa y call center,
+  medición abierta, sin PDF, completa e incompleta; sin errores de consola.
+- Armar una liquidación recorre los 623 establecimientos y los ordena. Los
+  tableros la piden una vez por zona y por medición, así que **el resultado se
+  recuerda** (`window.dgieOlvidarLiquidaciones()` lo borra). Medido: 7,8 ms por
+  llamada sin memoria contra 0,005 ms con memoria, y eso con seis certificados
+  de prueba. Se olvida al actualizar un certificado, al finalizar una medición
+  y al revertir una finalización.
+- Las zonas de los tableros salen de los propios certificados
+  (`window.dgieZonasConCertificados()`), no de una lista fija.
+- En la ficha del certificado, si todavía no se leyó el archivo se muestra
+  "Pendiente de lectura", no el valor viejo cargado a mano. Decir "leído del
+  archivo" sobre un número escrito a mano sería mentir justo en el dato que
+  ahora manda.
+
+#### Ojo con la transición
+
+Esto cambia de dónde salen los números de **todo lo ya cargado**, así que hasta
+que se relean los archivos los indicadores van a mostrar de menos:
+
+- Un certificado sólo cuenta si tiene `modulos_exacto` y `modulos_por_rubro`
+  leídos de su Excel. Los históricos no los tienen todavía.
+- **Se completan solos al abrir la liquidación**, que lee los archivos de todas
+  las mediciones hasta la que se abre. Basta con abrir la última medición de
+  cada zona, con perfil inspector, y dejar que termine.
+- Las **13 mediciones finalizadas sin PDF** (zona 4 la 1 a la 3, zona 7 la 4 y
+  5, zona 9 la 2, 4 y 5, zona 13 la 4 y 5, zona 14 la 4 y 5) no van a consumir
+  presupuesto hasta que se suba el papel, aunque sus certificados se lean bien.
 
 ### Lo que hay que hacer a continuación
 
-1. **Correr el borrado** para que la planilla firmada se relea con la última versión del
-   lector, que toma también el monto del pie:
-   `delete from public.liquidacion_firmada; delete from public.liquidacion_firmada_totales;`
-2. **Abrir la liquidación de zona 15, medición 4.** Lee el PDF y guarda las 68 filas.
-3. **Borrar la medición 7 de práctica de la zona 15** con
-   `BORRAR-PRACTICA-ZONA-15-MEDICION-7.sql` (está en Descargas). Eran 26 certificados
-   copiados de la 4, con las órdenes con 1000 sumado y "PRÁCTICA ·" en el nombre.
-4. **Faltan PDF en 13 mediciones finalizadas**: zona 4 la 1 a la 3, zona 7 la 4 y 5,
-   zona 9 la 2, 4 y 5, zona 13 la 4 y 5, zona 14 la 4 y 5. Hasta que se suban, esas
-   mediciones piden el papel y no muestran planilla.
-5. **El lector de planillas firmadas hoy sólo funciona en las zonas 4 y 15.** Se probaron
-   las once y el resultado fue: zonas 1 y 2 no se pueden leer todavía, porque guardan el
-   texto como números de glifo y hay que traducirlos con la tabla del propio PDF; zonas 6,
-   7, 8, 9, 11, 13 y 14 sí se leen, pero sus columnas caen en otras posiciones que las de
-   la 15, así que la validación contra los totales del pie no da y —correctamente— no se
-   guarda nada. Se arregla haciendo que el lector deduzca las columnas de cada hoja
-   buscando sus encabezados, en vez de usar medidas fijas. Para las zonas 1 y 2, la tabla
-   de traducción es el `/ToUnicode` de cada fuente: se resuelve la fuente desde `/Font`,
-   se infla ese objeto y se leen sus `beginbfchar` / `beginbfrange`. Está comprobado que
-   ese camino funciona en la zona 1. Esto sólo afecta a las mediciones 1 a 6; de la 7 en
-   adelante no se usa el PDF.
-5. **Borrar la práctica** cuando ya no sirva:
-   `delete from public.certificados_medicion where zona=15 and medicion_numero=7 and establecimiento_nombre like 'PRÁCTICA ·%';`
-
+1. Correr supabase-liquidacion-modulos-por-rubro.sql si todavía no se ejecutó.
+2. Correr supabase-liquidacion-colores.sql si todavía no se ejecutó.
+3. Borrar la medición 7 de práctica de zona 15 (26 certificados con
+   PRÁCTICA ·), verificando primero que no haya registros reales mezclados.
 ### Diferencias conocidas, para no volver a investigarlas
 
 - **Zona 15, medición 4, O.S. 166** (J. de Inf. República del Ecuador): el papel se firmó
@@ -127,9 +103,9 @@ de mostrar.**
 - Estado edilicio: **seis generales en todas las sesiones**, tanto para cargar los
   porcentajes como para consultarlos.
 - Presupuesto: sus familias y coeficientes **no se tocaron**. El consumo general y por
-  rubro se computa exclusivamente desde la liquidación de cada medición finalizada —del
-  papel firmado hasta la 6, de los certificados desde la 7—; las mediciones incompletas
-  no consumen.
+  rubro se computa exclusivamente desde la liquidación de cada medición finalizada, que
+  sale de los archivos vigentes de certificado en todas las mediciones; las mediciones
+  abiertas, sin PDF o con certificados sin leer no consumen.
 
 Verificado contra los datos reales: los totales coinciden en los dos niveles
 (3.668 reclamos y 3.687 órdenes), así que agrupar no pierde ningún registro.
@@ -193,7 +169,8 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-08-31 | `este commit` | De la medición 7 en adelante la liquidación vuelve a armarse con los archivos de certificado, con el mismo formato de planilla. El PDF deja de ser obligatorio para finalizar. El presupuesto pasa a usar la misma cuenta que la planilla, sea cual sea su origen. Revierte `4f95396` | Claude Code |
+| 2026-08-31 | `este commit` | Liquidación única desde certificados en todas las mediciones; PDF obligatorio sólo como respaldo; indicadores al finalizar; sin carga manual. Terminado y verificado: memoria de liquidaciones, zonas desde los datos, ficha sin valores a mano disfrazados | Codex + Claude Code |
+| 2026-08-31 | `1675496` | De la medición 7 en adelante la liquidación vuelve a armarse con los archivos de certificado, con el mismo formato de planilla. El PDF deja de ser obligatorio para finalizar. El presupuesto pasa a usar la misma cuenta que la planilla, sea cual sea su origen. Revierte `4f95396` | Claude Code |
 | 2026-08-28 | `4f95396` | Se probó que la liquidación saliera del PDF firmado en todas las mediciones y que sin PDF no se pudiera finalizar. Revertido el 31/08 | Claude Code |
 | 2026-08-28 | `d875668` | Presupuesto de módulos: el consumo total y por rubro sale únicamente de mediciones finalizadas con PDF vigente reconocido y liquidación armada | Codex |
 | 2026-08-28 | `38757f0` | Primera versión del desglose por rubro; tomaba certificados finalizados y fue reemplazada por la fuente correcta de liquidaciones reconocidas | Codex |

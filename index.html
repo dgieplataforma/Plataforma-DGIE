@@ -14249,7 +14249,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     let acumulado = 0;
     const rows = nums.map(num => {
       const data = grupos[num];
-      const mod = data.reduce((acc, c) => acc + certFinalModsCoord(c), 0);
+      const z = Number(data[0]?.zona || (typeof zonaCertCoord==='function'?zonaCertCoord(data[0]):0));
+      const liq = typeof window.dgieLiquidacionDeMedicion==='function'
+        ? window.dgieLiquidacionDeMedicion(z,num) : null;
+      const mod = Number(liq?.total||0);
       acumulado += mod;
       return `<tr>
         <td>Medición Nº ${esc(num)}</td>
@@ -14341,15 +14344,20 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         total2027:0,
         total:0
       };
-      certificadosMedicionFinalizadaCoord(z).forEach(c => {
-        const periodo = medicionPeriodoCoord(c?.medicion_numero);
-        if(!periodo) return;
-        columnasMap.set(periodo.numero, periodo);
-        const mod = certFinalModsCoord(c);
-        row.valores[periodo.numero] = (row.valores[periodo.numero] || 0) + mod;
-        if(periodo.year >= 2027) row.total2027 += mod;
-        else row.total2026 += mod;
-        row.total += mod;
+      const numeros=[...new Set(certificadosMedicionFinalizadaCoord(z)
+        .map(c=>Number(c?.medicion_numero)).filter(n=>n>0))].sort((a,b)=>a-b);
+      numeros.forEach(numero=>{
+        const liq=typeof window.dgieLiquidacionDeMedicion==='function'
+          ? window.dgieLiquidacionDeMedicion(z,numero) : null;
+        if(!liq)return;
+        const periodo=medicionPeriodoCoord(numero);
+        if(!periodo)return;
+        columnasMap.set(periodo.numero,periodo);
+        const mod=Number(liq.total||0);
+        row.valores[periodo.numero]=mod;
+        if(periodo.year>=2027)row.total2027+=mod;
+        else row.total2026+=mod;
+        row.total+=mod;
       });
       row.restante2026 = MODULOS_CERT_COORD.y2026 - row.total2026;
       row.restante2027 = MODULOS_CERT_COORD.y2027 - row.total2027;
@@ -14375,7 +14383,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       presupuesto2027:MODULOS_CERT_COORD.y2027 * 17
     };
   }
-
   function consumoModulosCoordTableHTML(opts={}){
     const loading = !!opts.loading;
     const exportMode = !!opts.exportMode;
@@ -15274,7 +15281,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   function valorModulosFinal(c){return n(c?.modulos_final ?? c?.monto_final)}
   function fechaMedicion(c){return c?.fecha_medicion||c?.fecha_envio_administracion||''}
   function modFinal(c){
-    if(tieneModulosFinal(c))return valorModulosFinal(c);
+    const exacto=n(c?.modulos_exacto);
+    if(exacto>0)return exacto;
     return n(c?.modulos_inspector ?? c?.modulos_original);
   }
   function msgSupabaseMedicion(error){
@@ -15449,12 +15457,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           actualizado_por:currentUser?.name||'Inspector'
         });
       }
-      // Hasta la sexta medición la planilla de liquidación sale de este papel,
-      // así que se lee apenas se sube y queda lista.
-      if(typeof window.dgieReconocerPlanillaFirmada==='function'){
-        try{ await window.dgieReconocerPlanillaFirmada(currentUser?.zona,numero,subida?.url||'',nombre); }
-        catch(e){ console.warn('No se pudo reconocer la planilla firmada al subirla',e); }
-      }
+      // El PDF queda como respaldo visible y habilita la finalización.
+      // Los módulos se leen exclusivamente de los archivos de certificado.
       if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(numero);
     }catch(error){
       alert('No se pudo guardar el PDF de medición firmada: '+msgSupabaseMedicion(error));
@@ -15522,7 +15526,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           :`<strong style="font-size:12px;color:#123c69">${tieneModulosFinal(c)?mods(valorFinal):'Sin definir'}</strong>`;
         metaRow.insertAdjacentHTML('beforeend',`
           <div class="cert-final-modulos-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px">
-            <label style="font-size:12px;font-weight:800;color:#123c69">Módulos certificado final</label>
+            <label style="font-size:12px;font-weight:800;color:#123c69">Módulos del certificado vigente</label>
             ${contenidoFinal}
           </div>`);
       }
@@ -18047,7 +18051,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           ${c?.url_inspector||c?.archivo_inspector?`Inspector: ${fileLink(c,'actual',c?.archivo_inspector||c?.archivo_original||'Archivo inspección')} · Módulos inspección: ${mods(modInspeccion(c))}<br>`:''}
           ${esc(obs)}
           <div class="cert-final-modulos-row ficha-cert-final-row">
-            <span>Módulos certificado final</span>
+            <span>Módulos del certificado vigente</span>
             <strong>${mods(modFinal(c))}</strong>
           </div>
         </div>
@@ -19498,7 +19502,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         Original: ${certFileUrl(c,'original')?`<a href="#" onclick="descargarCertificadoArchivo('${id}','original');return false">${esc(c?.archivo_original||'Archivo')}</a>`:esc(c?.archivo_original||'Archivo')}${rubros?` · Rubro/s: ${esc(rubros)}`:''} · Módulos empresa: ${mods(c?.modulos_original)}<br>
         ${ordenes.length?`O.S. ${esc(ordenes.join(', '))}<br>`:''}
         ${c?.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${id}');return false">${esc(c?.archivo_inspector||'Archivo inspector')}</a> · Módulos inspección: ${mods(c?.modulos_inspector)}<br>`:''}
-        ${c?.medicion_numero?`Medición Nº ${esc(c.medicion_numero)} · Módulos certificado final: ${mods(modCert(c))}<br>`:''}
+        ${c?.medicion_numero?`Medición Nº ${esc(c.medicion_numero)} · Módulos del certificado vigente: ${mods(modCert(c))}<br>`:''}
         ${cleanObs(c?.observaciones_empresa)?`<span style="color:#64748b">Empresa: ${esc(cleanObs(c.observaciones_empresa))}</span><br>`:''}
         ${cleanObs(c?.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${esc(cleanObs(c.observaciones_inspector))}</span>`:''}
         ${certFechaCarga(c)?`<div style="font-size:12px;color:#64748b;margin-top:6px">Cargado: ${esc(certFechaCarga(c))}</div>`:''}
@@ -20797,15 +20801,14 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     return final>0?final:parse(c?.modulos_inspector||c?.modulos_original);
   }
   function consumirModulos(zonaScope){
-    const certs=(typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[]);
-    return certs.filter(c=>{
-      if(norm(c?.estado)!=='medido')return false;
-      const z=Number(typeof zonaCertificado==='function'?zonaCertificado(c):zonaDe(c)||c?.zona||0);
-      if(zonaScope&&z!==zonaScope)return false;
-      return certFinalizado(c,z);
-    }).reduce((sum,c)=>sum+modCert(c),0);
+    if(typeof window.dgieTotalModulosLiquidados!=='function')return 0;
+    if(zonaScope)return window.dgieTotalModulosLiquidados(zonaScope);
+    // Las zonas salen de los propios certificados: si mañana hay una zona mas,
+    // entra sola, y no se recorren numeros que no existen.
+    const zonas=typeof window.dgieZonasConCertificados==='function'
+      ? window.dgieZonasConCertificados() : [];
+    return zonas.reduce((total,z)=>total+window.dgieTotalModulosLiquidados(z),0);
   }
-
   window.renderChartCoordinadorDashboard=function(){
     if(!document.getElementById('chart-coord-prioridad'))return;
     if(!window.Chart){setTimeout(window.renderChartCoordinadorDashboard,120);return;}
@@ -21017,8 +21020,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const prio=['critico','alto','medio','bajo'].map(p=>recs.filter(r=>prioridad(r)===p).length);
     const er=['pendiente','orden_servicio','trabajando','finalizado','anulado'].map(e=>recs.filter(r=>estadoRec(r,oss)===e).length);
     const eo=['finalizado','trabajando','pendiente','anulado'].map(e=>oss.filter(o=>estadoOS(o)===e).length);
-    const certs=(CERTIFICADOS_MEDICION||[]).filter(c=>norm(c?.estado)==='medido'&&Number(typeof zonaCertificado==='function'?zonaCertificado(c):zonaItem(c)||c?.zona||0)===z&&medFin(c,z));
-    const consumidos=certs.reduce((a,c)=>a+modCert(c),0), mod=[consumidos,Math.max(0,11300-consumidos)];
+    const consumidos=typeof window.dgieTotalModulosLiquidados==='function'
+      ? window.dgieTotalModulosLiquidados(z) : 0;
+    const mod=[consumidos,Math.max(0,11300-consumidos)];
     const rr=counts(RUBROS,recs,rubro), rm=counts(RUBROS,fin,rubro);
     donut('chart-insp-prioridad',['Crítico','Alto','Medio','Bajo'],prio,COLORS.prio);
     donut('chart-insp-estado-reclamos',['Pendiente','Orden de servicio','Trabajando','Finalizado','Anulado'],er,COLORS.estado);
@@ -22444,7 +22448,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
           ${ordenes.length?`O.S. ${esc(ordenes.join(', '))}<br>`:''}
           ${(c?.url_inspector||c?.archivo_inspector)?`Inspector: ${fileLink(c,'actual',c?.archivo_inspector||c?.archivo_original||'Archivo inspección')} · Módulos inspección: ${mods(c?.modulos_inspector||c?.modulos_original)}<br>`:''}
           ${esc(obs)}
-          <div class="cert-final-modulos-row ficha-cert-final-row"><span>Módulos certificado final</span><strong>${mods(modFinal(c))}</strong></div>
+          <div class="cert-final-modulos-row ficha-cert-final-row"><span>Módulos del certificado vigente</span><strong>${mods(modFinal(c))}</strong></div>
         </div>
       </div>
       <div class="med-actions ficha-cert-actions">
@@ -24504,7 +24508,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const finalizados=rz.filter(r=>estadoReclamo(r,oss)==='finalizado').length;
       const osPendientes=oz.filter(o=>estadoOS(o)==='pendiente').length;
       const osFinalizadas=oz.filter(o=>estadoOS(o)==='finalizado').length;
-      const consumidos=certs.filter(c=>zonaCert(c)===zona&&medicionFinalizada(c,zona)).reduce((sum,c)=>sum+modulosCert(c),0);
+      const consumidos=typeof window.dgieTotalModulosLiquidados==='function'?window.dgieTotalModulosLiquidados(zona):0;
       return {
         zona,
         reclamos_totales:{value:rz.length,percent:pct(rz.length,totalRecs)},
@@ -26617,10 +26621,8 @@ body.dgie-tableros-cue .dgie-cue-cell{font-family:ui-monospace,SFMono-Regular,Me
 // archivo y se guarda en `modulos_por_rubro`.
 // ────────────────────────────────────────────────────────────────────
 
-// La planilla se ofrece en todas las mediciones, para poder cotejarla contra
-// las liquidaciones ya firmadas. El desglose por rubro sale completo recien
-// desde la medicion 7, que es cuando los certificados empiezan a subirse con
-// ese dato guardado; en las anteriores se avisa en pantalla lo que falta.
+// La planilla se ofrece en todas las mediciones. Siempre se arma con el archivo
+// vigente de cada certificado, incluso en las mediciones históricas.
 const DESDE_MEDICION = 1;
 
 // Los cinco rubros del pliego. No son los de la plataforma: aca pintura,
@@ -26844,9 +26846,20 @@ function usado(){window.__DGIE_ULTIMO_DESGLOSE__=null}
 const actualizarPrev=window.actualizarCertificado;
 if(typeof actualizarPrev==='function'){
   window.actualizarCertificado=async function(id,patch){
+    // Cualquier cambio en un certificado puede mover una liquidación: que entre
+    // o salga de una medición, que cambie su archivo o sus módulos. Se olvida
+    // lo calculado para que la próxima consulta lo rehaga.
+    olvidarLiquidaciones();
     const traeArchivo=patch&&(patch.url_inspector||patch.url_original||patch.url_final);
-    if(!traeArchivo||!window.__DGIE_ULTIMO_DESGLOSE__)return actualizarPrev.apply(this,arguments);
-    const conD=conDesglose(patch);
+    if(!traeArchivo)return actualizarPrev.apply(this,arguments);
+    const nombre=String(patch.archivo_final||patch.archivo_inspector||patch.archivo_original||'');
+    const lectura=window.__DGIE_ULTIMO_DESGLOSE__;
+    // Si la lectura asincrónica todavía no terminó (o corresponde a otro
+    // archivo), se borran los números de la versión anterior. La liquidación
+    // volverá a leer el archivo vigente al abrirse o antes de finalizar.
+    const conD=lectura&&(!nombre||lectura.archivo===nombre)
+      ? conDesglose(patch)
+      : Object.assign({},patch,{modulos_por_rubro:null,precio_modulo:null,modulos_exacto:null});
     try{ const r=await actualizarPrev.call(this,id,conD); usado(); return r; }
     catch(e){
       if(!faltaLaColumna(e))throw e;
@@ -26894,12 +26907,10 @@ function medicionCerrada(z,n){
   try{ return typeof window.esMedicionFinalizada==='function'?!!window.esMedicionFinalizada(n,z):true }
   catch(_){ return true }
 }
-// De la septima medicion en adelante la planilla se arma con los archivos de
-// certificado: de ahi salen los modulos por rubro con todos sus decimales, y el
-// monto se calcula con ese mismo numero.
-// Lo anterior queda como historia y se liquida con la planilla firmada, que es
-// el papel que ya se firmo y se cobro: no se recalcula ni se toca.
-const DESDE_MEDICION_EXACTA = 7;
+// Todas las mediciones se liquidan con los archivos vigentes de certificado.
+// La planilla firmada se conserva como documento de consulta y es obligatoria
+// para finalizar, pero nunca aporta números al cálculo.
+const DESDE_MEDICION_EXACTA = 1;
 function usaCertificado(c){
   return Number(c?.medicion_numero||0) >= DESDE_MEDICION_EXACTA;
 }
@@ -26910,9 +26921,8 @@ function modulosSinRedondear(c){
     : num(c?.modulos_final??c?.modulos_inspector??c?.modulos_original);
 }
 function modulosExactos(c){
-  if(!usaCertificado(c))return modulosSinRedondear(c);
-  const e=num(c?.modulos_exacto);
-  return e>0?e:modulosSinRedondear(c);
+  if(!usaCertificado(c))return 0;
+  return num(c?.modulos_exacto);
 }
 function modulosFinales(c){ return modulosExactos(c); }
 // El precio del modulo viene dentro del Excel del certificado. Mientras no
@@ -26946,10 +26956,8 @@ function periodoDe(lista){
   return isNaN(d)?'':MESES[d.getMonth()];
 }
 
-// Desglose de un certificado. Si no esta guardado, se reparte de la unica
-// forma segura: cuando el certificado declara un solo rubro, el total va
-// entero ahi. Si declara varios, no se puede repartir sin el Excel y se
-// devuelve incompleto para avisarlo en pantalla.
+// El desglose sólo es válido si fue leído del archivo vigente del certificado.
+// No se estiman rubros ni se reutilizan módulos cargados a mano.
 const MAPA_CODIGOS={
   CUB:'cubierta', ELEC:'electricidad', ALB:'albanileria', HER:'albanileria',
   PIN:'albanileria', VID:'albanileria', POD:'albanileria', CER:'albanileria',
@@ -26957,24 +26965,14 @@ const MAPA_CODIGOS={
 };
 function desgloseDe(c){
   const guardado=c?.modulos_por_rubro;
-  if(guardado&&typeof guardado==='object'){
-    const r={};
-    RUBROS_LIQ.forEach(x=>{r[x.key]=num(guardado[x.key])});
-    if(RUBROS_LIQ.some(x=>r[x.key]>0)){
-      // En las mediciones anteriores a la septima el total es el que dejo el
-      // inspector, y el reparto por rubro sale del certificado: pueden no
-      // coincidir. Se marca para avisarlo, no se toca ninguno de los dos.
-      const suma=RUBROS_LIQ.reduce((a,x)=>a+num(r[x.key]),0);
-      const cuadra=Math.abs(suma-modulosExactos(c))<0.005;
-      return {rubros:r,completo:true,cuadra};
-    }
-  }
-  const codigos=(typeof window.certRubrosCodigos==='function'?(window.certRubrosCodigos(c)||[]):[])
-    .map(x=>MAPA_CODIGOS[String(x).toUpperCase()]).filter(Boolean);
-  const unicos=[...new Set(codigos)];
   const r={};
-  RUBROS_LIQ.forEach(x=>{r[x.key]=0});
-  if(unicos.length===1){ r[unicos[0]]=modulosFinales(c); return {rubros:r,completo:true,cuadra:true}; }
+  RUBROS_LIQ.forEach(x=>{r[x.key]=num(guardado?.[x.key])});
+  const exacto=modulosExactos(c);
+  const tieneRubros=guardado&&typeof guardado==='object'&&RUBROS_LIQ.some(x=>r[x.key]>0);
+  if(tieneRubros&&exacto>0){
+    const suma=RUBROS_LIQ.reduce((a,x)=>a+num(r[x.key]),0);
+    return {rubros:r,completo:true,cuadra:Math.abs(suma-exacto)<0.0001};
+  }
   return {rubros:r,completo:false,cuadra:true};
 }
 
@@ -27012,8 +27010,7 @@ function filasHasta(z,n){
     String(c?.estado||'')==='medido' &&
     c?.medicion_numero!=null &&
     Number(c.medicion_numero)>=DESDE_MEDICION_EXACTA &&
-    Number(c.medicion_numero)<=Number(n) &&
-    medicionCerrada(z,c.medicion_numero));
+    Number(c.medicion_numero)<=Number(n));
   const ordenada=typeof window.dgieOrdenarPorPlanilla==='function'?window.dgieOrdenarPorPlanilla(lista):lista;
   const filas=firmadas.concat(ordenada.map(c=>{
     const d=desgloseDe(c);
@@ -27080,24 +27077,66 @@ function totalesDeMedicion(z,n,filas){
   return {medicion:n, rubros, total, monto, precio, filas:propias};
 }
 
-// Lo que liquida una medicion es lo que consume del presupuesto. El presupuesto
-// no vuelve a calcularlo por su cuenta: usa esta misma, para que lo que muestra
-// la planilla y lo que se descuenta no puedan discrepar. De la septima en
-// adelante sale de los archivos de certificado; antes, del papel firmado.
+// La planilla se arma dinámicamente aun mientras la medición está abierta.
+// Los indicadores reutilizan este mismo total, pero sólo cuando la medición
+// fue finalizada.
 window.dgieDesdeMedicionCertificados=DESDE_MEDICION_EXACTA;
-window.dgieLiquidacionDeMedicion=function(z,n){
+
+// Armar una liquidación recorre todos los establecimientos de la zona y los
+// ordena, y los tableros la piden una vez por zona y por medición. Sin
+// recordar el resultado, dibujar el panel del coordinador significaba rehacer
+// ese trabajo mas de cien veces seguidas. Se guarda lo ya calculado y se
+// olvida cuando cambia algo que pueda moverlo.
+const LIQ_MEMORIA=new Map();
+let LIQ_SELLO=0;
+function olvidarLiquidaciones(){ LIQ_MEMORIA.clear(); LIQ_SELLO++; }
+window.dgieOlvidarLiquidaciones=olvidarLiquidaciones;
+
+function liquidacionDeMedicion(z,n){
   const zona=Number(z), numero=Number(n);
-  if(!numero||!medicionCerrada(zona,numero))return null;
-  const t=totalesDeMedicion(zona,numero);
-  if(!t.filas.length)return null;
-  return {medicion:numero, total:t.total, monto:t.monto, rubros:t.rubros};
+  if(!numero)return null;
+  // El total de certificados entra en la clave: si se cargan o se borran, lo
+  // recordado deja de valer aunque nadie haya avisado.
+  const clave=zona+':'+numero+':'+certs().length+':'+LIQ_SELLO;
+  if(LIQ_MEMORIA.has(clave))return LIQ_MEMORIA.get(clave);
+  let r=null;
+  if(medicionCerrada(zona,numero)){
+    const lista=certsDeMedicion(zona,numero);
+    if(lista.length&&lista.some(c=>c?.medicion_firmada_url)){
+      const t=totalesDeMedicion(zona,numero);
+      if(t.filas.length&&!t.filas.some(f=>f.cert&&!f.completo))
+        r={medicion:numero, total:t.total, monto:t.monto, rubros:t.rubros};
+    }
+  }
+  LIQ_MEMORIA.set(clave,r);
+  return r;
+}
+window.dgieLiquidacionDeMedicion=liquidacionDeMedicion;
+
+function medicionesDeZona(z){
+  return [...new Set(certsDeZona(z)
+    .filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero!=null)
+    .map(c=>Number(c.medicion_numero)).filter(n=>n>0))];
+}
+window.dgieLiquidacionesFinalizadasZona=function(z){
+  const zona=Number(z);
+  return medicionesDeZona(zona).map(n=>liquidacionDeMedicion(zona,n)).filter(Boolean);
+};
+window.dgieTotalModulosLiquidados=function(z){
+  return window.dgieLiquidacionesFinalizadasZona(z)
+    .reduce((total,liq)=>total+num(liq.total),0);
+};
+// Las zonas que existen de verdad, para no recorrer una lista inventada.
+window.dgieZonasConCertificados=function(){
+  return [...new Set(certs()
+    .map(c=>Number(c?.zona)).filter(z=>z>0))].sort((a,b)=>a-b);
 };
 
 function medicionesHasta(z,n){
   return [...new Set(certsDeZona(z)
     .filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero!=null)
     .map(c=>Number(c.medicion_numero)))]
-    .filter(x=>x>0&&x<=Number(n)&&medicionCerrada(z,x))
+    .filter(x=>x>0&&x<=Number(n))
     .sort((a,b)=>a-b);
 }
 
@@ -27246,28 +27285,12 @@ function planillaHTML(z,n){
     <div><b>Valor del módulo:</b> ${actual.precio?pesos(actual.precio):'—'} · <b>Medición N° ${esc(n)}</b>${periodo?' · '+esc(periodo):''}</div>
   </div>`;
 
-  // Hasta la sexta medicion la planilla es la del papel firmado. Si todavia no
-  // se cargo ese PDF no se muestra nada calculado: seria un numero distinto al
-  // que se cobro, y eso confunde mas de lo que ayuda.
-  if(Number(n)<DESDE_MEDICION_EXACTA&&!hayFirmada(z,n)){
-    const tienePdf=certsDeZona(z).some(c=>c?.medicion_firmada_url&&Number(c.medicion_numero)>=Number(n));
-    return `${cabecera}<div class="dgie-liq-aviso">${tienePdf
-      ? 'Leyendo la planilla firmada del PDF...'
-      : `Esta medición se liquidó y se firmó en papel, así que su planilla sale de ese PDF. Todavía no está cargado: subilo desde la medición y la planilla se arma sola.<br><br>No se muestra una planilla calculada porque daría números distintos a los que se cobraron.`}</div>`;
-  }
-
-  // Solo se liquida lo cerrado. Si la medicion abierta todavia no se finalizo,
-  // se dice sin rodeos y no se muestran numeros que despues pueden cambiar.
-  if(!medicionCerrada(z,n)){
-    return `${cabecera}<div class="dgie-liq-aviso">Esta medición todavía no está finalizada, así que no se liquida: los certificados pueden cambiar. Marcá la certificación como finalizada y la planilla se arma sola.${acumulado.length?`<br><br>Ya hay ${acumulado.length} medición${acumulado.length!==1?'es':''} cerrada${acumulado.length!==1?'s':''} en esta zona: abrí cualquiera de ellas para ver su liquidación.`:''}</div>`;
-  }
-
-  const historica=Number(n)<DESDE_MEDICION_EXACTA;
+  const abierta=!medicionCerrada(z,n);
   const noCuadran=filas.filter(f=>f.cert&&!f.cuadra).length;
   const avisos=[];
-  if(incompletos)avisos.push(`${incompletos} certificado${incompletos!==1?'s':''} sin desglose por rubro. Se está leyendo el archivo de cada uno para completarlo.`);
-  if(historica)avisos.push(`Medición anterior a la séptima: se liquida con la planilla firmada, tal como se firmó y se cobró. El procedimiento nuevo, que toma los datos de los archivos de certificado, rige desde la medición ${DESDE_MEDICION_EXACTA}.`);
-  if(noCuadran)avisos.push(`En ${noCuadran} certificado${noCuadran!==1?'s':''} el reparto por rubro no suma el total cargado: el inspector ajustó el total a mano y el desglose sigue siendo el del certificado.`);
+  if(abierta)avisos.push('Vista preliminar: esta medición todavía puede cambiar. Recién consumirá presupuesto cuando tenga el PDF firmado y quede finalizada.');
+  if(incompletos)avisos.push('Hay certificados sin datos completos. Se está leyendo el archivo vigente de cada uno.');
+  if(noCuadran)avisos.push('Hay certificados cuyos módulos por rubro no suman el total del mismo archivo. Se volverá a leer la versión vigente antes de finalizar.');
   const aviso=avisos.length?`<div class="dgie-liq-aviso">${avisos.join('<br><br>')}</div>`:'';
 
   const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
@@ -27331,19 +27354,15 @@ function planillaHTML(z,n){
 // ────────────────────────────────────────────────────────────────────
 // 4. Pantalla y descarga
 // ────────────────────────────────────────────────────────────────────
-// Las mediciones cerradas antes de que existiera esta pantalla no tienen el
-// desglose guardado. Se completa solo la primera vez que se mira la
-// liquidacion, sin que nadie tenga que apretar nada.
+// Si un certificado todavía no tiene el desglose guardado, se lee su archivo
+// vigente al abrir la liquidación. Esto vale para todas las mediciones.
 async function completarLoQueFalte(z,numero,avisar){
-  // Solo desde la septima: las anteriores salen de la planilla firmada, asi que
-  // no tiene sentido bajar sus archivos.
   const pendientes=certs().filter(c=>
     Number(c?.zona)===Number(z) &&
     String(c?.estado||'')==='medido' &&
     c?.medicion_numero!=null &&
     Number(c.medicion_numero)>=DESDE_MEDICION_EXACTA &&
     Number(c.medicion_numero)<=Number(numero) &&
-    medicionCerrada(z,c.medicion_numero) &&
     sinDesgloseAun(c) && archivoVigenteDe(c));
   if(!pendientes.length)return null;
   window.dgieDetenerDesglose=false;
@@ -27353,7 +27372,6 @@ async function completarLoQueFalte(z,numero,avisar){
 window.dgieVerLiquidacion=async function(numero,zona){
   const z=Number(zona||zonaActual());
   await cargarColores(z);
-  await cargarFirmada(z);
   const cont=document.getElementById('med-detalle')||document.getElementById('coord-cert-medicion-detalle')||document.getElementById('main-content');
   if(!cont)return;
   let caja=document.getElementById('dgie-liq-caja');
@@ -27379,26 +27397,9 @@ window.dgieVerLiquidacion=async function(numero,zona){
     </div><div id="dgie-liq-progreso" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>${planillaHTML(z,numero)}`;
   caja.scrollIntoView({behavior:'smooth',block:'start'});
 
-  // Si quedan certificados sin desglose de mediciones ya cerradas, se completan
-  // en el momento y la planilla se vuelve a dibujar con los datos completos.
+  // Si faltan datos, se lee el archivo vigente y se redibuja la planilla.
   const panel=document.getElementById('dgie-liq-progreso');
   const avisar=(t,color)=>{ if(panel){panel.textContent=t; panel.style.color=color||'var(--muted)';} };
-  // De la sexta para atras, la planilla sale del papel firmado. Si todavia no
-  // se reconocio, se hace ahora y se vuelve a dibujar con los datos.
-  if(Number(numero)<DESDE_MEDICION_EXACTA&&!hayFirmada(z,numero)){
-    const f=await asegurarFirmada(z,numero,avisar);
-    if(f&&f.guardado){
-      await window.dgieVerLiquidacion(numero,z);
-      const p=document.getElementById('dgie-liq-progreso');
-      if(p){p.textContent=`Planilla firmada reconocida: ${f.guardado.filas} filas de ${f.guardado.mediciones.length} medición${f.guardado.mediciones.length!==1?'es':''}.`; p.style.color='#176b32'}
-      return;
-    }
-    if(f&&f.error)avisar('No se pudo leer la planilla firmada: '+f.error,'var(--danger)');
-    else if(f&&f.sinPdf)avisar('Esta medición no tiene cargado el PDF de la planilla firmada.','var(--danger)');
-    else avisar('');
-    return;
-  }
-
   const r=await completarLoQueFalte(z,numero,avisar);
   if(!r)return;
   if(r.listos){
@@ -27539,40 +27540,65 @@ function agregarBotones(){
 }
 window.dgieAgregarBotonLiquidacion=agregarBotones;
 
-// Al marcar la certificación finalizada, los certificados de esa medición
-// quedan fijos: se calcula el desglose por rubro y se guarda ahí mismo, para
-// no tener que volver a leer los archivos nunca más.
+// Para finalizar, el PDF firmado debe estar cargado y todos los módulos deben
+// haberse leído del archivo vigente de cada certificado. El PDF sólo acredita
+// el cierre: no aporta números a la liquidación.
 const finalizarPrevLiq=window.finalizarCertificacion;
 if(typeof finalizarPrevLiq==='function'){
   window.finalizarCertificacion=async function(numero){
-    const res=await finalizarPrevLiq.apply(this,arguments);
+    if(usuario()?.role!=='inspector')return finalizarPrevLiq.apply(this,arguments);
     const z=zonaActual();
-    const cuantos=certs().filter(c=>
-      Number(c?.zona)===Number(z) &&
-      String(c?.estado||'')==='medido' &&
-      String(c?.medicion_numero||'')===String(numero) &&
-      sinDesgloseAun(c) && archivoVigenteDe(c)).length;
-    if(cuantos){
-      const cartel=document.createElement('div');
+    const lista=certsDeMedicion(z,numero);
+    if(!lista.length){
+      alert('No hay certificados en esta medición.');
+      return false;
+    }
+    if(!lista.some(c=>c?.medicion_firmada_url)){
+      alert('Para finalizar la medición primero tenés que subir el PDF firmado.\n\nEl PDF queda como respaldo; los módulos se calculan desde los archivos de certificado.');
+      return false;
+    }
+
+    const pendientes=lista.filter(c=>!archivoVigenteDe(c)||sinDesgloseAun(c));
+    let cartel=null;
+    if(pendientes.length){
+      cartel=document.createElement('div');
       cartel.className='dgie-liq-aviso';
-      cartel.textContent=`Guardando los módulos por rubro de ${cuantos} certificado${cuantos!==1?'s':''}...`;
+      cartel.textContent='Leyendo los módulos de '+pendientes.length+' certificado'+(pendientes.length!==1?'s':'')+' antes de finalizar...';
       document.getElementById('med-detalle')?.prepend(cartel);
       try{
-        const r=await window.dgieFijarDesgloseMedicion(numero,z);
-        const notas=[`${r.listos} certificado${r.listos!==1?'s':''} con los módulos por rubro guardados`];
-        if(r.sinLeer)notas.push(`${r.sinLeer} sin poder leerse`);
-        if(r.sinPermiso)notas.push(`${r.sinPermiso} sin permiso`);
-        cartel.textContent=notas.join(' · ');
-        setTimeout(()=>cartel.remove(),9000);
+        await window.dgieFijarDesgloseMedicion(numero,z);
       }catch(e){
-        cartel.textContent='No se pudieron guardar los módulos por rubro. Se pueden completar desde la liquidación.';
-        console.warn('Desglose al finalizar la medición',e);
+        console.warn('Lectura de certificados antes de finalizar la medición',e);
       }
     }
+
+    const faltantes=lista.filter(c=>!archivoVigenteDe(c)||sinDesgloseAun(c));
+    if(faltantes.length){
+      if(cartel)cartel.remove();
+      alert('No se puede finalizar: '+faltantes.length+' certificado'+(faltantes.length!==1?'s no tienen':' no tiene')+' un archivo vigente legible con el total y los módulos por rubro.\n\nCorregí o volvé a subir esos certificados y reintentá.');
+      return false;
+    }
+    if(cartel){
+      cartel.textContent='Todos los certificados fueron leídos. La medición ya se puede finalizar.';
+      setTimeout(()=>cartel.remove(),5000);
+    }
+    // Al cerrarse, la medición empieza a consumir presupuesto: lo recordado
+    // hasta ahora decía que no consumía.
+    const res=await finalizarPrevLiq.apply(this,arguments);
+    olvidarLiquidaciones();
     return res;
   };
 }
-
+// Revertir una finalización la saca de los indicadores, así que también obliga
+// a rehacer las cuentas.
+const revertirPrevLiq=window.revertirCertificacionFinalizada;
+if(typeof revertirPrevLiq==='function'){
+  window.revertirCertificacionFinalizada=async function(){
+    const res=await revertirPrevLiq.apply(this,arguments);
+    olvidarLiquidaciones();
+    return res;
+  };
+}
 ['abrirMedicionInspector','abrirMedicionCoord','verMedicionCoord'].forEach(nombre=>{
   const previo=window[nombre];
   if(typeof previo!=='function')return;
@@ -27584,12 +27610,11 @@ if(typeof finalizarPrevLiq==='function'){
   };
 });
 new MutationObserver(()=>setTimeout(agregarBotones,0)).observe(document.body,{childList:true,subtree:true});
-// Presupuesto consumido: la única fuente es lo que liquidó cada medición
+// Presupuesto consumido: la única fuente es la liquidación de certificados
 // ────────────────────────────────────────────────────────────────────
-// Una medición consume presupuesto solamente si está finalizada y su
-// liquidación está armada. De la séptima en adelante esa liquidación sale de
-// los archivos de certificado; en las anteriores, del PDF firmado, que además
-// tiene que estar cargado y reconocido en filas + totales.
+// Una medición consume presupuesto solamente cuando está finalizada, tiene su
+// PDF firmado de respaldo y todos sus certificados fueron leídos. El PDF no
+// aporta números.
 const CARGAS_PRESUPUESTO_LIQUIDADO={};
 let SECUENCIA_PRESUPUESTO_LIQUIDADO=0;
 const RUBROS_PRESUPUESTO_LIQUIDADO=[
@@ -27634,67 +27659,37 @@ function cargarPresupuestoLiquidado(z){
   }
   return CARGAS_PRESUPUESTO_LIQUIDADO[key];
 }
-function estadoPresupuestoLiquidado(data,z,firmada){
+function estadoPresupuestoLiquidado(data,z){
   const todos=(data||[]).filter(c=>Number(c?.zona)===Number(z));
   const medidos=todos.filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero!=null);
   const numeros=[...new Set(medidos.map(c=>Number(c.medicion_numero)).filter(x=>x>0))].sort((a,b)=>a-b);
-  const filas=Array.isArray(firmada?.filas)?firmada.filas:[];
-  const totales=firmada?.totales&&typeof firmada.totales==='object'?firmada.totales:{};
   const liquidaciones=[];
-  let sinPdf=0,sinReconocer=0,sinCertificados=0;
-  const desdeCertificados=Number(window.dgieDesdeMedicionCertificados||Infinity);
+  let sinPdf=0,sinCertificados=0;
 
   numeros.forEach(numero=>{
     if(!medicionCerrada(z,numero))return;
-
-    // De la septima en adelante la planilla se arma con los archivos de
-    // certificado, sin papel de por medio: lo consumido se toma de ahi mismo.
-    if(numero>=desdeCertificados){
-      const liq=typeof window.dgieLiquidacionDeMedicion==='function'
-        ? window.dgieLiquidacionDeMedicion(z,numero) : null;
-      if(!liq){sinCertificados++;return}
-      const suyos={};
-      RUBROS_PRESUPUESTO_LIQUIDADO.forEach(r=>{suyos[r.key]=num(liq.rubros?.[r.key])});
-      liquidaciones.push({
-        medicion:numero,
-        total:num(liq.total),
-        rubros:suyos,
-        periodo:periodoPresupuestoLiquidado(numero),
-        archivo:''
-      });
-      return;
-    }
-
     const grupo=medidos.filter(c=>Number(c.medicion_numero)===numero);
-    // Las planillas firmadas son acumulativas: un PDF posterior reconocido
-    // también acredita las mediciones anteriores que contiene.
-    // Cualquiera de esos papeles sirve como origen: la liquidacion de esta
-    // medicion pudo haberse leido del PDF de una posterior, que la contiene.
-    const fuentes=medidos.filter(c=>c?.medicion_firmada_url&&Number(c.medicion_numero)>=numero)
-      .sort((a,b)=>Number(a.medicion_numero)-Number(b.medicion_numero));
-    if(!fuentes.length){sinPdf++;return}
-    const propias=filas.filter(f=>Number(f.medicion)===numero);
-    const total=totales[numero]||totales[String(numero)]||null;
-    const archivo=String(total?.archivo||propias.find(f=>f?.archivo)?.archivo||'').trim();
-    const fechaLiquidacion=Date.parse(total?.creado_at||propias.find(f=>f?.creado_at)?.creado_at||'');
-    const origen=fuentes.find(c=>String(c?.medicion_firmada_archivo||'').trim()===archivo);
-    const fechaPdf=Date.parse(origen?.medicion_firmada_fecha||'');
-    // Vale si el archivo del que se leyo es alguno de esos papeles y la lectura
-    // no es anterior a la carga de ese PDF.
-    const correspondeAlPdf=!!origen&&
-      (!Number.isFinite(fechaPdf)||!Number.isFinite(fechaLiquidacion)||fechaLiquidacion>=fechaPdf);
-    if(!propias.length||!total||!archivo||!correspondeAlPdf){sinReconocer++;return}
+    if(!grupo.some(c=>c?.medicion_firmada_url)){sinPdf++;return}
+    const liq=typeof window.dgieLiquidacionDeMedicion==='function'
+      ? window.dgieLiquidacionDeMedicion(z,numero) : null;
+    if(!liq){sinCertificados++;return}
     const rubros={};
-    RUBROS_PRESUPUESTO_LIQUIDADO.forEach(r=>{rubros[r.key]=num(total[r.key])});
+    RUBROS_PRESUPUESTO_LIQUIDADO.forEach(r=>{rubros[r.key]=num(liq.rubros?.[r.key])});
     liquidaciones.push({
       medicion:numero,
-      total:num(total.modulos),
+      total:num(liq.total),
       rubros,
       periodo:periodoPresupuestoLiquidado(numero),
-      archivo
+      archivo:''
     });
   });
-  return {liquidaciones,sinPdf,sinReconocer,sinCertificados,finalizadas:numeros.filter(numero=>medicionCerrada(z,numero)).length};
+  return {
+    liquidaciones,
+    sinPdf,
+    sinReconocer:0,
+    sinCertificados,
+    finalizadas:numeros.filter(numero=>medicionCerrada(z,numero)).length
+  };
 }
 window.dgieEstadoPresupuestoLiquidado=estadoPresupuestoLiquidado;
 
@@ -27727,8 +27722,7 @@ function renderPresupuestoDesdeLiquidaciones(data,z,firmada){
   ).join('');
   const pendientes=[];
   if(estado.sinPdf)pendientes.push(estado.sinPdf+(estado.sinPdf===1?' medición finalizada no tiene':' mediciones finalizadas no tienen')+' PDF firmado cargado');
-  if(estado.sinReconocer)pendientes.push(estado.sinReconocer+(estado.sinReconocer===1?' medición tiene':' mediciones tienen')+' PDF, pero todavía no '+(estado.sinReconocer===1?'tiene':'tienen')+' la liquidación reconocida y armada');
-  if(estado.sinCertificados)pendientes.push(estado.sinCertificados+(estado.sinCertificados===1?' medición no tiene':' mediciones no tienen')+' certificados con los que armar la liquidación');
+  if(estado.sinCertificados)pendientes.push(estado.sinCertificados+(estado.sinCertificados===1?' medición tiene':' mediciones tienen')+' certificados sin poder leerse por completo');
   const avisoPendientes=pendientes.length
     ? '<div class="dgie-liq-aviso">'+pendientes.join(' · ')+'. No consumen presupuesto hasta completar ese proceso.</div>'
     : '';
@@ -27738,7 +27732,7 @@ function renderPresupuestoDesdeLiquidaciones(data,z,firmada){
 
   return '<div class="med-card" style="margin-bottom:14px" data-presupuesto-liquidado-z="'+Number(z)+'">'+
     '<div class="card-header" style="align-items:flex-start"><div><div class="card-title">Presupuesto de módulos</div>'+
-    '<div style="font-size:13px;color:var(--muted);margin-top:4px">Sólo computa mediciones finalizadas con la liquidación armada, y los módulos salen de esa liquidación. Desde la séptima se arma con los archivos de certificado; las anteriores necesitan además el PDF firmado cargado y reconocido.</div></div>'+
+    '<div style="font-size:13px;color:var(--muted);margin-top:4px">Sólo computa mediciones finalizadas con PDF firmado. Los módulos totales y por rubro salen siempre de los archivos vigentes de certificado.</div></div>'+
     '<span class="badge '+(restanteTotal>=0?'b-ok':'b-danger')+'">'+modsPresupuestoLiquidado(restanteTotal)+' restantes</span></div>'+
     '<div class="metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px">'+
       '<div class="metric-card" style="padding:14px"><div class="metric-lbl">Módulos totales</div><div class="metric-val" style="font-size:26px">'+modsPresupuestoLiquidado(PRESUPUESTO_MODULOS_LIQUIDADO.total)+'</div></div>'+
@@ -27752,35 +27746,22 @@ function renderPresupuestoDesdeLiquidaciones(data,z,firmada){
     // todos los dias, y quien necesita el desglose lo abre.
     '<details class="dgie-presu-detalle"><summary>Módulos consumidos por rubro'+
       '<span class="badge b-info">'+liquidaciones.length+(liquidaciones.length===1?' liquidación':' liquidaciones')+'</span></summary>'+
-      '<div style="font-size:12px;color:var(--muted);margin:2px 0 8px">Valores tomados del pie de las liquidaciones reconocidas.</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin:2px 0 8px">Valores tomados de la liquidación dinámica armada con los certificados.</div>'+
       '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Rubro</th><th>Módulos consumidos</th><th>% liquidado</th></tr></thead><tbody>'+rowsRubros+
       '</tbody><tfoot><tr><th>Total por rubros</th><th>'+modsPresupuestoLiquidado(totalRubros)+'</th><th>'+(consumidoTotal?Math.round(totalRubros/consumidoTotal*100):0)+'%</th></tr></tfoot></table></div>'+
     '</details>'+
     '<details class="dgie-presu-detalle"><summary>Consumo por medición'+
       '<span class="badge b-info">'+Object.keys(meses).length+(Object.keys(meses).length===1?' medición':' mediciones')+'</span></summary>'+
       '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Medición / mes</th><th>Liquidaciones</th><th>Módulos consumidos</th><th>% del presupuesto</th></tr></thead>'+
-      '<tbody>'+(rowsMeses||'<tr><td colspan="4" class="os-empty">Todavía no hay liquidaciones reconocidas que consuman módulos.</td></tr>')+'</tbody></table></div>'+
+      '<tbody>'+(rowsMeses||'<tr><td colspan="4" class="os-empty">Todavía no hay mediciones finalizadas que consuman módulos.</td></tr>')+'</tbody></table></div>'+
     '</details></div>';
 }
 
 window.dgieRenderPresupuestoDesdeLiquidaciones=renderPresupuestoDesdeLiquidaciones;
 function renderResumenPresupuestoLiquidado(data){
   const z=zonaPresupuestoLiquidado(data);
-  if(!z)return renderPresupuestoDesdeLiquidaciones(data,0,{filas:[],totales:{}});
-  const firmada=FIRMADA['z'+z];
-  if(firmada)return renderPresupuestoDesdeLiquidaciones(data,z,firmada);
-  const id='presupuesto-liquidado-carga-'+(++SECUENCIA_PRESUPUESTO_LIQUIDADO);
-  cargarPresupuestoLiquidado(z).then(d=>{
-    const el=document.getElementById(id);
-    if(el)el.outerHTML=renderPresupuestoDesdeLiquidaciones(data,z,d);
-  }).catch(e=>{
-    console.warn('No se pudieron cargar las liquidaciones para el presupuesto',e);
-    const el=document.getElementById(id);
-    if(el)el.innerHTML='<div class="dgie-liq-aviso">No se pudieron cargar las liquidaciones reconocidas.</div>';
-  });
-  return '<div class="med-card" id="'+id+'" style="margin-bottom:14px"><div style="text-align:center;padding:20px;color:var(--muted)">Cargando liquidaciones reconocidas...</div></div>';
+  return renderPresupuestoDesdeLiquidaciones(data,z||0,{filas:[],totales:{}});
 }
-
 // Nombre propio, para que las capas anteriores puedan delegar aca aunque su
 // funcion este declarada dentro de un bloque cerrado y no se pueda reemplazar.
 window.dgieRenderPresupuestoModulos=renderResumenPresupuestoLiquidado;
@@ -27981,12 +27962,10 @@ async function tokenSesion(){
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Desde la séptima medición los módulos salen sólo del certificado
+// Los módulos salen sólo del archivo vigente del certificado
 // ────────────────────────────────────────────────────────────────────
-// La carga manual de "módulos certificado final" queda deshabilitada: si el
-// número se pudiera escribir a mano, la planilla dejaría de reflejar lo que
-// dicen los certificados y volveríamos al problema de las mediciones viejas.
-const DESDE_MEDICION_SIN_CARGA_MANUAL=7;
+// La carga manual queda deshabilitada en todas las mediciones.
+const DESDE_MEDICION_SIN_CARGA_MANUAL=1;
 function certPorId(id){
   const lista=typeof CERTIFICADOS_MEDICION!=='undefined'?CERTIFICADOS_MEDICION:[];
   return lista.find(c=>String(c?.id||c?.localId||'')===String(id));
@@ -27994,10 +27973,18 @@ function certPorId(id){
 function sinCargaManual(c){
   return Number(c?.medicion_numero||0)>=DESDE_MEDICION_SIN_CARGA_MANUAL;
 }
+// Sólo el número que se leyó del archivo. Si todavía no se leyó, no se muestra
+// otro en su lugar: decir "leído del archivo" sobre un valor cargado a mano
+// seria mentir justo en el dato que ahora manda.
+function modulosDelArchivo(c){
+  const n=Number(String(c?.modulos_exacto??'').replace(',','.'));
+  return Number.isFinite(n)&&n>0
+    ? n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})
+    : '';
+}
 window.dgieCertSinCargaManual=sinCargaManual;
 
-const AVISO_SIN_MANUAL='Desde la medición '+DESDE_MEDICION_SIN_CARGA_MANUAL+
-  ' los módulos salen del certificado y no se cargan a mano.\n\n'+
+const AVISO_SIN_MANUAL='Los módulos salen del archivo vigente y no se cargan a mano.\n\n'+
   'Si el número no es el correcto, hay que corregir el certificado y volver a subirlo.';
 
 ['guardarModulosFinalCertificado','limpiarModulosFinalCertificado'].forEach(nombre=>{
@@ -28019,12 +28006,18 @@ function quitarCargaManual(){
         .find(x=>String(x?.id||x?.localId||'').replace(/[^a-zA-Z0-9_-]/g,'_')===input.id.replace('cert-final-mod-',''));
     if(!c||!sinCargaManual(c))return;
     fila.dataset.dgieSinManual='1';
-    const valor=input.value;
+    const valor=modulosDelArchivo(c);
     input.remove();
     fila.querySelectorAll('button').forEach(b=>b.remove());
-    fila.insertAdjacentHTML('beforeend',
-      `<strong style="font-size:12px;color:#123c69">${valor?esc(valor):'—'}</strong>`+
-      `<span style="font-size:11px;color:var(--muted)">del certificado</span>`);
+    const dato=document.createElement('strong');
+    dato.style.cssText='font-size:12px;color:#123c69';
+    dato.textContent=valor||'Pendiente de lectura';
+    const origen=document.createElement('span');
+    origen.style.cssText='font-size:11px;color:var(--muted)';
+    origen.textContent=valor
+      ? 'leído del archivo vigente'
+      : 'se lee al abrir la liquidación o al finalizar la medición';
+    fila.append(dato,origen);
   });
 }
 window.dgieQuitarCargaManualModulos=quitarCargaManual;
