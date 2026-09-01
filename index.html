@@ -27019,6 +27019,10 @@ const MAPA_CODIGOS={
   PIN:'albanileria', VID:'albanileria', POD:'albanileria', CER:'albanileria',
   SAN:'sanitaria', PLU:'sanitaria', GAS:'gas'
 };
+// Los subtotales por rubro y el total del certificado se calculan por
+// separado dentro del Excel. Una diferencia menor a una centesima de modulo
+// es redondeo propio de la planilla, no un archivo incompleto.
+const TOLERANCIA_DESGLOSE_MODULOS=0.01;
 function desgloseDe(c){
   const guardado=c?.modulos_por_rubro;
   const r={};
@@ -27027,9 +27031,14 @@ function desgloseDe(c){
   const tieneRubros=guardado&&typeof guardado==='object'&&RUBROS_LIQ.some(x=>r[x.key]>0);
   if(tieneRubros&&exacto>0){
     const suma=RUBROS_LIQ.reduce((a,x)=>a+num(r[x.key]),0);
-    return {rubros:r,completo:true,cuadra:Math.abs(suma-exacto)<0.0001};
+    return {
+      rubros:r,
+      completo:true,
+      cuadra:Math.abs(suma-exacto)<=TOLERANCIA_DESGLOSE_MODULOS,
+      diferencia:suma-exacto
+    };
   }
-  return {rubros:r,completo:false,cuadra:true};
+  return {rubros:r,completo:false,cuadra:true,diferencia:0};
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -27079,6 +27088,7 @@ function filasHasta(z,n){
       rubros:d.rubros,
       completo:d.completo,
       cuadra:d.cuadra!==false,
+      diferencia:d.diferencia||0,
       total:modulosFinales(c),
       exacto:modulosExactos(c),
       // El valor del modulo con el que se emitio ESTE certificado. Usando el
@@ -27355,11 +27365,19 @@ function planillaHTML(z,n){
   </div>`;
 
   const abierta=!medicionCerrada(z,n);
-  const noCuadran=filas.filter(f=>f.cert&&!f.cuadra).length;
+  const noCuadran=filas.filter(f=>f.cert&&!f.cuadra);
   const avisos=[];
   if(abierta)avisos.push('Vista preliminar: esta medición todavía puede cambiar. Recién consumirá presupuesto cuando tenga el PDF firmado y quede finalizada.');
   if(incompletos)avisos.push('Hay certificados sin datos completos. Se está leyendo el archivo vigente de cada uno.');
-  if(noCuadran)avisos.push('Hay certificados cuyos módulos por rubro no suman el total del mismo archivo. Se volverá a leer la versión vigente antes de finalizar.');
+  if(noCuadran.length){
+    const detalle=noCuadran.slice(0,3).map(f=>{
+      const os=f.os?' · O.S. '+f.os:'';
+      const signo=f.diferencia>0?'+':'';
+      return `Medición N° ${esc(f.medicion)} · ${esc(f.establecimiento)}${esc(os)} (${signo}${fmt(f.diferencia)} módulos)`;
+    });
+    if(noCuadran.length>detalle.length)detalle.push(`y ${noCuadran.length-detalle.length} certificado${noCuadran.length-detalle.length===1?'':'s'} más`);
+    avisos.push('Revisar certificados con una diferencia significativa entre el total y los módulos aproximados por rubro:<br>'+detalle.join('<br>'));
+  }
   const aviso=avisos.length?`<div class="dgie-liq-aviso">${avisos.join('<br><br>')}</div>`:'';
 
   const thRubros=RUBROS_LIQ.map(r=>`<th>${esc(r.etiqueta)}</th>`).join('');
@@ -27505,12 +27523,10 @@ function sinDesgloseAun(c){
   const d=c?.modulos_por_rubro;
   const tieneRubros=d&&typeof d==='object'&&RUBROS_LIQ.some(r=>num(d[r.key])>0);
   const exacto=num(c?.modulos_exacto);
-  if(!tieneRubros||exacto<=0)return true;
-  // Los rubros tienen que sumar exactamente el total del certificado. Si no
-  // cierran es porque se guardaron redondeados, y hay que volver a leerlos con
-  // todos sus decimales.
-  const suma=RUBROS_LIQ.reduce((a,r)=>a+num(d[r.key]),0);
-  return Math.abs(suma-exacto)>0.0001;
+  // Que los rubros no coincidan exactamente con el total no significa que
+  // falten datos: ambas cuentas existen por separado en el Excel y pueden
+  // diferir por redondeo. Sólo se relee cuando realmente falta información.
+  return !tieneRubros||exacto<=0;
 }
 
 // Recorre todos los certificados medidos que la sesion puede ver y les

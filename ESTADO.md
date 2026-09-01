@@ -7,7 +7,7 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-08-31** · commit `este commit`
+Última actualización: **2026-09-01** · commit `este commit`
 
 ---
 
@@ -45,6 +45,10 @@ sepa dónde quedó todo sin tener que preguntar.
   la lectura asíncrona todavía no terminó, la liquidación relee el archivo nuevo.
 - Las cuentas se hacen con todos los decimales del certificado y se redondean
   únicamente al mostrar.
+- El total y los subtotales por rubro son cálculos independientes del Excel.
+  Diferencias de hasta 0,01 módulos se consideran redondeo normal: no bloquean
+  el cierre ni provocan relecturas. Las diferencias mayores se informan con
+  medición, establecimiento y O.S. para que el inspector sepa qué revisar.
 - Validado con datos simulados e interceptando toda escritura: escritorio 1280
   px, móvil 375 y 450 px, inspector, coordinación, empresa y call center,
   medición abierta, sin PDF, completa e incompleta; sin errores de consola.
@@ -183,6 +187,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-01 | `este commit` | Liquidación: tolerancia al redondeo entre total y rubros; los avisos reales identifican medición, establecimiento y O.S.; un archivo completo ya no se relee indefinidamente | Codex |
 | 2026-08-31 | `este commit` | Liquidación única desde certificados en todas las mediciones; PDF obligatorio sólo como respaldo; indicadores al finalizar; sin carga manual. Terminado y verificado: memoria de liquidaciones, zonas desde los datos, ficha sin valores a mano disfrazados | Codex + Claude Code |
 | 2026-08-31 | `1675496` | De la medición 7 en adelante la liquidación vuelve a armarse con los archivos de certificado, con el mismo formato de planilla. El PDF deja de ser obligatorio para finalizar. El presupuesto pasa a usar la misma cuenta que la planilla, sea cual sea su origen. Revierte `4f95396` | Claude Code |
 | 2026-08-28 | `4f95396` | Se probó que la liquidación saliera del PDF firmado en todas las mediciones y que sin PDF no se pudiera finalizar. Revertido el 31/08 | Claude Code |
