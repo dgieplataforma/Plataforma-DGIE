@@ -14252,7 +14252,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const z = Number(data[0]?.zona || (typeof zonaCertCoord==='function'?zonaCertCoord(data[0]):0));
       const liq = typeof window.dgieLiquidacionDeMedicion==='function'
         ? window.dgieLiquidacionDeMedicion(z,num) : null;
-      const mod = Number(liq?.total||0);
+      // El total de la planilla firmada cuando está cargado; si no, el de los
+      // certificados.
+      const mod = Number(liq?.consumo||0);
       acumulado += mod;
       return `<tr>
         <td>Medición Nº ${esc(num)}</td>
@@ -14353,7 +14355,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         const periodo=medicionPeriodoCoord(numero);
         if(!periodo)return;
         columnasMap.set(periodo.numero,periodo);
-        const mod=Number(liq.total||0);
+        const mod=Number(liq.consumo||0);
         row.valores[periodo.numero]=mod;
         if(periodo.year>=2027)row.total2027+=mod;
         else row.total2026+=mod;
@@ -15464,6 +15466,40 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       alert('No se pudo guardar el PDF de medición firmada: '+msgSupabaseMedicion(error));
     }
   };
+  // El total de módulos de la medición, tal como figura en el papel firmado.
+  // Es el número que manda para el presupuesto: sumar los certificados da una
+  // aproximación, porque en el Excel el total y los subtotales por rubro son
+  // cálculos distintos y cada uno trae su redondeo.
+  function modulosFirmadosDe(data){
+    const c=(data||[]).find(x=>x?.medicion_modulos_firmados!=null);
+    return c?Number(c.medicion_modulos_firmados):null;
+  }
+  window.guardarModulosFirmadosMedicion=async function(numero){
+    if(!exigirInspectorCertificacion())return;
+    const data=dataMedicion(numero);
+    if(!data.length){alert('No hay certificados en esta medición.');return}
+    const safe=String(numero).replace(/[^a-zA-Z0-9_-]/g,'_');
+    const input=document.getElementById('medicion-modulos-firmados-'+safe);
+    const crudo=String(input?.value||'').trim().replace(',','.');
+    if(!crudo){alert('Escribí el total de módulos que figura en la planilla firmada.');return}
+    const valor=Number(crudo);
+    if(!Number.isFinite(valor)||valor<=0){alert('El total de módulos tiene que ser un número mayor que cero.');return}
+    try{
+      for(const c of data){
+        await window.actualizarCertificado(c.id||c.localId,{
+          medicion_modulos_firmados:valor,
+          actualizado_por:currentUser?.name||'Inspector'
+        });
+      }
+      if(typeof window.dgieOlvidarLiquidaciones==='function')window.dgieOlvidarLiquidaciones();
+      if(typeof abrirMedicionInspector==='function')abrirMedicionInspector(numero);
+    }catch(error){
+      const msg=String(error?.message||error||'');
+      alert(/medicion_modulos_firmados|does not exist|PGRST204|schema cache/i.test(msg)
+        ? 'Todavía no está creada la columna donde se guarda este total. Hay que correr una vez el script supabase-medicion-modulos-firmados.sql.'
+        : 'No se pudo guardar el total de módulos firmados: '+msgSupabaseMedicion(error));
+    }
+  };
   window.eliminarPdfMedicionFirmada=async function(numero){
     if(!exigirInspectorCertificacion())return;
     const data=dataMedicion(numero);
@@ -15495,9 +15531,29 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="subirPdfMedicionFirmada('${esc(numero)}')">${firmada?.medicion_firmada_url?'Reemplazar PDF':'Subir PDF firmado'}</button>
         ${firmada?.medicion_firmada_url?`<button class="secondary-btn" style="color:var(--danger);padding:7px 10px;font-size:12px" onclick="eliminarPdfMedicionFirmada('${esc(numero)}')">Eliminar</button>`:''}
       </div>`:'<span class="badge b-neutral">Solo consulta</span>';
-    header.insertAdjacentHTML('afterend',`<div class="medicion-firmada-box" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;background:#f8fafc;padding:10px 12px;margin:0 0 12px">
-      <div style="font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b>${firmada?.medicion_firmada_url?` · <a href="${esc(firmada.medicion_firmada_url)}" target="_blank" rel="noopener">${esc(firmada.medicion_firmada_archivo||'Ver PDF')}</a>`:' · Sin PDF cargado'}</div>
-      ${controles}
+    const firmados=modulosFirmadosDe(data);
+    const controlTotal=esInspectorCertificacion()?`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="form-input" id="medicion-modulos-firmados-${safe}" type="text" inputmode="decimal"
+          value="${firmados!=null?esc(String(firmados).replace('.',',')):''}" placeholder="Ej.: 484,92"
+          style="max-width:130px;padding:7px 9px;font-size:12px">
+        <button class="secondary-btn" style="padding:7px 10px;font-size:12px" onclick="guardarModulosFirmadosMedicion('${esc(numero)}')">${firmados!=null?'Actualizar total':'Guardar total'}</button>
+      </div>`:`<strong style="font-size:13px;color:#123c69">${firmados!=null?mods(firmados):'Sin cargar'}</strong>`;
+
+    header.insertAdjacentHTML('afterend',`<div class="medicion-firmada-box" style="border:1px solid var(--border);border-radius:12px;background:#f8fafc;padding:10px 12px;margin:0 0 12px">
+      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div style="font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b>${firmada?.medicion_firmada_url?` · <a href="${esc(firmada.medicion_firmada_url)}" target="_blank" rel="noopener">${esc(firmada.medicion_firmada_archivo||'Ver PDF')}</a>`:' · Sin PDF cargado'}</div>
+        ${controles}
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
+        <div style="font-size:13px;color:var(--muted)"><b style="color:#123c69">Total de módulos de la planilla firmada</b>${firmados!=null&&esInspectorCertificacion()?` · ${mods(firmados)} guardados`:''}</div>
+        ${controlTotal}
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Este total sale del papel y es el que se usa para contar los módulos consumidos, así el descuento del presupuesto queda exacto.
+        El desglose por rubro se sigue armando con los certificados y por eso se muestra como aproximado.
+        <b style="color:#123c69">Aun así, conviene que lo cargado en la plataforma se parezca lo más posible a la medición firmada:</b>
+        cuanto más cerca estén, menos diferencias hay que explicar después.
+      </div>
     </div>`);
   }
   function parcheTablaMedicion(numero){
@@ -27104,8 +27160,19 @@ function liquidacionDeMedicion(z,n){
     const lista=certsDeMedicion(zona,numero);
     if(lista.length&&lista.some(c=>c?.medicion_firmada_url)){
       const t=totalesDeMedicion(zona,numero);
-      if(t.filas.length&&!t.filas.some(f=>f.cert&&!f.completo))
-        r={medicion:numero, total:t.total, monto:t.monto, rubros:t.rubros};
+      if(t.filas.length&&!t.filas.some(f=>f.cert&&!f.completo)){
+        // El total que manda es el del papel firmado, cargado a mano. Sumar los
+        // certificados da una aproximacion: en el Excel el total y los
+        // subtotales por rubro son cuentas distintas, cada una con su redondeo.
+        // Mientras ese numero no este cargado se usa el de los certificados, y
+        // el panel avisa que todavia es aproximado.
+        const firmado=lista.map(c=>Number(c?.medicion_modulos_firmados))
+          .find(v=>Number.isFinite(v)&&v>0);
+        r={medicion:numero, total:t.total, monto:t.monto, rubros:t.rubros,
+           totalFirmado:firmado??null,
+           consumo:firmado??t.total,
+           exacto:firmado!=null};
+      }
     }
   }
   LIQ_MEMORIA.set(clave,r);
@@ -27122,9 +27189,11 @@ window.dgieLiquidacionesFinalizadasZona=function(z){
   const zona=Number(z);
   return medicionesDeZona(zona).map(n=>liquidacionDeMedicion(zona,n)).filter(Boolean);
 };
+// Lo consumido es el total del papel firmado cuando esta cargado, y el de los
+// certificados mientras no lo este.
 window.dgieTotalModulosLiquidados=function(z){
   return window.dgieLiquidacionesFinalizadasZona(z)
-    .reduce((total,liq)=>total+num(liq.total),0);
+    .reduce((total,liq)=>total+num(liq.consumo),0);
 };
 // Las zonas que existen de verdad, para no recorrer una lista inventada.
 window.dgieZonasConCertificados=function(){
@@ -27664,7 +27733,7 @@ function estadoPresupuestoLiquidado(data,z){
   const medidos=todos.filter(c=>String(c?.estado||'')==='medido'&&c?.medicion_numero!=null);
   const numeros=[...new Set(medidos.map(c=>Number(c.medicion_numero)).filter(x=>x>0))].sort((a,b)=>a-b);
   const liquidaciones=[];
-  let sinPdf=0,sinCertificados=0;
+  let sinPdf=0,sinCertificados=0,sinTotalFirmado=0;
 
   numeros.forEach(numero=>{
     if(!medicionCerrada(z,numero))return;
@@ -27673,11 +27742,15 @@ function estadoPresupuestoLiquidado(data,z){
     const liq=typeof window.dgieLiquidacionDeMedicion==='function'
       ? window.dgieLiquidacionDeMedicion(z,numero) : null;
     if(!liq){sinCertificados++;return}
+    if(!liq.exacto)sinTotalFirmado++;
     const rubros={};
     RUBROS_PRESUPUESTO_LIQUIDADO.forEach(r=>{rubros[r.key]=num(liq.rubros?.[r.key])});
     liquidaciones.push({
       medicion:numero,
-      total:num(liq.total),
+      // Lo que consume es el total del papel firmado cuando esta cargado.
+      total:num(liq.consumo),
+      totalCertificados:num(liq.total),
+      exacto:!!liq.exacto,
       rubros,
       periodo:periodoPresupuestoLiquidado(numero),
       archivo:''
@@ -27688,6 +27761,7 @@ function estadoPresupuestoLiquidado(data,z){
     sinPdf,
     sinReconocer:0,
     sinCertificados,
+    sinTotalFirmado,
     finalizadas:numeros.filter(numero=>medicionCerrada(z,numero)).length
   };
 }
@@ -27726,13 +27800,21 @@ function renderPresupuestoDesdeLiquidaciones(data,z,firmada){
   const avisoPendientes=pendientes.length
     ? '<div class="dgie-liq-aviso">'+pendientes.join(' · ')+'. No consumen presupuesto hasta completar ese proceso.</div>'
     : '';
+  // Mientras el total del papel no esté cargado, lo consumido se estima sumando
+  // los certificados. Se dice, en vez de mostrarlo como si fuera exacto.
+  const avisoSinFirmar=estado.sinTotalFirmado
+    ? '<div class="dgie-liq-aviso">'+estado.sinTotalFirmado+(estado.sinTotalFirmado===1
+        ? ' medición todavía no tiene cargado el total de módulos de su planilla firmada, así que lo consumido se estima'
+        : ' mediciones todavía no tienen cargado el total de módulos de su planilla firmada, así que lo consumido se estima')+
+      ' sumando sus certificados. Cargá ese total en la medición, al lado del PDF, y el conteo queda exacto.</div>'
+    : '';
   const avisoDiferencia=Math.abs(diferenciaRubros)>=0.005
-    ? '<div class="dgie-liq-aviso">El total por rubros de las liquidaciones difiere en '+modsPresupuestoLiquidado(diferenciaRubros)+' módulos del total liquidado. Se conserva cada valor tal como lo liquidó su planilla.</div>'
+    ? '<div class="dgie-liq-aviso">El desglose por rubro suma '+modsPresupuestoLiquidado(Math.abs(diferenciaRubros))+' módulos '+(diferenciaRubros<0?'más':'menos')+' que el total consumido. Es esperable: en el Excel el total y los subtotales por rubro son cuentas distintas, cada una con su redondeo. No se toca ninguno de los dos para forzar que cierren.</div>'
     : '';
 
   return '<div class="med-card" style="margin-bottom:14px" data-presupuesto-liquidado-z="'+Number(z)+'">'+
     '<div class="card-header" style="align-items:flex-start"><div><div class="card-title">Presupuesto de módulos</div>'+
-    '<div style="font-size:13px;color:var(--muted);margin-top:4px">Sólo computa mediciones finalizadas con PDF firmado. Los módulos totales y por rubro salen siempre de los archivos vigentes de certificado.</div></div>'+
+    '<div style="font-size:13px;color:var(--muted);margin-top:4px">Sólo computa mediciones finalizadas con PDF firmado. El total consumido sale del total de módulos de la planilla firmada, cargado en cada medición; el desglose por rubro se arma con los archivos de certificado y es aproximado.</div></div>'+
     '<span class="badge '+(restanteTotal>=0?'b-ok':'b-danger')+'">'+modsPresupuestoLiquidado(restanteTotal)+' restantes</span></div>'+
     '<div class="metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px">'+
       '<div class="metric-card" style="padding:14px"><div class="metric-lbl">Módulos totales</div><div class="metric-val" style="font-size:26px">'+modsPresupuestoLiquidado(PRESUPUESTO_MODULOS_LIQUIDADO.total)+'</div></div>'+
@@ -27741,12 +27823,12 @@ function renderPresupuestoDesdeLiquidaciones(data,z,firmada){
       '<div class="metric-card" style="padding:14px"><div class="metric-lbl">Restante 2026</div><div class="metric-val '+(restante2026>=0?'v-ok':'v-danger')+'" style="font-size:26px">'+modsPresupuestoLiquidado(restante2026)+'</div><div style="font-size:12px;color:var(--muted)">Disponible: '+modsPresupuestoLiquidado(PRESUPUESTO_MODULOS_LIQUIDADO.y2026)+'</div></div>'+
       '<div class="metric-card" style="padding:14px"><div class="metric-lbl">Restante 2027</div><div class="metric-val '+(restante2027>=0?'v-ok':'v-danger')+'" style="font-size:26px">'+modsPresupuestoLiquidado(restante2027)+'</div><div style="font-size:12px;color:var(--muted)">Disponible: '+modsPresupuestoLiquidado(PRESUPUESTO_MODULOS_LIQUIDADO.y2027)+'</div></div>'+
     '</div>'+
-    avisoPendientes+avisoDiferencia+
+    avisoPendientes+avisoSinFirmar+avisoDiferencia+
     // Los detalles arrancan cerrados: arriba quedan las cifras que se miran
     // todos los dias, y quien necesita el desglose lo abre.
-    '<details class="dgie-presu-detalle"><summary>Módulos consumidos por rubro'+
+    '<details class="dgie-presu-detalle"><summary>Módulos consumidos por rubro (aproximado)'+
       '<span class="badge b-info">'+liquidaciones.length+(liquidaciones.length===1?' liquidación':' liquidaciones')+'</span></summary>'+
-      '<div style="font-size:12px;color:var(--muted);margin:2px 0 8px">Valores tomados de la liquidación dinámica armada con los certificados.</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin:2px 0 8px">El reparto por rubro se arma con los archivos de certificado, así que es aproximado: puede no cerrar exacto contra el total de la planilla firmada. El total consumido sí sale del papel.</div>'+
       '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Rubro</th><th>Módulos consumidos</th><th>% liquidado</th></tr></thead><tbody>'+rowsRubros+
       '</tbody><tfoot><tr><th>Total por rubros</th><th>'+modsPresupuestoLiquidado(totalRubros)+'</th><th>'+(consumidoTotal?Math.round(totalRubros/consumidoTotal*100):0)+'%</th></tr></tfoot></table></div>'+
     '</details>'+
