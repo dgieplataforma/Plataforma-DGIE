@@ -18,19 +18,7 @@ sepa dónde quedó todo sin tener que preguntar.
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada
   certificado, sin distinción por número de medición.
 - El PDF firmado queda como respaldo visible y es obligatorio para finalizar la
-  medición, pero no aporta módulos, rubros ni montos: de él no se lee nada.
-- **El total de módulos de la medición se carga a mano, al lado del PDF**, y es
-  el que manda para el presupuesto y para "consumo por medición". El papel es el
-  documento exacto; sumar los certificados da una aproximación, porque en el
-  Excel el total y los subtotales por rubro son cuentas distintas, cada una con
-  su redondeo. Mientras ese total no esté cargado se estima con los
-  certificados y el panel lo dice.
-- **El desglose por rubro sigue saliendo de los certificados y se muestra como
-  aproximado.** El panel avisa cuánto difiere contra el total consumido y no
-  toca ninguno de los dos para forzar que cierren.
-- Necesita la columna nueva: correr una vez
-  `supabase-medicion-modulos-firmados.sql`. Hasta entonces, guardar el total
-  avisa que falta ese script.
+  medición, pero no aporta módulos, rubros ni montos.
 - Una medición abierta muestra su liquidación preliminar y se actualiza al
   asignar, mover, reemplazar o quitar certificados. No consume presupuesto.
 - Antes de finalizar se leen y guardan el total exacto, el precio y los cinco
@@ -77,8 +65,6 @@ que se relean los archivos los indicadores van a mostrar de menos:
 
 ### Lo que hay que hacer a continuación
 
-0. **Correr `supabase-medicion-modulos-firmados.sql`** (está en el repo). Sin eso
-   no se puede cargar el total de módulos de la planilla firmada.
 1. Correr supabase-liquidacion-modulos-por-rubro.sql si todavía no se ejecutó.
 2. Correr supabase-liquidacion-colores.sql si todavía no se ejecutó.
 3. Borrar la medición 7 de práctica de zona 15 (26 certificados con
