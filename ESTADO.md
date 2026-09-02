@@ -15,9 +15,21 @@ sepa dónde quedó todo sin tener que preguntar.
 
 **Cumpleaños de inspectores.** Quedó una prueba activa para Zona 15:
 
-- Sólo el inspector de Zona 15 y coordinación ven la plataforma con acento rojo y una franja
+- **Sólo el inspector de la zona del festejo** ve la plataforma con acento rojo y una franja
   festiva fija debajo del encabezado: “Feliz cumpleaños Naza”.
-- Empresa, call center y los demás perfiles no reciben la decoración.
+- Coordinación **no** lo ve. Al principio sí, para que pudiera saludar, pero así se
+  enteraba antes que la propia zona y dejaba de ser una sorpresa. Empresa, call center,
+  dirección, tableros y administración tampoco reciben la decoración.
+- Esa misma zona tiene los botones para mandar y consultar saludos compartidos, con autor
+  y fecha. Hoy eso significa que sólo puede saludarse a sí misma: **es a propósito, para
+  probar el funcionamiento antes del lanzamiento general.**
+- Para habilitar el guardado compartido hay que correr una vez
+  `supabase-saludos-cumpleanios.sql`. Sus políticas están igualadas a lo que muestra la
+  pantalla, y traen comentadas las líneas que suman a coordinación **para el lanzamiento
+  general**: se descomentan y se vuelve a correr el mismo archivo.
+- Pendiente de decidir antes de lanzarlo a todas las zonas: cómo saludan los demás sin
+  que al homenajeado se le adelante el festejo. La idea que quedó dando vueltas es que
+  el resto vea sólo un botón discreto para saludar, sin el cartel.
 - La configuración ya admite zona, apodo, fecha en formato mes-día y color. La
   bandera temporal `prueba:true` mantiene visible este caso hasta que se
   incorporen los datos reales de todos los inspectores.
@@ -89,11 +101,14 @@ que se relean los archivos los indicadores van a mostrar de menos:
 
 ### Lo que hay que hacer a continuación
 
-0. **Correr `supabase-medicion-modulos-firmados.sql`** (está en el repo). Sin eso
+0. **Correr `supabase-saludos-cumpleanios.sql`** para habilitar el guardado de
+   saludos de la zona del festejo. Sin eso, los botones aparecen pero avisan que el
+   historial no está habilitado.
+1. **Correr `supabase-medicion-modulos-firmados.sql`** (está en el repo). Sin eso
    no se puede cargar el total de módulos de la planilla firmada.
-1. Correr supabase-liquidacion-modulos-por-rubro.sql si todavía no se ejecutó.
-2. Correr supabase-liquidacion-colores.sql si todavía no se ejecutó.
-3. Borrar la medición 7 de práctica de zona 15 (26 certificados con
+2. Correr supabase-liquidacion-modulos-por-rubro.sql si todavía no se ejecutó.
+3. Correr supabase-liquidacion-colores.sql si todavía no se ejecutó.
+4. Borrar la medición 7 de práctica de zona 15 (26 certificados con
    PRÁCTICA ·), verificando primero que no haya registros reales mezclados.
 ### Diferencias conocidas, para no volver a investigarlas
 
@@ -195,6 +210,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-02 | `este commit` | Cumpleaños: saludos compartidos con autor y fecha, visibles y habilitados únicamente para el inspector de Zona 15 y coordinación | Codex |
 | 2026-09-02 | `este commit` | Cumpleaños: motor configurable por fecha, apodo y color; prueba activa de Zona 15 en rojo para inspector y coordinación; franja fija responsive y limpieza al cerrar sesión | Codex |
 | 2026-09-01 | `este commit` | Liquidación: tolerancia al redondeo entre total y rubros; los avisos reales identifican medición, establecimiento y O.S.; un archivo completo ya no se relee indefinidamente | Codex |
 | 2026-08-31 | `este commit` | Liquidación única desde certificados en todas las mediciones; PDF obligatorio sólo como respaldo; indicadores al finalizar; sin carga manual. Terminado y verificado: memoria de liquidaciones, zonas desde los datos, ficha sin valores a mano disfrazados | Codex + Claude Code |
@@ -204,7 +220,6 @@ tiró el proyecto el 21/08. Falta:
 | 2026-08-28 | `38757f0` | Primera versión del desglose por rubro; tomaba certificados finalizados y fue reemplazada por la fuente correcta de liquidaciones reconocidas | Codex |
 | 2026-08-27 | `ac867b8` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
 | 2026-08-27 | `cd02025` | Los certificados toman los módulos tal como se ven en la planilla, no con todos los decimales de fondo. Rige en toda carga nueva; lo ya guardado no se toca | Claude Code |
-| 2026-08-27 | `b1c93f0` | Primera versión de lo anterior, condicionada a la medición 6. No servía: la empresa sube sin número de medición | Claude Code |
 
 ---
 

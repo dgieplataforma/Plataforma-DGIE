@@ -281,6 +281,21 @@
     async guardarAvisoGlobal(row){
       return upsertOne('avisos_globales', row, { onConflict:'id' }, 'ese aviso');
     },
+    async listarSaludosCumpleanios(zona, fechaEvento){
+      return client.from('saludos_cumpleanios').select('*')
+        .eq('homenajeado_zona', Number(zona))
+        .eq('fecha_evento', String(fechaEvento))
+        .order('created_at', { ascending:false });
+    },
+    async crearSaludoCumpleanios(row){
+      const payload = { ...row };
+      if(!payload.autor_id){
+        const { data:sessionData } = await client.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if(userId) payload.autor_id = userId;
+      }
+      return client.from('saludos_cumpleanios').insert(payload).select('*').single();
+    },
     async crearComunicacion(row){
       const payload = { ...row };
       if(!payload.creado_por){
