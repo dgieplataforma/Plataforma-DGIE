@@ -7,12 +7,20 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-09-01** · commit `este commit`
+Última actualización: **2026-09-02** · commit `este commit`
 
 ---
 
 ## En qué se está trabajando ahora
 
+**Cumpleaños de inspectores.** Quedó una prueba activa para Zona 15:
+
+- Inspector y coordinación ven toda la plataforma con acento rojo y una franja
+  festiva fija debajo del encabezado: “Feliz cumpleaños Naza”.
+- Empresa, call center y los demás perfiles no reciben la decoración.
+- La configuración ya admite zona, apodo, fecha en formato mes-día y color. La
+  bandera temporal `prueba:true` mantiene visible este caso hasta que se
+  incorporen los datos reales de todos los inspectores.
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada
@@ -187,6 +195,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-02 | `este commit` | Cumpleaños: motor configurable por fecha, apodo y color; prueba activa de Zona 15 en rojo para inspector y coordinación; franja fija responsive y limpieza al cerrar sesión | Codex |
 | 2026-09-01 | `este commit` | Liquidación: tolerancia al redondeo entre total y rubros; los avisos reales identifican medición, establecimiento y O.S.; un archivo completo ya no se relee indefinidamente | Codex |
 | 2026-08-31 | `este commit` | Liquidación única desde certificados en todas las mediciones; PDF obligatorio sólo como respaldo; indicadores al finalizar; sin carga manual. Terminado y verificado: memoria de liquidaciones, zonas desde los datos, ficha sin valores a mano disfrazados | Codex + Claude Code |
 | 2026-08-31 | `1675496` | De la medición 7 en adelante la liquidación vuelve a armarse con los archivos de certificado, con el mismo formato de planilla. El PDF deja de ser obligatorio para finalizar. El presupuesto pasa a usar la misma cuenta que la planilla, sea cual sea su origen. Revierte `4f95396` | Claude Code |
@@ -196,11 +205,6 @@ tiró el proyecto el 21/08. Falta:
 | 2026-08-27 | `ac867b8` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
 | 2026-08-27 | `cd02025` | Los certificados toman los módulos tal como se ven en la planilla, no con todos los decimales de fondo. Rige en toda carga nueva; lo ya guardado no se toca | Claude Code |
 | 2026-08-27 | `b1c93f0` | Primera versión de lo anterior, condicionada a la medición 6. No servía: la empresa sube sin número de medición | Claude Code |
-| 2026-08-27 | `408e74a` | Cerrajería como rubro detallado y filtros de rubro con el catálogo completo; en certificados el filtro ofrecía combinaciones y escondía registros | Claude Code |
-| 2026-08-27 | `e15747c` | Nueva clasificación de rubros en toda la plataforma; se corrigió el promedio del estado edilicio, que había caído de 65% a 54% por contar como cero un rubro que nadie midió | Claude Code (terminó lo que venía haciendo Codex) |
-| 2026-08-27 | `24d8aee` | Tableros: CUE antes del establecimiento en los listados de Reclamos y O.S., incluidos PDF y Excel | Codex |
-| 2026-08-26 | `96f3bef` | Historial de certificados: descarga directa de Original, Inspector y Observado, sin abrir el visor | Codex |
-| 2026-08-26 | `589db0d` | Certificados observados: etapas Original/Inspector/Observado, módulos de la versión vigente y descarga funcional desde el historial | Codex |
 
 ---
 
