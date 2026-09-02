@@ -26567,8 +26567,9 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
     const d=new Date();
     return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
-  function usuarioVisible(user){
-    return ['inspector','coordinador'].includes(String(user?.role||'').toLowerCase());
+  function usuarioVisible(user,cumple){
+    const rol=String(user?.role||'').toLowerCase();
+    return rol==='coordinador'||(rol==='inspector'&&Number(user?.zona)===Number(cumple?.zona));
   }
   function festejoActivo(){return CUMPLEANIOS.find(c=>c.prueba||c.fecha===hoy())||null}
   function crearBanner(){
@@ -26594,7 +26595,7 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
   }
   function aplicar(user){
     const cumple=festejoActivo();
-    if(!cumple||!usuarioVisible(user)){quitar();return}
+    if(!cumple||!usuarioVisible(user,cumple)){quitar();return}
     const banner=crearBanner();
     if(!banner)return;
     const color=/^#[0-9a-f]{6}$/i.test(cumple.color||'')?cumple.color:'#c62828';

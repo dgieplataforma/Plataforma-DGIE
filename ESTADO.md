@@ -15,7 +15,7 @@ sepa dónde quedó todo sin tener que preguntar.
 
 **Cumpleaños de inspectores.** Quedó una prueba activa para Zona 15:
 
-- Inspector y coordinación ven toda la plataforma con acento rojo y una franja
+- Sólo el inspector de Zona 15 y coordinación ven la plataforma con acento rojo y una franja
   festiva fija debajo del encabezado: “Feliz cumpleaños Naza”.
 - Empresa, call center y los demás perfiles no reciben la decoración.
 - La configuración ya admite zona, apodo, fecha en formato mes-día y color. La
