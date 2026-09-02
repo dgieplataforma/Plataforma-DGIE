@@ -15,7 +15,26 @@
     si_no:'Sí / No',
     opcion:'Selección única',
     multiple:'Selección múltiple',
-    establecimientos:'Establecimientos con comentario'
+    establecimientos:'Establecimientos, con campos propios'
+  };
+  // Lo que se pide por cada establecimiento usa los mismos tipos, menos el de
+  // establecimientos: no tiene sentido anidar escuelas dentro de escuelas.
+  const SUBFIELD_TYPES={};
+  Object.keys(FIELD_TYPES).forEach(key=>{ if(key!=='establecimientos')SUBFIELD_TYPES[key]=FIELD_TYPES[key] });
+
+  // Atajos con los catalogos de la plataforma. Sirven para que lo que se
+  // responde aca use los mismos valores que el resto del sistema y despues se
+  // pueda filtrar y cruzar, en vez de quedar como texto suelto de cada pedido.
+  const PRIORIDADES_DGIE=['Crítico','Alto','Medio','Bajo'];
+  function rubrosDGIE(){
+    const lista=Array.isArray(window.DGIE_RUBROS_OFICIALES)?window.DGIE_RUBROS_OFICIALES:[];
+    const mostrar=typeof window.mostrarRubroDGIE==='function'?window.mostrarRubroDGIE:(value=>value);
+    const nombres=lista.map(value=>String(mostrar(value)||value)).filter(Boolean);
+    return nombres.length?nombres:['Instalación sanitaria','Instalación pluvial','Instalación eléctrica','Instalación de gas','Albañilería','Cubierta de techos','Herrería','Cerrajería','Vidrios','Poda','Pintura','Otros'];
+  }
+  const ATAJOS_SUBCAMPO={
+    prioridad:()=>({tipo:'opcion',etiqueta:'Prioridad',opciones:PRIORIDADES_DGIE.slice()}),
+    rubro:()=>({tipo:'opcion',etiqueta:'Rubro',opciones:rubrosDGIE()})
   };
   const STATUS_LABELS={
     pendiente:'Pendiente',
@@ -256,6 +275,24 @@
         :[]
     };
   }
+  function normalizeSubfield(sub,index){
+    const type=SUBFIELD_TYPES[sub?.tipo]?sub.tipo:'texto';
+    return {
+      id:String(sub?.id||`sub_${index+1}`),
+      tipo:type,
+      etiqueta:String(sub?.etiqueta||SUBFIELD_TYPES[type]||`Campo ${index+1}`),
+      requerido:!!sub?.requerido,
+      opciones:Array.isArray(sub?.opciones)?sub.opciones.map(String).filter(Boolean):[]
+    };
+  }
+  // Que se completa por cada establecimiento. Antes era una sola casilla de
+  // comentario; los pedidos hechos con aquella se leen como un campo llamado
+  // Comentario, para que lo ya enviado y respondido se siga viendo igual.
+  function normalizeSubfields(field){
+    if(Array.isArray(field?.subcampos))return field.subcampos.map(normalizeSubfield);
+    if(field?.comentarioPorItem===false)return [];
+    return [normalizeSubfield({id:'comentario',tipo:'parrafo',etiqueta:'Comentario'},0)];
+  }
   function normalizeField(field,index){
     const type=FIELD_TYPES[field?.tipo]?field.tipo:'texto';
     return {
@@ -264,9 +301,16 @@
       etiqueta:String(field?.etiqueta||FIELD_TYPES[type]||`Campo ${index+1}`),
       requerido:!!field?.requerido,
       opciones:Array.isArray(field?.opciones)?field.opciones.map(String).filter(Boolean):[],
-      comentarioPorItem:field?.comentarioPorItem!==false,
+      subcampos:type==='establecimientos'?normalizeSubfields(field):[],
       ayuda:String(field?.ayuda||'')
     };
+  }
+  // Lo que un establecimiento tiene respondido en uno de esos campos.
+  function valorSubcampo(item,sub){
+    const valores=item&&typeof item.valores==='object'&&item.valores?item.valores:null;
+    if(valores&&valores[sub.id]!==undefined)return valores[sub.id];
+    if(sub.id==='comentario'&&item?.comentario!==undefined)return item.comentario;
+    return sub.tipo==='multiple'?[]:'';
   }
   function communicationMeta(c){
     const raw=c?.encuesta;
@@ -674,7 +718,14 @@
     }
     if(field.tipo==='multiple')return Array.isArray(value)?value.join(', '):String(value||'');
     if(field.tipo==='establecimientos'){
-      return (Array.isArray(value)?value:[]).map(item=>`${item?.nombre||'Establecimiento'}${item?.comentario?`: ${item.comentario}`:''}`).join(' | ');
+      const subs=Array.isArray(field.subcampos)?field.subcampos:[];
+      return (Array.isArray(value)?value:[]).map(item=>{
+        const partes=subs.map(sub=>{
+          const texto=displayAnswer(sub,valorSubcampo(item,sub));
+          return texto?`${sub.etiqueta}: ${texto}`:'';
+        }).filter(Boolean);
+        return `${item?.nombre||'Establecimiento'}${partes.length?` (${partes.join(', ')})`:''}`;
+      }).join(' | ');
     }
     return value==null?'':String(value);
   }
@@ -689,7 +740,10 @@
     ];
     fields.forEach(field=>{
       columns.push({key:`field_${field.id}`,label:field.etiqueta});
-      if(field.tipo==='establecimientos'&&field.comentarioPorItem)columns.push({key:`comment_${field.id}`,label:`${field.etiqueta} · Comentario`});
+      // Una columna por cada cosa que se pide sobre el establecimiento.
+      if(field.tipo==='establecimientos')(field.subcampos||[]).forEach(sub=>{
+        columns.push({key:`sub_${field.id}_${sub.id}`,label:`${field.etiqueta} · ${sub.etiqueta}`});
+      });
     });
     const rows=[];
     destinations(c).forEach(destination=>{
@@ -711,10 +765,14 @@
           const value=answers[field.id];
           if(field.tipo==='establecimientos'&&field.id===anchor?.id){
             row[`field_${field.id}`]=anchorItem?.nombre||'';
-            if(field.comentarioPorItem)row[`comment_${field.id}`]=anchorItem?.comentario||'';
+            (field.subcampos||[]).forEach(sub=>{
+              row[`sub_${field.id}_${sub.id}`]=anchorItem?displayAnswer(sub,valorSubcampo(anchorItem,sub)):'';
+            });
           }else{
             row[`field_${field.id}`]=displayAnswer(field,value);
-            if(field.tipo==='establecimientos'&&field.comentarioPorItem)row[`comment_${field.id}`]='';
+            if(field.tipo==='establecimientos')(field.subcampos||[]).forEach(sub=>{
+              row[`sub_${field.id}_${sub.id}`]='';
+            });
           }
         });
         row._search=normalize(columns.map(column=>row[column.key]||'').join(' '));
@@ -785,16 +843,28 @@
     if(field.tipo==='establecimientos'){
       const items=Array.isArray(value)?value:[];
       if(!items.length)return `<div class="dgc-read-value">Sin establecimientos informados</div>`;
-      return `<div class="dgc-read-establishments">
+      const subs=Array.isArray(field.subcampos)?field.subcampos:[];
+      if(!subs.length)return `<div class="dgc-read-establishments">
         <div class="dgc-read-est-count">${items.length} establecimiento${items.length===1?'':'s'} informado${items.length===1?'':'s'}</div>
         <div class="dgc-read-est-table" role="table" aria-label="${esc(field.etiqueta||'Establecimientos informados')}">
-          <div class="dgc-read-est-row is-head" role="row">
+          ${items.map(item=>`<div class="dgc-read-est-row" role="row"><div class="dgc-read-est-school" role="cell">${esc(item?.nombre||'Establecimiento')}</div></div>`).join('')}
+        </div>
+      </div>`;
+      // Una columna por cada cosa que el pedido pidio sobre la escuela.
+      const anchoCol=`grid-template-columns:minmax(160px,1.4fr) repeat(${subs.length},minmax(120px,1fr))`;
+      return `<div class="dgc-read-establishments">
+        <div class="dgc-read-est-count">${items.length} establecimiento${items.length===1?'':'s'} informado${items.length===1?'':'s'}</div>
+        <div class="dgc-read-est-table" role="table" aria-label="${esc(field.etiqueta||'Establecimientos informados')}" style="overflow-x:auto">
+          <div class="dgc-read-est-row is-head" role="row" style="${anchoCol}">
             <div role="columnheader">Establecimiento</div>
-            <div role="columnheader">Comentario</div>
+            ${subs.map(sub=>`<div role="columnheader">${esc(sub.etiqueta)}</div>`).join('')}
           </div>
-          ${items.map(item=>`<div class="dgc-read-est-row" role="row">
+          ${items.map(item=>`<div class="dgc-read-est-row" role="row" style="${anchoCol}">
             <div class="dgc-read-est-school" role="cell">${esc(item?.nombre||'Establecimiento')}</div>
-            <div class="dgc-read-est-comment ${item?.comentario?'':'is-empty'}" role="cell">${esc(item?.comentario||'Sin comentario')}</div>
+            ${subs.map(sub=>{
+              const texto=displayAnswer(sub,valorSubcampo(item,sub));
+              return `<div class="dgc-read-est-comment ${texto?'':'is-empty'}" role="cell">${esc(texto||'Sin responder')}</div>`;
+            }).join('')}
           </div>`).join('')}
         </div>
       </div>`;
@@ -821,9 +891,28 @@
             <div class="dgc-est-name">${esc(item?.nombre||'Establecimiento')}</div>
             <button type="button" class="dgc-btn dgc-btn-danger" data-dgc-action="remove-establishment" data-comm-id="${esc(commId(c))}" data-field-id="${esc(field.id)}" data-est-id="${Number(item?.estId||0)}">Quitar</button>
           </div>
-          ${field.comentarioPorItem?`<textarea class="dgc-textarea" style="min-height:66px" data-dgc-est-comment="${Number(item?.estId||0)}" data-field-id="${esc(field.id)}" data-comm-id="${esc(commId(c))}" placeholder="Comentario sobre este establecimiento">${esc(item?.comentario||'')}</textarea>`:''}
+          ${(field.subcampos||[]).map(sub=>`<label class="dgc-form-field" style="margin-top:8px">
+            <span class="dgc-label">${esc(sub.etiqueta)}${sub.requerido?' <span class="dgc-required">*</span>':''}</span>
+            ${renderSubfieldControl(c,field,sub,item)}
+          </label>`).join('')}
         </div>`).join(''):`<div class="dgc-help">Todavía no seleccionaste establecimientos.</div>`}</div>
     </div>`;
+  }
+  // Un control por cada cosa que el pedido pide sobre esa escuela.
+  function renderSubfieldControl(c,field,sub,item){
+    const value=valorSubcampo(item,sub);
+    const estId=Number(item?.estId||0);
+    const common=`data-dgc-sub-value="${esc(sub.id)}" data-field-id="${esc(field.id)}" data-est-id="${estId}" data-comm-id="${esc(commId(c))}"`;
+    if(sub.tipo==='parrafo')return `<textarea class="dgc-textarea" style="min-height:66px" ${common} placeholder="${esc(sub.etiqueta)}">${esc(value||'')}</textarea>`;
+    if(sub.tipo==='numero')return `<input class="dgc-input" type="number" step="any" ${common} value="${esc(value??'')}">`;
+    if(sub.tipo==='fecha')return `<input class="dgc-input" type="date" ${common} value="${esc(value||'')}">`;
+    if(sub.tipo==='si_no')return `<select class="dgc-select" ${common}><option value="">Seleccionar</option><option value="si" ${value===true||value==='si'?'selected':''}>Sí</option><option value="no" ${value===false||value==='no'?'selected':''}>No</option></select>`;
+    if(sub.tipo==='opcion')return `<select class="dgc-select" ${common}><option value="">Seleccionar</option>${sub.opciones.map(option=>`<option value="${esc(option)}" ${String(value||'')===option?'selected':''}>${esc(option)}</option>`).join('')}</select>`;
+    if(sub.tipo==='multiple'){
+      const selected=new Set(Array.isArray(value)?value:[]);
+      return `<div class="dgc-options">${sub.opciones.map(option=>`<label class="dgc-option"><input type="checkbox" data-dgc-sub-multi="${esc(sub.id)}" data-field-id="${esc(field.id)}" data-est-id="${estId}" data-comm-id="${esc(commId(c))}" value="${esc(option)}" ${selected.has(option)?'checked':''}> <span>${esc(option)}</span></label>`).join('')}</div>`;
+    }
+    return `<input class="dgc-input" type="text" ${common} value="${esc(value||'')}" placeholder="${esc(sub.etiqueta)}">`;
   }
   function renderResponseControl(c,field,value,readOnly){
     if(field.tipo==='establecimientos')return renderEstablishmentField(c,field,value,readOnly);
@@ -939,7 +1028,8 @@
   }
 
   function defaultFields(template){
-    if(template==='establecimientos')return [normalizeField({id:uniqueId(),tipo:'establecimientos',etiqueta:'Establecimientos a informar',requerido:true,comentarioPorItem:true},0)];
+    if(template==='establecimientos')return [normalizeField({id:uniqueId(),tipo:'establecimientos',etiqueta:'Establecimientos a informar',requerido:true,
+      subcampos:[{id:uniqueId('sub'),tipo:'parrafo',etiqueta:'Comentario',requerido:false}]},0)];
     if(template==='encuesta')return [normalizeField({id:uniqueId(),tipo:'opcion',etiqueta:'Seleccione una opción',requerido:true,opciones:['Sí','No','Parcialmente']},0)];
     if(template==='confirmacion')return [normalizeField({id:uniqueId(),tipo:'si_no',etiqueta:'¿Se realizó lo solicitado?',requerido:true},0)];
     return [normalizeField({id:uniqueId(),tipo:'parrafo',etiqueta:'Respuesta',requerido:true},0)];
@@ -1024,7 +1114,31 @@
         <button type="button" class="dgc-btn dgc-btn-danger" data-dgc-action="remove-field" data-field-id="${esc(field.id)}" ${state.compose.campos.length===1?'disabled':''}>Quitar</button>
       </div>
       ${['opcion','multiple'].includes(field.tipo)?`<label class="dgc-form-field dgc-builder-options"><span class="dgc-label">Opciones, una por línea</span><textarea class="dgc-textarea" style="min-height:72px" data-dgc-field-prop="opciones" data-field-id="${esc(field.id)}">${esc(field.opciones.join('\n'))}</textarea></label>`:''}
-      ${field.tipo==='establecimientos'?`<label class="dgc-check" style="margin-top:8px"><input type="checkbox" data-dgc-field-prop="comentarioPorItem" data-field-id="${esc(field.id)}" ${field.comentarioPorItem?'checked':''}> Solicitar un comentario por cada establecimiento</label>`:''}
+      ${field.tipo==='establecimientos'?renderSubfieldBuilder(field):''}
+    </div>`;
+  }
+  // Que se pide por cada establecimiento. Se arma igual que los campos de
+  // arriba, asi el que redacta el pedido decide si pide una prioridad, un
+  // rubro, una fecha o lo que necesite, en vez de un comentario y nada mas.
+  function renderSubfieldBuilder(field){
+    const subs=Array.isArray(field.subcampos)?field.subcampos:[];
+    return `<div class="dgc-subfields" style="margin-top:10px;border-top:1px solid var(--dgc-border,#e2e8f0);padding-top:10px">
+      <div class="dgc-label" style="margin-bottom:6px">Qué se completa por cada establecimiento</div>
+      ${subs.length?subs.map(sub=>`<div class="dgc-builder-row" style="margin-bottom:8px">
+        <div class="dgc-builder-grid">
+          <label class="dgc-form-field"><span class="dgc-label">Nombre del campo</span><input class="dgc-input" data-dgc-sub-prop="etiqueta" data-field-id="${esc(field.id)}" data-sub-id="${esc(sub.id)}" value="${esc(sub.etiqueta)}"></label>
+          <label class="dgc-form-field"><span class="dgc-label">Tipo de respuesta</span><select class="dgc-select" data-dgc-sub-prop="tipo" data-field-id="${esc(field.id)}" data-sub-id="${esc(sub.id)}">${Object.entries(SUBFIELD_TYPES).map(([value,label])=>`<option value="${value}" ${sub.tipo===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>
+          <label class="dgc-check" style="padding-bottom:9px"><input type="checkbox" data-dgc-sub-prop="requerido" data-field-id="${esc(field.id)}" data-sub-id="${esc(sub.id)}" ${sub.requerido?'checked':''}> Obligatorio</label>
+          <button type="button" class="dgc-btn dgc-btn-danger" data-dgc-action="remove-subfield" data-field-id="${esc(field.id)}" data-sub-id="${esc(sub.id)}">Quitar</button>
+        </div>
+        ${['opcion','multiple'].includes(sub.tipo)?`<label class="dgc-form-field dgc-builder-options"><span class="dgc-label">Opciones, una por línea</span><textarea class="dgc-textarea" style="min-height:72px" data-dgc-sub-prop="opciones" data-field-id="${esc(field.id)}" data-sub-id="${esc(sub.id)}">${esc(sub.opciones.join('\n'))}</textarea></label>`:''}
+      </div>`).join(''):`<div class="dgc-help">No se pide nada por establecimiento: sólo se selecciona la escuela.</div>`}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" class="dgc-btn" data-dgc-action="add-subfield" data-field-id="${esc(field.id)}">Agregar campo por establecimiento</button>
+        <button type="button" class="dgc-btn" data-dgc-action="add-subfield" data-field-id="${esc(field.id)}" data-preset="prioridad">+ Prioridad</button>
+        <button type="button" class="dgc-btn" data-dgc-action="add-subfield" data-field-id="${esc(field.id)}" data-preset="rubro">+ Rubro</button>
+      </div>
+      <div class="dgc-help" style="margin-top:6px">Prioridad y Rubro vienen con las opciones que ya usa la plataforma, así lo que se responda coincide con el resto del sistema.</div>
     </div>`;
   }
   function renderInspectorCompanySelectorDialog(){
@@ -1164,7 +1278,7 @@
           ${data.tipo==='tarea'?`<div class="dgc-form-section">
             <h3 class="dgc-section-title">Formato de la respuesta</h3>
             <div class="dgc-template-row">
-              <button type="button" class="dgc-template ${state.template==='establecimientos'?'is-active':''}" data-dgc-action="template" data-template="establecimientos"><strong>Establecimientos</strong><span>Selecciona escuelas y agrega comentarios por cada una.</span></button>
+              <button type="button" class="dgc-template ${state.template==='establecimientos'?'is-active':''}" data-dgc-action="template" data-template="establecimientos"><strong>Establecimientos</strong><span>Selecciona escuelas y completa los campos que definas para cada una.</span></button>
               <button type="button" class="dgc-template ${state.template==='encuesta'?'is-active':''}" data-dgc-action="template" data-template="encuesta"><strong>Encuesta</strong><span>Recopila una opción comparable por inspector.</span></button>
               <button type="button" class="dgc-template ${state.template==='respuesta'?'is-active':''}" data-dgc-action="template" data-template="respuesta"><strong>Respuesta libre</strong><span>Solicita una explicación o informe escrito.</span></button>
               <button type="button" class="dgc-template ${state.template==='confirmacion'?'is-active':''}" data-dgc-action="template" data-template="confirmacion"><strong>Confirmación</strong><span>Obtiene una respuesta Sí o No.</span></button>
@@ -1456,11 +1570,20 @@
     }
   }
   function responseValidation(c,draft){
+    const vacio=value=>value==null||value===''||(Array.isArray(value)&&!value.length);
     for(const field of schemaFor(c).campos){
-      if(!field.requerido)continue;
       const value=draft[field.id];
-      const empty=value==null||value===''||(Array.isArray(value)&&!value.length);
-      if(empty)return `Completá el campo obligatorio “${field.etiqueta}”.`;
+      if(field.requerido&&vacio(value))return `Completá el campo obligatorio “${field.etiqueta}”.`;
+      // Lo obligatorio de cada establecimiento se controla escuela por escuela.
+      if(field.tipo!=='establecimientos')continue;
+      const obligatorios=(field.subcampos||[]).filter(sub=>sub.requerido);
+      if(!obligatorios.length)continue;
+      for(const item of (Array.isArray(value)?value:[])){
+        for(const sub of obligatorios){
+          if(vacio(valorSubcampo(item,sub)))
+            return `Falta completar “${sub.etiqueta}” en ${item?.nombre||'un establecimiento'}.`;
+        }
+      }
     }
     return '';
   }
@@ -1675,11 +1798,27 @@
     const property=element.dataset.dgcFieldProp;
     const field=state.compose?.campos?.find(item=>item.id===id);
     if(!field||!property)return;
-    if(property==='requerido'||property==='comentarioPorItem')field[property]=!!element.checked;
+    if(property==='requerido')field[property]=!!element.checked;
     else if(property==='opciones')field.opciones=String(element.value||'').split('\n').map(value=>value.trim()).filter(Boolean);
     else field[property]=element.value;
     if(property==='tipo'&&!['opcion','multiple'].includes(field.tipo))field.opciones=[];
     if(property==='tipo'&&field.tipo==='si_no')field.opciones=['Sí','No'];
+    // Al pasar a establecimientos se arranca pidiendo un comentario, que es lo
+    // mas comun; de ahi el que redacta agrega o saca lo que necesite.
+    if(property==='tipo'&&field.tipo==='establecimientos'&&!field.subcampos?.length)
+      field.subcampos=[normalizeSubfield({id:uniqueId('sub'),tipo:'parrafo',etiqueta:'Comentario'},0)];
+    state.template='personalizado';
+  }
+  function updateBuilderSubfield(element){
+    const field=state.compose?.campos?.find(item=>item.id===element.dataset.fieldId);
+    const sub=field?.subcampos?.find(item=>item.id===element.dataset.subId);
+    const property=element.dataset.dgcSubProp;
+    if(!sub||!property)return;
+    if(property==='requerido')sub.requerido=!!element.checked;
+    else if(property==='opciones')sub.opciones=String(element.value||'').split('\n').map(value=>value.trim()).filter(Boolean);
+    else sub[property]=element.value;
+    if(property==='tipo'&&!['opcion','multiple'].includes(sub.tipo))sub.opciones=[];
+    if(property==='tipo'&&sub.tipo==='si_no')sub.opciones=['Sí','No'];
     state.template='personalizado';
   }
   function updateResponseValue(element){
@@ -1712,7 +1851,7 @@
     if(!c||!establishment)return;
     const draft=draftFor(c);
     const list=Array.isArray(draft[fieldId])?draft[fieldId]:[];
-    if(!list.some(item=>Number(item.estId)===estId))list.push({estId,nombre:establishment.n||'Establecimiento',comentario:''});
+    if(!list.some(item=>Number(item.estId)===estId))list.push({estId,nombre:establishment.n||'Establecimiento',comentario:'',valores:{}});
     draft[fieldId]=list;
     state.dirtyResponses[commId(c)]=true;
     renderPage();
@@ -1735,6 +1874,42 @@
       item.comentario=element.value;
       state.dirtyResponses[commId(c)]=true;
     }
+  }
+  // Lo que se responde sobre una escuela en particular.
+  function itemEstablecimiento(element){
+    const c=findComm(element.dataset.commId);
+    const fieldId=element.dataset.fieldId;
+    const estId=Number(element.dataset.estId||0);
+    if(!c||!fieldId||!estId)return null;
+    const draft=draftFor(c);
+    const item=(Array.isArray(draft[fieldId])?draft[fieldId]:[]).find(value=>Number(value.estId)===estId);
+    if(!item)return null;
+    if(!item.valores||typeof item.valores!=='object')item.valores={};
+    return {c,item,fieldId};
+  }
+  function updateSubfieldValue(element){
+    const ctx=itemEstablecimiento(element);
+    if(!ctx)return;
+    const subId=element.dataset.dgcSubValue;
+    const field=schemaFor(ctx.c).campos.find(item=>item.id===ctx.fieldId);
+    const sub=field?.subcampos?.find(item=>item.id===subId);
+    let value=element.value;
+    if(sub?.tipo==='numero')value=value===''?'':Number(value);
+    if(sub?.tipo==='si_no')value=value==='si'?true:value==='no'?false:'';
+    ctx.item.valores[subId]=value;
+    // El comentario tambien se guarda donde lo dejaban los pedidos anteriores,
+    // asi lo ya enviado se sigue leyendo igual desde cualquier pantalla.
+    if(subId==='comentario')ctx.item.comentario=value;
+    state.dirtyResponses[commId(ctx.c)]=true;
+  }
+  function toggleSubfieldMulti(element){
+    const ctx=itemEstablecimiento(element);
+    if(!ctx)return;
+    const subId=element.dataset.dgcSubMulti;
+    const actuales=new Set(Array.isArray(ctx.item.valores[subId])?ctx.item.valores[subId]:[]);
+    if(element.checked)actuales.add(element.value); else actuales.delete(element.value);
+    ctx.item.valores[subId]=[...actuales];
+    state.dirtyResponses[commId(ctx.c)]=true;
   }
 
   async function handleAction(button){
@@ -1777,6 +1952,27 @@
       renderPage();
       return;
     }
+    if(action==='add-subfield'){
+      const field=state.compose.campos.find(item=>item.id===button.dataset.fieldId);
+      if(field){
+        if(!Array.isArray(field.subcampos))field.subcampos=[];
+        const atajo=ATAJOS_SUBCAMPO[button.dataset.preset];
+        const base=atajo?atajo():{tipo:'texto',etiqueta:`Campo ${field.subcampos.length+1}`,opciones:[]};
+        field.subcampos.push(normalizeSubfield(Object.assign({id:uniqueId('sub')},base),field.subcampos.length));
+        state.template='personalizado';
+      }
+      renderPage();
+      return;
+    }
+    if(action==='remove-subfield'){
+      const field=state.compose.campos.find(item=>item.id===button.dataset.fieldId);
+      if(field&&Array.isArray(field.subcampos)){
+        field.subcampos=field.subcampos.filter(sub=>sub.id!==button.dataset.subId);
+        state.template='personalizado';
+      }
+      renderPage();
+      return;
+    }
     if(action==='save-communication'){await saveCommunication();return;}
     if(action==='delete-communication'){await deleteCommunication(c);return;}
     if(action==='edit-response'){state.editingResponses[commId(c)]=true;renderPage();return;}
@@ -1807,6 +2003,8 @@
     if(element.dataset.dgcFieldProp)updateBuilderField(element);
     if(element.dataset.dgcResponseField)updateResponseValue(element);
     if(element.dataset.dgcEstComment)updateEstablishmentComment(element);
+    if(element.dataset.dgcSubProp)updateBuilderSubfield(element);
+    if(element.dataset.dgcSubValue)updateSubfieldValue(element);
     const listFilter=element.dataset.dgcListFilter;
     if(listFilter){
       state.list[listFilter]=element.value;
@@ -1835,8 +2033,14 @@
       updateBuilderField(element);
       if(element.dataset.dgcFieldProp==='tipo')renderPage();
     }
+    if(element.dataset.dgcSubProp){
+      updateBuilderSubfield(element);
+      if(element.dataset.dgcSubProp==='tipo')renderPage();
+    }
     if(element.dataset.dgcResponseField)updateResponseValue(element);
     if(element.dataset.dgcMultiField)updateMultiValue(element);
+    if(element.dataset.dgcSubValue)updateSubfieldValue(element);
+    if(element.dataset.dgcSubMulti)toggleSubfieldMulti(element);
     if(element.dataset.dgcListFilter&&element.tagName==='SELECT'){state.list[element.dataset.dgcListFilter]=element.value;renderPage();}
     if(element.dataset.dgcTableFilter&&element.tagName==='SELECT'){state.table[element.dataset.dgcTableFilter]=element.value;renderPage();}
     if(element.hasAttribute('data-dgc-compose-files'))state.composeFiles=[...(element.files||[])];
