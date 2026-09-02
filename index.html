@@ -26567,9 +26567,12 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
     const d=new Date();
     return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
+  // Se ve unicamente en la zona del festejo. Coordinacion no lo ve: si lo viera,
+  // se enteraria antes que la zona y el saludo deja de ser una sorpresa.
   function usuarioVisible(user,cumple){
     const rol=String(user?.role||'').toLowerCase();
-    return rol==='coordinador'||(rol==='inspector'&&Number(user?.zona)===Number(cumple?.zona));
+    if(rol!=='inspector')return false;
+    return Number(user?.zona)===Number(cumple?.zona);
   }
   function festejoActivo(){return CUMPLEANIOS.find(c=>c.prueba||c.fecha===hoy())||null}
   function crearBanner(){
@@ -26620,6 +26623,58 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
   if(typeof logoutAnterior==='function'){
     window.doLogout=function(){quitar();return logoutAnterior.apply(this,arguments)};
   }
+})();
+</script>
+<style id="dgie-cumple-saludos-style-2026-09-02">
+.dgie-cumple-acciones{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:8px;text-shadow:none}
+.dgie-cumple-accion{min-height:31px;padding:5px 11px;border:1px solid rgba(255,255,255,.8);border-radius:999px;background:rgba(255,255,255,.95);color:color-mix(in srgb,var(--dgie-cumple-color,#c62828) 85%,#1f2937);font-size:11px;font-weight:900;cursor:pointer;box-shadow:0 3px 8px rgba(69,0,0,.15)}
+.dgie-cumple-accion:hover{background:#fff;transform:translateY(-1px)}.dgie-cumple-accion:focus-visible{outline:3px solid #ffd54f;outline-offset:2px}
+.dgie-cumple-saludo-lista{display:grid;gap:10px}.dgie-cumple-saludo-item{padding:12px;border:1px solid #e1e7ef;border-left:4px solid var(--dgie-cumple-color,#c62828);border-radius:10px;background:#fff}.dgie-cumple-saludo-texto{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.45}.dgie-cumple-saludo-meta{margin-top:7px;color:#64748b;font-size:11px;font-weight:800}.dgie-cumple-saludo-error{display:none;margin-top:8px;color:#b42318;font-size:12px;font-weight:800}.dgie-cumple-saludo-ayuda{margin-top:6px;color:#64748b;font-size:11px}
+@media(max-width:680px){.dgie-cumple-acciones{gap:5px;margin-top:7px}.dgie-cumple-accion{min-height:30px;padding:5px 9px;font-size:10px}}
+</style>
+<script id="dgie-cumple-saludos-2026-09-02">
+(function(){
+'use strict';
+let cumple=null;
+const fecha=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const evento=()=>{const md=fecha().slice(5);return (window.DGIE_CUMPLEANIOS_CONFIG||[]).find(c=>c.prueba||c.fecha===md)||null};
+const usuario=()=>{try{return currentUser}catch(_e){return null}};
+const cerrar=()=>document.getElementById('dgie-cumple-saludo-modal')?.remove();
+function errorTexto(e){const c=String(e?.code||''),m=String(e?.message||e||'');return c==='42P01'||c==='PGRST205'||/saludos_cumpleanios|schema cache/i.test(m)?'El historial compartido de saludos todavía no está habilitado.':'No se pudieron sincronizar los saludos. Volvé a intentarlo.'}
+function modal(titulo){
+  cerrar();
+  const fondo=document.createElement('div');fondo.id='dgie-cumple-saludo-modal';fondo.className='modal-backdrop';
+  fondo.innerHTML='<div class="modal" role="dialog" aria-modal="true"><div class="modal-header"><div class="modal-title"></div><button type="button" class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"></div></div>';
+  fondo.querySelector('.modal-title').textContent=titulo;fondo.querySelector('.modal-close').onclick=cerrar;
+  fondo.onclick=e=>{if(e.target===fondo)cerrar()};document.body.appendChild(fondo);return fondo;
+}
+async function leer(){
+  if(!cumple||typeof window.DGIE_DB?.listarSaludosCumpleanios!=='function')throw {code:'PGRST205'};
+  const r=await window.DGIE_DB.listarSaludosCumpleanios(cumple.zona,fecha());if(r.error)throw r.error;return r.data||[];
+}
+function contar(){const b=document.querySelector('[data-ver-saludos]');if(!b||!cumple)return;leer().then(x=>b.textContent='Ver saludos'+(x.length?' ('+x.length+')':'')).catch(()=>b.textContent='Ver saludos')}
+function enviar(){
+  if(!cumple)return;const f=modal('Mandar saludo a '+cumple.apodo),body=f.querySelector('.modal-body');
+  body.innerHTML='<textarea class="form-textarea" maxlength="500" rows="5" placeholder="Escribí tu saludo..."></textarea><div class="dgie-cumple-saludo-ayuda">Máximo 500 caracteres. Se mostrará tu nombre.</div><div class="dgie-cumple-saludo-error" role="alert"></div><div class="modal-actions"><button type="button" class="secondary-btn" data-cancelar>Cancelar</button><button type="button" class="primary-btn" data-enviar>Enviar saludo</button></div>';
+  const ta=body.querySelector('textarea'),err=body.querySelector('.dgie-cumple-saludo-error'),btn=body.querySelector('[data-enviar]');
+  body.querySelector('[data-cancelar]').onclick=cerrar;setTimeout(()=>ta.focus(),0);
+  btn.onclick=async()=>{const mensaje=ta.value.trim();if(!mensaje){err.textContent='Escribí un saludo antes de enviarlo.';err.style.display='block';return}btn.disabled=true;btn.textContent='Enviando...';err.style.display='none';
+    try{if(typeof window.DGIE_DB?.crearSaludoCumpleanios!=='function')throw {code:'PGRST205'};const u=usuario(),r=await window.DGIE_DB.crearSaludoCumpleanios({homenajeado_zona:Number(cumple.zona),homenajeado_apodo:String(cumple.apodo),fecha_evento:fecha(),mensaje,autor_nombre:String(u?.name||u?.nombre||'Integrante de DGIE')});if(r.error)throw r.error;body.innerHTML='<div style="padding:25px;text-align:center;color:#176b32;font-weight:900">¡Saludo enviado! 🎉</div>';contar();setTimeout(cerrar,850)}
+    catch(e){err.textContent=errorTexto(e);err.style.display='block';btn.disabled=false;btn.textContent='Enviar saludo'}};
+}
+async function ver(){
+  if(!cumple)return;const f=modal('Saludos para '+cumple.apodo),body=f.querySelector('.modal-body');body.innerHTML='<div style="padding:20px;text-align:center;color:#64748b">Cargando saludos...</div>';
+  try{const rows=await leer();body.innerHTML='';if(!rows.length){body.innerHTML='<div style="padding:25px;text-align:center;color:#64748b">Todavía no hay saludos. ¡Podés ser el primero!</div>'}else{const lista=document.createElement('div');lista.className='dgie-cumple-saludo-lista';rows.forEach(r=>{const item=document.createElement('article');item.className='dgie-cumple-saludo-item';const t=document.createElement('div');t.className='dgie-cumple-saludo-texto';t.textContent=r.mensaje||'';const m=document.createElement('div');m.className='dgie-cumple-saludo-meta';const d=new Date(r.created_at);m.textContent=(r.autor_nombre||'DGIE')+' · '+(isNaN(d)?'':d.toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}));item.append(t,m);lista.appendChild(item)});body.appendChild(lista)}contar()}
+  catch(e){body.textContent=errorTexto(e);body.style.cssText='padding:25px;text-align:center;color:#b42318;font-weight:800'};
+}
+function integrar(){
+  const banner=document.getElementById('dgie-cumple-banner');if(!banner||banner.hidden)return;cumple=evento();if(!cumple)return;
+  let acciones=banner.querySelector('.dgie-cumple-acciones');if(!acciones){acciones=document.createElement('div');acciones.className='dgie-cumple-acciones';const a=document.createElement('button'),v=document.createElement('button');a.type=v.type='button';a.className=v.className='dgie-cumple-accion';a.dataset.mandarSaludo='1';v.dataset.verSaludos='1';a.onclick=enviar;v.onclick=ver;acciones.append(a,v);banner.querySelector('.dgie-cumple-mensaje>div')?.appendChild(acciones)}
+  acciones.querySelector('[data-mandar-saludo]').textContent='Mandar saludo a '+cumple.apodo;acciones.querySelector('[data-ver-saludos]').textContent='Ver saludos';contar();
+}
+window.dgieIntegrarSaludosCumpleanios=integrar;
+const prevLoad=window.loadUser;if(typeof prevLoad==='function')window.loadUser=function(){const r=prevLoad.apply(this,arguments);setTimeout(integrar,400);return r};
+const prevLogout=window.doLogout;if(typeof prevLogout==='function')window.doLogout=function(){cerrar();cumple=null;return prevLogout.apply(this,arguments)};
 })();
 </script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
