@@ -7,7 +7,7 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-09-02** · commit `este commit`
+Última actualización: **2026-09-03** · commit `este commit`
 
 ---
 
@@ -45,6 +45,19 @@ sepa dónde quedó todo sin tener que preguntar.
 - Para probar sin esperar a la fecha, se le agrega `prueba:true` a una línea y queda activa
   todos los días. **Hay que acordarse de sacarlo**: con eso puesto, el festejo se ve a
   diario.
+
+**Estado edilicio.** Cada rubro admite ahora una problemática o aclaración propia.
+
+- El inspector carga el porcentaje y un texto independiente para cada uno de los seis rubros;
+  las observaciones generales siguen disponibles y no se reemplazan.
+- La ficha muestra las problemáticas agrupadas por rubro. Si dos establecimientos comparten
+  edificio, el vinculado toma porcentajes y aclaraciones del establecimiento principal.
+- Coordinación tiene una pestaña "Estado edilicio" con toda la información desglosada por
+  establecimiento y rubro, filtros combinables por texto, zona, rubro, estado, porcentaje y
+  fechas, y exportación a PDF o Excel de las filas visibles.
+- Se guarda dentro de los datos existentes del relevamiento, por lo que no requiere script SQL.
+- Validado con datos simulados, sin escrituras reales: inspector y coordinación en 1280, 450 y
+  375 px, persistencia de textos, filtros, consola y desborde horizontal.
 
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
@@ -257,6 +270,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-03 | `este commit` | Estado edilicio: problemática por cada rubro y vista integral filtrable y exportable para Coordinación | Codex |
 | 2026-09-02 | `este commit` | Cumpleaños: saludos compartidos con autor y fecha, visibles y habilitados únicamente para el inspector de Zona 15 y coordinación | Codex |
 | 2026-09-02 | `este commit` | Cumpleaños: motor configurable por fecha, apodo y color; prueba activa de Zona 15 en rojo para inspector y coordinación; franja fija responsive y limpieza al cerrar sesión | Codex |
 | 2026-09-01 | `este commit` | Liquidación: tolerancia al redondeo entre total y rubros; los avisos reales identifican medición, establecimiento y O.S.; un archivo completo ya no se relee indefinidamente | Codex |
@@ -266,7 +280,6 @@ tiró el proyecto el 21/08. Falta:
 | 2026-08-28 | `d875668` | Presupuesto de módulos: el consumo total y por rubro sale únicamente de mediciones finalizadas con PDF vigente reconocido y liquidación armada | Codex |
 | 2026-08-28 | `38757f0` | Primera versión del desglose por rubro; tomaba certificados finalizados y fue reemplazada por la fuente correcta de liquidaciones reconocidas | Codex |
 | 2026-08-27 | `ac867b8` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
-| 2026-08-27 | `cd02025` | Los certificados toman los módulos tal como se ven en la planilla, no con todos los decimales de fondo. Rige en toda carga nueva; lo ya guardado no se toca | Claude Code |
 
 ---
 
