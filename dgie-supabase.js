@@ -287,6 +287,15 @@
         .eq('fecha_evento', String(fechaEvento))
         .order('created_at', { ascending:false });
     },
+    // Avisa a Administración que una medición ya tiene todos sus certificados.
+    // Si la función todavía no está creada, el aviso igual quedó guardado en los
+    // certificados y se ve en pantalla: sólo no suena la notificación.
+    async avisarCargaCompletaMedicion(zona, medicion){
+      return client.rpc('dgie_avisar_carga_completa', {
+        p_zona: Number(zona),
+        p_medicion: String(medicion)
+      });
+    },
     // Empuja una comunicación ya enviada: avisa sólo a quien no respondió.
     // Devuelve a cuántos les llegó.
     async recordarComunicacion(comunicacionId, mensaje){

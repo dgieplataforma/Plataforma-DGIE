@@ -128,8 +128,24 @@ comunicación que mandó, al lado de Eliminar.
 - Necesita correr una vez `supabase-comunicaciones-recordatorio.sql`. Sin eso, el botón
   avisa que falta ese script.
 
+**Aviso de carga completa.** El inspector avisa que una medición ya tiene todos sus
+certificados, sin cerrarla.
+
+- Botón **"Avisar carga completa"** en la medición abierta, al lado de "Marcar
+  certificación finalizada". Se puede deshacer si aparece otro certificado. Una vez
+  finalizada la medición el botón desaparece: ya no aporta nada.
+- **Administración lo ve en su grilla de mediciones**, con la marca "Carga completa"; las
+  que no avisaron dicen "el inspector todavía puede sumar más".
+- Se guarda como `[CARGA_COMPLETA:Z<zona>:<fecha>]` dentro de `observaciones_inspector`,
+  igual que la finalización, y `limpiarObsCert` lo saca de lo que se muestra. **Por eso
+  esta parte no necesita ningún script.**
+- La **notificación** a Administración sí: `supabase-carga-completa-medicion.sql`. Sin
+  correrlo el aviso igual queda marcado y visible, sólo no suena.
+
 ### Lo que hay que hacer a continuación
 
+0. **Correr `supabase-carga-completa-medicion.sql`** para que a Administración le suene
+   el aviso de carga completa. Sin eso el aviso se ve igual, pero no notifica.
 0. **Correr `supabase-comunicaciones-recordatorio.sql`** para habilitar el botón
    “Recordar” de coordinación. Sin eso el botón aparece pero avisa que falta el script.
 0. **Correr `supabase-saludos-cumpleanios.sql`** para habilitar el guardado de

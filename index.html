@@ -6808,7 +6808,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   };
   function normalizarCertTxt(s){return String(s??'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
   function sanitizarNombreCert(s){return String(s||'CERTIFICADO').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().replace(/\s/g,'-').slice(0,90)}
-  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[MEDICION_FINALIZADA:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').replace(/\s*\[VERSIONES_EMPRESA:[^\]]*\]/g,'').trim()}
+  function limpiarObsCert(txt){return String(txt||'').replace(/\s*\[OS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBROS_CERT:[^\]]*\]/g,'').replace(/\s*\[RUBRO_CERT:[^\]]*\]/g,'').replace(/\s*\[ARCHIVO_RENOMBRE:[^\]]*\]/g,'').replace(/\s*\[MEDICION_FINALIZADA:[^\]]*\]/g,'').replace(/\s*\[CARGA_COMPLETA:[^\]]*\]/g,'').replace(/\s*\[CONV_CERT:[^\]]*\]/g,'').replace(/\s*\[VERSIONES_EMPRESA:[^\]]*\]/g,'').trim()}
   function certOrdenes(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[OS_CERT:([^\]]*)\]/);return (m?.[1]||c?.ordenes_servicio_certificado||c?.ordenes_certificado||'').toString().split(',').map(x=>x.trim()).filter(Boolean)}
   function certRubrosCodigos(c){const src=String(c?.observaciones_inspector||'');const m=src.match(/\[RUBROS_CERT:([^\]]*)\]/);return (c?.rubros_certificado||m?.[1]||'').toString().split('-').map(x=>x.trim()).filter(Boolean)}
   function normalizarRubroCertVisible(v){
@@ -7381,7 +7381,15 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const btnFin=fin
       ?`<button class="badge b-ok" style="cursor:pointer;border:none;padding:7px 14px;font-size:12px;border-radius:8px" onclick="revertirCertificacionFinalizada('${numero}')">✓ Finalizada · Revertir</button>`
       :`<button class="secondary-btn" onclick="finalizarCertificacion('${numero}')">Marcar certificación finalizada</button>`;
-    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Medición Nº ${escapeHtml(numero)}${badgeFin}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions">${btnFin}<button class="secondary-btn" onclick="descargarZipMedicion('${numero}')">Descargar ZIP</button><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div>${renderCertificadosMedicionDetalle(data)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
+    // Mientras la medición sigue abierta, avisar que ya están todos los
+    // certificados. No la cierra: sólo le dice a Administración que puede
+    // revisarla sin esperar más cargas.
+    const cargaLista=window.dgieCargaCompleta?.(numero);
+    const btnCarga=fin?'':(cargaLista
+      ?`<button class="badge b-info" style="cursor:pointer;border:none;padding:7px 14px;font-size:12px;border-radius:8px" onclick="revertirCargaCompleta('${numero}')" title="Administración ya sabe que están todos. Tocá para deshacer si aparece otro certificado">✓ Carga completa · Deshacer</button>`
+      :`<button class="secondary-btn" onclick="avisarCargaCompleta('${numero}')" title="Avisa a Administración que ya no se cargan más certificados en esta medición">Avisar carga completa</button>`);
+    const badgeCarga=!fin&&cargaLista?`<span class="badge b-info" style="font-size:12px;vertical-align:middle;margin-left:8px">✓ Carga completa</span>`:'';
+    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Medición Nº ${escapeHtml(numero)}${badgeFin}${badgeCarga}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions">${btnCarga}${btnFin}<button class="secondary-btn" onclick="descargarZipMedicion('${numero}')">Descargar ZIP</button><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div>${renderCertificadosMedicionDetalle(data)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
   };
   function renderCertificadosMedicionDetalle(data){
     return data.map(c=>`<div class="med-version-row">
@@ -7581,6 +7589,60 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
   function esMedicionFinalizada(numero,zona=_zonaFinActual()){return !!_readFinMap()[_finKey(numero,zona)]||_medicionTieneFinPersistida(numero,zona)}
   window.esMedicionFinalizada=esMedicionFinalizada;
+
+  // ── Carga completa ──────────────────────────────────────────────────
+  // Antes de cerrar la medicion, el inspector avisa que ya no va a subir mas
+  // certificados. No la cierra ni bloquea nada: le dice a Administracion que
+  // eso es todo y que puede revisar sin esperar. Se marca igual que la
+  // finalizacion, dentro del propio certificado, asi lo ve cualquier sesion.
+  const _CARGA_RE=/\n?\[CARGA_COMPLETA:[^\]]+\]/g;
+  function _certTieneCarga(c,zona=null){
+    if(zona!==null&&zona!==undefined&&Number(zonaCertificado(c))!==Number(zona))return false;
+    const obs=String(c?.observaciones_inspector||'');
+    const m=obs.match(/\[CARGA_COMPLETA:([^\]]+)\]/);
+    if(!m)return false;
+    const zonaMeta=m[1]?.match(/(?:ZONA[:=]?|Z)(\d{1,2})/i)?.[1];
+    return !zonaMeta||Number(zonaMeta)===Number(zonaCertificado(c));
+  }
+  function _obsConCarga(obs,valor,zona){
+    const limpia=String(obs||'').replace(_CARGA_RE,'').trim();
+    return valor?[limpia,`[CARGA_COMPLETA:Z${Number(zona)||0}:${new Date().toISOString()}]`].filter(Boolean).join('\n'):limpia;
+  }
+  function esCargaCompleta(numero,zona=_zonaFinActual()){
+    return CERTIFICADOS_MEDICION.some(c=>String(c.medicion_numero)===String(numero)&&_certTieneCarga(c,zona));
+  }
+  window.dgieCargaCompleta=esCargaCompleta;
+  window.dgieFechaCargaCompleta=function(numero,zona=_zonaFinActual()){
+    const c=CERTIFICADOS_MEDICION.find(x=>String(x.medicion_numero)===String(numero)&&_certTieneCarga(x,zona));
+    return c?.observaciones_inspector?.match(/\[CARGA_COMPLETA:[^:]*:([^\]]+)\]/)?.[1]||'';
+  };
+  async function _toggleCargaCompleta(numero,valor,zona=_zonaFinActual()){
+    const certs=CERTIFICADOS_MEDICION.filter(c=>String(c.medicion_numero)===String(numero)&&c.estado==='medido'&&Number(zonaCertificado(c))===Number(zona));
+    if(!certs.length){alert('Esta medición todavía no tiene certificados.');return}
+    for(const c of certs){
+      try{
+        await actualizarCertificado(c.id||c.localId,{
+          observaciones_inspector:_obsConCarga(c.observaciones_inspector,valor,zona),
+          actualizado_por:currentUser?.name||'Inspector'
+        });
+      }catch(error){
+        console.warn('No se pudo guardar el aviso de carga completa',error);
+      }
+    }
+    if(valor&&typeof window.DGIE_DB?.avisarCargaCompletaMedicion==='function'){
+      try{ await window.DGIE_DB.avisarCargaCompletaMedicion(Number(zona),String(numero)); }
+      catch(error){ console.warn('El aviso se guardó, pero la notificación quedó pendiente',error); }
+    }
+    setTimeout(()=>abrirMedicionInspector(numero),0);
+  }
+  window.avisarCargaCompleta=async function(numero){
+    if(!confirm(`¿Avisar que la Medición Nº ${numero} ya tiene todos sus certificados?\n\nAdministración va a ver que la carga está completa y puede revisarla.\nLa medición sigue abierta: si aparece otro certificado, se puede deshacer.`))return;
+    await _toggleCargaCompleta(numero,true,_zonaFinActual());
+  };
+  window.revertirCargaCompleta=async function(numero){
+    if(!confirm(`¿Deshacer el aviso de carga completa de la Medición Nº ${numero}?`))return;
+    await _toggleCargaCompleta(numero,false,_zonaFinActual());
+  };
   window.numeroCertificacionOS=function(osNumero){
     if(!osNumero)return null;
     const m=String(osNumero).match(/(\d+)$/);
@@ -25796,8 +25858,15 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
     if(!ks.length)return vacio('Esta zona no tiene certificados para el estado seleccionado.');
     return `<div class="med-btn-grid dgie-adm-fichas">${ks.map(k=>{
       const items=datos.filter(c=>medicionClave(c)===k);
-      return ficha(`dgieAdmAbrirMedicion('${k}')`,esc(medicionTitulo(k)),
-        `${items.length} certificado${items.length===1?'':'s'}`,resumen(items),estaListo(items));
+      // El inspector avisa cuando ya no va a subir mas certificados. Sin eso,
+      // Administracion no tiene forma de saber si la medicion esta entera.
+      const zona=Number(items[0]?.zona||0);
+      const completa=k!==SIN_MEDICION&&typeof window.dgieCargaCompleta==='function'
+        &&window.dgieCargaCompleta(k,zona);
+      const titulo=esc(medicionTitulo(k))+(completa?' <span class="badge b-info" style="font-size:11px;margin-left:6px">✓ Carga completa</span>':'');
+      return ficha(`dgieAdmAbrirMedicion('${k}')`,titulo,
+        `${items.length} certificado${items.length===1?'':'s'}${completa?'':' · el inspector todavía puede sumar más'}`,
+        resumen(items),estaListo(items));
     }).join('')}</div>`;
   }
   function grupos(data){
