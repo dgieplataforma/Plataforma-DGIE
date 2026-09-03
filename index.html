@@ -26643,7 +26643,9 @@ const cerrar=()=>document.getElementById('dgie-cumple-saludo-modal')?.remove();
 function errorTexto(e){const c=String(e?.code||''),m=String(e?.message||e||'');return c==='42P01'||c==='PGRST205'||/saludos_cumpleanios|schema cache/i.test(m)?'El historial compartido de saludos todavía no está habilitado.':'No se pudieron sincronizar los saludos. Volvé a intentarlo.'}
 function modal(titulo){
   cerrar();
-  const fondo=document.createElement('div');fondo.id='dgie-cumple-saludo-modal';fondo.className='modal-backdrop';
+  // Sin `visible` el fondo queda en display:none y la ventana no se ve, aunque
+  // esté armada en la pagina: parece que el boton no hiciera nada.
+  const fondo=document.createElement('div');fondo.id='dgie-cumple-saludo-modal';fondo.className='modal-backdrop visible';
   fondo.innerHTML='<div class="modal" role="dialog" aria-modal="true"><div class="modal-header"><div class="modal-title"></div><button type="button" class="modal-close" aria-label="Cerrar">×</button></div><div class="modal-body"></div></div>';
   fondo.querySelector('.modal-title').textContent=titulo;fondo.querySelector('.modal-close').onclick=cerrar;
   fondo.onclick=e=>{if(e.target===fondo)cerrar()};document.body.appendChild(fondo);return fondo;
