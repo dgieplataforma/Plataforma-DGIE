@@ -23,6 +23,16 @@ sepa dónde quedó todo sin tener que preguntar.
   cualquier zona: la plataforma toma acento rojo y aparece una franja festiva debajo del
   encabezado, “Feliz cumpleaños <apodo>”. Son los que van a saludar, así que son los que
   lo ven. Empresa, dirección, tableros, administración y call center no.
+- **Si el cumpleaños cae sábado, domingo o feriado, el homenaje se corre al primer día
+  hábil siguiente**, y el cartel aclara la fecha real: “Cumplió el sábado 14 de marzo, lo
+  festejamos hoy”. Cuando cae en día hábil dice “Cumple hoy, martes 17 de marzo”.
+- **Puede haber más de un festejado el mismo día** —típico: uno cumple sábado y otro
+  domingo, y los dos caen el lunes—. El cartel los saluda a los dos y aparece un par de
+  botones por cada uno, para no mezclar los saludos.
+- Los feriados fijos y los que dependen de Pascua (Carnaval y Viernes Santo) se calculan
+  solos, no hay que cargarlos. Los **puentes turísticos y los feriados trasladables, que
+  se definen por decreto cada año, van en `FERIADOS_CARGADOS`**, en formato año-mes-día.
+  Si falta cargarlos, lo peor que pasa es que el homenaje caiga un día que no se trabaja.
 - Todos ellos tienen los botones para mandar y consultar saludos, con autor y fecha. Los
   saludos se agrupan por el homenajeado, no por quien escribe.
 - **La sorpresa la cuida la fecha, no el alcance.** El primer intento la arruinó al revés:

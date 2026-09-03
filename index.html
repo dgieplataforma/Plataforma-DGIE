@@ -26568,10 +26568,64 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
   const CUMPLEANIOS=[];
   window.DGIE_CUMPLEANIOS_CONFIG=CUMPLEANIOS;
 
-  function hoy(){
-    const d=new Date();
-    return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  // ── Cuando el cumpleaños cae en un dia que no se trabaja ─────────────
+  // El festejo se corre al primer dia habil siguiente, asi lo ve el equipo
+  // trabajando y no se pierde en un fin de semana. La fecha real igual se
+  // muestra en el cartel.
+
+  // Feriados nacionales fijos, que caen siempre el mismo dia.
+  const FERIADOS_FIJOS=['01-01','03-24','04-02','05-01','05-25','06-20','07-09','12-08','12-25'];
+
+  // Feriados que se calculan solos porque dependen de Pascua: los dos dias de
+  // Carnaval y el Viernes Santo.
+  function domingoDePascua(anio){
+    const a=anio%19, b=Math.floor(anio/100), c=anio%100;
+    const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
+    const g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
+    const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
+    const m=Math.floor((a+11*h+22*l)/451);
+    const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+    return new Date(anio,mes-1,dia);
   }
+  function sumarDias(fecha,dias){
+    const d=new Date(fecha.getFullYear(),fecha.getMonth(),fecha.getDate());
+    d.setDate(d.getDate()+dias);
+    return d;
+  }
+  const mmdd=d=>String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const iso=d=>d.getFullYear()+'-'+mmdd(d);
+
+  // Los feriados que se mueven cada año por decreto —los puentes turisticos y
+  // los trasladables— no se pueden calcular: se cargan aca, uno por linea, en
+  // formato año-mes-dia. Hay que actualizarlos una vez por año.
+  const FERIADOS_CARGADOS=[];
+  window.DGIE_FERIADOS_CARGADOS=FERIADOS_CARGADOS;
+
+  const cachePascua={};
+  function feriadosDelAnio(anio){
+    if(cachePascua[anio])return cachePascua[anio];
+    const p=domingoDePascua(anio);
+    const set=new Set(FERIADOS_FIJOS);
+    set.add(mmdd(sumarDias(p,-48)));   // Carnaval, lunes
+    set.add(mmdd(sumarDias(p,-47)));   // Carnaval, martes
+    set.add(mmdd(sumarDias(p,-2)));    // Viernes Santo
+    return (cachePascua[anio]=set);
+  }
+  function esNoLaborable(d){
+    const dia=d.getDay();
+    if(dia===0||dia===6)return true;                      // domingo o sabado
+    if(feriadosDelAnio(d.getFullYear()).has(mmdd(d)))return true;
+    return FERIADOS_CARGADOS.includes(iso(d));
+  }
+  // Del cumpleaños real al dia en que se lo festeja.
+  function diaDelHomenaje(fecha){
+    let d=fecha, vueltas=0;
+    while(esNoLaborable(d)&&vueltas++<15)d=sumarDias(d,1);
+    return d;
+  }
+  const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  function enPalabras(d){ return DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()] }
   // El dia del cumpleaños lo ven todas las sesiones de inspector y de
   // coordinacion, sin importar la zona: es un festejo de todo el equipo y son
   // los que van a saludar. Empresa, direccion, tableros, administracion y call
@@ -26583,7 +26637,30 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
     const rol=String(user?.role||'').toLowerCase();
     return rol==='inspector'||rol==='coordinador';
   }
-  function festejoActivo(){return CUMPLEANIOS.find(c=>c.prueba||c.fecha===hoy())||null}
+  // Quienes se festejan hoy. Puede ser mas de uno: si dos cumplen el sabado y el
+  // domingo, los dos se homenajean el lunes.
+  function festejosActivos(referencia){
+    const hoyD=referencia||new Date();
+    const hoyClave=iso(hoyD);
+    const activos=[];
+    CUMPLEANIOS.forEach(c=>{
+      if(c.prueba){ activos.push({...c,cumpleReal:hoyD,corrido:false}); return }
+      const m=/^(\d{2})-(\d{2})$/.exec(String(c.fecha||''));
+      if(!m)return;
+      // Se miran el año en curso y el anterior: un cumpleaños del 31 de
+      // diciembre puede terminar festejandose en enero.
+      [hoyD.getFullYear()-1,hoyD.getFullYear()].forEach(anio=>{
+        const real=new Date(anio,Number(m[1])-1,Number(m[2]));
+        if(real.getMonth()!==Number(m[1])-1)return;      // 30 de febrero y parecidos
+        const homenaje=diaDelHomenaje(real);
+        if(iso(homenaje)!==hoyClave)return;
+        if(activos.some(x=>x===c))return;
+        activos.push({...c,cumpleReal:real,corrido:iso(real)!==hoyClave});
+      });
+    });
+    return activos;
+  }
+  window.dgieFestejosDeHoy=festejosActivos;
   function crearBanner(){
     let banner=document.getElementById('dgie-cumple-banner');
     if(banner)return banner;
@@ -26595,7 +26672,7 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
     banner.hidden=true;
     banner.setAttribute('role','status');
     banner.setAttribute('aria-live','polite');
-    banner.innerHTML='<div class="dgie-cumple-guirnalda" aria-hidden="true">'+Array.from({length:16},()=>'<i></i>').join('')+'</div><span class="dgie-cumple-globos izq" aria-hidden="true">🎈</span><div class="dgie-cumple-mensaje"><span class="dgie-cumple-icono" aria-hidden="true">🎉</span><div><div class="dgie-cumple-titulo">Feliz cumpleaños <span data-dgie-cumple-apodo></span></div><div class="dgie-cumple-sub">¡Que tengas un gran día! · Te saluda todo el equipo de DGIE</div></div><span class="dgie-cumple-icono" aria-hidden="true">🎂</span></div><span class="dgie-cumple-globos der" aria-hidden="true">🎈</span>';
+    banner.innerHTML='<div class="dgie-cumple-guirnalda" aria-hidden="true">'+Array.from({length:16},()=>'<i></i>').join('')+'</div><span class="dgie-cumple-globos izq" aria-hidden="true">🎈</span><div class="dgie-cumple-mensaje"><span class="dgie-cumple-icono" aria-hidden="true">🎉</span><div><div class="dgie-cumple-titulo">Feliz cumpleaños <span data-dgie-cumple-apodo></span></div><div class="dgie-cumple-sub" data-dgie-cumple-sub>¡Que tengas un gran día! · Te saluda todo el equipo de DGIE</div></div><span class="dgie-cumple-icono" aria-hidden="true">🎂</span></div><span class="dgie-cumple-globos der" aria-hidden="true">🎈</span>';
     topbar.insertAdjacentElement('afterend',banner);
     return banner;
   }
@@ -26605,13 +26682,34 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
     const banner=document.getElementById('dgie-cumple-banner');
     if(banner)banner.hidden=true;
   }
+  const unirNombres=lista=>lista.length<2
+    ? (lista[0]||'Inspector')
+    : lista.slice(0,-1).join(', ')+' y '+lista[lista.length-1];
+
   function aplicar(user){
-    const cumple=festejoActivo();
-    if(!cumple||!usuarioVisible(user)){quitar();return}
+    const festejos=festejosActivos();
+    if(!festejos.length||!usuarioVisible(user)){quitar();return}
     const banner=crearBanner();
     if(!banner)return;
-    const color=/^#[0-9a-f]{6}$/i.test(cumple.color||'')?cumple.color:'#c62828';
-    banner.querySelector('[data-dgie-cumple-apodo]').textContent=cumple.apodo||'Inspector';
+    // Con varios festejados manda el color del primero, que es uno solo para
+    // toda la pantalla.
+    const primero=festejos[0];
+    const color=/^#[0-9a-f]{6}$/i.test(primero.color||'')?primero.color:'#c62828';
+    banner.querySelector('[data-dgie-cumple-apodo]').textContent=unirNombres(festejos.map(f=>f.apodo||'Inspector'));
+
+    // Siempre se dice la fecha real. Si el festejo se corrio porque cayo fin de
+    // semana o feriado, se aclara, para que nadie crea que llego tarde.
+    const corridos=festejos.filter(f=>f.corrido);
+    let detalle;
+    if(!corridos.length){
+      detalle='Cumple hoy, '+enPalabras(primero.cumpleReal)+' · ¡Que lo disfrutes!';
+    }else if(corridos.length===festejos.length&&festejos.length===1){
+      detalle='Cumplió el '+enPalabras(primero.cumpleReal)+', lo festejamos hoy';
+    }else{
+      detalle=festejos.map(f=>(f.apodo||'Inspector')+': '+enPalabras(f.cumpleReal)).join(' · ');
+    }
+    banner.querySelector('[data-dgie-cumple-sub]').textContent=detalle+' · Te saluda todo el equipo de DGIE';
+
     banner.style.setProperty('--dgie-cumple-color',color);
     document.body.style.setProperty('--dgie-cumple-color',color);
     document.body.classList.add('dgie-cumple-activo');
@@ -26644,9 +26742,10 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
 <script id="dgie-cumple-saludos-2026-09-02">
 (function(){
 'use strict';
-let cumple=null;
 const fecha=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-const evento=()=>{const md=fecha().slice(5);return (window.DGIE_CUMPLEANIOS_CONFIG||[]).find(c=>c.prueba||c.fecha===md)||null};
+// Quienes se festejan hoy, ya con el traslado por fin de semana o feriado
+// resuelto. Puede ser mas de uno.
+const eventos=()=>typeof window.dgieFestejosDeHoy==='function'?window.dgieFestejosDeHoy():[];
 const usuario=()=>{try{return currentUser}catch(_e){return null}};
 const cerrar=()=>document.getElementById('dgie-cumple-saludo-modal')?.remove();
 function errorTexto(e){const c=String(e?.code||''),m=String(e?.message||e||'');return c==='42P01'||c==='PGRST205'||/saludos_cumpleanios|schema cache/i.test(m)?'El historial compartido de saludos todavía no está habilitado.':'No se pudieron sincronizar los saludos. Volvé a intentarlo.'}
@@ -26659,33 +26758,63 @@ function modal(titulo){
   fondo.querySelector('.modal-title').textContent=titulo;fondo.querySelector('.modal-close').onclick=cerrar;
   fondo.onclick=e=>{if(e.target===fondo)cerrar()};document.body.appendChild(fondo);return fondo;
 }
-async function leer(){
+async function leer(cumple){
   if(!cumple||typeof window.DGIE_DB?.listarSaludosCumpleanios!=='function')throw {code:'PGRST205'};
   const r=await window.DGIE_DB.listarSaludosCumpleanios(cumple.zona,fecha());if(r.error)throw r.error;return r.data||[];
 }
-function contar(){const b=document.querySelector('[data-ver-saludos]');if(!b||!cumple)return;leer().then(x=>b.textContent='Ver saludos'+(x.length?' ('+x.length+')':'')).catch(()=>b.textContent='Ver saludos')}
-function enviar(){
+function contar(cumple,varios){
+  const b=document.querySelector('[data-ver-saludos="'+cumple.zona+'"]');
+  if(!b)return;
+  const base=varios?'Ver los de '+cumple.apodo:'Ver saludos';
+  leer(cumple).then(x=>b.textContent=base+(x.length?' ('+x.length+')':'')).catch(()=>b.textContent=base);
+}
+function enviar(cumple){
   if(!cumple)return;const f=modal('Mandar saludo a '+cumple.apodo),body=f.querySelector('.modal-body');
   body.innerHTML='<textarea class="form-textarea" maxlength="500" rows="5" placeholder="Escribí tu saludo..."></textarea><div class="dgie-cumple-saludo-ayuda">Máximo 500 caracteres. Se mostrará tu nombre.</div><div class="dgie-cumple-saludo-error" role="alert"></div><div class="modal-actions"><button type="button" class="secondary-btn" data-cancelar>Cancelar</button><button type="button" class="primary-btn" data-enviar>Enviar saludo</button></div>';
   const ta=body.querySelector('textarea'),err=body.querySelector('.dgie-cumple-saludo-error'),btn=body.querySelector('[data-enviar]');
   body.querySelector('[data-cancelar]').onclick=cerrar;setTimeout(()=>ta.focus(),0);
   btn.onclick=async()=>{const mensaje=ta.value.trim();if(!mensaje){err.textContent='Escribí un saludo antes de enviarlo.';err.style.display='block';return}btn.disabled=true;btn.textContent='Enviando...';err.style.display='none';
-    try{if(typeof window.DGIE_DB?.crearSaludoCumpleanios!=='function')throw {code:'PGRST205'};const u=usuario(),r=await window.DGIE_DB.crearSaludoCumpleanios({homenajeado_zona:Number(cumple.zona),homenajeado_apodo:String(cumple.apodo),fecha_evento:fecha(),mensaje,autor_nombre:String(u?.name||u?.nombre||'Integrante de DGIE')});if(r.error)throw r.error;body.innerHTML='<div style="padding:25px;text-align:center;color:#176b32;font-weight:900">¡Saludo enviado! 🎉</div>';contar();setTimeout(cerrar,850)}
+    try{if(typeof window.DGIE_DB?.crearSaludoCumpleanios!=='function')throw {code:'PGRST205'};const u=usuario(),r=await window.DGIE_DB.crearSaludoCumpleanios({homenajeado_zona:Number(cumple.zona),homenajeado_apodo:String(cumple.apodo),fecha_evento:fecha(),mensaje,autor_nombre:String(u?.name||u?.nombre||'Integrante de DGIE')});if(r.error)throw r.error;body.innerHTML='<div style="padding:25px;text-align:center;color:#176b32;font-weight:900">¡Saludo enviado! 🎉</div>';integrar();setTimeout(cerrar,850)}
     catch(e){err.textContent=errorTexto(e);err.style.display='block';btn.disabled=false;btn.textContent='Enviar saludo'}};
 }
-async function ver(){
+async function ver(cumple){
   if(!cumple)return;const f=modal('Saludos para '+cumple.apodo),body=f.querySelector('.modal-body');body.innerHTML='<div style="padding:20px;text-align:center;color:#64748b">Cargando saludos...</div>';
-  try{const rows=await leer();body.innerHTML='';if(!rows.length){body.innerHTML='<div style="padding:25px;text-align:center;color:#64748b">Todavía no hay saludos. ¡Podés ser el primero!</div>'}else{const lista=document.createElement('div');lista.className='dgie-cumple-saludo-lista';rows.forEach(r=>{const item=document.createElement('article');item.className='dgie-cumple-saludo-item';const t=document.createElement('div');t.className='dgie-cumple-saludo-texto';t.textContent=r.mensaje||'';const m=document.createElement('div');m.className='dgie-cumple-saludo-meta';const d=new Date(r.created_at);m.textContent=(r.autor_nombre||'DGIE')+' · '+(isNaN(d)?'':d.toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}));item.append(t,m);lista.appendChild(item)});body.appendChild(lista)}contar()}
+  try{const rows=await leer(cumple);body.innerHTML='';if(!rows.length){body.innerHTML='<div style="padding:25px;text-align:center;color:#64748b">Todavía no hay saludos. ¡Podés ser el primero!</div>'}else{const lista=document.createElement('div');lista.className='dgie-cumple-saludo-lista';rows.forEach(r=>{const item=document.createElement('article');item.className='dgie-cumple-saludo-item';const t=document.createElement('div');t.className='dgie-cumple-saludo-texto';t.textContent=r.mensaje||'';const m=document.createElement('div');m.className='dgie-cumple-saludo-meta';const d=new Date(r.created_at);m.textContent=(r.autor_nombre||'DGIE')+' · '+(isNaN(d)?'':d.toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}));item.append(t,m);lista.appendChild(item)});body.appendChild(lista)}integrar()}
   catch(e){body.textContent=errorTexto(e);body.style.cssText='padding:25px;text-align:center;color:#b42318;font-weight:800'};
 }
+// Un par de botones por cada festejado. Cuando son varios, se les pone el
+// nombre para saber a quien se le esta escribiendo.
 function integrar(){
-  const banner=document.getElementById('dgie-cumple-banner');if(!banner||banner.hidden)return;cumple=evento();if(!cumple)return;
-  let acciones=banner.querySelector('.dgie-cumple-acciones');if(!acciones){acciones=document.createElement('div');acciones.className='dgie-cumple-acciones';const a=document.createElement('button'),v=document.createElement('button');a.type=v.type='button';a.className=v.className='dgie-cumple-accion';a.dataset.mandarSaludo='1';v.dataset.verSaludos='1';a.onclick=enviar;v.onclick=ver;acciones.append(a,v);banner.querySelector('.dgie-cumple-mensaje>div')?.appendChild(acciones)}
-  acciones.querySelector('[data-mandar-saludo]').textContent='Mandar saludo a '+cumple.apodo;acciones.querySelector('[data-ver-saludos]').textContent='Ver saludos';contar();
+  const banner=document.getElementById('dgie-cumple-banner');
+  if(!banner||banner.hidden)return;
+  const lista=eventos();
+  if(!lista.length)return;
+  const varios=lista.length>1;
+
+  let acciones=banner.querySelector('.dgie-cumple-acciones');
+  if(!acciones){
+    acciones=document.createElement('div');
+    acciones.className='dgie-cumple-acciones';
+    banner.querySelector('.dgie-cumple-mensaje>div')?.appendChild(acciones);
+  }
+  acciones.textContent='';
+  lista.forEach(cumple=>{
+    const a=document.createElement('button'),v=document.createElement('button');
+    a.type=v.type='button';
+    a.className=v.className='dgie-cumple-accion';
+    a.dataset.mandarSaludo=cumple.zona;
+    v.dataset.verSaludos=cumple.zona;
+    a.textContent=varios?'Saludar a '+cumple.apodo:'Mandar saludo a '+cumple.apodo;
+    v.textContent=varios?'Ver los de '+cumple.apodo:'Ver saludos';
+    a.onclick=()=>enviar(cumple);
+    v.onclick=()=>ver(cumple);
+    acciones.append(a,v);
+    contar(cumple,varios);
+  });
 }
 window.dgieIntegrarSaludosCumpleanios=integrar;
 const prevLoad=window.loadUser;if(typeof prevLoad==='function')window.loadUser=function(){const r=prevLoad.apply(this,arguments);setTimeout(integrar,400);return r};
-const prevLogout=window.doLogout;if(typeof prevLogout==='function')window.doLogout=function(){cerrar();cumple=null;return prevLogout.apply(this,arguments)};
+const prevLogout=window.doLogout;if(typeof prevLogout==='function')window.doLogout=function(){cerrar();return prevLogout.apply(this,arguments)};
 })();
 </script>
 <script src="./dgie-file-viewer.js?v=20260803-6"></script>
