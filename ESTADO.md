@@ -55,6 +55,8 @@ sepa dónde quedó todo sin tener que preguntar.
 - Coordinación tiene una pestaña "Estado edilicio" con toda la información desglosada por
   establecimiento y rubro, filtros combinables por texto, zona, rubro, estado, porcentaje y
   fechas, y exportación a PDF o Excel de las filas visibles.
+- Las observaciones generales se muestran una sola vez por establecimiento, en la primera
+  fila visible, tanto en pantalla como en las exportaciones.
 - Se guarda dentro de los datos existentes del relevamiento, por lo que no requiere script SQL.
 - Validado con datos simulados, sin escrituras reales: inspector y coordinación en 1280, 450 y
   375 px, persistencia de textos, filtros, consola y desborde horizontal.
@@ -270,6 +272,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-03 | `este commit` | Estado edilicio: evitar repetir las observaciones generales en cada fila y exportación de rubro | Codex |
 | 2026-09-03 | `este commit` | Estado edilicio: problemática por cada rubro y vista integral filtrable y exportable para Coordinación | Codex |
 | 2026-09-02 | `este commit` | Cumpleaños: saludos compartidos con autor y fecha, visibles y habilitados únicamente para el inspector de Zona 15 y coordinación | Codex |
 | 2026-09-02 | `este commit` | Cumpleaños: motor configurable por fecha, apodo y color; prueba activa de Zona 15 en rojo para inspector y coordinación; franja fija responsive y limpieza al cerrar sesión | Codex |
@@ -279,7 +282,6 @@ tiró el proyecto el 21/08. Falta:
 | 2026-08-28 | `4f95396` | Se probó que la liquidación saliera del PDF firmado en todas las mediciones y que sin PDF no se pudiera finalizar. Revertido el 31/08 | Claude Code |
 | 2026-08-28 | `d875668` | Presupuesto de módulos: el consumo total y por rubro sale únicamente de mediciones finalizadas con PDF vigente reconocido y liquidación armada | Codex |
 | 2026-08-28 | `38757f0` | Primera versión del desglose por rubro; tomaba certificados finalizados y fue reemplazada por la fuente correcta de liquidaciones reconocidas | Codex |
-| 2026-08-27 | `ac867b8` | Planilla de liquidación mensual automática, desde la medición 7. Se empieza a guardar el desglose de módulos por rubro | Claude Code |
 
 ---
 
