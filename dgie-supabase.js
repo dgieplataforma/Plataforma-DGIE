@@ -287,6 +287,14 @@
         .eq('fecha_evento', String(fechaEvento))
         .order('created_at', { ascending:false });
     },
+    // Empuja una comunicación ya enviada: avisa sólo a quien no respondió.
+    // Devuelve a cuántos les llegó.
+    async recordarComunicacion(comunicacionId, mensaje){
+      return client.rpc('dgie_recordar_comunicacion', {
+        p_comunicacion_id: comunicacionId,
+        p_mensaje: mensaje || null
+      });
+    },
     async crearSaludoCumpleanios(row){
       const payload = { ...row };
       if(!payload.autor_id){

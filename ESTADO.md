@@ -45,6 +45,7 @@ sepa dónde quedó todo sin tener que preguntar.
 - Para probar sin esperar a la fecha, se le agrega `prueba:true` a una línea y queda activa
   todos los días. **Hay que acordarse de sacarlo**: con eso puesto, el festejo se ve a
   diario.
+
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada
@@ -111,11 +112,29 @@ que se relean los archivos los indicadores van a mostrar de menos:
   5, zona 9 la 2, 4 y 5, zona 13 la 4 y 5, zona 14 la 4 y 5) no van a consumir
   presupuesto hasta que se suba el papel, aunque sus certificados se lean bien.
 
+**Recordatorio de comunicaciones.** Coordinación tiene un botón "Recordar (n)" en cada
+comunicación que mandó, al lado de Eliminar.
+
+- Se puede usar **cuando haga falta y las veces que haga falta**: para apurar un cierre,
+  para insistir, o para agregar algo. No cierra la comunicación ni cambia su estado.
+- **Le llega sólo a quien todavía no respondió.** A quien ya cumplió no se lo molesta, y
+  así el aviso se sigue leyendo cuando hay que repetirlo. El número del botón es cuántos
+  faltan; si no falta nadie, el botón no aparece.
+- El mensaje se escribe en el momento, con una sugerencia armada según la fecha límite.
+- Usa la misma cola de notificaciones que el resto. El `kind` sigue siendo `comunicado`
+  porque la columna tiene una restricción cerrada de valores; lo que cambia es el
+  `source_id`, que lleva marca de tiempo para que dos recordatorios seguidos no se pisen.
+  El lector ya separa el id real cortando por `:`.
+- Necesita correr una vez `supabase-comunicaciones-recordatorio.sql`. Sin eso, el botón
+  avisa que falta ese script.
+
 ### Lo que hay que hacer a continuación
 
+0. **Correr `supabase-comunicaciones-recordatorio.sql`** para habilitar el botón
+   “Recordar” de coordinación. Sin eso el botón aparece pero avisa que falta el script.
 0. **Correr `supabase-saludos-cumpleanios.sql`** para habilitar el guardado de
    saludos de la zona del festejo. Sin eso, los botones aparecen pero avisan que el
-   historial no está habilitado.
+   historial no está habilitado. Puede esperar hasta que se carguen los cumpleaños.
 1. **Correr `supabase-medicion-modulos-firmados.sql`** (está en el repo). Sin eso
    no se puede cargar el total de módulos de la planilla firmada.
 2. Correr supabase-liquidacion-modulos-por-rubro.sql si todavía no se ejecutó.

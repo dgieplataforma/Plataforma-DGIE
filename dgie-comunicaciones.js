@@ -578,6 +578,7 @@
         </div>
         <div class="dgc-inline-actions">
           ${statusBadge(overallStatus(c))}${priorityBadge(c)}${conversation?`<span class="dgc-badge">${origin==='empresa'?'Empresa a inspector':'Inspector a empresa'} · Con respuesta</span>`:coordinationNotice?'<span class="dgc-badge">Inspector a Coordinación</span>':inspectorNotice?'<span class="dgc-badge">Inspector a empresa</span>':''}${copiedToCoordination(c)?'<span class="dgc-badge is-blue">Coordinación en copia</span>':''}${deadline(c)?`<span class="dgc-badge">${esc(formatShortDate(deadline(c)))}</span>`:''}
+          ${puedeRecordar(c)?`<button type="button" class="dgc-btn" data-dgc-action="remind-communication" data-comm-id="${esc(commId(c))}" ${state.busy?'disabled':''} title="Avisa a quienes todavía no respondieron. Se puede mandar cuando haga falta">${state.busy?'Enviando…':`Recordar (${pendientesDe(c)})`}</button>`:''}
           ${isManager()?`<button type="button" class="dgc-btn dgc-btn-danger" data-dgc-action="delete-communication" data-comm-id="${esc(commId(c))}" ${state.busy?'disabled':''}>${state.busy?'Eliminando…':'Eliminar'}</button>`:''}
         </div>
       </div>
@@ -1532,6 +1533,56 @@
       renderPage();
     }
   }
+  // Cuántos destinatarios todavía no cerraron su respuesta. Es a quienes les
+  // llega el recordatorio, y el número que se muestra en el botón.
+  function pendientesDe(c){
+    return destinations(c).filter(d=>!COMPLETE_STATES.has(String(stateFor(c,d.key).estado||''))).length;
+  }
+  // No tiene sentido ofrecerlo si no quedó nadie por responder, si es un aviso
+  // que no espera respuesta, o si la comunicación todavía no se guardó.
+  function puedeRecordar(c){
+    return isManager()&&!!c?._remoteSaved&&!isNotice(c)&&pendientesDe(c)>0;
+  }
+  // Se puede mandar cuando haga falta y las veces que haga falta: para apurar el
+  // cierre, para insistir, o para agregar algo. Por eso el mensaje se escribe en
+  // el momento, con una sugerencia armada segun la fecha límite si la hay.
+  function textoSugerido(c){
+    const limite=deadline(c);
+    return limite
+      ? `Cierra el ${formatShortDate(limite)} y todavía no registramos tu respuesta.`
+      : 'Todavía no registramos tu respuesta.';
+  }
+  async function remindCommunication(c){
+    if(!puedeRecordar(c))return;
+    const cuantos=pendientesDe(c);
+    const titulo=String(c?.titulo||'esta comunicación').trim();
+    const mensaje=window.prompt(
+      `Recordatorio de “${titulo}”.\n\n`+
+      `Le va a llegar a ${cuantos} destinatario${cuantos===1?'':'s'} que todavía no ${cuantos===1?'respondió':'respondieron'}. `+
+      `A quienes ya respondieron no se les avisa.\n\n`+
+      `Podés editar el mensaje:`,
+      textoSugerido(c));
+    if(mensaje===null)return;                       // canceló
+    state.busy=true;
+    renderPage();
+    try{
+      if(typeof window.DGIE_DB?.recordarComunicacion!=='function')throw {code:'PGRST202'};
+      const r=await window.DGIE_DB.recordarComunicacion(c?.remoteId||c?.id,String(mensaje||'').trim()||null);
+      if(r.error)throw r.error;
+      const avisados=Number(r.data||0);
+      showToast(avisados
+        ? `Recordatorio enviado a ${avisados} destinatario${avisados===1?'':'s'}.`
+        : 'No quedaba nadie a quien avisar.');
+    }catch(error){
+      const msg=String(error?.message||error||'');
+      showToast(/dgie_recordar_comunicacion|PGRST202|does not exist|schema cache/i.test(msg)
+        ? 'El recordatorio todavía no está habilitado. Hay que correr una vez supabase-comunicaciones-recordatorio.sql.'
+        : `No se pudo enviar el recordatorio: ${msg||error}`,'error');
+    }finally{
+      state.busy=false;
+      renderPage();
+    }
+  }
   async function deleteCommunication(c){
     if(!c||!isManager())return;
     const title=String(c?.titulo||'esta comunicación').trim();
@@ -1914,7 +1965,7 @@
 
   async function handleAction(button){
     const action=button.dataset.dgcAction;
-    if(state.busy&&['save-communication','delete-communication','save-draft','submit-response','mark-read'].includes(action))return;
+    if(state.busy&&['save-communication','delete-communication','remind-communication','save-draft','submit-response','mark-read'].includes(action))return;
     const c=findComm(button.dataset.commId||state.selectedId);
     if(action==='select'){
       state.selectedId=button.dataset.commId;
@@ -1974,6 +2025,7 @@
       return;
     }
     if(action==='save-communication'){await saveCommunication();return;}
+    if(action==='remind-communication'){await remindCommunication(c);return;}
     if(action==='delete-communication'){await deleteCommunication(c);return;}
     if(action==='edit-response'){state.editingResponses[commId(c)]=true;renderPage();return;}
     if(action==='save-draft'){await saveResponse(c,false);return;}
