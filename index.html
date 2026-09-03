@@ -26556,11 +26556,16 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
 <script id="dgie-cumpleanios-plataforma-2026-09-02">
 (function(){
   'use strict';
-  // Formato futuro: {zona, apodo, fecha:'MM-DD', color:'#hex'}.
-  // `prueba:true` mantiene activo sólo este festejo hasta cargar las fechas.
-  const CUMPLEANIOS=[
-    {zona:15,apodo:'Naza',fecha:'',color:'#c62828',prueba:true}
-  ];
+  // Los cumpleaños de los inspectores, uno por linea:
+  //   {zona:15, apodo:'Naza', fecha:'09-02', color:'#c62828'}
+  // `fecha` va en mes-dia, con cero adelante, y no lleva el año: se repite todos
+  // los años solo. `color` es opcional y pinta el acento de ese dia.
+  //
+  // Cada festejo lo ve unicamente el inspector de su zona.
+  //
+  // Para probar sin esperar a la fecha, se le agrega `prueba:true` a una linea y
+  // queda activa todos los dias. Hay que acordarse de sacarlo despues.
+  const CUMPLEANIOS=[];
   window.DGIE_CUMPLEANIOS_CONFIG=CUMPLEANIOS;
 
   function hoy(){

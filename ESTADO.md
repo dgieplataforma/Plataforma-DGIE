@@ -13,16 +13,22 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
-**Cumpleaños de inspectores.** Quedó una prueba activa para Zona 15:
+**Cumpleaños de inspectores.** Listo y **apagado**, esperando los datos.
 
+- La lista `CUMPLEANIOS` quedó vacía, así que hoy no se muestra nada a nadie. Cuando estén
+  las fechas se cargan ahí, una línea por inspector:
+  `{zona:15, apodo:'Naza', fecha:'09-02', color:'#c62828'}`. La fecha va en mes-día, sin
+  año, así se repite sola todos los años; el color es opcional.
 - **Sólo el inspector de la zona del festejo** ve la plataforma con acento rojo y una franja
-  festiva fija debajo del encabezado: “Feliz cumpleaños Naza”.
+  festiva fija debajo del encabezado: “Feliz cumpleaños <apodo>”.
 - Coordinación **no** lo ve. Al principio sí, para que pudiera saludar, pero así se
   enteraba antes que la propia zona y dejaba de ser una sorpresa. Empresa, call center,
   dirección, tableros y administración tampoco reciben la decoración.
 - Esa misma zona tiene los botones para mandar y consultar saludos compartidos, con autor
   y fecha. Hoy eso significa que sólo puede saludarse a sí misma: **es a propósito, para
   probar el funcionamiento antes del lanzamiento general.**
+- El fondo de esas ventanas necesita la clase `visible`; sin ella se arman pero quedan en
+  `display:none` y parece que el botón no hiciera nada. Ya pasó una vez.
 - Para habilitar el guardado compartido hay que correr una vez
   `supabase-saludos-cumpleanios.sql`. Sus políticas están igualadas a lo que muestra la
   pantalla, y traen comentadas las líneas que suman a coordinación **para el lanzamiento
@@ -30,9 +36,9 @@ sepa dónde quedó todo sin tener que preguntar.
 - Pendiente de decidir antes de lanzarlo a todas las zonas: cómo saludan los demás sin
   que al homenajeado se le adelante el festejo. La idea que quedó dando vueltas es que
   el resto vea sólo un botón discreto para saludar, sin el cartel.
-- La configuración ya admite zona, apodo, fecha en formato mes-día y color. La
-  bandera temporal `prueba:true` mantiene visible este caso hasta que se
-  incorporen los datos reales de todos los inspectores.
+- Para probar sin esperar a la fecha, se le agrega `prueba:true` a una línea y queda activa
+  todos los días. **Hay que acordarse de sacarlo**: con eso puesto, el festejo se ve a
+  diario.
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada
