@@ -26572,12 +26572,16 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
     const d=new Date();
     return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
-  // Se ve unicamente en la zona del festejo. Coordinacion no lo ve: si lo viera,
-  // se enteraria antes que la zona y el saludo deja de ser una sorpresa.
-  function usuarioVisible(user,cumple){
+  // El dia del cumpleaños lo ven todas las sesiones de inspector y de
+  // coordinacion, sin importar la zona: es un festejo de todo el equipo y son
+  // los que van a saludar. Empresa, direccion, tableros, administracion y call
+  // center no lo ven.
+  //
+  // Lo unico que no puede pasar es que se vea ANTES de la fecha. Eso ya arruino
+  // una sorpresa: con `prueba:true` el festejo queda encendido todos los dias.
+  function usuarioVisible(user){
     const rol=String(user?.role||'').toLowerCase();
-    if(rol!=='inspector')return false;
-    return Number(user?.zona)===Number(cumple?.zona);
+    return rol==='inspector'||rol==='coordinador';
   }
   function festejoActivo(){return CUMPLEANIOS.find(c=>c.prueba||c.fecha===hoy())||null}
   function crearBanner(){
@@ -26603,7 +26607,7 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
   }
   function aplicar(user){
     const cumple=festejoActivo();
-    if(!cumple||!usuarioVisible(user,cumple)){quitar();return}
+    if(!cumple||!usuarioVisible(user)){quitar();return}
     const banner=crearBanner();
     if(!banner)return;
     const color=/^#[0-9a-f]{6}$/i.test(cumple.color||'')?cumple.color:'#c62828';

@@ -14,11 +14,13 @@ create index if not exists saludos_cumpleanios_evento_idx
 
 alter table public.saludos_cumpleanios enable row level security;
 
--- Etapa de prueba: sólo la zona del festejo, igual que lo que muestra la
--- pantalla. Si la base dejara entrar a coordinación mientras el cartel no se le
--- muestra, se podría leer el saludo por acceso directo y se pierde la sorpresa.
--- Para el lanzamiento general están, comentadas, las líneas que suman a
--- coordinación: se descomentan y se vuelve a correr este mismo archivo.
+-- Quien puede leer y escribir saludos: inspectores y coordinación, de cualquier
+-- zona. Es el mismo alcance que muestra la pantalla el día del festejo, porque
+-- son justamente los que van a saludar. Empresa, dirección, tableros,
+-- administración y call center quedan afuera por las dos vías.
+--
+-- La sorpresa no la cuida la base sino la fecha: el cartel aparece únicamente el
+-- día que corresponde.
 
 drop policy if exists "saludos lectura inspectores coordinacion" on public.saludos_cumpleanios;
 create policy "saludos lectura inspectores coordinacion" on public.saludos_cumpleanios
@@ -27,10 +29,7 @@ for select to authenticated using (
     select 1
     from public.perfiles p
     where p.id = auth.uid()
-      and (
-        -- p.rol = 'coordinador' or          -- lanzamiento general
-        (p.rol = 'inspector' and p.zona = saludos_cumpleanios.homenajeado_zona)
-      )
+      and p.rol in ('inspector','coordinador')
   )
 );
 
@@ -42,10 +41,7 @@ for insert to authenticated with check (
     select 1
     from public.perfiles p
     where p.id = auth.uid()
-      and (
-        -- p.rol = 'coordinador' or          -- lanzamiento general
-        (p.rol = 'inspector' and p.zona = saludos_cumpleanios.homenajeado_zona)
-      )
+      and p.rol in ('inspector','coordinador')
   )
 );
 
