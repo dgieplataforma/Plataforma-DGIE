@@ -20,12 +20,20 @@ sepa dónde quedó todo sin tener que preguntar.
 - Validado con aprobados/observados/pendientes simulados, cambios de estado y filtros en 1280/450/375 px; sin escrituras reales.
 
 
-**Cumpleaños de inspectores.** Listo y **apagado**, esperando los datos.
+**Cumpleaños de inspectores.** Cargado y **andando** desde el 04/09/2026.
 
-- La lista `CUMPLEANIOS` quedó vacía, así que hoy no se muestra nada a nadie. Cuando estén
-  las fechas se cargan ahí, una línea por inspector:
-  `{zona:15, apodo:'Naza', fecha:'09-02', color:'#c62828'}`. La fecha va en mes-día, sin
-  año, así se repite sola todos los años; el color es opcional.
+- **14 cargados** en `CUMPLEANIOS`, con lo que cada uno respondió en el pedido "Fechas de
+  cumpleaños". `zona:0` es coordinación, que no tiene zona propia.
+- **No están** las zonas 9, 12 y 17, que no contestaron, ni la **zona 7, que contestó que
+  NO autoriza** a que se informe su cumpleaños. Esa respuesta se respeta: no se agrega
+  aunque la fecha aparezca por otro lado.
+- Para sumar a alguien: una línea más, `{zona, apodo, fecha:'MM-DD', color}`. La fecha va
+  en mes-día sin año, así se repite sola; el color es opcional.
+- **El cartel lleva texto blanco sobre el color**, así que los tonos claros no sirven tal
+  cual. El amarillo de Toti y el celeste de Cuchillo se oscurecieron hasta que se leyeran
+  (mínimo 4,5 de contraste). Si mañana alguien elige un pastel, hay que hacer lo mismo.
+- **Belu (zona 3) y Valen (zona 4) cumplen los dos el 25 de noviembre**: es el caso que
+  cubre el cartel de varios festejados a la vez.
 - **El día del cumpleaños lo ven todas las sesiones de inspector y de coordinación**, de
   cualquier zona: la plataforma toma acento rojo y aparece una franja festiva debajo del
   encabezado, “Feliz cumpleaños <apodo>”. Son los que van a saludar, así que son los que
