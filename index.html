@@ -795,13 +795,13 @@ function renderOSEmpresa(container, zona){
 
 // ─── BASE DE DATOS RELEVAMIENTOS ────────────────────────────────────
 const RELEVAMIENTOS = {};
+// Estado edilicio: cinco rubros activos; Otros histórico no participa (2026-09-04).
 const RUBROS_RELEVAMIENTO = [
   {key:'sanitarios',   label:'Instalación sanitaria', color:'#0f766e'},
   {key:'electricidad', label:'Instalación eléctrica', color:'#f59e0b'},
   {key:'gas',          label:'Instalación de gas',    color:'#dc2626'},
   {key:'albanileria_herreria', label:'Albañilería',   color:'#64748b'},
   {key:'cubierta',     label:'Cubierta de techos',    color:'#2563eb'},
-  {key:'otros',        label:'Otros',                  color:'#475569'},
 ];
 
 function clavesRubroEstadoEdilicio(key){
@@ -22064,9 +22064,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     window.toggleComparteEdificioEstado();
   };
   function promedio(rel){
-    const rubros=Array.isArray(RUBROS_RELEVAMIENTO)?RUBROS_RELEVAMIENTO:[];
-    const vals=rubros.map(r=>valorRubroEstadoEdilicio(rel,r.key));
-    return Math.round(vals.reduce((a,b)=>a+b,0)/Math.max(vals.length,1));
+    return promedioRubrosEstadoEdilicio(rel) ?? 0;
   }
   function promedioEfectivo(estId){
     const rel=estadoEdilicioEfectivo(estId);

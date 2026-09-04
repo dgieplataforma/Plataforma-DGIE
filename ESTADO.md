@@ -7,7 +7,7 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-09-03** · commit `este commit`
+Última actualización: **2026-09-04** · commit `este commit`
 
 ---
 
@@ -48,7 +48,12 @@ sepa dónde quedó todo sin tener que preguntar.
 
 **Estado edilicio.** Cada rubro admite ahora una problemática o aclaración propia.
 
-- El inspector carga el porcentaje y un texto independiente para cada uno de los seis rubros;
+- Desde el 04/09, Otros queda fuera del catálogo de Estado Edilicio y de todos sus
+  promedios, fichas, gráficos, filtros y exportaciones. Los datos históricos se conservan.
+- La ficha usa el mismo promedio de rubros activos con dato que los indicadores generales.
+  Probado en 1280/450/375 px, con edificios compartidos, datos parciales y exportaciones.
+
+- El inspector carga el porcentaje y un texto independiente para cada uno de los cinco rubros;
   las observaciones generales siguen disponibles y no se reemplazan.
 - La ficha muestra las problemáticas agrupadas por rubro. Si dos establecimientos comparten
   edificio, el vinculado toma porcentajes y aclaraciones del establecimiento principal.
@@ -203,7 +208,7 @@ de mostrar.**
   cerrajería, agregada el 27/08).
 - Tableros: **seis rubros generales**. Pluvial entra en sanitaria; herrería, vidrios,
   poda y pintura entran en albañilería.
-- Estado edilicio: **seis generales en todas las sesiones**, tanto para cargar los
+- Estado edilicio: **cinco rubros en todas las sesiones, sin Otros**, tanto para cargar los
   porcentajes como para consultarlos.
 - Presupuesto: sus familias y coeficientes **no se tocaron**. El consumo general y por
   rubro se computa exclusivamente desde la liquidación de cada medición finalizada, que
@@ -272,6 +277,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-04 | `este commit` | Estado edilicio: quitar Otros de catálogo y cálculos; unificar promedio de ficha y conservar históricos | Codex |
 | 2026-09-03 | `este commit` | Estado edilicio: evitar repetir las observaciones generales en cada fila y exportación de rubro | Codex |
 | 2026-09-03 | `este commit` | Estado edilicio: problemática por cada rubro y vista integral filtrable y exportable para Coordinación | Codex |
 | 2026-09-02 | `este commit` | Cumpleaños: saludos compartidos con autor y fecha, visibles y habilitados únicamente para el inspector de Zona 15 y coordinación | Codex |
@@ -281,7 +287,6 @@ tiró el proyecto el 21/08. Falta:
 | 2026-08-31 | `1675496` | De la medición 7 en adelante la liquidación vuelve a armarse con los archivos de certificado, con el mismo formato de planilla. El PDF deja de ser obligatorio para finalizar. El presupuesto pasa a usar la misma cuenta que la planilla, sea cual sea su origen. Revierte `4f95396` | Claude Code |
 | 2026-08-28 | `4f95396` | Se probó que la liquidación saliera del PDF firmado en todas las mediciones y que sin PDF no se pudiera finalizar. Revertido el 31/08 | Claude Code |
 | 2026-08-28 | `d875668` | Presupuesto de módulos: el consumo total y por rubro sale únicamente de mediciones finalizadas con PDF vigente reconocido y liquidación armada | Codex |
-| 2026-08-28 | `38757f0` | Primera versión del desglose por rubro; tomaba certificados finalizados y fue reemplazada por la fuente correcta de liquidaciones reconocidas | Codex |
 
 ---
 
