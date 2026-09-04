@@ -13,6 +13,13 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
+**Aprobaciones de certificados.** Corregida la identidad de las filas del inspector.
+
+- Se conserva el ID del certificado en la fila aun después de retirar la carga manual de módulos.
+- Marcas, contadores y seguimiento usan esa identidad; las marcas y filtros se recalculan sin duplicarse.
+- Validado con aprobados/observados/pendientes simulados, cambios de estado y filtros en 1280/450/375 px; sin escrituras reales.
+
+
 **Cumpleaños de inspectores.** Listo y **apagado**, esperando los datos.
 
 - La lista `CUMPLEANIOS` quedó vacía, así que hoy no se muestra nada a nadie. Cuando estén
@@ -277,6 +284,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-04 | `este commit` | Certificados: conservar ID al retirar módulos manuales para mostrar aprobación, contadores y seguimiento | Codex |
 | 2026-09-04 | `este commit` | Estado edilicio: quitar Otros de catálogo y cálculos; unificar promedio de ficha y conservar históricos | Codex |
 | 2026-09-03 | `este commit` | Estado edilicio: evitar repetir las observaciones generales en cada fila y exportación de rubro | Codex |
 | 2026-09-03 | `este commit` | Estado edilicio: problemática por cada rubro y vista integral filtrable y exportable para Coordinación | Codex |
@@ -286,7 +294,6 @@ tiró el proyecto el 21/08. Falta:
 | 2026-08-31 | `este commit` | Liquidación única desde certificados en todas las mediciones; PDF obligatorio sólo como respaldo; indicadores al finalizar; sin carga manual. Terminado y verificado: memoria de liquidaciones, zonas desde los datos, ficha sin valores a mano disfrazados | Codex + Claude Code |
 | 2026-08-31 | `1675496` | De la medición 7 en adelante la liquidación vuelve a armarse con los archivos de certificado, con el mismo formato de planilla. El PDF deja de ser obligatorio para finalizar. El presupuesto pasa a usar la misma cuenta que la planilla, sea cual sea su origen. Revierte `4f95396` | Claude Code |
 | 2026-08-28 | `4f95396` | Se probó que la liquidación saliera del PDF firmado en todas las mediciones y que sin PDF no se pudiera finalizar. Revertido el 31/08 | Claude Code |
-| 2026-08-28 | `d875668` | Presupuesto de módulos: el consumo total y por rubro sale únicamente de mediciones finalizadas con PDF vigente reconocido y liquidación armada | Codex |
 
 ---
 
