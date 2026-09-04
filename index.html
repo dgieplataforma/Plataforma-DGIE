@@ -26647,9 +26647,11 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
   // Cargados el 04/09/2026 con lo que cada uno respondio en el pedido
   // "Fechas de cumpleaños". `zona:0` es coordinacion.
   //
-  // No estan los que no contestaron (zonas 9, 12 y 17) ni la zona 7, que
-  // contesto que NO autoriza a que se informe su cumpleaños. Esa respuesta se
-  // respeta: no se agrega aunque despues aparezca la fecha por otro lado.
+  // No estan los que no contestaron: zonas 9, 12 y 17.
+  //
+  // La zona 7 respondio que NO autoriza a que se informe su cumpleaños. Se
+  // agrega igual, por decision de coordinacion del 04/09/2026. Queda escrito
+  // aca para que no se lea como un dato que ella dio: no lo dio.
   //
   // El cartel lleva texto blanco encima del color, asi que los tonos claros se
   // oscurecieron hasta que se leyeran: el amarillo de Toti y el celeste de
@@ -26662,6 +26664,7 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
     {zona:4,  apodo:'Valen',      fecha:'11-25', color:'#263238'},
     {zona:5,  apodo:'Tomi',       fecha:'07-22', color:'#263238'},
     {zona:6,  apodo:'Agustinita', fecha:'08-06', color:'#2e7d32'},
+    {zona:7,  apodo:'Penny',      fecha:'09-19', color:'#2e7d32'},
     {zona:8,  apodo:'Iancito',    fecha:'04-06', color:'#2e7d32'},
     {zona:10, apodo:'Nico',       fecha:'09-23', color:'#c62828'},
     {zona:11, apodo:'Cuchillo',   fecha:'05-20', color:'#0277bd'},

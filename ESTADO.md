@@ -22,11 +22,12 @@ sepa dónde quedó todo sin tener que preguntar.
 
 **Cumpleaños de inspectores.** Cargado y **andando** desde el 04/09/2026.
 
-- **14 cargados** en `CUMPLEANIOS`, con lo que cada uno respondió en el pedido "Fechas de
+- **15 cargados** en `CUMPLEANIOS`, con lo que cada uno respondió en el pedido "Fechas de
   cumpleaños". `zona:0` es coordinación, que no tiene zona propia.
-- **No están** las zonas 9, 12 y 17, que no contestaron, ni la **zona 7, que contestó que
-  NO autoriza** a que se informe su cumpleaños. Esa respuesta se respeta: no se agrega
-  aunque la fecha aparezca por otro lado.
+- **No están** las zonas 9, 12 y 17, que no contestaron.
+- La **zona 7 respondió que NO autoriza** a que se informe su cumpleaños. Se agrega igual,
+  por decisión de coordinación del 04/09/2026. Queda anotado acá y en el código: es un dato
+  que ella no dio.
 - Para sumar a alguien: una línea más, `{zona, apodo, fecha:'MM-DD', color}`. La fecha va
   en mes-día sin año, así se repite sola; el color es opcional.
 - **El cartel lleva texto blanco sobre el color**, así que los tonos claros no sirven tal
