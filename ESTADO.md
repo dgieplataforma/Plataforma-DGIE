@@ -17,6 +17,11 @@ sepa dónde quedó todo sin tener que preguntar.
 
 - Al cambiar un inspector desde Coordinación se actualizan juntos la ficha de zona y el perfil con el que inicia sesión; encabezado, dashboard, cumpleaños y demás vistas actuales toman el nombre nuevo al volver a ingresar.
 - Cada orden conserva el inspector asignado cuando se creó. Las nuevas guardan ese dato propio y los PDF/HTML de la orden lo usan aunque luego cambie el inspector de la zona.
+- **El sello del documento sale sólo de ese nombre guardado.** No cae nunca al inspector de
+  hoy: si la zona cambió de persona, estaríamos firmando un papel con alguien que no la
+  emitió. Si una orden no tuviera el nombre guardado, no se dibuja el sello y queda la línea
+  de firma en blanco. En el formulario de una orden nueva sí va el inspector actual, que es
+  el que la va a firmar.
 - La migración congela primero el nombre anterior en las órdenes existentes y recién después sincroniza cambios ya hechos sólo en la ficha, como el de Zona 16.
 - Los saludos de cumpleaños conservan mensaje y fecha, pero muestran el nombre actual del autor; al ejecutar la migración también se reparan los ya guardados con el nombre anterior.
 - `supabase-inspectores-historial-os.sql` **ya está corrido** (verificado contra la base el 07/09).
