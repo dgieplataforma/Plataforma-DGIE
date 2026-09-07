@@ -7283,10 +7283,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Certificados pendientes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Acá quedan los certificados sin aprobar o en revisión.</div></div><div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap"><span class="badge b-info">${pendientes.length}</span><span class="badge b-neutral">${mods(totalEmpresaPendientes)} módulos empresa</span></div></div>
       <div style="max-height:500px;overflow-y:auto;padding-right:2px">${renderCertificadosList(pendientes,inspector)}</div>
     </div>
-    <div class="med-card">
+    ${inspector?`<div class="med-card">
       <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Mediciones</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Los certificados aprobados se agrupan por número de medición.</div></div><span class="badge b-ok">${new Set(medidos.map(c=>c.medicion_numero)).size}</span></div>
       ${renderBotonesMediciones(data)}
-    </div>`;
+    </div>`:''}`;
   }
 
   const PRESUPUESTO_MODULOS_CERT={total:11300,y2026:9420,y2027:1880};
@@ -26222,6 +26222,9 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
 
   // ---------- lo que ve el inspector ----------
   function marcarFilasInspector(){
+    // La empresa no ve nada de Administracion: ni estados, ni notas de
+    // aprobacion, ni observaciones. No tiene que ver con ese circuito.
+    if(String((typeof currentUser!=='undefined'?currentUser:null)?.role||'')==='empresa')return;
     const detalle=byId('med-detalle');
     if(!detalle)return;
     detalle.querySelectorAll('.med-version-row').forEach(fila=>{
@@ -26471,7 +26474,7 @@ const enviarBase=window.dgieEnviarRespuestaAdministracion;
 function company(c){const ms=typeof window.conversacionCert==='function'?(window.conversacionCert(c)||[]):[];return `<div class="dgie-cert-history-title">Inspector–empresa</div><div class="dgie-cert-company-history">${ms.length?ms.map(m=>`<div class="dgie-cert-company-msg"><b>${esc(m?.autor||m?.rol||'Usuario')}</b> · ${esc(m?.texto||'')}</div>`).join(''):'<span style="font-size:12px;color:var(--muted)">Sin mensajes.</span>'}</div>`}
 function identify(card){const b=card.querySelector('[onclick^="dgieAdmObservar"]');return b?.getAttribute('onclick')?.match(/\('([^']+)'\)/)?.[1]||''}
 function enhanceBanner(banner,c){if(!banner||!c)return;if(!banner.dataset.dgieHistorias){banner.dataset.dgieHistorias='1';const hilo=banner.querySelector('.dgie-hilo');if(hilo)hilo.insertAdjacentHTML('beforebegin',company(c)+'<div class="dgie-cert-history-title">Inspector–Administración</div>');else banner.insertAdjacentHTML('afterbegin',company(c))}const box=banner.querySelector('[data-cert-chat]');if(!box||box.dataset.dgieAjustado)return;box.dataset.dgieAjustado='1';box.querySelector('.dgie-cert-chat-measure')?.remove();const text=box.querySelector('textarea'),id=String(c.id||c.localId||'');if(text){const wrap=document.createElement('div');wrap.className='dgie-cert-chat-send';text.parentNode.insertBefore(wrap,text);wrap.appendChild(text);const send=document.createElement('button');send.type='button';send.className='secondary-btn';send.textContent='Enviar mensaje';send.onclick=()=>window.dgieEnviarMensajeAdministracion(id);wrap.appendChild(send)}const btn=[...box.querySelectorAll('button')].find(b=>b.textContent.includes('Enviar respuesta'));if(btn){btn.textContent='Dejar vigente';btn.onclick=()=>window.dgieDejarVigenteCertificado(id)}const help=box.querySelector('.dgie-cert-chat-help');if(help)help.textContent='Seleccioná un certificado nuevo para dejarlo vigente. Administración podrá ver esta versión.'}
-function enhance(){document.querySelectorAll('#med-detalle .med-version-row').forEach(row=>{const key=safe(row.dataset.certId||row.querySelector('[id^="cert-final-mod-"]')?.id?.replace('cert-final-mod-','')||''),c=certs().find(x=>safe(x?.id||x?.localId)===key);enhanceBanner(row.querySelector('.dgie-obs-banner'),c)});document.querySelectorAll('.dgie-adm-card').forEach(card=>enhanceBanner(card.querySelector('.dgie-obs-banner'),cert(identify(card))))}
+function enhance(){if(String((typeof currentUser!=='undefined'?currentUser:null)?.role||'')==='empresa')return;document.querySelectorAll('#med-detalle .med-version-row').forEach(row=>{const key=safe(row.dataset.certId||row.querySelector('[id^="cert-final-mod-"]')?.id?.replace('cert-final-mod-','')||''),c=certs().find(x=>safe(x?.id||x?.localId)===key);enhanceBanner(row.querySelector('.dgie-obs-banner'),c)});document.querySelectorAll('.dgie-adm-card').forEach(card=>enhanceBanner(card.querySelector('.dgie-obs-banner'),cert(identify(card))))}
 window.dgieEnviarMensajeAdministracion=async function(id){const sid=safe(id),file=document.getElementById('cert-chat-file-'+sid);if(file)file.value='';return typeof enviarBase==='function'?enviarBase(id):undefined};
 window.dgieDejarVigenteCertificado=async function(id){const sid=safe(id),file=document.getElementById('cert-chat-file-'+sid),text=document.getElementById('cert-chat-text-'+sid),error=document.getElementById('cert-chat-error-'+sid);if(!file?.files?.length){if(error){error.textContent='Seleccioná el certificado nuevo.';error.style.display='block'}return}if(text&&!text.value.trim())text.value='Se deja vigente una nueva versión del certificado.';return typeof enviarBase==='function'?enviarBase(id):undefined};
 const abrirPrev=window.abrirMedicionInspector;window.abrirMedicionInspector=function(){const out=typeof abrirPrev==='function'?abrirPrev.apply(this,arguments):undefined;setTimeout(enhance,120);setTimeout(enhance,500);return out};
@@ -28063,6 +28066,9 @@ function medicionDeLaTarjeta(cabecera){
   return m?m[1]:'';
 }
 function agregarBotones(){
+  // Resumen mensual y Liquidación son del circuito inspector/coordinación. La
+  // empresa no participa de eso.
+  if(String((typeof currentUser!=='undefined'?currentUser:null)?.role||'')==='empresa')return;
   document.querySelectorAll('#med-detalle .med-card > .card-header, #coord-cert-medicion-detalle .med-card > .card-header').forEach(cab=>{
     const acciones=cab.querySelector('.med-actions');
     if(!acciones||acciones.querySelector('[data-dgie-liq]'))return;

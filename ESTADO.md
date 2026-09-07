@@ -105,9 +105,16 @@ sepa dónde quedó todo sin tener que preguntar.
 - **Inspector y Administración ven lo mismo:** las dos conversaciones, la que tienen entre
   ellos y la del inspector con la empresa. Antes la pestaña "Conversación con empresa" se
   armaba sólo para el inspector; ahora también para Administración.
-- **La empresa no ve el ida y vuelta entre inspector y Administración.** Ni el panel, ni el
-  hilo, ni el estado de la observación. Son historiales separados: la conversación con la
-  empresa vive en `[CONV_CERT:...]` y la del equipo en `revision_admin_historial`.
+- **La empresa no ve NADA de Administración.** Ni el panel, ni el hilo, ni el estado de la
+  observación, ni los contadores Pendientes/Observados/Aprobados, ni la nota "Administración
+  aprobó este certificado". No tiene que ver con ese circuito.
+- **La causa del agujero:** la pantalla de la empresa armaba la grilla de mediciones del
+  inspector, y al abrir una se disparaban todos los decoradores —estados de Administración,
+  hilos, Avisar carga completa, Resumen mensual y Liquidación—, que se enganchan a
+  `abrirMedicionInspector` sin mirar el rol. La grilla ahora es sólo del inspector.
+- Además quedaron guardas por rol en `marcarFilasInspector`, en el `enhance` de los hilos y
+  en `agregarBotones`: aunque algo abra esa pantalla, para la empresa no se decora nada.
+  Verificado forzando las cuatro funciones a mano con sesión de empresa.
 - **La empresa sí conversa con el inspector**, como siempre: ese canal es de los dos y no
   se toca. (El 07/09 se probó dejarlo de sólo lectura y se revirtió: no era lo pedido.)
 - El banner de observación se inyecta sólo en `#med-detalle` y en las tarjetas de
