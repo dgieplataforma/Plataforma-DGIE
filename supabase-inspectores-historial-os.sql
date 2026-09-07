@@ -89,6 +89,18 @@ begin
      set inspector_nombre = coalesce(nullif(trim(v_anterior), ''), 'Inspector Zona ' || p_zona::text)
    where zona = p_zona and nullif(trim(inspector_nombre), '') is null;
 
+  -- Los saludos muestran la identidad actual del autor. El texto y la fecha no
+  -- cambian; solo se corrige el nombre visible si esa persona cambio de nombre.
+  if to_regclass('public.saludos_cumpleanios') is not null then
+    execute 'update public.saludos_cumpleanios saludo
+                set autor_nombre = $2
+               from public.perfiles perfil
+              where saludo.autor_id = perfil.id
+                and lower(trim(perfil.rol)) = ''inspector''
+                and perfil.zona = $1'
+      using p_zona, trim(p_nombre);
+  end if;
+
   insert into public.inspectores_zona (zona, nombre, email, telefono, cuit)
   values (p_zona, trim(p_nombre), p_email, p_telefono, p_cuit)
   on conflict (zona) do update set
@@ -113,6 +125,19 @@ update public.perfiles perfil
  where lower(trim(perfil.rol)) = 'inspector'
    and perfil.zona = inspector.zona
    and perfil.nombre is distinct from inspector.nombre;
+
+-- Repara saludos ya guardados con el nombre anterior. Se usa SQL dinamico para
+-- que la migracion siga funcionando si el modulo de cumpleaños no esta creado.
+do $$
+begin
+  if to_regclass('public.saludos_cumpleanios') is not null then
+    execute 'update public.saludos_cumpleanios saludo
+                set autor_nombre = perfil.nombre
+               from public.perfiles perfil
+              where saludo.autor_id = perfil.id
+                and saludo.autor_nombre is distinct from perfil.nombre';
+  end if;
+end $$;
 
 revoke all on function public.dgie_actualizar_inspector_zona(integer,text,text,text,text) from public;
 revoke all on function public.dgie_actualizar_inspector_zona(integer,text,text,text,text) from anon;
