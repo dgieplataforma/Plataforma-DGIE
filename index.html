@@ -7208,12 +7208,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
   };
   function fmtConvFecha(iso){try{return new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
-  // `puedeEnviar` es falso para la empresa: la conversacion con el inspector la
-  // ve completa, pero de solo lectura. Quien no puede escribir tampoco borra.
   function renderHiloConversacion(c,puedeEnviar){
     const key=certKey(c);
     const msgs=conversacionCert(c);
-    const puedeBorrar=(m)=>puedeEnviar&&String(m?.autor||'')===String(currentUser?.name||'');
+    const puedeBorrar=(m)=>String(m?.autor||'')===String(currentUser?.name||'');
     const burbuja=(m,idx)=>{
       const texto=m?.texto, autor=m?.autor, rol=m?.rol, fecha=m?.fecha;
       const esInspector=rol==='inspector';
@@ -7245,7 +7243,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${limpiarObsCert(c.observaciones_empresa)?`<span style="color:#64748b">Empresa (inicial): ${escapeHtml(limpiarObsCert(c.observaciones_empresa))}</span><br>`:''}
         ${limpiarObsCert(c.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</span>`:''}
       </div>
-      ${renderHiloConversacion(c,inspector)}
+      ${renderHiloConversacion(c,true)}
       ${(c.created_at||c.updated_at)?`<div style="font-size:10px;color:#b0bccc;margin-top:5px">${[c.created_at?'Cargado '+fmtCertFecha(c.created_at):'',c.updated_at&&c.updated_at!==c.created_at?(c.estado==='medido'?'Medición '+fmtCertFecha(c.updated_at):'Modificado '+fmtCertFecha(c.updated_at)):''].filter(Boolean).join(' · ')}</div>`:''}
       <div class="med-actions" style="margin-top:10px">
         <span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span>
@@ -7257,9 +7255,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 
   window.enviarMensajeCertificado=async function(key){
-    // La empresa lee la conversacion pero no escribe. Se controla aca tambien,
-    // no solo escondiendo el boton.
-    if(String(currentUser?.role||'')==='empresa')return;
     const c=CERTIFICADOS_MEDICION.find(x=>certKey(x)===String(key)||String(x.id)===String(key)||String(x.localId)===String(key));
     const txt=(document.getElementById('conv-txt-'+key)?.value||'').trim();
     if(!c||!txt)return;
@@ -12950,8 +12945,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}
   }
   function puedeBorrarMsg(m){
-    // La empresa lee la conversacion, no la edita: tampoco borra lo suyo.
-    if(String(currentUser?.role||'')==='empresa')return false;
     return String(m?.autor||'')===String(currentUser?.name||'');
   }
   function renderHiloCertificadoSeguro(c){
@@ -26505,7 +26498,7 @@ function finalized(c){const h=hist(c),lastObs=h.map(x=>x?.tipo).lastIndexOf('obs
 function adminChanges(c){const h=hist(c),admin=['observado','comentario','aprobado'],inspector=['respuesta','nueva_version','observacion_finalizada'];let lastAdmin=-1;h.forEach((x,i)=>{if(admin.includes(String(x?.tipo||'')))lastAdmin=i});return h.slice(lastAdmin+1).filter(x=>inspector.includes(String(x?.tipo||'')))}
 function adminNotice(c){const changes=adminChanges(c);if(!changes.length)return '';const last=changes[changes.length-1],labels={respuesta:'El inspector envió una respuesta.',nueva_version:'El inspector dejó vigente una nueva versión.',observacion_finalizada:'El inspector finalizó la observación.'};return `<div class="dgie-cert-admin-notice">Novedad del inspector · ${esc(labels[last?.tipo]||'El inspector realizó un cambio.')} Revisá los antecedentes debajo.</div>`}
 function adminSummary(){if(role()!=='administracion')return;const anchor=document.getElementById('adm-contadores');if(!anchor)return;const changed=certs().filter(c=>String(c?.estado||'').toLowerCase()==='medido'&&Number(c?.medicion_numero)>=6&&adminChanges(c).length);let box=document.getElementById('dgie-cert-admin-changes');if(!changed.length){box?.remove();return}if(!box){box=document.createElement('div');box.id='dgie-cert-admin-changes';box.className='dgie-cert-admin-summary';anchor.insertAdjacentElement('afterend',box)}const text=`${changed.length} certificado${changed.length===1?' tiene':'s tienen'} novedades del inspector pendientes de revisar.`;if(box.textContent!==text)box.textContent=text}
-function panel(c){const id=String(c?.id||c?.localId||''),s=safe(id),ins=role()==='inspector',observed=String(c?.revision_admin_estado||'pendiente')==='observado',fin=finalized(c);return `<div class="dgie-cert-follow" data-dgie-cert-follow="${esc(id)}">${!ins?adminNotice(c):''}<div class="dgie-cert-follow-tabs">${ins?`<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','company')">Conversación con empresa</button>`:''}<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','admin')">${ins?'Conversación con Administración':'Conversación con inspector'}</button><button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','files')">Historial de archivos</button></div>${ins?`<div id="cert-follow-company-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(companyMsgs(c),'company')}</div>`:''}<div id="cert-follow-admin-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(adminMsgs(c),'admin')}</div><div id="cert-follow-files-${s}" class="dgie-cert-follow-pane" hidden>${filesHTML(c)}</div>${fin?`<div class="dgie-cert-follow-ok">Observación finalizada por el inspector. El historial permanece disponible.</div>`:''}${ins&&observed?`<div class="dgie-cert-follow-actions"><div class="dgie-cert-follow-send"><textarea id="cert-follow-text-${s}" class="form-textarea" placeholder="Escribí un mensaje para Administración..."></textarea><button type="button" class="secondary-btn" onclick="dgieCertEnviarMensaje('${esc(id)}')">Enviar mensaje</button></div><div class="dgie-cert-follow-file"><input id="cert-follow-file-${s}" class="form-input" type="file" accept=".xls,.xlsx,.xlsm" onchange="validarYAutocompletarRevisionCertificado('cert-follow-file-${s}','cert-follow-mod-${s}')"><input id="cert-follow-mod-${s}" class="form-input" type="number" min="0" step="0.001" value="${esc(c?.modulos_inspector||'')}" placeholder="Módulos vigentes"><button type="button" class="primary-btn" onclick="dgieCertDejarVigente('${esc(id)}')">Dejar vigente</button></div><div class="dgie-cert-follow-final"><span style="font-size:11px;color:var(--muted)">Finalizar cierra la observación; no elimina mensajes ni archivos.</span><button type="button" class="primary-btn" style="background:#2e7d32" onclick="dgieCertFinalizarObservacion('${esc(id)}')">Finalizar observación</button></div><div id="cert-follow-error-${s}" class="dgie-cert-follow-error"></div></div>`:''}</div>`}
+function panel(c){const id=String(c?.id||c?.localId||''),s=safe(id),ins=role()==='inspector',equipo=ins||role()==='administracion',observed=String(c?.revision_admin_estado||'pendiente')==='observado',fin=finalized(c);return `<div class="dgie-cert-follow" data-dgie-cert-follow="${esc(id)}">${!ins?adminNotice(c):''}<div class="dgie-cert-follow-tabs">${equipo?`<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','company')">Conversación con empresa</button>`:''}<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','admin')">${ins?'Conversación con Administración':'Conversación con inspector'}</button><button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','files')">Historial de archivos</button></div>${equipo?`<div id="cert-follow-company-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(companyMsgs(c),'company')}</div>`:''}<div id="cert-follow-admin-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(adminMsgs(c),'admin')}</div><div id="cert-follow-files-${s}" class="dgie-cert-follow-pane" hidden>${filesHTML(c)}</div>${fin?`<div class="dgie-cert-follow-ok">Observación finalizada por el inspector. El historial permanece disponible.</div>`:''}${ins&&observed?`<div class="dgie-cert-follow-actions"><div class="dgie-cert-follow-send"><textarea id="cert-follow-text-${s}" class="form-textarea" placeholder="Escribí un mensaje para Administración..."></textarea><button type="button" class="secondary-btn" onclick="dgieCertEnviarMensaje('${esc(id)}')">Enviar mensaje</button></div><div class="dgie-cert-follow-file"><input id="cert-follow-file-${s}" class="form-input" type="file" accept=".xls,.xlsx,.xlsm" onchange="validarYAutocompletarRevisionCertificado('cert-follow-file-${s}','cert-follow-mod-${s}')"><input id="cert-follow-mod-${s}" class="form-input" type="number" min="0" step="0.001" value="${esc(c?.modulos_inspector||'')}" placeholder="Módulos vigentes"><button type="button" class="primary-btn" onclick="dgieCertDejarVigente('${esc(id)}')">Dejar vigente</button></div><div class="dgie-cert-follow-final"><span style="font-size:11px;color:var(--muted)">Finalizar cierra la observación; no elimina mensajes ni archivos.</span><button type="button" class="primary-btn" style="background:#2e7d32" onclick="dgieCertFinalizarObservacion('${esc(id)}')">Finalizar observación</button></div><div id="cert-follow-error-${s}" class="dgie-cert-follow-error"></div></div>`:''}</div>`}
 function locate(c){return document.querySelector(`[data-dgie-cert-follow="${CSS.escape(String(c?.id||c?.localId||''))}"]`)}
 function renderOne(c){const old=locate(c);if(old)old.outerHTML=panel(c);setTimeout(()=>window.DGIE_FILE_VIEWER?.refresh?.(),0)}
 function rowCert(row){const key=safe(row.dataset.certId||row.querySelector('[id^="cert-final-mod-"]')?.id?.replace('cert-final-mod-','')||'');return certs().find(x=>safe(x?.id||x?.localId)===key)}
