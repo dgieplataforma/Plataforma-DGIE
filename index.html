@@ -7208,10 +7208,12 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     }
   };
   function fmtConvFecha(iso){try{return new Date(iso).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+  // `puedeEnviar` es falso para la empresa: la conversacion con el inspector la
+  // ve completa, pero de solo lectura. Quien no puede escribir tampoco borra.
   function renderHiloConversacion(c,puedeEnviar){
     const key=certKey(c);
     const msgs=conversacionCert(c);
-    const puedeBorrar=(m)=>String(m?.autor||'')===String(currentUser?.name||'');
+    const puedeBorrar=(m)=>puedeEnviar&&String(m?.autor||'')===String(currentUser?.name||'');
     const burbuja=(m,idx)=>{
       const texto=m?.texto, autor=m?.autor, rol=m?.rol, fecha=m?.fecha;
       const esInspector=rol==='inspector';
@@ -7243,7 +7245,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
         ${limpiarObsCert(c.observaciones_empresa)?`<span style="color:#64748b">Empresa (inicial): ${escapeHtml(limpiarObsCert(c.observaciones_empresa))}</span><br>`:''}
         ${limpiarObsCert(c.observaciones_inspector)?`<span style="color:var(--blue)">Inspector: ${escapeHtml(limpiarObsCert(c.observaciones_inspector))}</span>`:''}
       </div>
-      ${renderHiloConversacion(c,true)}
+      ${renderHiloConversacion(c,inspector)}
       ${(c.created_at||c.updated_at)?`<div style="font-size:10px;color:#b0bccc;margin-top:5px">${[c.created_at?'Cargado '+fmtCertFecha(c.created_at):'',c.updated_at&&c.updated_at!==c.created_at?(c.estado==='medido'?'Medición '+fmtCertFecha(c.updated_at):'Modificado '+fmtCertFecha(c.updated_at)):''].filter(Boolean).join(' · ')}</div>`:''}
       <div class="med-actions" style="margin-top:10px">
         <span class="badge ${certEstadoClass(c.estado)}">${certEstadoLabel(c.estado)}</span>
@@ -7255,6 +7257,9 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
   }
 
   window.enviarMensajeCertificado=async function(key){
+    // La empresa lee la conversacion pero no escribe. Se controla aca tambien,
+    // no solo escondiendo el boton.
+    if(String(currentUser?.role||'')==='empresa')return;
     const c=CERTIFICADOS_MEDICION.find(x=>certKey(x)===String(key)||String(x.id)===String(key)||String(x.localId)===String(key));
     const txt=(document.getElementById('conv-txt-'+key)?.value||'').trim();
     if(!c||!txt)return;
@@ -12945,6 +12950,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     try{return new Date(v||Date.now()).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(_){return ''}
   }
   function puedeBorrarMsg(m){
+    // La empresa lee la conversacion, no la edita: tampoco borra lo suyo.
+    if(String(currentUser?.role||'')==='empresa')return false;
     return String(m?.autor||'')===String(currentUser?.name||'');
   }
   function renderHiloCertificadoSeguro(c){

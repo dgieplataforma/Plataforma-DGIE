@@ -100,6 +100,17 @@ sepa dónde quedó todo sin tener que preguntar.
 - Validado con datos simulados, sin escrituras reales: inspector y coordinación en 1280, 450 y
   375 px, persistencia de textos, filtros, consola y desborde horizontal.
 
+**Permisos de la empresa sobre certificados.** La empresa mira, no interviene.
+
+- La conversación **inspector–empresa** la ve completa, pero de sólo lectura: sin caja de
+  texto, sin botón de enviar y sin borrar, ni siquiera sus propios mensajes.
+- El hilo con **Administración** no le llega de ninguna forma. Ya estaba limitado a
+  inspector y administración, y son historiales separados: la conversación con la empresa
+  vive en `[CONV_CERT:...]` y la de Administración en `revision_admin_historial`.
+- El control no es sólo visual: `enviarMensajeCertificado` y el permiso de borrado rechazan
+  el rol empresa, así que no alcanza con llamarlos desde la consola.
+- La empresa sigue pudiendo lo suyo: subir el certificado y sus observaciones iniciales.
+
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada
