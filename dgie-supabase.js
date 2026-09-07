@@ -416,13 +416,17 @@
     async actualizarInspector(zona, row){
       return upsertOne('inspectores_zona', { zona, ...row }, { onConflict:'zona' }, 'ese inspector');
     },
+    // Email, teléfono y CUIT van como texto vacío cuando no se cargaron, nunca
+    // como nulo: la tabla no admite nulos y guardar un inspector sin email
+    // fallaba con el error crudo de la base. La app ya lee el vacío como "sin
+    // dato", así que no cambia nada de lo que se ve.
     async actualizarInspectorCompleto(zona, row){
       return client.rpc('dgie_actualizar_inspector_zona', {
         p_zona:Number(zona),
         p_nombre:String(row?.nombre || '').trim(),
-        p_email:String(row?.email || '').trim() || null,
-        p_telefono:String(row?.telefono || '').trim() || null,
-        p_cuit:String(row?.cuit || '').trim() || null
+        p_email:String(row?.email || '').trim(),
+        p_telefono:String(row?.telefono || '').trim(),
+        p_cuit:String(row?.cuit || '').trim()
       });
     },
     async listarEmpresas(){

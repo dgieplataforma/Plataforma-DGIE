@@ -19,7 +19,10 @@ sepa dónde quedó todo sin tener que preguntar.
 - Cada orden conserva el inspector asignado cuando se creó. Las nuevas guardan ese dato propio y los PDF/HTML de la orden lo usan aunque luego cambie el inspector de la zona.
 - La migración congela primero el nombre anterior en las órdenes existentes y recién después sincroniza cambios ya hechos sólo en la ficha, como el de Zona 16.
 - Los saludos de cumpleaños conservan mensaje y fecha, pero muestran el nombre actual del autor; al ejecutar la migración también se reparan los ya guardados con el nombre anterior.
-- Requiere ejecutar una vez `supabase-inspectores-historial-os.sql`. Hasta entonces crear órdenes sigue funcionando por compatibilidad, pero Administración avisa que la actualización integral aún no está habilitada.
+- `supabase-inspectores-historial-os.sql` **ya está corrido** (verificado contra la base el 07/09).
+- Email, teléfono y CUIT del inspector se guardan como texto vacío cuando no se cargaron, nunca
+  como nulo: la tabla no admite nulos y guardar un inspector sin email fallaba con el error crudo
+  de la base. Pasó con Zona 12 el 07/09.
 - Validado con guardados simulados, sin escrituras reales: cambio de nombre y órdenes anterior/nueva en 1280, 450 y 375 px; verificador general sin errores de consola.
 
 

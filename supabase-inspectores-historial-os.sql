@@ -101,8 +101,11 @@ begin
       using p_zona, trim(p_nombre);
   end if;
 
+  -- La tabla no admite nulos en estos campos. Un inspector puede no tener email
+  -- cargado todavia, asi que lo que falta se guarda como texto vacio y no como
+  -- nulo, que hacia fallar el guardado entero.
   insert into public.inspectores_zona (zona, nombre, email, telefono, cuit)
-  values (p_zona, trim(p_nombre), p_email, p_telefono, p_cuit)
+  values (p_zona, trim(p_nombre), coalesce(p_email, ''), coalesce(p_telefono, ''), coalesce(p_cuit, ''))
   on conflict (zona) do update set
     nombre = excluded.nombre,
     email = excluded.email,
