@@ -7,11 +7,20 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-09-04** · commit `este commit`
+Última actualización: **2026-09-07** · commit `este commit`
 
 ---
 
 ## En qué se está trabajando ahora
+
+**Inspectores por zona e historial de órdenes.** Separados el nombre actual y el autor histórico.
+
+- Al cambiar un inspector desde Coordinación se actualizan juntos la ficha de zona y el perfil con el que inicia sesión; encabezado, dashboard, cumpleaños y demás vistas actuales toman el nombre nuevo al volver a ingresar.
+- Cada orden conserva el inspector asignado cuando se creó. Las nuevas guardan ese dato propio y los PDF/HTML de la orden lo usan aunque luego cambie el inspector de la zona.
+- La migración congela primero el nombre anterior en las órdenes existentes y recién después sincroniza cambios ya hechos sólo en la ficha, como el de Zona 16.
+- Requiere ejecutar una vez `supabase-inspectores-historial-os.sql`. Hasta entonces crear órdenes sigue funcionando por compatibilidad, pero Administración avisa que la actualización integral aún no está habilitada.
+- Validado con guardados simulados, sin escrituras reales: cambio de nombre y órdenes anterior/nueva en 1280, 450 y 375 px; verificador general sin errores de consola.
+
 
 **Aprobaciones de certificados.** Corregida la identidad de las filas del inspector.
 
@@ -180,6 +189,7 @@ certificados, sin cerrarla.
 
 ### Lo que hay que hacer a continuación
 
+0. **Correr `supabase-inspectores-historial-os.sql`** para sincronizar el nombre de acceso (incluida Zona 16) y fijar el inspector histórico de las órdenes existentes.
 0. **Correr `supabase-carga-completa-medicion.sql`** para que a Administración le suene
    el aviso de carga completa. Sin eso el aviso se ve igual, pero no notifica.
 0. **Correr `supabase-comunicaciones-recordatorio.sql`** para habilitar el botón
@@ -293,6 +303,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-07 | `este commit` | Inspectores: sincronizar nombre de sesión y conservar el autor histórico de cada orden | Codex |
 | 2026-09-04 | `este commit` | Certificados: conservar ID al retirar módulos manuales para mostrar aprobación, contadores y seguimiento | Codex |
 | 2026-09-04 | `este commit` | Estado edilicio: quitar Otros de catálogo y cálculos; unificar promedio de ficha y conservar históricos | Codex |
 | 2026-09-03 | `este commit` | Estado edilicio: evitar repetir las observaciones generales en cada fila y exportación de rubro | Codex |

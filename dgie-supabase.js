@@ -416,6 +416,15 @@
     async actualizarInspector(zona, row){
       return upsertOne('inspectores_zona', { zona, ...row }, { onConflict:'zona' }, 'ese inspector');
     },
+    async actualizarInspectorCompleto(zona, row){
+      return client.rpc('dgie_actualizar_inspector_zona', {
+        p_zona:Number(zona),
+        p_nombre:String(row?.nombre || '').trim(),
+        p_email:String(row?.email || '').trim() || null,
+        p_telefono:String(row?.telefono || '').trim() || null,
+        p_cuit:String(row?.cuit || '').trim() || null
+      });
+    },
     async listarEmpresas(){
       return client.from('empresas_zona').select('*').order('zona', { ascending:true });
     },

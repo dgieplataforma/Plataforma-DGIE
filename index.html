@@ -1092,24 +1092,31 @@ function openEditInspector(idx){
 }
 
 async function guardarInspector(idx){
-  INSPECTORS_DATA[idx]={
-    ...INSPECTORS_DATA[idx],
-    nombre:document.getElementById('ins-nombre')?.value.trim()||INSPECTORS_DATA[idx].nombre,
+  const anterior={...INSPECTORS_DATA[idx]};
+  const siguiente={
+    ...anterior,
+    nombre:document.getElementById('ins-nombre')?.value.trim()||anterior.nombre,
     email:document.getElementById('ins-email')?.value.trim()||'',
     telefono:document.getElementById('ins-telefono')?.value.trim()||'',
     cuit:document.getElementById('ins-cuit')?.value.trim()||''
   };
-  const nuevoNombre=document.getElementById('ins-nombre')?.value.trim();
-  if(nuevoNombre)INSPECTORS[idx]=nuevoNombre;
-  if(window.DGIE_DB?.isConfigured&&window.DGIE_DB.actualizarInspector){
-    const{error}=await window.DGIE_DB.actualizarInspector(idx+1,{
-      nombre:INSPECTORS_DATA[idx].nombre,
-      email:INSPECTORS_DATA[idx].email,
-      telefono:INSPECTORS_DATA[idx].telefono,
-      cuit:INSPECTORS_DATA[idx].cuit
-    });
-    if(error)console.warn('No se pudo guardar el inspector en el servicio remoto:',error.message);
+  if(window.DGIE_DB?.isConfigured){
+    if(typeof window.DGIE_DB.actualizarInspectorCompleto!=='function'){
+      alert('La actualización integral de inspectores todavía no está habilitada.');
+      return;
+    }
+    const{error}=await window.DGIE_DB.actualizarInspectorCompleto(idx+1,siguiente);
+    if(error){
+      const msg=String(error.message||error);
+      alert(/dgie_actualizar_inspector_zona|PGRST202|schema cache|does not exist/i.test(msg)
+        ?'Falta habilitar una vez la actualización integral de inspectores.'
+        :'No se pudieron guardar los cambios del inspector. '+msg);
+      return;
+    }
   }
+  INSPECTORS_DATA[idx]=siguiente;
+  INSPECTORS[idx]=siguiente.nombre;
+  if(ZONE_DATA[idx+1])ZONE_DATA[idx+1].inspector=siguiente.nombre;
   try{localStorage.setItem('dgie_inspectors_data',JSON.stringify(INSPECTORS_DATA));}catch(e){}
   renderAdmInspectores(document.getElementById('adm-body'));
 }
@@ -2386,13 +2393,13 @@ function openNuevaOSDesdeReclamo(numeroCodificado,estId){
   },120);
 }
 function editarOS(id){const os=OS_ZONA.find(o=>o.id===id);if(os)renderOSForm(os,currentUser?.role==='inspector')}
-function dateToInput(fecha){if(!fecha)return '';const p=String(fecha).split('/');if(p.length<3)return '';const yy=p[2].length===2?'20'+p[2]:p[2];return `${yy}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`}function datosFijosZona(z){
+function dateToInput(fecha){if(!fecha)return '';const p=String(fecha).split('/');if(p.length<3)return '';const yy=p[2].length===2?'20'+p[2]:p[2];return `${yy}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`}function datosFijosZona(z,orden=null){
   const emp=EMPRESAS_DATA[Number(z)]||{};
   return{
     empresa:emp.razonSocial||`Empresa contratista Zona ${z}`,
     cuit:emp.cuit||'—',
     exp:emp.expediente||`EXP-${new Date().getFullYear()}-Z${String(z).padStart(2,'0')}`,
-    inspector:INSPECTORS[Number(z)-1]||'—',
+    inspector:String(orden?.inspector||orden?.inspector_nombre||INSPECTORS[Number(z)-1]||'—'),
     representante:emp.representante||'—',
     domicilio:emp.domicilio||'—',
     telefono:emp.telefono||'—',
@@ -2400,7 +2407,7 @@ function dateToInput(fecha){if(!fecha)return '';const p=String(fecha).split('/')
   };
 }function actualizarFormularioOS(editId=null){const estId=Number($('nos-establecimiento')?.value||0),z=zonaEstablecimiento(estId),datos=datosFijosZona(z);if($('nos-empresa'))$('nos-empresa').textContent=datos.empresa;if($('nos-cuit'))$('nos-cuit').textContent=datos.cuit;if($('nos-exp'))$('nos-exp').textContent=datos.exp;if($('nos-inspector'))$('nos-inspector').textContent=datos.inspector;const reclamos=RECLAMOS_ZONA.filter(r=>r.estId===estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite')),box=$('nos-reclamos-box');if(!box)return;box.innerHTML=reclamos.length?`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="sin_reclamo"><div><div class="check-title">No responde a ningún reclamo</div><div class="check-meta">Usar cuando la orden surge por inspección o mantenimiento preventivo.</div></div></label>${reclamos.map((r,idx)=>`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="${idx}"><div><div class="check-title">${r.titulo}</div><div class="check-meta">${r.fecha} · ${r.rubro||'Sin rubro'} · ${r.os}</div></div></label>`).join('')}`:`<label class="check-row"><input type="checkbox" name="nos-reclamo" value="sin_reclamo" checked><div><div class="check-title">No hay reclamos pendientes</div><div class="check-meta">La orden se cargará sin reclamo asociado.</div></div></label>`}function formatInputDate(fechaISO){return fechaISO?normalizarFechaCorta(fechaISO):''}
 function obtenerDatosOSForm(){const estId=Number($('nos-establecimiento')?.value||0),est=ESTABS.find(e=>e.id===estId),numero=$('nos-numero')?.value.trim(),rubro=$('nos-rubro')?.value,tarea=$('nos-tarea')?.value.trim(),fechaISO=$('nos-fecha')?.value,fechaFinISO=$('nos-fecha-fin')?.value,estado=$('nos-estado')?.value||'Pendiente',prio=$('nos-prio')?.value||'medio',monto=$('nos-monto')?.value||'—';if(!est||!numero||!rubro||!tarea){if($('nos-error'))$('nos-error').style.display='block';return null}return{estId,est,numero,rubro,tarea,fecha:formatInputDate(fechaISO),fechaFinalizacion:formatInputDate(fechaFinISO),estado,prio,monto,presupuestoItems:getPresupuestoItemsFromDOM()} }
-function guardarNuevaOS(){const data=obtenerDatosOSForm();if(!data)return;const checks=[...document.querySelectorAll('input[name="nos-reclamo"]:checked')].map(x=>x.value).filter(v=>v!=='sin_reclamo'),pendientes=RECLAMOS_ZONA.filter(r=>r.estId===data.estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite'));const reclamoNumero=checks.map(v=>pendientes[Number(v)]?.numero).filter(Boolean).join(', ');OS_ZONA.unshift({id:(OS_ZONA.length?Math.max(...OS_ZONA.map(o=>o.id)):0)+1,numero:data.numero,reclamoNumero,titulo:data.rubro,est:data.est.n,establecimiento:data.est.n,tarea:data.tarea,rubro:data.rubro,estado:data.estado,fecha:data.fecha,fechaFinalizacion:data.estado==='Finalizada'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems,prio:data.prio,estId:data.estId});checks.forEach(v=>{const r=pendientes[Number(v)];if(r)r.os=data.numero});if(currentUser?.role==='inspector'){
+function guardarNuevaOS(){const data=obtenerDatosOSForm();if(!data)return;const checks=[...document.querySelectorAll('input[name="nos-reclamo"]:checked')].map(x=>x.value).filter(v=>v!=='sin_reclamo'),pendientes=RECLAMOS_ZONA.filter(r=>r.estId===data.estId&&(r.os==='Sin OS'||r.os==='Pendiente'||r.os==='En trámite'));const reclamoNumero=checks.map(v=>pendientes[Number(v)]?.numero).filter(Boolean).join(', '),zona=Number(data.est.zona||zonaEstablecimiento(data.estId)||currentUser?.zona||0),inspector=String(INSPECTORS[zona-1]||currentUser?.name||'Inspector');OS_ZONA.unshift({id:(OS_ZONA.length?Math.max(...OS_ZONA.map(o=>o.id)):0)+1,numero:data.numero,reclamoNumero,titulo:data.rubro,est:data.est.n,establecimiento:data.est.n,tarea:data.tarea,rubro:data.rubro,estado:data.estado,fecha:data.fecha,fechaFinalizacion:data.estado==='Finalizada'?(data.fechaFinalizacion||new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})):data.fechaFinalizacion,monto:data.monto,presupuesto:data.presupuestoItems.reduce((a,it)=>a+Number(it.modulos||0),0),presupuestoItems:data.presupuestoItems,prio:data.prio,estId:data.estId,zona,inspector});checks.forEach(v=>{const r=pendientes[Number(v)];if(r)r.os=data.numero});if(currentUser?.role==='inspector'){
     renderOSZona($('main-content'));
   } else {
     renderOSGeneral($('main-content'));
@@ -2420,7 +2427,7 @@ function renderOSTable(data){const el=$('os-table-body');if(!el)return;data=(dat
 function sanitizeFileName(value){return String(value||'').replace(/[\/:*?"<>|]/g,'').trim()}
 function getOSFileBaseName(os){const z=zonaEstablecimiento(os.estId);const n=String(os.id||1).replace(/[^0-9]/g,'')||'1';const est=sanitizeFileName(os.establecimiento||'Establecimiento');return `Z${z} - O.S. ${n} - ${est}`}
 function numeroOSSoloNumero(numero){const match=String(numero||'').match(/(\d+)(?!.*\d)/);return match?String(Number(match[1])):''}
-function buildOSPrintHTML(id){const os=OS_ZONA.find(o=>o.id===id);if(!os)return '';const z=zonaEstablecimiento(os.estId);const datos=datosFijosZona(z);const est=ESTABS.find(e=>e.id===os.estId);const direccion=est?.dir||'#N/D';const titulo=`ORDEN DE SERVICIO - RENGLON N° ${String(z).padStart(2,'0')} - ZONA N° ${z}`;const nro=numeroOSSoloNumero(os.numero);return `
+function buildOSPrintHTML(id){const os=OS_ZONA.find(o=>o.id===id);if(!os)return '';const z=zonaEstablecimiento(os.estId);const datos=datosFijosZona(z,os);const est=ESTABS.find(e=>e.id===os.estId);const direccion=est?.dir||'#N/D';const titulo=`ORDEN DE SERVICIO - RENGLON N° ${String(z).padStart(2,'0')} - ZONA N° ${z}`;const nro=numeroOSSoloNumero(os.numero);return `
 <div class="os-export-name">Nombre sugerido: ${getOSFileBaseName(os)}.pdf</div>
 <div class="os-page">
     <div class="os-title-pdf">${titulo}</div>
@@ -3118,7 +3125,7 @@ async function persistirFotosSupabase(entidadTipo,entidadId,fotos,estId,zona){
 async function persistirOrdenSupabase(o){
   if(!o||o._remoteSaved||!window.DGIE_DB?.isConfigured||typeof window.DGIE_DB.crearOrden!=='function')return;
   const estado=estadoOSCanon(o.estado);
-  const {data,error}=await window.DGIE_DB.crearOrden({
+  const payload={
     numero:o.numero,
     reclamo_numero:o.reclamoNumero||null,
     establecimiento_id:Number(o.estId)||null,
@@ -3130,8 +3137,14 @@ async function persistirOrdenSupabase(o){
     fecha_envio:fechaLocalAISO(o.fecha),
     fecha_finalizacion:estado==='finalizado'?fechaLocalAISO(o.fechaFinalizacion):null,
     monto:o.monto||null,
-    presupuesto:presupuestoOSParaDB(o)
-  });
+    presupuesto:presupuestoOSParaDB(o),
+    inspector_nombre:o.inspector||INSPECTORS[Number(o.zona||zonaEstablecimiento(o.estId)||1)-1]||currentUser?.name||'Inspector'
+  };
+  let {data,error}=await window.DGIE_DB.crearOrden(payload);
+  if(error&&/inspector_nombre|schema cache|column/i.test(String(error.message||''))){
+    const compatible={...payload};delete compatible.inspector_nombre;
+    ({data,error}=await window.DGIE_DB.crearOrden(compatible));
+  }
   if(error){
     console.warn('No se pudo guardar la orden en el servicio remoto',error);
     const msg=String(error.message||'').toLowerCase();
@@ -3141,6 +3154,7 @@ async function persistirOrdenSupabase(o){
     return{ok:false,error};
   }
   o.remoteId=data?.id||o.remoteId;
+  o.inspector=data?.inspector_nombre||o.inspector||'';
   o._remoteSaved=true;
   return{ok:true,data};
 }
@@ -5271,7 +5285,8 @@ function renderChartInsp(){
       empresaFinalizoFecha:row.empresa_finalizo_fecha||null,
       empresaFinalizoPor:row.empresa_finalizo_por||null,
       estId:Number(row.establecimiento_id)||null,
-      zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id)
+      zona:Number(row.zona)||zonaEstablecimiento(row.establecimiento_id),
+      inspector:row.inspector_nombre||''
     };
   }
   function mapRemoteIntervencion(row,idx){
@@ -5424,7 +5439,7 @@ function renderChartInsp(){
           const idx=Number(row.zona)-1;
           if(idx>=0&&INSPECTORS_DATA[idx]){
             Object.assign(INSPECTORS_DATA[idx],{nombre:row.nombre||INSPECTORS_DATA[idx].nombre,email:row.email||'',telefono:row.telefono||'',cuit:row.cuit||''});
-            if(row.nombre)INSPECTORS[idx]=row.nombre;
+            if(row.nombre){INSPECTORS[idx]=row.nombre;if(ZONE_DATA[idx+1])ZONE_DATA[idx+1].inspector=row.nombre;}
           }
         });
         try{localStorage.setItem('dgie_inspectors_data',JSON.stringify(INSPECTORS_DATA));}catch(e){}
