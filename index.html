@@ -26858,7 +26858,10 @@ body.dgie-cumple-activo :is(.card,.metric-card,.ficha-header,.ficha-body){border
 .dgie-cumple-acciones{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:8px;text-shadow:none}
 .dgie-cumple-accion{min-height:31px;padding:5px 11px;border:1px solid rgba(255,255,255,.8);border-radius:999px;background:rgba(255,255,255,.95);color:color-mix(in srgb,var(--dgie-cumple-color,#c62828) 85%,#1f2937);font-size:11px;font-weight:900;cursor:pointer;box-shadow:0 3px 8px rgba(69,0,0,.15)}
 .dgie-cumple-accion:hover{background:#fff;transform:translateY(-1px)}.dgie-cumple-accion:focus-visible{outline:3px solid #ffd54f;outline-offset:2px}
-.dgie-cumple-saludo-lista{display:grid;gap:10px}.dgie-cumple-saludo-item{padding:12px;border:1px solid #e1e7ef;border-left:4px solid var(--dgie-cumple-color,#c62828);border-radius:10px;background:#fff}.dgie-cumple-saludo-texto{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.45}.dgie-cumple-saludo-meta{margin-top:7px;color:#64748b;font-size:11px;font-weight:800}.dgie-cumple-saludo-error{display:none;margin-top:8px;color:#b42318;font-size:12px;font-weight:800}.dgie-cumple-saludo-ayuda{margin-top:6px;color:#64748b;font-size:11px}
+/* Siete saludos por vez: medido, cada uno ocupa 68,3px y van separados 10, asi
+   que la caja es 7*68,3+6*10. En pantallas bajas manda lo que entre, para que la
+   ventana no se desborde. */
+.dgie-cumple-saludo-lista{display:grid;gap:10px;max-height:min(538px,calc(100dvh - 180px));overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:5px}.dgie-cumple-saludo-item{padding:12px;border:1px solid #e1e7ef;border-left:4px solid var(--dgie-cumple-color,#c62828);border-radius:10px;background:#fff}.dgie-cumple-saludo-texto{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.45}.dgie-cumple-saludo-meta{margin-top:7px;color:#64748b;font-size:11px;font-weight:800}.dgie-cumple-saludo-error{display:none;margin-top:8px;color:#b42318;font-size:12px;font-weight:800}.dgie-cumple-saludo-ayuda{margin-top:6px;color:#64748b;font-size:11px}
 @media(max-width:680px){.dgie-cumple-acciones{gap:5px;margin-top:7px}.dgie-cumple-accion{min-height:30px;padding:5px 9px;font-size:10px}}
 </style>
 <script id="dgie-cumple-saludos-2026-09-02">

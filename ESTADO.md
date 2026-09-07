@@ -304,6 +304,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-07 | `este commit` | Cumpleaños: la lista de saludos muestra siete por vez y se desplaza. Alto medido (68,3 px por saludo), no estimado | Codex + Claude Code |
 | 2026-09-07 | `este commit` | Cumpleaños: actualizar el nombre visible del autor en saludos anteriores y futuros | Codex |
 | 2026-09-07 | `este commit` | Inspectores: sincronizar nombre de sesión y conservar el autor histórico de cada orden | Codex |
 | 2026-09-04 | `este commit` | Certificados: conservar ID al retirar módulos manuales para mostrar aprobación, contadores y seguimiento | Codex |
