@@ -111,7 +111,10 @@ participa de ese circuito.
   ni el hilo, ni el estado de la observación, ni "Administración aprobó este certificado".
 - **La empresa conserva su Planilla de control** por medición, en una vista propia
   (`abrirPlanillaControlEmpresa`): su certificado, los montos, la diferencia y Descargar
-  Excel. Sin acciones del inspector ni PDF firmado ni liquidación.
+  Excel. Sin acciones del inspector ni liquidación.
+- **El PDF de la medición firmada sí lo ve**, y lo puede descargar: es el papel que firma
+  ella misma. Sólo eso: no lo sube, no lo reemplaza y no ve el total de módulos que carga el
+  inspector para el presupuesto. Si todavía no está cargado, lo dice.
 - **La empresa sigue escribiéndole al inspector.** Ese canal es de los dos.
 - **Administración ve la conversación con la empresa**, igual que el inspector.
 - La causa original del agujero: la pantalla de la empresa llamaba a
