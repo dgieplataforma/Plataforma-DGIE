@@ -28679,5 +28679,163 @@ window.dgieGuardarPlanillaFirmada=async function(zona,lectura,archivo){
 };
 })();
 </script>
+<style id="dgie-cert-resumen-zonas-2026-09-08">
+.dgie-rz-wrap{margin:14px 0}
+.dgie-rz-table{width:100%;border-collapse:collapse;font-size:13px}
+.dgie-rz-table th,.dgie-rz-table td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;white-space:nowrap}
+.dgie-rz-table th:first-child,.dgie-rz-table td:first-child{text-align:left}
+.dgie-rz-table thead th{background:#eef4fb;color:#123c69;font-size:11px;text-transform:uppercase;letter-spacing:.03em;border-bottom:2px solid #cbd9e8}
+.dgie-rz-table tbody tr:hover{background:#f8fafc}
+.dgie-rz-table tfoot th{background:#123c69;color:#fff;border-bottom:0}
+.dgie-rz-n{font-weight:900;color:#123c69}
+.dgie-rz-m{font-size:11px;color:#64748b;display:block}
+.dgie-rz-cero{color:#cbd5e1;font-weight:400}
+.dgie-rz-table tfoot .dgie-rz-n,.dgie-rz-table tfoot .dgie-rz-m{color:#fff}
+@media(max-width:760px){.dgie-rz-scroll{overflow-x:auto}.dgie-rz-table{min-width:620px}}
+</style>
+<script id="dgie-cert-resumen-zonas-2026-09-08">
+(function(){
+'use strict';
+// ────────────────────────────────────────────────────────────────────
+// Certificados por zona, para Administración y Coordinación
+// ────────────────────────────────────────────────────────────────────
+// Es un panorama, no una bandeja: cuántos certificados hay en cada estado y
+// cuántos módulos representan, zona por zona. No se entra a ver el detalle
+// desde acá; para eso está la bandeja de Administración.
+
+// Las claves son las que usa el modulo de certificacion, no las etiquetas: al
+// observado lo llama internamente `revision` y al anulado `eliminado`.
+const ESTADOS=[
+  ['pendiente','Pendientes'],
+  ['revision','Observados'],
+  ['devuelto','Devueltos'],
+  ['eliminado','Anulados']
+];
+const esc=v=>typeof escapeHtml==='function'?escapeHtml(v):String(v??'');
+const num=v=>Number(String(v??'').replace(',','.'))||0;
+const mods=v=>num(v).toLocaleString('es-AR',{minimumFractionDigits:3,maximumFractionDigits:3});
+const rol=()=>String((typeof currentUser!=='undefined'?currentUser:null)?.role||'').toLowerCase();
+const puedeVerlo=()=>['administracion','coordinador','director','direccion'].includes(rol());
+function certs(){
+  try{ return Array.isArray(CERTIFICADOS_MEDICION)?CERTIFICADOS_MEDICION:[] }catch(_){ return [] }
+}
+// El estado lo decide el mismo modulo que arma las colas, para que los numeros
+// de este resumen y los de la bandeja no puedan discrepar.
+function estadoDe(c){
+  const fn=window.DGIE_CERTIFICACION_FLUJO?.estadoFlujo;
+  return String(typeof fn==='function'?fn(c):(c?.estado||'pendiente')).toLowerCase();
+}
+function zonaDe(c){
+  return Number(typeof window.zonaCertificado==='function'?window.zonaCertificado(c):c?.zona)||0;
+}
+
+// Los modulos se cuentan de lo que declaro la empresa, que es el unico numero
+// que existe siempre: un certificado pendiente todavia no tiene el del inspector.
+function resumen(){
+  const porZona=new Map();
+  certs().forEach(c=>{
+    const estado=estadoDe(c);
+    if(!ESTADOS.some(([k])=>k===estado))return;      // los medidos ya salieron de la cola
+    const z=zonaDe(c);
+    if(!z)return;
+    if(!porZona.has(z)){
+      const fila={zona:z};
+      ESTADOS.forEach(([k])=>{fila[k]={cantidad:0,modulos:0}});
+      porZona.set(z,fila);
+    }
+    const celda=porZona.get(z)[estado];
+    celda.cantidad++;
+    celda.modulos+=num(c?.modulos_original);
+  });
+  return [...porZona.values()].sort((a,b)=>a.zona-b.zona);
+}
+window.dgieResumenCertificadosPorZona=resumen;
+
+function celda(d){
+  if(!d||!d.cantidad)return '<td><span class="dgie-rz-cero">—</span></td>';
+  return `<td><span class="dgie-rz-n">${d.cantidad}</span><span class="dgie-rz-m">${mods(d.modulos)} módulos</span></td>`;
+}
+function tablaHTML(){
+  const filas=resumen();
+  if(!filas.length)return '<div class="dgie-rz-wrap"><div style="padding:22px;text-align:center;color:var(--muted)">No hay certificados en circulación.</div></div>';
+  const totales={};
+  ESTADOS.forEach(([k])=>{totales[k]={cantidad:0,modulos:0}});
+  filas.forEach(f=>ESTADOS.forEach(([k])=>{totales[k].cantidad+=f[k].cantidad;totales[k].modulos+=f[k].modulos}));
+  const inspector=z=>{try{return INSPECTORS[Number(z)-1]||''}catch(_){return ''}};
+  return `<div class="dgie-rz-wrap">
+    <div class="card-header" style="margin-bottom:8px"><div>
+      <div class="card-title">Certificados por zona</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">Cuántos hay en cada estado y qué módulos representan. Los módulos son los declarados por la empresa.</div>
+    </div></div>
+    <div class="dgie-rz-scroll"><table class="dgie-rz-table">
+      <thead><tr><th>Zona</th>${ESTADOS.map(([,t])=>`<th>${t}</th>`).join('')}<th>Total</th></tr></thead>
+      <tbody>${filas.map(f=>{
+        const n=ESTADOS.reduce((a,[k])=>a+f[k].cantidad,0);
+        const m=ESTADOS.reduce((a,[k])=>a+f[k].modulos,0);
+        const nombre=inspector(f.zona);
+        return `<tr>
+          <td><strong>Zona ${f.zona}</strong>${nombre?`<span class="dgie-rz-m">${esc(nombre)}</span>`:''}</td>
+          ${ESTADOS.map(([k])=>celda(f[k])).join('')}
+          ${celda({cantidad:n,modulos:m})}
+        </tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr>
+        <th>Totales</th>
+        ${ESTADOS.map(([k])=>`<th><span class="dgie-rz-n">${totales[k].cantidad}</span><span class="dgie-rz-m">${mods(totales[k].modulos)} módulos</span></th>`).join('')}
+        <th><span class="dgie-rz-n">${ESTADOS.reduce((a,[k])=>a+totales[k].cantidad,0)}</span><span class="dgie-rz-m">${mods(ESTADOS.reduce((a,[k])=>a+totales[k].modulos,0))} módulos</span></th>
+      </tr></tfoot>
+    </table></div>
+  </div>`;
+}
+window.dgieTablaCertificadosPorZona=tablaHTML;
+
+// ── Donde aparece ───────────────────────────────────────────────────
+// En Administración, arriba de su bandeja. En Coordinación, como una pestaña
+// mas de su pantalla de Administración.
+function ponerEnBandejaAdministracion(){
+  if(rol()!=='administracion')return;
+  const ancla=document.getElementById('adm-contadores');
+  if(!ancla)return;
+  let caja=document.getElementById('dgie-rz-admin');
+  if(!caja){
+    caja=document.createElement('div');
+    caja.id='dgie-rz-admin';
+    ancla.insertAdjacentElement('afterend',caja);
+  }
+  const html=tablaHTML();
+  if(caja.dataset.firma!==html){caja.dataset.firma=html;caja.innerHTML=html}
+}
+
+const renderAdmPrev=window.renderAdministracion;
+if(typeof renderAdmPrev==='function'){
+  window.renderAdministracion=function(container){
+    const out=renderAdmPrev.apply(this,arguments);
+    const tabs=container?.querySelector?.('.dashboard-tabs');
+    if(tabs&&!tabs.querySelector('#adm-tab-certificados')){
+      tabs.insertAdjacentHTML('beforeend',
+        '<button class="dashboard-tab" id="adm-tab-certificados" onclick="switchAdmTab(\'certificados\')">Certificados por zona</button>');
+    }
+    return out;
+  };
+}
+const switchPrev=window.switchAdmTab;
+if(typeof switchPrev==='function'){
+  window.switchAdmTab=function(tab){
+    if(tab!=='certificados'){
+      document.getElementById('adm-tab-certificados')?.classList.remove('active');
+      return switchPrev.apply(this,arguments);
+    }
+    ['empresas','inspectores','estabs'].forEach(t=>document.getElementById('adm-tab-'+t)?.classList.remove('active'));
+    document.getElementById('adm-tab-certificados')?.classList.add('active');
+    const cuerpo=document.getElementById('adm-body');
+    if(cuerpo)cuerpo.innerHTML=`<div class="card">${tablaHTML()}</div>`;
+  };
+}
+
+new MutationObserver(()=>setTimeout(ponerEnBandejaAdministracion,0))
+  .observe(document.body,{childList:true,subtree:true});
+window.dgieMostrarResumenCertificadosPorZona=ponerEnBandejaAdministracion;
+})();
+</script>
 </body>
 </html>

@@ -141,6 +141,23 @@ participa de ese circuito.
 - El borrado explícito del inspector, con su confirmación, sigue limpiando: eso es a
   propósito.
 
+**Certificados por zona.** Panorama para Administración y Coordinación.
+
+- Tabla con una fila por zona y, en cada estado —Pendientes, Observados, Devueltos,
+  Anulados—, **cuántos certificados hay y cuántos módulos representan**, más el total por
+  zona y la fila de totales generales.
+- Es sólo panorama: desde acá no se entra al detalle. Para eso está la bandeja.
+- **Administración** la ve arriba de su bandeja. **Coordinación** la tiene como una pestaña
+  más en su pantalla de Administración, junto a Empresas, Inspectores y Establecimientos.
+  Inspector y empresa no la ven.
+- Los módulos son los **declarados por la empresa** (`modulos_original`), que es el único
+  número que existe siempre: un certificado pendiente todavía no tiene el del inspector.
+- El estado lo decide `DGIE_CERTIFICACION_FLUJO.estadoFlujo`, el mismo que arma las colas,
+  para que este resumen y la bandeja no puedan discrepar. **Ojo con las claves internas:**
+  al observado lo llama `revision` y al anulado `eliminado`, no como sus etiquetas. Usar
+  `observado` hacía que esos certificados se contaran como pendientes.
+- Los certificados ya medidos quedan fuera: salieron de la cola.
+
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada
