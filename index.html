@@ -7284,8 +7284,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div style="max-height:500px;overflow-y:auto;padding-right:2px">${renderCertificadosList(pendientes,inspector)}</div>
     </div>
     <div class="med-card">
-      <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">${inspector?'Mediciones':'Planillas de control'}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Los certificados aprobados se agrupan por número de medición.</div></div><span class="badge b-ok">${new Set(medidos.map(c=>c.medicion_numero)).size}</span></div>
-      ${renderBotonesMediciones(data,inspector)}
+      <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Mediciones</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Los certificados aprobados se agrupan por número de medición.</div></div><span class="badge b-ok">${new Set(medidos.map(c=>c.medicion_numero)).size}</span></div>
+      ${renderBotonesMediciones(data)}
     </div>`;
   }
 
@@ -7381,7 +7381,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     $('med-list')&&( $('med-list').innerHTML=renderSeguimientoCertificados(data,true));
   };
 
-  function renderBotonesMediciones(data,inspector=true){
+  function renderBotonesMediciones(data){
     const grupos={};
     certsMedidos(data).forEach(c=>{const k=String(c.medicion_numero);grupos[k]=grupos[k]||[];grupos[k].push(c);});
     const nums=Object.keys(grupos).sort((a,b)=>Number(a)-Number(b));
@@ -7390,7 +7390,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const total=grupos[num].reduce((a,c)=>a+modFinalCert(c),0);
       const fin=esMedicionFinalizada(num);
       const badge=fin?`<span class="badge b-ok" style="font-size:11px;margin-left:4px">✓</span>`:'';
-      return `<button class="secondary-btn med-btn${fin?' is-done':''}" onclick="${inspector?'abrirMedicionInspector':'abrirPlanillaControlEmpresa'}('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
+      return `<button class="secondary-btn med-btn${fin?' is-done':''}" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
     }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`;
   }
   window.abrirMedicionInspector=function(numero){
@@ -7413,17 +7413,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       :`<button class="secondary-btn" onclick="avisarCargaCompleta('${numero}')" title="Avisa a Administración que ya no se cargan más certificados en esta medición">Avisar carga completa</button>`);
     const badgeCarga=!fin&&cargaLista?`<span class="badge b-info" style="font-size:12px;vertical-align:middle;margin-left:8px">✓ Carga completa</span>`:'';
     el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Medición Nº ${escapeHtml(numero)}${badgeFin}${badgeCarga}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions">${btnCarga}${btnFin}<button class="secondary-btn" onclick="descargarZipMedicion('${numero}')">Descargar ZIP</button><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div>${renderCertificadosMedicionDetalle(data)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
-  };
-  // La empresa conserva su planilla de control por medición. Se abre en una
-  // vista propia para no exponer acciones del inspector ni el circuito con
-  // Administración.
-  window.abrirPlanillaControlEmpresa=function(numero){
-    if(currentUser?.role!=='empresa')return;
-    const data=certificadosMedicionZona(numero,currentUser?.zona);
-    const total=data.reduce((a,c)=>a+modFinalCert(c),0);
-    const el=$('med-detalle');
-    if(!el)return;
-    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Planilla de control · Medición Nº ${escapeHtml(numero)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions"><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div><div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
   };
   function renderCertificadosMedicionDetalle(data){
     return data.map(c=>`<div class="med-version-row">
@@ -26233,9 +26222,6 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
 
   // ---------- lo que ve el inspector ----------
   function marcarFilasInspector(){
-    // La empresa no ve nada de Administracion: ni estados, ni notas de
-    // aprobacion, ni observaciones. No tiene que ver con ese circuito.
-    if(String((typeof currentUser!=='undefined'?currentUser:null)?.role||'')==='empresa')return;
     const detalle=byId('med-detalle');
     if(!detalle)return;
     detalle.querySelectorAll('.med-version-row').forEach(fila=>{
@@ -26485,7 +26471,7 @@ const enviarBase=window.dgieEnviarRespuestaAdministracion;
 function company(c){const ms=typeof window.conversacionCert==='function'?(window.conversacionCert(c)||[]):[];return `<div class="dgie-cert-history-title">Inspector–empresa</div><div class="dgie-cert-company-history">${ms.length?ms.map(m=>`<div class="dgie-cert-company-msg"><b>${esc(m?.autor||m?.rol||'Usuario')}</b> · ${esc(m?.texto||'')}</div>`).join(''):'<span style="font-size:12px;color:var(--muted)">Sin mensajes.</span>'}</div>`}
 function identify(card){const b=card.querySelector('[onclick^="dgieAdmObservar"]');return b?.getAttribute('onclick')?.match(/\('([^']+)'\)/)?.[1]||''}
 function enhanceBanner(banner,c){if(!banner||!c)return;if(!banner.dataset.dgieHistorias){banner.dataset.dgieHistorias='1';const hilo=banner.querySelector('.dgie-hilo');if(hilo)hilo.insertAdjacentHTML('beforebegin',company(c)+'<div class="dgie-cert-history-title">Inspector–Administración</div>');else banner.insertAdjacentHTML('afterbegin',company(c))}const box=banner.querySelector('[data-cert-chat]');if(!box||box.dataset.dgieAjustado)return;box.dataset.dgieAjustado='1';box.querySelector('.dgie-cert-chat-measure')?.remove();const text=box.querySelector('textarea'),id=String(c.id||c.localId||'');if(text){const wrap=document.createElement('div');wrap.className='dgie-cert-chat-send';text.parentNode.insertBefore(wrap,text);wrap.appendChild(text);const send=document.createElement('button');send.type='button';send.className='secondary-btn';send.textContent='Enviar mensaje';send.onclick=()=>window.dgieEnviarMensajeAdministracion(id);wrap.appendChild(send)}const btn=[...box.querySelectorAll('button')].find(b=>b.textContent.includes('Enviar respuesta'));if(btn){btn.textContent='Dejar vigente';btn.onclick=()=>window.dgieDejarVigenteCertificado(id)}const help=box.querySelector('.dgie-cert-chat-help');if(help)help.textContent='Seleccioná un certificado nuevo para dejarlo vigente. Administración podrá ver esta versión.'}
-function enhance(){if(String((typeof currentUser!=='undefined'?currentUser:null)?.role||'')==='empresa')return;document.querySelectorAll('#med-detalle .med-version-row').forEach(row=>{const key=safe(row.dataset.certId||row.querySelector('[id^="cert-final-mod-"]')?.id?.replace('cert-final-mod-','')||''),c=certs().find(x=>safe(x?.id||x?.localId)===key);enhanceBanner(row.querySelector('.dgie-obs-banner'),c)});document.querySelectorAll('.dgie-adm-card').forEach(card=>enhanceBanner(card.querySelector('.dgie-obs-banner'),cert(identify(card))))}
+function enhance(){document.querySelectorAll('#med-detalle .med-version-row').forEach(row=>{const key=safe(row.dataset.certId||row.querySelector('[id^="cert-final-mod-"]')?.id?.replace('cert-final-mod-','')||''),c=certs().find(x=>safe(x?.id||x?.localId)===key);enhanceBanner(row.querySelector('.dgie-obs-banner'),c)});document.querySelectorAll('.dgie-adm-card').forEach(card=>enhanceBanner(card.querySelector('.dgie-obs-banner'),cert(identify(card))))}
 window.dgieEnviarMensajeAdministracion=async function(id){const sid=safe(id),file=document.getElementById('cert-chat-file-'+sid);if(file)file.value='';return typeof enviarBase==='function'?enviarBase(id):undefined};
 window.dgieDejarVigenteCertificado=async function(id){const sid=safe(id),file=document.getElementById('cert-chat-file-'+sid),text=document.getElementById('cert-chat-text-'+sid),error=document.getElementById('cert-chat-error-'+sid);if(!file?.files?.length){if(error){error.textContent='Seleccioná el certificado nuevo.';error.style.display='block'}return}if(text&&!text.value.trim())text.value='Se deja vigente una nueva versión del certificado.';return typeof enviarBase==='function'?enviarBase(id):undefined};
 const abrirPrev=window.abrirMedicionInspector;window.abrirMedicionInspector=function(){const out=typeof abrirPrev==='function'?abrirPrev.apply(this,arguments):undefined;setTimeout(enhance,120);setTimeout(enhance,500);return out};
@@ -26512,7 +26498,7 @@ function finalized(c){const h=hist(c),lastObs=h.map(x=>x?.tipo).lastIndexOf('obs
 function adminChanges(c){const h=hist(c),admin=['observado','comentario','aprobado'],inspector=['respuesta','nueva_version','observacion_finalizada'];let lastAdmin=-1;h.forEach((x,i)=>{if(admin.includes(String(x?.tipo||'')))lastAdmin=i});return h.slice(lastAdmin+1).filter(x=>inspector.includes(String(x?.tipo||'')))}
 function adminNotice(c){const changes=adminChanges(c);if(!changes.length)return '';const last=changes[changes.length-1],labels={respuesta:'El inspector envió una respuesta.',nueva_version:'El inspector dejó vigente una nueva versión.',observacion_finalizada:'El inspector finalizó la observación.'};return `<div class="dgie-cert-admin-notice">Novedad del inspector · ${esc(labels[last?.tipo]||'El inspector realizó un cambio.')} Revisá los antecedentes debajo.</div>`}
 function adminSummary(){if(role()!=='administracion')return;const anchor=document.getElementById('adm-contadores');if(!anchor)return;const changed=certs().filter(c=>String(c?.estado||'').toLowerCase()==='medido'&&Number(c?.medicion_numero)>=6&&adminChanges(c).length);let box=document.getElementById('dgie-cert-admin-changes');if(!changed.length){box?.remove();return}if(!box){box=document.createElement('div');box.id='dgie-cert-admin-changes';box.className='dgie-cert-admin-summary';anchor.insertAdjacentElement('afterend',box)}const text=`${changed.length} certificado${changed.length===1?' tiene':'s tienen'} novedades del inspector pendientes de revisar.`;if(box.textContent!==text)box.textContent=text}
-function panel(c){const id=String(c?.id||c?.localId||''),s=safe(id),ins=role()==='inspector',equipo=ins||role()==='administracion',observed=String(c?.revision_admin_estado||'pendiente')==='observado',fin=finalized(c);return `<div class="dgie-cert-follow" data-dgie-cert-follow="${esc(id)}">${!ins?adminNotice(c):''}<div class="dgie-cert-follow-tabs">${equipo?`<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','company')">Conversación con empresa</button>`:''}<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','admin')">${ins?'Conversación con Administración':'Conversación con inspector'}</button><button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','files')">Historial de archivos</button></div>${equipo?`<div id="cert-follow-company-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(companyMsgs(c),'company')}</div>`:''}<div id="cert-follow-admin-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(adminMsgs(c),'admin')}</div><div id="cert-follow-files-${s}" class="dgie-cert-follow-pane" hidden>${filesHTML(c)}</div>${fin?`<div class="dgie-cert-follow-ok">Observación finalizada por el inspector. El historial permanece disponible.</div>`:''}${ins&&observed?`<div class="dgie-cert-follow-actions"><div class="dgie-cert-follow-send"><textarea id="cert-follow-text-${s}" class="form-textarea" placeholder="Escribí un mensaje para Administración..."></textarea><button type="button" class="secondary-btn" onclick="dgieCertEnviarMensaje('${esc(id)}')">Enviar mensaje</button></div><div class="dgie-cert-follow-file"><input id="cert-follow-file-${s}" class="form-input" type="file" accept=".xls,.xlsx,.xlsm" onchange="validarYAutocompletarRevisionCertificado('cert-follow-file-${s}','cert-follow-mod-${s}')"><input id="cert-follow-mod-${s}" class="form-input" type="number" min="0" step="0.001" value="${esc(c?.modulos_inspector||'')}" placeholder="Módulos vigentes"><button type="button" class="primary-btn" onclick="dgieCertDejarVigente('${esc(id)}')">Dejar vigente</button></div><div class="dgie-cert-follow-final"><span style="font-size:11px;color:var(--muted)">Finalizar cierra la observación; no elimina mensajes ni archivos.</span><button type="button" class="primary-btn" style="background:#2e7d32" onclick="dgieCertFinalizarObservacion('${esc(id)}')">Finalizar observación</button></div><div id="cert-follow-error-${s}" class="dgie-cert-follow-error"></div></div>`:''}</div>`}
+function panel(c){const id=String(c?.id||c?.localId||''),s=safe(id),ins=role()==='inspector',observed=String(c?.revision_admin_estado||'pendiente')==='observado',fin=finalized(c);return `<div class="dgie-cert-follow" data-dgie-cert-follow="${esc(id)}">${!ins?adminNotice(c):''}<div class="dgie-cert-follow-tabs">${ins?`<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','company')">Conversación con empresa</button>`:''}<button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','admin')">${ins?'Conversación con Administración':'Conversación con inspector'}</button><button type="button" class="secondary-btn" onclick="dgieToggleCertFollow('${s}','files')">Historial de archivos</button></div>${ins?`<div id="cert-follow-company-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(companyMsgs(c),'company')}</div>`:''}<div id="cert-follow-admin-${s}" class="dgie-cert-follow-pane" hidden>${msgsHTML(adminMsgs(c),'admin')}</div><div id="cert-follow-files-${s}" class="dgie-cert-follow-pane" hidden>${filesHTML(c)}</div>${fin?`<div class="dgie-cert-follow-ok">Observación finalizada por el inspector. El historial permanece disponible.</div>`:''}${ins&&observed?`<div class="dgie-cert-follow-actions"><div class="dgie-cert-follow-send"><textarea id="cert-follow-text-${s}" class="form-textarea" placeholder="Escribí un mensaje para Administración..."></textarea><button type="button" class="secondary-btn" onclick="dgieCertEnviarMensaje('${esc(id)}')">Enviar mensaje</button></div><div class="dgie-cert-follow-file"><input id="cert-follow-file-${s}" class="form-input" type="file" accept=".xls,.xlsx,.xlsm" onchange="validarYAutocompletarRevisionCertificado('cert-follow-file-${s}','cert-follow-mod-${s}')"><input id="cert-follow-mod-${s}" class="form-input" type="number" min="0" step="0.001" value="${esc(c?.modulos_inspector||'')}" placeholder="Módulos vigentes"><button type="button" class="primary-btn" onclick="dgieCertDejarVigente('${esc(id)}')">Dejar vigente</button></div><div class="dgie-cert-follow-final"><span style="font-size:11px;color:var(--muted)">Finalizar cierra la observación; no elimina mensajes ni archivos.</span><button type="button" class="primary-btn" style="background:#2e7d32" onclick="dgieCertFinalizarObservacion('${esc(id)}')">Finalizar observación</button></div><div id="cert-follow-error-${s}" class="dgie-cert-follow-error"></div></div>`:''}</div>`}
 function locate(c){return document.querySelector(`[data-dgie-cert-follow="${CSS.escape(String(c?.id||c?.localId||''))}"]`)}
 function renderOne(c){const old=locate(c);if(old)old.outerHTML=panel(c);setTimeout(()=>window.DGIE_FILE_VIEWER?.refresh?.(),0)}
 function rowCert(row){const key=safe(row.dataset.certId||row.querySelector('[id^="cert-final-mod-"]')?.id?.replace('cert-final-mod-','')||'');return certs().find(x=>safe(x?.id||x?.localId)===key)}
@@ -28077,9 +28063,6 @@ function medicionDeLaTarjeta(cabecera){
   return m?m[1]:'';
 }
 function agregarBotones(){
-  // Resumen mensual y Liquidación son del circuito inspector/coordinación. La
-  // empresa no participa de eso.
-  if(String((typeof currentUser!=='undefined'?currentUser:null)?.role||'')==='empresa')return;
   document.querySelectorAll('#med-detalle .med-card > .card-header, #coord-cert-medicion-detalle .med-card > .card-header').forEach(cab=>{
     const acciones=cab.querySelector('.med-actions');
     if(!acciones||acciones.querySelector('[data-dgie-liq]'))return;

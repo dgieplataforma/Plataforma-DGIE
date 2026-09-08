@@ -100,25 +100,12 @@ sepa dónde quedó todo sin tener que preguntar.
 - Validado con datos simulados, sin escrituras reales: inspector y coordinación en 1280, 450 y
   375 px, persistencia de textos, filtros, consola y desborde horizontal.
 
-**Quién ve qué en un certificado.** Inspector y Administración son un equipo.
+**Certificados.** El 08/09 se restableció `index.html` exactamente al estado funcional del
+commit `7f3d205`, por pedido del usuario.
 
-- **Inspector y Administración ven lo mismo:** las dos conversaciones, la que tienen entre
-  ellos y la del inspector con la empresa. Antes la pestaña "Conversación con empresa" se
-  armaba sólo para el inspector; ahora también para Administración.
-- **La empresa no ve NADA de Administración.** Ni el panel, ni el hilo, ni el estado de la
-  observación, ni los contadores Pendientes/Observados/Aprobados, ni la nota "Administración
-  aprobó este certificado". No tiene que ver con ese circuito.
-- **La causa del agujero:** la pantalla de la empresa abría la grilla de mediciones del
-  inspector, y con ella se disparaban todos los decoradores administrativos. La empresa
-  conserva las Planillas de control por medición, pero ahora se abren en una vista propia:
-  tabla y descarga Excel, sin finalizar/revertir, sin Liquidación ni datos de Administración.
-- Además quedaron guardas por rol en `marcarFilasInspector`, en el `enhance` de los hilos y
-  en `agregarBotones`: aunque algo abra esa pantalla, para la empresa no se decora nada.
-  Verificado forzando las cuatro funciones a mano con sesión de empresa.
-- **La empresa sí conversa con el inspector**, como siempre: ese canal es de los dos y no
-  se toca. (El 07/09 se probó dejarlo de sólo lectura y se revirtió: no era lo pedido.)
-- El banner de observación se inyecta sólo en `#med-detalle` y en las tarjetas de
-  Administración, que no existen en la pantalla de la empresa. Verificado.
+- Quedaron fuera todos los cambios posteriores de conversaciones, visibilidad por rol y
+  Planilla de control de empresa (`deb1655`, `0462a41`, `7c60cd5` y `92789e2`).
+- No se modificó Supabase ni ningún dato real durante la reversión.
 
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
@@ -332,7 +319,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
-| 2026-09-08 | `este commit` | Empresa: restaurar la Planilla de control por medición con vista segura y descarga Excel | Codex |
+| 2026-09-08 | `este commit` | Certificados: restablecer la plataforma al estado funcional de `7f3d205`, sin tocar datos | Codex |
 | 2026-09-07 | `este commit` | Cumpleaños: la lista de saludos muestra siete por vez y se desplaza. Alto medido (68,3 px por saludo), no estimado | Codex + Claude Code |
 | 2026-09-07 | `este commit` | Cumpleaños: actualizar el nombre visible del autor en saludos anteriores y futuros | Codex |
 | 2026-09-07 | `este commit` | Inspectores: sincronizar nombre de sesión y conservar el autor histórico de cada orden | Codex |
