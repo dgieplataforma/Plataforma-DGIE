@@ -147,9 +147,11 @@ participa de ese circuito.
   Anulados—, **cuántos certificados hay y cuántos módulos representan**, más el total por
   zona y la fila de totales generales.
 - Es sólo panorama: desde acá no se entra al detalle. Para eso está la bandeja.
-- **Administración** la ve arriba de su bandeja. **Coordinación** la tiene como una pestaña
-  más en su pantalla de Administración, junto a Empresas, Inspectores y Establecimientos.
-  Inspector y empresa no la ven.
+- **Se ve al entrar a una zona, no como listado general.** Administración, al abrir la zona
+  en su bandeja de Certificados; Coordinación, al elegir la zona en su sección de
+  Certificación. Al volver al listado de zonas desaparece. Inspector y empresa no la ven.
+- Son cuatro recuadros, uno por estado, con el número grande y los módulos debajo. Los que
+  están en cero se muestran apagados, para que se note que están mirados y no faltantes.
 - Los módulos son los **declarados por la empresa** (`modulos_original`), que es el único
   número que existe siempre: un certificado pendiente todavía no tiene el del inspector.
 - El estado lo decide `DGIE_CERTIFICACION_FLUJO.estadoFlujo`, el mismo que arma las colas,

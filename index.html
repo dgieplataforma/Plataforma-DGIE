@@ -28691,6 +28691,15 @@ window.dgieGuardarPlanillaFirmada=async function(zona,lectura,archivo){
 .dgie-rz-m{font-size:11px;color:#64748b;display:block}
 .dgie-rz-cero{color:#cbd5e1;font-weight:400}
 .dgie-rz-table tfoot .dgie-rz-n,.dgie-rz-table tfoot .dgie-rz-m{color:#fff}
+.dgie-rz-titulo{font-size:13px;font-weight:900;color:#123c69;margin-bottom:8px}
+.dgie-rz-botones{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.dgie-rz-boton{padding:12px 14px;border:1px solid #cbd9e8;border-radius:12px;background:#fff;text-align:center}
+.dgie-rz-boton strong{display:block;font-size:12px;color:#123c69;text-transform:uppercase;letter-spacing:.03em}
+.dgie-rz-boton-n{display:block;font-size:26px;font-weight:900;color:#123c69;line-height:1.2}
+.dgie-rz-boton-m{display:block;font-size:11px;color:#64748b}
+.dgie-rz-boton.is-cero{background:#f8fafc;border-style:dashed}
+.dgie-rz-boton.is-cero .dgie-rz-boton-n{color:#cbd5e1}
+.dgie-rz-vacio{padding:20px;text-align:center;color:var(--muted);border:1px dashed #cbd9e8;border-radius:12px;background:#f8fafc}
 @media(max-width:760px){.dgie-rz-scroll{overflow-x:auto}.dgie-rz-table{min-width:620px}}
 </style>
 <script id="dgie-cert-resumen-zonas-2026-09-08">
@@ -28790,51 +28799,101 @@ function tablaHTML(){
 window.dgieTablaCertificadosPorZona=tablaHTML;
 
 // ── Donde aparece ───────────────────────────────────────────────────
-// En Administración, arriba de su bandeja. En Coordinación, como una pestaña
-// mas de su pantalla de Administración.
-function ponerEnBandejaAdministracion(){
+// Los dos perfiles lo ven al entrar a una zona, no como listado general:
+// Coordinación al elegir la zona en su sección de Certificación, y
+// Administración al abrir la zona en su bandeja.
+function botonesDeZona(z){
+  const f=resumen().find(x=>Number(x.zona)===Number(z));
+  if(!f||ESTADOS.every(([k])=>!f[k].cantidad))
+    return '<div class="dgie-rz-vacio">Esta zona no tiene certificados en circulación.</div>';
+  return `<div class="dgie-rz-botones">${ESTADOS.map(([k,titulo])=>{
+    const d=f[k];
+    return `<div class="dgie-rz-boton${d.cantidad?'':' is-cero'}">
+      <strong>${titulo}</strong>
+      <span class="dgie-rz-boton-n">${d.cantidad}</span>
+      <span class="dgie-rz-boton-m">${mods(d.modulos)} módulos</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+window.dgieBotonesCertificadosZona=botonesDeZona;
+
+function pintar(caja,z){
+  const html=`<div class="dgie-rz-titulo">Certificados en circulación · Zona ${z}</div>${botonesDeZona(z)}`;
+  if(caja.dataset.firma===html)return;
+  caja.dataset.firma=html;
+  caja.innerHTML=html;
+}
+
+// Coordinación · Certificación, al elegir la zona.
+function ponerEnCoordinacion(){
+  if(!['coordinador','director','direccion'].includes(rol()))return;
+  const cuerpo=document.getElementById('coord-cert-zona-body');
+  const z=Number(document.getElementById('coord-cert-zona')?.value||0);
+  if(!cuerpo||!z)return;
+  let caja=document.getElementById('dgie-rz-coord');
+  if(!caja){
+    caja=document.createElement('div');
+    caja.id='dgie-rz-coord';
+    caja.style.marginBottom='16px';
+    cuerpo.insertAdjacentElement('afterbegin',caja);
+  }
+  pintar(caja,z);
+}
+const zonaCoordPrev=window.renderCertificacionCoordinadorZona;
+if(typeof zonaCoordPrev==='function'){
+  window.renderCertificacionCoordinadorZona=async function(){
+    const out=await zonaCoordPrev.apply(this,arguments);
+    setTimeout(ponerEnCoordinacion,0);
+    setTimeout(ponerEnCoordinacion,350);
+    return out;
+  };
+}
+
+// Administración, al abrir una zona de su bandeja. La zona la sabe su propio
+// modulo, asi que se toma de sus acciones de navegacion en vez de duplicarla.
+let zonaAdmin=null;
+const abrirZonaPrev=window.dgieAdmAbrirZona;
+if(typeof abrirZonaPrev==='function'){
+  window.dgieAdmAbrirZona=function(z){
+    zonaAdmin=Number(z)||null;
+    const out=abrirZonaPrev.apply(this,arguments);
+    setTimeout(ponerEnAdministracion,0);
+    setTimeout(ponerEnAdministracion,350);
+    return out;
+  };
+}
+const volverPrev=window.dgieAdmVolver;
+if(typeof volverPrev==='function'){
+  window.dgieAdmVolver=function(){
+    const out=volverPrev.apply(this,arguments);
+    // Al volver al listado de zonas ya no corresponde ninguna en particular.
+    setTimeout(()=>{
+      if(!document.querySelector('.dgie-adm-migas')?.textContent?.includes('Zona')){
+        zonaAdmin=null;
+        document.getElementById('dgie-rz-admin')?.remove();
+      }else ponerEnAdministracion();
+    },0);
+    return out;
+  };
+}
+function ponerEnAdministracion(){
   if(rol()!=='administracion')return;
   const ancla=document.getElementById('adm-contadores');
   if(!ancla)return;
+  if(!zonaAdmin){document.getElementById('dgie-rz-admin')?.remove();return}
   let caja=document.getElementById('dgie-rz-admin');
   if(!caja){
     caja=document.createElement('div');
     caja.id='dgie-rz-admin';
+    caja.style.margin='0 0 14px';
     ancla.insertAdjacentElement('afterend',caja);
   }
-  const html=tablaHTML();
-  if(caja.dataset.firma!==html){caja.dataset.firma=html;caja.innerHTML=html}
+  pintar(caja,zonaAdmin);
 }
 
-const renderAdmPrev=window.renderAdministracion;
-if(typeof renderAdmPrev==='function'){
-  window.renderAdministracion=function(container){
-    const out=renderAdmPrev.apply(this,arguments);
-    const tabs=container?.querySelector?.('.dashboard-tabs');
-    if(tabs&&!tabs.querySelector('#adm-tab-certificados')){
-      tabs.insertAdjacentHTML('beforeend',
-        '<button class="dashboard-tab" id="adm-tab-certificados" onclick="switchAdmTab(\'certificados\')">Certificados por zona</button>');
-    }
-    return out;
-  };
-}
-const switchPrev=window.switchAdmTab;
-if(typeof switchPrev==='function'){
-  window.switchAdmTab=function(tab){
-    if(tab!=='certificados'){
-      document.getElementById('adm-tab-certificados')?.classList.remove('active');
-      return switchPrev.apply(this,arguments);
-    }
-    ['empresas','inspectores','estabs'].forEach(t=>document.getElementById('adm-tab-'+t)?.classList.remove('active'));
-    document.getElementById('adm-tab-certificados')?.classList.add('active');
-    const cuerpo=document.getElementById('adm-body');
-    if(cuerpo)cuerpo.innerHTML=`<div class="card">${tablaHTML()}</div>`;
-  };
-}
-
-new MutationObserver(()=>setTimeout(ponerEnBandejaAdministracion,0))
+new MutationObserver(()=>setTimeout(()=>{ponerEnAdministracion();ponerEnCoordinacion()},0))
   .observe(document.body,{childList:true,subtree:true});
-window.dgieMostrarResumenCertificadosPorZona=ponerEnBandejaAdministracion;
+window.dgieMostrarCertificadosDeLaZona=function(){ponerEnAdministracion();ponerEnCoordinacion()};
 })();
 </script>
 </body>
