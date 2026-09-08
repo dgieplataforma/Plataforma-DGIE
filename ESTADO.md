@@ -7,7 +7,7 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-09-07** · commit `este commit`
+Última actualización: **2026-09-08** · commit `este commit`
 
 ---
 
@@ -108,10 +108,10 @@ sepa dónde quedó todo sin tener que preguntar.
 - **La empresa no ve NADA de Administración.** Ni el panel, ni el hilo, ni el estado de la
   observación, ni los contadores Pendientes/Observados/Aprobados, ni la nota "Administración
   aprobó este certificado". No tiene que ver con ese circuito.
-- **La causa del agujero:** la pantalla de la empresa armaba la grilla de mediciones del
-  inspector, y al abrir una se disparaban todos los decoradores —estados de Administración,
-  hilos, Avisar carga completa, Resumen mensual y Liquidación—, que se enganchan a
-  `abrirMedicionInspector` sin mirar el rol. La grilla ahora es sólo del inspector.
+- **La causa del agujero:** la pantalla de la empresa abría la grilla de mediciones del
+  inspector, y con ella se disparaban todos los decoradores administrativos. La empresa
+  conserva las Planillas de control por medición, pero ahora se abren en una vista propia:
+  tabla y descarga Excel, sin finalizar/revertir, sin Liquidación ni datos de Administración.
 - Además quedaron guardas por rol en `marcarFilasInspector`, en el `enhance` de los hilos y
   en `agregarBotones`: aunque algo abra esa pantalla, para la empresa no se decora nada.
   Verificado forzando las cuatro funciones a mano con sesión de empresa.
@@ -332,6 +332,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-08 | `este commit` | Empresa: restaurar la Planilla de control por medición con vista segura y descarga Excel | Codex |
 | 2026-09-07 | `este commit` | Cumpleaños: la lista de saludos muestra siete por vez y se desplaza. Alto medido (68,3 px por saludo), no estimado | Codex + Claude Code |
 | 2026-09-07 | `este commit` | Cumpleaños: actualizar el nombre visible del autor en saludos anteriores y futuros | Codex |
 | 2026-09-07 | `este commit` | Inspectores: sincronizar nombre de sesión y conservar el autor histórico de cada orden | Codex |

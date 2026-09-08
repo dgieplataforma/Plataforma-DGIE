@@ -7283,10 +7283,10 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Certificados pendientes</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Acá quedan los certificados sin aprobar o en revisión.</div></div><div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap"><span class="badge b-info">${pendientes.length}</span><span class="badge b-neutral">${mods(totalEmpresaPendientes)} módulos empresa</span></div></div>
       <div style="max-height:500px;overflow-y:auto;padding-right:2px">${renderCertificadosList(pendientes,inspector)}</div>
     </div>
-    ${inspector?`<div class="med-card">
-      <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">Mediciones</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Los certificados aprobados se agrupan por número de medición.</div></div><span class="badge b-ok">${new Set(medidos.map(c=>c.medicion_numero)).size}</span></div>
-      ${renderBotonesMediciones(data)}
-    </div>`:''}`;
+    <div class="med-card">
+      <div class="card-header" style="margin-bottom:8px"><div><div class="card-title">${inspector?'Mediciones':'Planillas de control'}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Los certificados aprobados se agrupan por número de medición.</div></div><span class="badge b-ok">${new Set(medidos.map(c=>c.medicion_numero)).size}</span></div>
+      ${renderBotonesMediciones(data,inspector)}
+    </div>`;
   }
 
   const PRESUPUESTO_MODULOS_CERT={total:11300,y2026:9420,y2027:1880};
@@ -7381,7 +7381,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     $('med-list')&&( $('med-list').innerHTML=renderSeguimientoCertificados(data,true));
   };
 
-  function renderBotonesMediciones(data){
+  function renderBotonesMediciones(data,inspector=true){
     const grupos={};
     certsMedidos(data).forEach(c=>{const k=String(c.medicion_numero);grupos[k]=grupos[k]||[];grupos[k].push(c);});
     const nums=Object.keys(grupos).sort((a,b)=>Number(a)-Number(b));
@@ -7390,7 +7390,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       const total=grupos[num].reduce((a,c)=>a+modFinalCert(c),0);
       const fin=esMedicionFinalizada(num);
       const badge=fin?`<span class="badge b-ok" style="font-size:11px;margin-left:4px">✓</span>`:'';
-      return `<button class="secondary-btn med-btn${fin?' is-done':''}" onclick="abrirMedicionInspector('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
+      return `<button class="secondary-btn med-btn${fin?' is-done':''}" onclick="${inspector?'abrirMedicionInspector':'abrirPlanillaControlEmpresa'}('${num}')"><strong>Medición Nº ${escapeHtml(num)}${badge}</strong><span>${grupos[num].length} certificados · ${mods(total)} módulos</span></button>`;
     }).join('')}</div><div id="med-detalle" style="margin-top:14px"></div>`;
   }
   window.abrirMedicionInspector=function(numero){
@@ -7413,6 +7413,17 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       :`<button class="secondary-btn" onclick="avisarCargaCompleta('${numero}')" title="Avisa a Administración que ya no se cargan más certificados en esta medición">Avisar carga completa</button>`);
     const badgeCarga=!fin&&cargaLista?`<span class="badge b-info" style="font-size:12px;vertical-align:middle;margin-left:8px">✓ Carga completa</span>`:'';
     el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Medición Nº ${escapeHtml(numero)}${badgeFin}${badgeCarga}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions">${btnCarga}${btnFin}<button class="secondary-btn" onclick="descargarZipMedicion('${numero}')">Descargar ZIP</button><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div>${renderCertificadosMedicionDetalle(data)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
+  };
+  // La empresa conserva su planilla de control por medición. Se abre en una
+  // vista propia para no exponer acciones del inspector ni el circuito con
+  // Administración.
+  window.abrirPlanillaControlEmpresa=function(numero){
+    if(currentUser?.role!=='empresa')return;
+    const data=certificadosMedicionZona(numero,currentUser?.zona);
+    const total=data.reduce((a,c)=>a+modFinalCert(c),0);
+    const el=$('med-detalle');
+    if(!el)return;
+    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Planilla de control · Medición Nº ${escapeHtml(numero)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions"><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div><div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
   };
   function renderCertificadosMedicionDetalle(data){
     return data.map(c=>`<div class="med-version-row">
