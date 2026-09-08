@@ -26185,35 +26185,45 @@ const st=document.createElement('style');st.textContent='.te-wrap{max-width:1180
   };
 
   // ---------- versionado del lado del inspector ----------
-  // Cuando el inspector guarda una revision sobre un certificado observado, se
-  // conserva la version anterior completa y vuelve a Pendiente de revision.
+  // Cada vez que el inspector reemplaza su archivo, la version que sale queda
+  // guardada como version anterior. Antes esto solo pasaba si el certificado
+  // venia observado, asi que en el camino normal la version vieja se perdia.
+  //
+  // Si ademas venia observado, vuelve a Pendiente de revision, que es lo que ya
+  // hacia y sigue haciendo.
   const revisionPrev=window.guardarRevisionCertificado;
   window.guardarRevisionCertificado=async function(id,medir){
     const antes=certs().find(x=>String(x?.id||x?.localId||'')===String(id));
     const eraObservado=antes?estadoAdmin(antes)==='observado':false;
     const foto=antes?fotoVersion(antes):null;
+    // `antes` es el mismo objeto que la capa de abajo va a modificar, asi que
+    // todo lo que haga falta del estado previo se mira ANTES de llamarla.
+    const habiaVersionDelInspector=!!(antes?.url_inspector||antes?.archivo_inspector);
     const res=await (typeof revisionPrev==='function'?revisionPrev.apply(this,arguments):undefined);
-    if(!antes||!eraObservado)return res;
+    if(!antes)return res;
     const c=certs().find(x=>String(x?.id||x?.localId||'')===String(id))||antes;
     const cambio=foto&&(String(archivoVigente(c).url||'')!==String(foto.url||'')||modulosInspector(c)!==foto.modulos_inspector);
-    if(!cambio)return res;
+    // Solo se conserva si ANTES habia un archivo del inspector. En la primera
+    // carga la foto previa cae al archivo de la empresa, y guardarlo como
+    // version reemplazada del inspector seria inventar algo que no paso.
+    if(!cambio||!habiaVersionDelInspector)return res;
     const ahora=new Date().toISOString();
     const quien=usuario()?.name||'Inspector';
     const nuevaVersion=version(antes)+1;
     const nuevo=historial(antes).concat([Object.assign({
-      tipo:'nueva_version',texto:'',autor:quien,fecha:ahora
+      tipo:'nueva_version',texto:'El inspector reemplazó su versión del certificado.',
+      autor:quien,fecha:ahora
     },foto)]);
+    const patch={
+      revision_admin_version:nuevaVersion,
+      revision_admin_historial:nuevo,
+      revision_admin_actualizado_at:ahora,
+      revision_admin_actualizado_por:quien
+    };
+    if(eraObservado)patch.revision_admin_estado='pendiente';
     try{
-      await window.actualizarCertificado(id,{
-        revision_admin_estado:'pendiente',
-        revision_admin_version:nuevaVersion,
-        revision_admin_historial:nuevo,
-        revision_admin_actualizado_at:ahora,
-        revision_admin_actualizado_por:quien
-      });
-      Object.assign(c,{revision_admin_estado:'pendiente',revision_admin_version:nuevaVersion,
-        revision_admin_historial:nuevo,revision_admin_actualizado_at:ahora,
-        revision_admin_actualizado_por:quien});
+      await window.actualizarCertificado(id,patch);
+      Object.assign(c,patch);
     }catch(error){
       alert('La revisión se guardó, pero no se pudo registrar la nueva versión: '+(error?.message||error));
     }

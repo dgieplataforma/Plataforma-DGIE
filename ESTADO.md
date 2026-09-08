@@ -107,6 +107,25 @@ commit `7f3d205`, por pedido del usuario.
   Planilla de control de empresa (`deb1655`, `0462a41`, `7c60cd5` y `92789e2`).
 - No se modificó Supabase ni ningún dato real durante la reversión.
 
+**Versiones del certificado.** Se dejaba perder la del inspector.
+
+- Cuando la empresa usaba "Corregir y reenviar" en un certificado devuelto, el guardado
+  ponía `archivo_inspector`, `url_inspector` y `modulos_inspector` en nulo. La versión del
+  inspector quedaba sin ninguna referencia: el archivo seguía en el almacenamiento, pero
+  nadie tenía cómo llegar a él.
+- Tampoco se recuperaba de ningún historial. El de la empresa guarda sólo lo que sube ella;
+  el de Administración registraba versiones **únicamente si el certificado venía observado**,
+  así que en el camino normal no quedaba nada.
+- **Ahora la versión del inspector persiste** al reenvío y sigue vigente hasta que el propio
+  inspector cargue otra. Y **cada vez que la reemplaza, la anterior queda guardada** como
+  versión previa, con archivo, link, módulos, autor y fecha, visible en "Historial de
+  archivos".
+- Ojo al tocar esa capa: `antes` es el mismo objeto que la capa de abajo modifica, no una
+  copia. Todo lo que haga falta del estado previo hay que leerlo **antes** de llamarla. Por
+  eso se guardaba una versión falsa en la primera carga.
+- El borrado explícito del inspector, con su confirmación, sigue limpiando: eso es a
+  propósito.
+
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada

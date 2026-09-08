@@ -543,11 +543,9 @@
         modulos_original:modulosCorregidos,
         monto_empresa:modulosCorregidos,
         observaciones_empresa:observacionesConVersionesEmpresa(certificado?.observaciones_empresa,versiones),
-        archivo_inspector:null,
-        url_inspector:null,
-        public_id_inspector:null,
-        modulos_inspector:0,
-        monto_inspeccion:0,
+        // La version del inspector NO se borra. Sigue vigente hasta que el
+        // propio inspector cargue otra que la reemplace: si se limpiaba aca, su
+        // archivo quedaba sin ninguna referencia y no habia como recuperarlo.
         medicion_numero:null,
         periodo:null,
         grupo_finalizado:false,
