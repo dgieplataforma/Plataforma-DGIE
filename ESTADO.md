@@ -100,12 +100,24 @@ sepa dónde quedó todo sin tener que preguntar.
 - Validado con datos simulados, sin escrituras reales: inspector y coordinación en 1280, 450 y
   375 px, persistencia de textos, filtros, consola y desborde horizontal.
 
-**Certificados.** El 08/09 se restableció `index.html` exactamente al estado funcional del
-commit `7f3d205`, por pedido del usuario.
+**Quién ve qué en un certificado.** Inspector y Administración son un equipo; la empresa no
+participa de ese circuito.
 
-- Quedaron fuera todos los cambios posteriores de conversaciones, visibilidad por rol y
-  Planilla de control de empresa (`deb1655`, `0462a41`, `7c60cd5` y `92789e2`).
-- No se modificó Supabase ni ningún dato real durante la reversión.
+- El 08/09 se restableció `index.html` a `7f3d205` y eso dejó afuera los cambios de
+  visibilidad. Con la empresa volviendo a ver los contadores de Administración y la pantalla
+  del inspector, **se reaplicaron el mismo día** (`git diff 7f3d205 92789e2`, que es el estado
+  final de esa cadena e incluye la reversión de la restricción de escritura).
+- **La empresa no ve nada de Administración:** ni contadores Pendientes/Observados/Aprobados,
+  ni el hilo, ni el estado de la observación, ni "Administración aprobó este certificado".
+- **La empresa conserva su Planilla de control** por medición, en una vista propia
+  (`abrirPlanillaControlEmpresa`): su certificado, los montos, la diferencia y Descargar
+  Excel. Sin acciones del inspector ni PDF firmado ni liquidación.
+- **La empresa sigue escribiéndole al inspector.** Ese canal es de los dos.
+- **Administración ve la conversación con la empresa**, igual que el inspector.
+- La causa original del agujero: la pantalla de la empresa llamaba a
+  `abrirMedicionInspector`, y todos los decoradores se enganchan ahí sin mirar el rol. Además
+  de separar la vista, quedaron guardas por rol en `marcarFilasInspector`, en el `enhance` de
+  los hilos y en `agregarBotones`.
 
 **Versiones del certificado.** Se dejaba perder la del inspector.
 
