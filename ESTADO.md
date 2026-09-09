@@ -160,6 +160,23 @@ participa de ese circuito.
   `observado` hacía que esos certificados se contaran como pendientes.
 - Los certificados ya medidos quedan fuera: salieron de la cola.
 
+**Estados en Administración.** Cada certificado en una sola categoría.
+
+- El circuito es **Pendiente de revisión -> Observado -> Pendiente de revisión cuando
+  responde el inspector -> Aprobado**.
+- Un certificado observado al que el inspector ya le respondió, lo corrigió, le dejó un
+  archivo nuevo o finalizó la observación **vuelve solo a Pendientes** y deja de contarse en
+  Observados. Observado queda reservado a lo que de verdad espera al inspector. Si
+  Administración lo vuelve a observar, vuelve a Observados.
+- Todo sale de `estadoAdmin`, que es el punto único que usan contadores, filtros y listados.
+  Por eso no hay superposición: probado con siete certificados, 4 + 2 + 1 = 7.
+- En Pendientes conviven los nuevos y los respondidos. Los respondidos llevan una etiqueta
+  discreta **"Respuesta del inspector"**; los nuevos no.
+- Se eliminó el cartel azul "X certificados tienen novedades del inspector pendientes de
+  revisar": esa situación ya está incluida en Pendientes.
+- El encabezado de la tarjeta es flex con `gap` y `wrap`, así que en celular la etiqueta baja
+  de línea sola.
+
 **Planilla de liquidación mensual.** Regla consolidada para todas las mediciones.
 
 - La planilla se arma siempre y dinámicamente con el archivo vigente de cada
