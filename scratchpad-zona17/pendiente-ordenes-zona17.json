@@ -1,0 +1,1023 @@
+{
+  "generado": "2026-09-09",
+  "contexto": "Zona 17. Carga inicial de certificados historicos (mediciones 1 a 5), pedida por el usuario. Archivos fuente del usuario, en su Escritorio: 'Zona 17/Zona 17/Base de datos para APP-zona 17.xlsx' (221 ordenes de servicio/reclamos) y 'Zona 17/Zona 17/PLANTILLA_CARGA_INICIAL_CERTIFICADOS.xlsx' (134 certificados, uno por archivo real en 'Zona 17/Zona 17/Medicion 1' a 'Medicion 5', cada carpeta con ademas un PDF de medicion firmada).",
+  "verificado_09_09_via_lectura_supabase_produccion": {
+    "tabla": "ordenes_servicio",
+    "columnas_reales": [
+      "id",
+      "numero",
+      "reclamo_numero",
+      "establecimiento_id",
+      "zona",
+      "rubro",
+      "tarea",
+      "prioridad",
+      "estado",
+      "fecha_envio",
+      "fecha_finalizacion",
+      "monto",
+      "presupuesto",
+      "creado_por",
+      "created_at",
+      "updated_at",
+      "empresa_finalizo",
+      "empresa_finalizo_fecha",
+      "empresa_finalizo_por",
+      "inspector_nombre"
+    ],
+    "formato_numero": "Z17-XXX (prefijo de zona + 3 digitos con cero a la izquierda). El matching de certificadoPerteneceAOS en index.html funciona igual sin el prefijo, mientras el certificado tenga el campo zona=17 explicito: usa el numero final del string + la zona explicita del certificado como respaldo.",
+    "zona_17_total_ordenes_cargadas": 149,
+    "de_esas_29_corresponden_a_medicion_1": "cargadas 26/05/2026, estado 'finalizado', coinciden texto a texto con este mismo archivo de origen. NO tocar/duplicar.",
+    "de_esas_120_son_de_otro_lote": "cargadas 07/09/2026 (hace 2 dias), con reclamo_numero de sistema externo tipo '2026018238', numeros Z17-220 a Z17-358. Sin relacion con estos certificados historicos. No tocar."
+  },
+  "pendiente_antes_de_cargar_los_certificados": "Faltan 105 ordenes de servicio de zona 17 (mediciones 2 a 5) que los certificados de la plantilla necesitan y que NO existen en la tabla ordenes_servicio. Sin ellas, esos certificados quedarian sin ninguna orden real a la que engancharse. Las 105 tienen fila completa (establecimiento+tarea+rubro) en el archivo de origen, verificado sin excepciones el 09/09/2026.",
+  "siguiente_paso": "Armar un script SQL tipo CARGAR-OS-ZONA-17.sql (idempotente, igual que los anteriores del repo: CARGAR-CERTIFICADOS-ZONA-6.sql / CARGAR-OS-ZONA-7.sql), que inserte estas 105 filas en ordenes_servicio con numero='Z17-XXX' (3 digitos), zona=17, estado='finalizado' (mismo criterio que las 29 ya cargadas de esta misma zona), y el establecimiento_id resuelto buscando el nombre en ESTABS (zona 17, ids 715-750 y 757). DEJAR LISTO, NO CORRERLO: el usuario lo ejecuta a mano en el editor SQL, segun la regla del proyecto.",
+  "despues_de_eso": [
+    "Recien ahi cargar los 134 certificados de PLANTILLA_CARGA_INICIAL_CERTIFICADOS.xlsx. El usuario dijo explicitamente que NO importa la diferencia entre los modulos de la plantilla y los del Excel real de cada certificado ('siempre hay una diferencia, es normal, despues se pone a mano en la liquidacion') -- no hace falta corregir esa columna. Lo que SI le importa es la correlacion con la O.S., que ya esta verificada al 100% (ver 'verificacion_os_vs_excel_real' mas abajo).",
+    "El usuario va a compartir la carpeta con los 134 archivos reales para subirlos."
+  ],
+  "verificacion_os_vs_excel_real": "Se repitio en Python, celda por celda, la MISMA logica que usa buscarOrdenesEnCeldas() en index.html (linea ~6887) contra los 134 archivos .xlsx reales en las carpetas Medicion 1..5. Los 134 numeros de O.S. que la plataforma leeria del Excel real coinciden exactamente con los que dice la plantilla de carga. 0 discrepancias, 0 sin detectar.",
+  "otros_hallazgos_no_bloqueantes": [
+    "Un establecimiento con nombre invertido en 1 fila (medicion 4, OS 110): la plantilla y el archivo de origen dicen 'ESCUELA ESTEBAN MANUEL PIZARRO', pero el establecimiento real en ESTABS es 'ESCUELA MANUEL ESTEBAN PIZARRO' (id 743). Si el script de carga de certificados matchea por nombre exacto, esta fila no va a encontrar el establecimiento. Corregir el nombre o mapear a mano ese caso puntual.",
+    "Los 134 nombres de archivo en la plantilla no llevan extension .xlsx (la hoja de Instrucciones de la propia plantilla la pide), pero los 134 coinciden 1:1 contra los archivos reales en disco al comparar sin extension. No es bloqueante si el script normaliza el nombre antes de comparar.",
+    "Precio del modulo consistente en las 5 mediciones: $134.976,03."
+  ],
+  "las_105_filas_a_cargar": [
+    {
+      "numero": 2,
+      "numero_z17": "Z17-002",
+      "establecimiento": "ESCUELA PROVINCIA DE CORDOBA",
+      "tarea": "ALBAÑILERÍA/CARPINTERÍA: Reparar cortina de enrollar en Laboratorio",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-04-09T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 8,
+      "numero_z17": "Z17-008",
+      "establecimiento": "ESCUELA MARIA SANCHEZ DE MENDEVILLE",
+      "tarea": "ALBAÑILERIA /HERRERÍA: 1) Recolocar pizarrón existente - 2) Reparar portón vehicular trabado: Lubricar rodamientos - Soldar\nperfiles guía\nINST. SANITARIA: Reemplazar tanque de PVC de inodoro en baño",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-04-07T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 35,
+      "numero_z17": "Z17-035",
+      "establecimiento": "ESC. ESP. BILINGÜE PARA SORDOS (IBIS)",
+      "tarea": "INST. SANITARIA: Reemplazar cañerías pluviales en vereda municipal - ejecutar dos cámaras de limpieza pluviales con rejas en vereda.\nAlbañileria: Demoler piso de hormigon de vereda - Demoler cordón de hormigón de vereda. Ejecutar mampostería de ladrillo visto de primera calidad con junta al ras -Ejecución de encadenados correspondientes en mampostería dando\ncontinuidad a los ya ejecutados en mampostería de bloques de muro interior-Recolocar paños de valla electrosoldada. Ejecutar solado de hormigón en sector de vereda municipal intervenido y cordón de vereda de hormigón. Ejecutar zócalo cementicio en sector intervenido",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-04-15T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 36,
+      "numero_z17": "Z17-036",
+      "establecimiento": "ESCUELA PROVINCIA DE CORDOBA",
+      "tarea": "INSTALACIÓN ELÉCTRICA: Reponer reflector en ingreso",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-04-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 37,
+      "numero_z17": "Z17-037",
+      "establecimiento": "ESCUELA EJERCITO ARGENTINO",
+      "tarea": "Instalación Electrica: Agregar artefactos de iluminación en aulas - Reponer tubos y lámparas faltantes - Proveer bocas de alimentación a cámaras de\nseguridad",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-04-01T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 38,
+      "numero_z17": "Z17-038",
+      "establecimiento": "ESC. ESP. BILINGÜE PARA SORDOS (IBIS)",
+      "tarea": "Instalación Sanitaria: Reparación de válvulas de inodoros - reemplazo de fuelle - Reemplazo de canilla en pileta exterior. Herrería: Soldar bisagra y ajustar cierre de puerta de ingreso-",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-04-14T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 39,
+      "numero_z17": "Z17-039",
+      "establecimiento": "ESC. REPUBLICA DEL LIBANO",
+      "tarea": "Instalación Eléctrica: Reemplazar artefactos de iluminación en aulas de grados 5to A y 5to B . Agregar en estos grados 2 artefactos de iluminación en\ncada uno - Reparar llaves de luz sin funcionar - Reponer tubos faltantes en grados 4to y 6to",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-04-17T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 40,
+      "numero_z17": "Z17-040",
+      "establecimiento": "ESCUELA MARIA SANCHEZ DE MENDEVILLE",
+      "tarea": "INST. ELECTRICA: Reponer ilumnación exterior",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-04-01T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 41,
+      "numero_z17": "Z17-041",
+      "establecimiento": "ESCUELA MARIA SANCHEZ DE MENDEVILLE",
+      "tarea": "INST. SANITARIA: desobstruir 3 inodoros - Reemplazar canilla de servicio en piletón",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-04-06T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 42,
+      "numero_z17": "Z17-042",
+      "establecimiento": "ESCUELA REPUBLICA DE MEXICO",
+      "tarea": "INST ELÉCTRICA: Reemplazar tubos de iluminación qumados - Reparar toma corrientes deteriorados - Reemplazar prolongaciones eléctricas tipo \"\nzapatillas\" por la extensión del cableado y cajas para tomacorrientes",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-04-10T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 43,
+      "numero_z17": "Z17-043",
+      "establecimiento": "ESCUELA REPUBLICA DE PANAMA",
+      "tarea": "Instalación Sanitaria: Reparar sistema de tanque elevado - Limpiar sector de bomba",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-04-16T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 44,
+      "numero_z17": "Z17-044",
+      "establecimiento": "ESCUELA MANUEL ESTEBAN PIZARRO",
+      "tarea": "CARPINTERÍA: Reparación de puerta de aula - fijación de vidrio en puerta de aula",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-04-07T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 45,
+      "numero_z17": "Z17-045",
+      "establecimiento": "ESCUELA RICARDO PALMA",
+      "tarea": "Instalación Electrica: Reemplazar tubos de iluminación sin funcionar",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-04-10T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 46,
+      "numero_z17": "Z17-046",
+      "establecimiento": "ESCUELA RICARDO PALMA",
+      "tarea": "ALBAÑILERÍA: Demolición de piso de Hº - Excavación para cañerías cloacales y de ventilación, para cámara de inspección, y pozo absorbente - Relleno y\ncompactación de suelo de relleno de zanjas - ejecución de piso de HºAº - Verificación de asentamiento de suelo sector próximo a cámara séptica:\ndemolición de piso, compactación, reposición de piso de HºAº\nINSTALACIÓN SANITARIA: Desagotar cámara séptica y pozo -Reemplazar caño de descarga de cámarta séptica a pozo existente -\nEjecución de cámara de inspección - Conexión a nuevo pozo absorbente - proveer ventilación a pozo -",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-04-13T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 47,
+      "numero_z17": "Z17-047",
+      "establecimiento": "ESCUELA RICARDO PALMA",
+      "tarea": "Instalación Sanitaria: Reparar caño con pérdida en techo - Reemplazar flotante de sistema de tanques de reserva - Reparar mochilas y fuelles\ndefectuosos - Proveer llaves de paso a tanques de inodoros - Reemplazar sifones de piletas de comedor y officce de personal",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-04-14T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 48,
+      "numero_z17": "Z17-048",
+      "establecimiento": "J.DE INF. JUAN FILLOY (EX DE B° CERRO NORTE)",
+      "tarea": "INST. ELECTRICA: Reponer luminarias interiores y exteriores. INST. SANITARIA: Reponer flexible de inodoro",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": null,
+      "estado_origen": null
+    },
+    {
+      "numero": 49,
+      "numero_z17": "Z17-049",
+      "establecimiento": "I.P.E.M. Nº 42 PROF. MARCELA BEATRIZ MOYANO COUDERT",
+      "tarea": "Inst. Electrica: Proveer y colocar 6 ventiladores de pared industriales de 32 \" en SUM - proveer y colocar\nprotecciones metálicas a ventiladores\nHerrería: proveer y colocar protecciones metálicas a ventiladores",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-04-09T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 50,
+      "numero_z17": "Z17-050",
+      "establecimiento": "I.P.E.M. Nº 42 PROF. MARCELA BEATRIZ MOYANO COUDERT",
+      "tarea": "Inst. Eléctrica: Reposición de 3 reflectores en torre de iluminación de patio",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-04-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 51,
+      "numero_z17": "Z17-051",
+      "establecimiento": "J.DE INF. EJERCITO ARGENTINO",
+      "tarea": "Instalación Electrica: Reparación de cortocircuitos - Reponer tubos de iluminación - Reponer reflector en hall de ingreso - Ordenar circuitos -Renovar\ngabinete y reordenar tablero principal",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-04-06T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 52,
+      "numero_z17": "Z17-052",
+      "establecimiento": "J.DE INF. MANUEL ESTEBAN PIZARRO",
+      "tarea": "Inst Eléctrica: Reemplazar artefactos de iluminación obsoletos - Reponer tubos y lámparas faltantes - Extraer canalizaciones por cable canal y\nprolongaciones tipo \"zapatilla\" y reemplazar por caños de pvc rigidos y tomacorrientes aplicadas - Elevar tomacorrientes ubicados a baja altura en\nsalas - Reubicar tablero seccional en secretaría",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-04-13T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 53,
+      "numero_z17": "Z17-053",
+      "establecimiento": "J.DE INF. JOSE JAVIER DIAZ",
+      "tarea": "INSTALACIÓN ELÉCTRICA: Extraer 3 ventiladores de techo de circulación - Colocar 3 ventiladores de pared en circulación - Proveer la instalación\neléctrica para nuevas ubicaciones de ventiadores - Reponer tubos de iluminación en aulas - Reemplazar artefacto de iluminación en archivo",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-13T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 54,
+      "numero_z17": "Z17-054",
+      "establecimiento": "I.P.E.M. Nº 160 HIPOLITO VIEYTES",
+      "tarea": "INST. ELECTRICA: Renovar instalación eléctrica de casa habitación (sede de Inspección de Zona) - Se proveerá alimentación independiente desde tablero general a tablero seccional exclusivo de casa habitación - Se ejecutará la instalación con cañería de PVC rigido exterior ignifugo y cajas aplicadas - Se renovarán todos los artefactos de iluminación - Se proveerán artefactos de iluminación de emergencia - Se proveerán ciruitos para equipos de acondicionamiento de aire.",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-18T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 55,
+      "numero_z17": "Z17-055",
+      "establecimiento": "J.DE INF. GRAL. ENRIQUE MOSCONI",
+      "tarea": "Instalación Eléctrica: Reponer tubos de iluminación , lámpara de baño y reflector de patio",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-14T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 56,
+      "numero_z17": "Z17-056",
+      "establecimiento": "J.DE INF. GRAL. ENRIQUE MOSCONI",
+      "tarea": "Instalación Sanitaria: Reparar mochila baño de alumnos - Limpiar piletas de patio - Desobstruir cañerías",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-15T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 57,
+      "numero_z17": "Z17-057",
+      "establecimiento": "J.DE INF. TAMBORCITO DE TACUARI",
+      "tarea": "Instalación Sanitaria: Reemplazar vástagos de grifería embutida en piletones y cocina, - Desobstruir cañerías de desague de piletones y desague de\npileta de cocina",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 58,
+      "numero_z17": "Z17-058",
+      "establecimiento": "I.P.E.M. Nº 10 ROMA",
+      "tarea": "INST SANITARIA: Reparar sistemas de descarga de mochilas - regular flotantes de mochilas - Reparar válvula de descarga de inodoro - Reparar desagues\nde mingitorios",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-13T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 59,
+      "numero_z17": "Z17-059",
+      "establecimiento": "ESCUELA EJERCITO ARGENTINO",
+      "tarea": "Instalación Electrica: Reemplazo de artefactos de iluminación obsoletos en aula",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-06T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 60,
+      "numero_z17": "Z17-060",
+      "establecimiento": "ESCUELA EJERCITO ARGENTINO",
+      "tarea": "ALBAÑILERÍA/HERRERÍA: Reparar cortina de enrollar - Reemplazar correa de accionamiento",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-05-07T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 61,
+      "numero_z17": "Z17-061",
+      "establecimiento": "ESCUELA GENERAL MARTIN M. DE GUEMES",
+      "tarea": "Instalación Sanitaria: Reponer canilla de bebedero -Reparación de desague de piletón bebedero. ALBAÑILERÍA: Reponer losetones de borde de escenario",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 62,
+      "numero_z17": "Z17-062",
+      "establecimiento": "ESC. REPUBLICA DEL LIBANO",
+      "tarea": "Instalación Eléctrica: Reparación de cortocircuito en iluminación exterior",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-12T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 63,
+      "numero_z17": "Z17-063",
+      "establecimiento": "ESC. REPUBLICA DEL LIBANO",
+      "tarea": "Instalación Sanitaria: Desobstruir PPA en baño - Regular válvulas de mingitorios - Reparar pérdidas en inodoros",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-13T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 64,
+      "numero_z17": "Z17-064",
+      "establecimiento": "ESCUELA MARIA SANCHEZ DE MENDEVILLE",
+      "tarea": "HERRERÍA: Recolocar protecciones de calefactores - Proveer y colocar protecciones para reflectores exteriores. INSTALACIÓN ELÉCTRICA: Recolocar 6 reflectores existentes",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-05-15T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 65,
+      "numero_z17": "Z17-065",
+      "establecimiento": "ESCUELA MARIA SANCHEZ DE MENDEVILLE",
+      "tarea": "INST. SANITARIA: desobstruir inodoros en baño alumnos - Reemplazar inodoro quebrado",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-18T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 66,
+      "numero_z17": "Z17-066",
+      "establecimiento": "ESCUELA REPUBLICA DE PANAMA",
+      "tarea": "Instalación sanitaria: Se solicita que acudan al establecimiento por falta de suministro de agua. Detectar el origen del problema y evaluar si se\ndetermina a la bomba o ingreso de agua sanitaria",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 67,
+      "numero_z17": "Z17-067",
+      "establecimiento": "ESCUELA RICARDO PALMA",
+      "tarea": "Instalación Electrica: Reparar cortocircuito . Sector sin luz . Reemplazar fusible NH en pilar de entrada de servicio eléctrico",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 68,
+      "numero_z17": "Z17-068",
+      "establecimiento": "I.P.E.M. Nº 160 HIPOLITO VIEYTES",
+      "tarea": "PINTURA: Pintura de casa habitación . Sede de Inspección Nivel Medio - Ejecutar pintura interior de locales indicados en plano y paramentos exteriores. CARPINTERÍA: Reemplazar 3 persianas de enrrollar existentes en mal estado por 3 persianas de enrollar de PVC reforzadas",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-05-18T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 69,
+      "numero_z17": "Z17-069",
+      "establecimiento": "I.P.E.M. Nº 160 HIPOLITO VIEYTES",
+      "tarea": "INST. SANITARIA: Verificar filtraciones en sector cisterna - Determinar reccorridos de provisión de agua para los distintos sectores -\nreemplazar cañería en mal estado en sector de cisterna - Reparar pérdida en bacha baño de alumnos - Reemplazar mingitorio roto",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 70,
+      "numero_z17": "Z17-070",
+      "establecimiento": "I.P.E.T. N° 318 COMBATE DE LA TABLADA",
+      "tarea": "ALBAÑILERÍA: Ejecutar 2 columnas de refuerzo adosadas a pared exterior existente de bloques de cemento sobre calle La Tablada",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-05-12T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 71,
+      "numero_z17": "Z17-071",
+      "establecimiento": "I.P.E.T. N° 318 COMBATE DE LA TABLADA",
+      "tarea": "CUBIERTA: Limpiar cubierta sector laboratorio - Limpiar canaleta \"U\" de SUM. INST. SANITARIA: Desobstruir inodoro - Regular válvula de descarga de inodoro baño de discapacitados. ALBAÑILERIA: Retirar espejo roto en sanitario",
+      "rubro": "Cubierta de techos",
+      "fecha_envio": "2026-05-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 72,
+      "numero_z17": "Z17-072",
+      "establecimiento": "J.DE INF. ROMA",
+      "tarea": "INST SANITARIA: Reemplazo de cañilla de servicio en piletón de alumnos",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-18T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 73,
+      "numero_z17": "Z17-073",
+      "establecimiento": "J.DE INF. TAMBORCITO DE TACUARI",
+      "tarea": "ALBAÑILERÍA: Extraer revestimiento de cerámicos en mal estado en piletones de salas - Ejecutar evestimientos cerámico en piletones intervenidos -\nEjecutar rampa simple de hormigón en ingreso de sala desde patio",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-05-04T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 75,
+      "numero_z17": "Z17-075",
+      "establecimiento": "J.DE INF. TAMBORCITO DE TACUARI",
+      "tarea": "ALBAÑILERÍA/VIDRIOS: Reemplazar vidrio en puerta de sala",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-05-06T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 76,
+      "numero_z17": "Z17-076",
+      "establecimiento": "J.DE INF. EJERCITO ARGENTINO",
+      "tarea": "Instalación Electrica: Reemplazo de artefactos de iluminación obsoletos en aula",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-12T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 77,
+      "numero_z17": "Z17-077",
+      "establecimiento": "ESCUELA MANUEL ESTEBAN PIZARRO",
+      "tarea": "ALBAÑILERÍA /CARPINTERÍA: Renovar mueble bajo mesada en cocina de comedor",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-05-06T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 78,
+      "numero_z17": "Z17-078",
+      "establecimiento": "ESCUELA PROVINCIA DE CORDOBA",
+      "tarea": "ELECTRICIDAD: Verificar instalación por salida de servicio general - Reparar cortocircuito en sector sala de maestros",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 79,
+      "numero_z17": "Z17-079",
+      "establecimiento": "I.P.E.M. Nº 160 HIPOLITO VIEYTES",
+      "tarea": "INST. ELECTRICA: Reponer tapa de caja de paso exterior en casa habitación - Verficar instalación en un sector del establecimiento sin\nenergía",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-04T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 80,
+      "numero_z17": "Z17-080",
+      "establecimiento": "ESCUELA REPUBLICA DE PANAMA",
+      "tarea": "Instalación Electrica: Revisión de instalación por falta de energía- Verificar carga de circuitos - Proveer y colocar guardamotor en sistema de bomba",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-04T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 81,
+      "numero_z17": "Z17-081",
+      "establecimiento": "I.P.E.M. Nº 92 ANTONIO BERNI",
+      "tarea": "Inst. Sanitaria: Desobstruir inodoros baño de alumnos - Reparar válvula de descarga de inodoro - Desobstruir cañería de desague\nde lavatorio",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-14T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 82,
+      "numero_z17": "Z17-082",
+      "establecimiento": "I.P.E.M. Nº 92 ANTONIO BERNI",
+      "tarea": "Inst. Eléctrica: Provisión y colocación de venti ladores de 25\", 2 en salón de tal ler y 1 en aula especial",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-15T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 83,
+      "numero_z17": "Z17-083",
+      "establecimiento": "ESCUELA MANUEL ESTEBAN PIZARRO",
+      "tarea": "INSTALACION SANITARIA:Se selló pileta de lavar doble en cocina de comedor - Se repararon 2 canillas con pérdidas - Se repararon 3 mochilas de descarga de inodoros. Se recolocó una puerta corrediza en baño",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-07T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 84,
+      "numero_z17": "Z17-084",
+      "establecimiento": "ESCUELA RICARDO PALMA",
+      "tarea": "ALBAÑILERÍA: Se extrajeron piezas de mosaico granítico \"levantadas\" en aula de 5 to grado y losetas de Hº con la misma patología en galería exterior -\nSe recuperaron las piezas y se reconstituyeron los solados originales",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-05-11T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 85,
+      "numero_z17": "Z17-085",
+      "establecimiento": "J.DE INF. RICARDO PALMA",
+      "tarea": "Cubierta: Reparación de sector de cubierta contigua a medianera con evidencias de filtraciones - Reparación parcial de imprmeabilización de parapetos. Instalación Sanitaria: Reparación de cañería embutida en piletón de salas",
+      "rubro": "Cubierta de techos",
+      "fecha_envio": "2026-05-11T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 86,
+      "numero_z17": "Z17-086",
+      "establecimiento": "I.P.E.M. Nº 197 REPUBLICA DEL LIBANO",
+      "tarea": "Inst . Sanitaria: Reparar pérdida en inodoro - Reparar mochila de inodoro - Reponer canilla de servicio en espacio verde - Reparar y fijar caño de desague de pileta de conserjería adosado a pared exterior en patio - Reparar pérdida en lavatorio baño varones",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-06T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 87,
+      "numero_z17": "Z17-087",
+      "establecimiento": "ESCUELA ROMA",
+      "tarea": "INST SANITARIA: Reemplazar tapa de hormigón quebrada de cámara pluvial en patio",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-04T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 88,
+      "numero_z17": "Z17-088",
+      "establecimiento": "ESCUELA ELISA KOPSTEIN DE LITVACK",
+      "tarea": "INST. ELECTRICA: Reponer tubos de iluminación faltantes",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-05-14T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 89,
+      "numero_z17": "Z17-089",
+      "establecimiento": "I.P.E.M. Nº 10 ROMA",
+      "tarea": "INST SANITARIA: Desobstruir inodoros - Reparar pérdida en inodoro - Reparar sistema de descarga de mingitorios -",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-12T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 91,
+      "numero_z17": "Z17-091",
+      "establecimiento": "ESCUELA MANUEL ESTEBAN PIZARRO",
+      "tarea": "Inst sanitaria: Desobstruir 2 inodoros - Desobstruir piletas de patio de baños - Reparar grifería y conexiones de lavatorio. Herrería: Reparar rejilla de hierro - Fijar tapa ciega de cámara de limpieza pluvial",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-05-07T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 92,
+      "numero_z17": "Z17-092",
+      "establecimiento": "ESC. ESP. BILINGÜE PARA SORDOS (IBIS)",
+      "tarea": "HERRERÍA: Reponer 6 sistemas de apertura antipánico en puertas exteriores",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-05-11T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 93,
+      "numero_z17": "Z17-093",
+      "establecimiento": "ESCUELA PROVINCIA DE CORDOBA",
+      "tarea": "INST ELECTRICA: Reparar iluminación en baño de docentes",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-06-01T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 94,
+      "numero_z17": "Z17-094",
+      "establecimiento": "ESCUELA GENERAL MARTIN M. DE GUEMES",
+      "tarea": "ALBAÑILERÍA /HERRERÍA: Reponer picaportes y cerraduras faltantes",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-06-02T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 95,
+      "numero_z17": "Z17-095",
+      "establecimiento": "ESC. ESP. BILINGÜE PARA SORDOS (IBIS)",
+      "tarea": "Instalación de Gas: Reparación de pérdida en calefactor aula 9",
+      "rubro": "Instalación de gas",
+      "fecha_envio": "2026-06-02T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 96,
+      "numero_z17": "Z17-096",
+      "establecimiento": "ESC. ESP. BILINGÜE PARA SORDOS (IBIS)",
+      "tarea": "CARPINTERÍA: Reemplazo de puertas de frente y marcos de muebles bajo mesada en dos antebaños d sector de aulas",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-06-03T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 97,
+      "numero_z17": "Z17-097",
+      "establecimiento": "I.P.E.M. Nº 92 ANTONIO BERNI",
+      "tarea": "Inst. Eléctrica : Provisión de circuito independiente para horno de Aula Taller",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-06-03T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 98,
+      "numero_z17": "Z17-098",
+      "establecimiento": "I.P.E.M. Nº 92 ANTONIO BERNI",
+      "tarea": "Inst. Sanitaria: Desobstruir inodoros - Regular válvula de descarga de inodoro",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-06-03T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 99,
+      "numero_z17": "Z17-099",
+      "establecimiento": "ESCUELA ROMA",
+      "tarea": "INST SANITARIA: Desobstruir inodoros",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-06-04T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 100,
+      "numero_z17": "Z17-100",
+      "establecimiento": "I.P.E.M. N° 17 PAULO FREIRE",
+      "tarea": "ALBAÑILERÍA: Ejecutar vereda perimetral faltante y, demoler y reconstruir vereda perimetral en sectores deteriorados . Todo en sector exterior sobre cal le Laguna Larga - Se ejecutará de hormigón peinado - Demoler y reconstruir parcialmente solado de hormigón en sector de cámara séptica en desuso y con aentamiento de suelo - Extraer suelo saturado , rel lenar y compactar",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-06-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 101,
+      "numero_z17": "Z17-101",
+      "establecimiento": "ESC. ESP. BILINGÜE PARA SORDOS (IBIS)",
+      "tarea": "INSTALACIÓN DE GAS: Revisar la totalidad de los calefactores del establecimiento, verificando su estado y correcto funcionamiento. Realizar tareas de mantenimiento, limpieza, encendido y puesta en funcionamiento de los equipos existentes. En caso de detectar artefactos fuera de servicio o instalaciones y/o cañerías en mal estado, coordinar con Inspección la autorización correspondiente\npara su reparación o reposición. Presentar planilla de relevamiento de artefactos intervenidos, firmada por gasista matriculado/a.",
+      "rubro": "Instalación de gas",
+      "fecha_envio": "2026-06-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 102,
+      "numero_z17": "Z17-102",
+      "establecimiento": "ESCUELA ELISA KOPSTEIN DE LITVACK",
+      "tarea": "CUBIERTA : Reparar y limpiar canaletas, reparar uniones y soportes de canaletas",
+      "rubro": "Cubierta de techos",
+      "fecha_envio": "2026-06-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 103,
+      "numero_z17": "Z17-103",
+      "establecimiento": "ESCUELA MARIA SANCHEZ DE MENDEVILLE",
+      "tarea": "INST. SANITARIA: desobstruir 4 inodoros",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-06-05T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 104,
+      "numero_z17": "Z17-104",
+      "establecimiento": "ESCUELA REPUBLICA DE PANAMA",
+      "tarea": "Instalación Sanitaria: Debido a las necesidades especiales de un alumno es necesario elevar la altura del inodoro para discapacitados- 1)\nColocar suplemento especial en la base del inodoro - 2) Proveer y colocar barral \"L\" de apoyo fijo con tres puntos de fijación- 3) Reparar mochila\nde descarga de inodoro - 4) Reponer tapa ciega en boca de acceso",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 105,
+      "numero_z17": "Z17-105",
+      "establecimiento": "ESCUELA GENERAL MARTIN M. DE GUEMES",
+      "tarea": "ALBAÑILERÍA/ HERRERÍA: A - Ejecutar solado de Hormigón en ingreso vehicular. B - Fabricar y colocar cerco metálico entre patios internos con portón vehicular - Se compondrá de estructura de caño cuadrado estructural y paños de\nmalla electrosoldada. C - Fabricar y colocar baranda de seguridad sobre cordón de vereda en ingreso principal. INSTALACIÓN ELÉCTRICA: Reconectar 2 líneas de toma a tierra existentes",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-06-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 106,
+      "numero_z17": "Z17-106",
+      "establecimiento": "J.DE INF. JOSE JAVIER DIAZ",
+      "tarea": "CUBIERTA: Colocar membrana asfáltica con geotexti l en techos planos. INST. SANITARIA: Reemplazar cañerías antiguas de bajadas de tanque que atraviezan la losa. Se cambiaran los recorridos a sectores perimetrales a los\nfines de l iberar superficie de losa para posibi l itar continuidad de impermeabi l izaciòn.",
+      "rubro": "Cubierta de techos",
+      "fecha_envio": "2026-06-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 107,
+      "numero_z17": "Z17-107",
+      "establecimiento": "J.DE INF. RICARDO PALMA",
+      "tarea": "Albañílería : Reparar revoques y cielorrasos deteriorados en salas de 4 y 5 años - Pintar salas de 4 y 5 años y hall de ingreso",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-06-09T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 108,
+      "numero_z17": "Z17-108",
+      "establecimiento": "ESCUELA REPUBLICA DE MEXICO",
+      "tarea": "ALBAÑILERÍA/HERRERÍA: Agregar 2 caños de diametro idem al existente a todo el perímetro de balcón en planta alta . Los distintos tramos de esta\nbaranda alta se fijarán a las columnas que definen estos tramos mediante planchuelas amuradas con brocas para hormigón, como así también al\nparapeto de hormigón mediante planchuelas fijadas al mismo con barillas roscadas pasantes. Estas planchuellas fijadas al parapeto se continuarán\nverticalmente a manera de parantes intermedios a los efectos de sostén y rigidización de cada tramo . Se pintara con esmalte sintético de triple efecto",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-06-26T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 109,
+      "numero_z17": "Z17-109",
+      "establecimiento": "I.P.E.M. N° 17 PAULO FREIRE",
+      "tarea": "ALBAÑILERÍA/PINTURA: Se pintarán los paramentos verticales de 4 aulas de ala antigua sobre calle Laguna Larga y los baños de esta misma ala",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-06-09T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 110,
+      "numero_z17": "Z17-110",
+      "establecimiento": "ESCUELA ESTEBAN MANUEL PIZARRO",
+      "tarea": "Inst Eléctrica: Asistir al establecimiento por falta de suministro eléctrico",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-06-09T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 111,
+      "numero_z17": "Z17-111",
+      "establecimiento": "J.DE INF. MANUEL ESTEBAN PIZARRO",
+      "tarea": "INSTALACIÓN DE GAS: Revisar la totalidad de los calefactores del establecimiento, verificando su estado y correcto funcionamiento. Realizar tareas de mantenimiento, limpieza, encendido y puesta en funcionamiento de los equipos existentes. En caso de detectar artefactos fuera de servicio o instalaciones y/o cañerías en mal estado, coordinar con Inspección la autorización correspondiente\npara su reparación o reposición. Presentar planilla de relevamiento de artefactos intervenidos, firmada por gasista matriculado/a.",
+      "rubro": "Instalación de gas",
+      "fecha_envio": "2026-06-10T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 112,
+      "numero_z17": "Z17-112",
+      "establecimiento": "J.DE INF. MANUEL ESTEBAN PIZARRO",
+      "tarea": "Inst sanitaria: Verificar estado general de la instalación por posible emanación de gases cloacles. Verificar sifones y sellado de artefactos.\nDesobstruir inodoro baño de alumnos",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-06-10T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 114,
+      "numero_z17": "Z17-114",
+      "establecimiento": "I.P.E.M. N° 17 PAULO FREIRE",
+      "tarea": "ALBAÑILERÍA/ CARPINTERÍA: Verificar asentamiento de suelo en espacio verde . Rellenar y compactar - Recolocar puerta de box de inodoro en batería\nde baños nueva. Reponer bisagra faltante. INSTALACIÓN SANITARIA: Desagotar cámara séptica y pozo absorbente de bateria de baños antigua - Desagotar cámara séptica de 1000 lts en desuso para su anulación y relleno",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-06-11T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 116,
+      "numero_z17": "Z17-116",
+      "establecimiento": "J.DE INF. JUAN FILLOY (EX DE B° CERRO NORTE)",
+      "tarea": "INST. SANITARIA: Reemplazar grifería de pileta de cocina y de pilet{on lavamanos - reparar pérdida en termotanque - sellar bacha en mesada de cocina -\nreparar accionamiento de descarga de 2 inodoros",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2025-06-11T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 117,
+      "numero_z17": "Z17-117",
+      "establecimiento": "J.DE INF. ROMA",
+      "tarea": "INST SANITARIA: Reparar pérdida de agua en caño de canilla de patio en sector sala de música - Reemplazar tramo de caño bajo piso en sector sala de música",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-06-12T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 118,
+      "numero_z17": "Z17-118",
+      "establecimiento": "J.DE INF. ROMA",
+      "tarea": "INST ELECTRICA: Reparación de instalación por cortocircuito que afecta dos salas y sector de circulación",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-06-12T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 119,
+      "numero_z17": "Z17-119",
+      "establecimiento": "J.DE INF. TAMBORCITO DE TACUARI",
+      "tarea": "ALBAÑILERÍA /HERRAJES: Reparar cerradura de puerta de ingreso",
+      "rubro": "Herrería",
+      "fecha_envio": "2026-06-12T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 120,
+      "numero_z17": "Z17-120",
+      "establecimiento": "I.P.E.M. Nº 42 PROF. MARCELA BEATRIZ MOYANO COUDERT",
+      "tarea": "Inst. Electrica: Reponer iluminación exterior",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-07-01T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 121,
+      "numero_z17": "Z17-121",
+      "establecimiento": "ESC. ESP. BILINGÜE PARA SORDOS (IBIS)",
+      "tarea": "ALBAÑILERÍA: Pintar vallas metálicas perimetrales sector calle 27 de Abril y dos puertas de ductos sanitarios del mismo sector - Aplicar esmalte\nsintético de triple acción",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-07-03T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 122,
+      "numero_z17": "Z17-122",
+      "establecimiento": "I.P.E.M. Nº 160 HIPOLITO VIEYTES",
+      "tarea": "INST. SANITARIA: Reparar sistema descarga de inodoro baño de docentes- Reparar pérdida de fuelle - Fijar inodoro",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 123,
+      "numero_z17": "Z17-123",
+      "establecimiento": "J.DE INF. JOSE JAVIER DIAZ",
+      "tarea": "ALBAÑILERÍA: Ejecutar pintura interior y exterior",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-07-17T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 124,
+      "numero_z17": "Z17-124",
+      "establecimiento": "J.DE INF. GRAL. ENRIQUE MOSCONI",
+      "tarea": "Albañilería: Disminuir altura de mesada de lavamanos de alumnos (dosmontar y recolocar mesada) -Instalación sanitaria: Renovar desagues de lavamanos en baño de alumnos - Reemplazar PPA -",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-02T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 125,
+      "numero_z17": "Z17-125",
+      "establecimiento": "I.P.E.M. Nº 10 ROMA",
+      "tarea": "INST ELECTRICA: Provisión y colocación de 10 ventiladores industriales en SUM. HERRERÍA: fabricación y colocación de 10 protecciones metálicas para ventiladores",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-07-16T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 126,
+      "numero_z17": "Z17-126",
+      "establecimiento": "I.P.E.M. Nº 160 HIPOLITO VIEYTES",
+      "tarea": "ALBAÑILERÍA: Extraer cielorrasos de chapa perforada en 10 aulas de planta alta - Colocar cielorraso desmontable ignífugo y\naislante térmico con perfilería vista. INSTALACIÓN ELÉCTRICA: Reemplazar artefactos de iluminacion existentes por plafones led cuadrados acordes al sistema de\nmodulación del nuevo cielorraso - Renovar conducciones y cableado para los nuevos artefactos",
+      "rubro": "Albañilería",
+      "fecha_envio": "2026-07-07T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 127,
+      "numero_z17": "Z17-127",
+      "establecimiento": "ESCUELA PROVINCIA DE CORDOBA",
+      "tarea": "CUBIERTA: Extraer membrana existente - Impermeabilizar con membrana asfáltica con geotextil con teminación de pintura\nelastomérica",
+      "rubro": "Cubierta de techos",
+      "fecha_envio": "2026-07-01T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 128,
+      "numero_z17": "Z17-128",
+      "establecimiento": "ESCUELA GENERAL MARTIN M. DE GUEMES",
+      "tarea": "Instalación Sanitaria: Desobstruir inodoros y PPA en baños de alumnos. Ajustar canillas en baño de mujeres y reemplazar canillas en baño de varones.\nReponer tapa de válvula de descarga de inodoro. Reemplazar fuelles con pérdidas . En piletón-bebedero de patio reemplazar sopapa",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-02T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 129,
+      "numero_z17": "Z17-129",
+      "establecimiento": "ESCUELA JOSE MARIA PAZ",
+      "tarea": "Instalación Sanitaria: Reponer tapa de cámara de inspección en patio. Reponer tapas ciegas en baño docentes y sector comedor -\nAnular y sellar tapa de PPA en desuso (sector nueva biblioteca). Albañilería / Herrería: Reparar reja de cámara pluvial en patio - Reparar cerradura, manijòn y asentar puerta de madera de ingreso",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-07T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 130,
+      "numero_z17": "Z17-130",
+      "establecimiento": "ESCUELA ELISA KOPSTEIN DE LITVACK",
+      "tarea": "INSTALACIÓN SANITARIA: Reparar válvula de descarga de inodoro - Reemplazar flotante de tanque",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-08T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 132,
+      "numero_z17": "Z17-132",
+      "establecimiento": "ESCUELA REPUBLICA DE PANAMA",
+      "tarea": "Instalación Electrica: Balancear fases de instalación eléctrica",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-13T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 133,
+      "numero_z17": "Z17-133",
+      "establecimiento": "ESCUELA RICARDO PALMA",
+      "tarea": "Instalación Electrica: Revisar /reparar instalación por falta de energía en un sector - Verificar funcionamiento / Reparar alimentación de equipo AA\nfrio-calor - Reemplazar lámpara y reflector de iluminación exterior en ingresos y sus fotocélulas -",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-07-14T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 134,
+      "numero_z17": "Z17-134",
+      "establecimiento": "ESCUELA RICARDO PALMA",
+      "tarea": "Instalación Sanitaria: Desobstruir inodoro - Reemplazar canilla de pileton - Reparar mochilas de descarga de inodoros - Desobstruir PPA -",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-15T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 135,
+      "numero_z17": "Z17-135",
+      "establecimiento": "I.P.E.M. Nº 10 ROMA",
+      "tarea": "CUBIERTA : Impermeabilizar cubierta de techo en Sala de Educación Física (SUM) con membrana asfaltica geotextil con terminación de pintura\nelastomérica. HERRERÍA : Restablecer correcto funcionamiento de puerta de baño sector norte. Corregir posición de bisagra. Reforzar soldadura de la misma",
+      "rubro": "Cubierta de techos",
+      "fecha_envio": "2026-07-17T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 136,
+      "numero_z17": "Z17-136",
+      "establecimiento": "I.P.E.M. Nº 42 PROF. MARCELA BEATRIZ MOYANO COUDERT",
+      "tarea": "INSTALACIÓN DE GAS: Revisar la totalidad de los calefactores del establecimiento, verificando su estado y correcto funcionamiento. Realizar tareas de mantenimiento, limpieza, encendido y puesta en funcionamiento de los equipos existentes. En caso de detectar artefactos fuera de servicio o instalaciones y/o cañerías en mal estado, coordinar con Inspección la autorización correspondiente\npara su reparación o reposición. Presentar planilla de relevamiento de artefactos intervenidos, firmada por gasista matriculado/a.",
+      "rubro": "Instalación de gas",
+      "fecha_envio": "2026-07-02T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 137,
+      "numero_z17": "Z17-137",
+      "establecimiento": "I.P.E.M. Nº 42 PROF. MARCELA BEATRIZ MOYANO COUDERT",
+      "tarea": "Inst. Sanitaria: Reparar pérdidas en sistema de colector de bombas - Purgar cañerías - Verificar correcto funcionamiento en\ntodos los grupos sanitarios",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-03T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 138,
+      "numero_z17": "Z17-138",
+      "establecimiento": "I.P.E.T. N° 318 COMBATE DE LA TABLADA",
+      "tarea": "Inst. Electrica: Reparar sistema de bomba - Verificar sistema eléctrico y presostato",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-07-13T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 139,
+      "numero_z17": "Z17-139",
+      "establecimiento": "I.P.E.M. Nº 92 ANTONIO BERNI",
+      "tarea": "Inst. Electrica: Verificar/ reparar instalación en sector de bomba y cisterna; y sector de quiosco por falta de energía",
+      "rubro": "Instalación eléctrica",
+      "fecha_envio": "2026-07-14T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 140,
+      "numero_z17": "Z17-140",
+      "establecimiento": "J.DE INF. JOSE JAVIER DIAZ",
+      "tarea": "CUBIERTA: Reemplazar canaleta de chapa sector ingreso",
+      "rubro": "Cubierta de techos",
+      "fecha_envio": "2026-07-16T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 141,
+      "numero_z17": "Z17-141",
+      "establecimiento": "J.DE INF. EJERCITO ARGENTINO",
+      "tarea": "Instalación Sanitaria: Desobstruir inodoro - Desobstruir PPA y descarga de bachas - Reparar mochilas y fuelles - Reponer rejillas pluviales en patio",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-15T00:00:00",
+      "estado_origen": null
+    },
+    {
+      "numero": 142,
+      "numero_z17": "Z17-142",
+      "establecimiento": "J.DE INF. MARIA SANCHEZ DE MENDEVILLE",
+      "tarea": "INSTLACIÓN SANITARIA: Instalar cañería de agua caliente en tres piletones de salas, pileta de cocina y lavatorio de baño de docentes. ALBAÑILERÍA: Reparar revoques y revestimientos afectados por instalación de agua ejecutada",
+      "rubro": "Instalación sanitaria",
+      "fecha_envio": "2026-07-01T00:00:00",
+      "estado_origen": null
+    }
+  ],
+  "las_29_ya_cargadas_no_tocar": [
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    9,
+    10,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    33,
+    34
+  ]
+}

@@ -7,11 +7,51 @@ actualiza en el mismo commit del cambio.**
 No decide nada ni dispara trabajo solo: sirve para que cualquiera de las dos
 sepa dónde quedó todo sin tener que preguntar.
 
-Última actualización: **2026-09-08** · commit `este commit`
+Última actualización: **2026-09-09** · commit `este commit`
 
 ---
 
 ## En qué se está trabajando ahora
+
+**Carga inicial de certificados, Zona 17.** Traspaso de Claude Code a Codex el 09/09 —
+se acabaron los créditos de Claude a mitad del análisis. **Está listo para retomar,
+falta un solo paso antes de subir certificados.**
+
+- El usuario compartió dos Excel de su Escritorio (`Zona 17\Zona 17\Base de datos para
+  APP-zona 17.xlsx`, 221 filas de reclamos/O.S., y `...\PLANTILLA_CARGA_INICIAL_CERTIFICADOS.xlsx`,
+  134 certificados) y una carpeta con los 134 archivos reales repartidos en `Medicion 1` a
+  `Medicion 5`, cada una con además un PDF de medición firmada.
+- **Todo el detalle, verificado y listo para no repetir trabajo, está en
+  `scratchpad-zona17\pendiente-ordenes-zona17.json`** (en este repo). Incluye: las 105 filas
+  exactas que faltan cargar con todos sus datos, las 29 que ya existen (no tocar), los
+  nombres reales de columnas de `ordenes_servicio` en Supabase, y el porqué de cada cosa.
+- **Resumen:** de los 134 certificados, sólo **29** (medición 1) tienen su orden de servicio
+  ya cargada en producción (verificado por lectura directa a Supabase, sin escribir nada).
+  Los otros **105** (mediciones 2 a 5) no tienen ninguna O.S. real con ese número — hay un
+  hueco total entre Z17-035 y Z17-219. Sin esa orden, el certificado quedaría sin nada a lo
+  que engancharse.
+- Ojo: **no confundir con las 120 órdenes de zona 17 cargadas hace apenas dos días**
+  (07/09/2026, números Z17-220 a Z17-358, con `reclamo_numero` de un sistema externo). Son de
+  otro lote de reclamos actual, sin relación con estos certificados históricos. No tocar.
+- **Próximo paso:** armar `CARGAR-OS-ZONA-17.sql` (idempotente, mismo patrón que
+  `CARGAR-OS-ZONA-7.sql`) insertando esas 105 filas en `ordenes_servicio`, con
+  `numero='Z17-XXX'` (3 dígitos), `zona=17`, `estado='finalizado'` —igual criterio que las 29
+  ya cargadas de esta misma zona— y `establecimiento_id` resuelto contra `ESTABS` (zona 17,
+  ids 715-750 y 757). **Dejarlo listo, no correrlo**: el usuario lo ejecuta a mano.
+- **Recién después**, cargar los 134 certificados. Verificado con la misma lógica exacta que
+  usa `buscarOrdenesEnCeldas()` en `index.html` (~línea 6887), corrida contra los 134 archivos
+  reales: la O.S. que la plataforma va a leer de cada Excel coincide 100% con la de la
+  plantilla. 0 discrepancias.
+- **El usuario dijo explícitamente que no importa la diferencia de módulos** entre la
+  plantilla y el Excel real de cada certificado ("siempre hay diferencia, es normal, después
+  se pone a mano en la liquidación"). No hay que corregir esa columna ni preocuparse por eso.
+  Lo que le importa es la correlación con la O.S., que ya está resuelta.
+- Detalle no bloqueante para cuando se carguen los certificados: un establecimiento con el
+  nombre invertido en una sola fila (medición 4, OS 110): dice "ESCUELA ESTEBAN MANUEL
+  PIZARRO" pero el real en `ESTABS` es "ESCUELA MANUEL ESTEBAN PIZARRO" (id 743). Si el
+  script matchea por nombre exacto, esa fila no va a encontrar el establecimiento.
+- El usuario va a compartir la carpeta con los 134 archivos para subirlos, una vez resuelto
+  lo de arriba.
 
 **Inspectores por zona e historial de órdenes.** Separados el nombre actual y el autor histórico.
 
