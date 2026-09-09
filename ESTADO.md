@@ -13,9 +13,8 @@ sepa dónde quedó todo sin tener que preguntar.
 
 ## En qué se está trabajando ahora
 
-**Carga inicial de certificados, Zona 17.** Traspaso de Claude Code a Codex el 09/09 —
-se acabaron los créditos de Claude a mitad del análisis. **Está listo para retomar,
-falta un solo paso antes de subir certificados.**
+**Carga inicial de certificados, Zona 17.** Traspaso de Claude Code a Codex el 09/09.
+El análisis quedó completo y Codex preparó el paso previo a la carga de certificados.
 
 - El usuario compartió dos Excel de su Escritorio (`Zona 17\Zona 17\Base de datos para
   APP-zona 17.xlsx`, 221 filas de reclamos/O.S., y `...\PLANTILLA_CARGA_INICIAL_CERTIFICADOS.xlsx`,
@@ -33,11 +32,12 @@ falta un solo paso antes de subir certificados.**
 - Ojo: **no confundir con las 120 órdenes de zona 17 cargadas hace apenas dos días**
   (07/09/2026, números Z17-220 a Z17-358, con `reclamo_numero` de un sistema externo). Son de
   otro lote de reclamos actual, sin relación con estos certificados históricos. No tocar.
-- **Próximo paso:** armar `CARGAR-OS-ZONA-17.sql` (idempotente, mismo patrón que
-  `CARGAR-OS-ZONA-7.sql`) insertando esas 105 filas en `ordenes_servicio`, con
-  `numero='Z17-XXX'` (3 dígitos), `zona=17`, `estado='finalizado'` —igual criterio que las 29
-  ya cargadas de esta misma zona— y `establecimiento_id` resuelto contra `ESTABS` (zona 17,
-  ids 715-750 y 757). **Dejarlo listo, no correrlo**: el usuario lo ejecuta a mano.
+- **Listo para ejecutar a mano:** `CARGAR-OS-ZONA-17.sql` (idempotente) inserta esas
+  105 filas en `ordenes_servicio`, con `numero='Z17-XXX'` (3 dígitos), `zona=17`,
+  `estado='finalizado'` —igual criterio que las 29 ya cargadas de esta misma zona— y
+  `establecimiento_id` resuelto contra `ESTABS` (zona 17, ids 715-750 y 757). Incluye
+  validaciones internas, no modifica filas existentes y corrige sólo el vínculo de la O.S.
+  110 al establecimiento id 743. **No fue ejecutado**: lo corre el usuario a mano.
 - **Recién después**, cargar los 134 certificados. Verificado con la misma lógica exacta que
   usa `buscarOrdenesEnCeldas()` en `index.html` (~línea 6887), corrida contra los 134 archivos
   reales: la O.S. que la plataforma va a leer de cada Excel coincide 100% con la de la
@@ -315,6 +315,9 @@ certificados, sin cerrarla.
 
 ### Lo que hay que hacer a continuación
 
+0. **Correr `CARGAR-OS-ZONA-17.sql`** para crear las 105 órdenes históricas faltantes.
+   Está validado e incluye controles de cantidad, numeración y establecimientos. Después
+   se pueden cargar los 134 certificados de las mediciones 1 a 5.
 0. **Correr `supabase-inspectores-historial-os.sql`** para sincronizar el nombre de acceso (incluida Zona 16) y fijar el inspector histórico de las órdenes existentes.
 0. **Correr `supabase-carga-completa-medicion.sql`** para que a Administración le suene
    el aviso de carga completa. Sin eso el aviso se ve igual, pero no notifica.
@@ -429,6 +432,7 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-09 | `este commit` | Zona 17: preparar sin ejecutar la carga idempotente de 105 órdenes históricas; revisión acumulada: Administración deja de ver el hilo privado inspector–empresa | Codex |
 | 2026-09-08 | `este commit` | Certificados: restablecer la plataforma al estado funcional de `7f3d205`, sin tocar datos | Codex |
 | 2026-09-07 | `este commit` | Cumpleaños: la lista de saludos muestra siete por vez y se desplaza. Alto medido (68,3 px por saludo), no estimado | Codex + Claude Code |
 | 2026-09-07 | `este commit` | Cumpleaños: actualizar el nombre visible del autor en saludos anteriores y futuros | Codex |
