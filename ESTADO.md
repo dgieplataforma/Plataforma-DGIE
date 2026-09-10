@@ -38,6 +38,9 @@ El análisis quedó completo y Codex preparó el paso previo a la carga de certi
   `establecimiento_id` resuelto contra `ESTABS` (zona 17, ids 715-750 y 757). Incluye
   validaciones internas, no modifica filas existentes y corrige sólo el vínculo de la O.S.
   110 al establecimiento id 743. **No fue ejecutado**: lo corre el usuario a mano.
+  La primera ejecución falló y se revirtió completa porque la O.S. 48 no tenía fecha en la
+  base general. Se recuperó `2026-04-10` del anexo de la propia orden incluido en su
+  certificado y el script ahora impide cargar fechas nulas.
 - **Recién después**, cargar los 134 certificados. Verificado con la misma lógica exacta que
   usa `buscarOrdenesEnCeldas()` en `index.html` (~línea 6887), corrida contra los 134 archivos
   reales: la O.S. que la plataforma va a leer de cada Excel coincide 100% con la de la
@@ -52,6 +55,57 @@ El análisis quedó completo y Codex preparó el paso previo a la carga de certi
   script matchea por nombre exacto, esa fila no va a encontrar el establecimiento.
 - El usuario va a compartir la carpeta con los 134 archivos para subirlos, una vez resuelto
   lo de arriba.
+
+**Carga inicial de certificados, Zona 10.** Análisis completo el 10/09 (Claude Code).
+
+- Fuente: carpeta del usuario `CERTIFICADOS PLATAFORMA - ZONA 10` (Escritorio), mediciones 1 a 5
+  (38 + 14 + 26 + 10 + 31 = **119 certificados**, un `.xlsx` por fila) + `PLANTILLA_CARGA_INICIAL_CERTIFICADOS.xlsx`
+  (hoja `Mediciones`, 119 filas). Un PDF de medición firmada por carpeta.
+- Verificado por lectura directa a producción (sin escribir nada):
+  - 119 archivos ↔ 119 filas de planilla, 1:1. Dos typos en la planilla (`REGINIO`→`REGINO`) y
+    dos nombres truncados; todos resuelven a un archivo real exacto.
+  - 36 establecimientos, todos con id real de zona 10 (417–452). El rótulo "J.DE INF. REGINO
+    MADERS" de 4 certificados corresponde al **id 451** (existe en la base de producción, aunque
+    el array `ESTABS` embebido en `index.html` todavía lo tiene como "J.DE INF. S/NOMBRE de
+    BARRIO SAN FELIPE" — array desactualizado, no bloquea).
+  - **136 números de O.S. referenciados; 134 ya existen** como `Z10-XXX` `finalizado` en
+    `ordenes_servicio` (hay 347 órdenes de zona 10 cargadas). Faltan sólo `Z10-101` y `Z10-357`
+    → esos 2 certificados quedan ligados a su O.S. hermana. Al revés que zona 17: acá **no hay
+    que cargar órdenes**.
+  - 23 certificados con O.S. compuesta (marcador múltiple, p. ej. `50-51`, `278-292-357`).
+    4 con sufijo bis `A` (`43A`, `96A`, `231A`, `139A`) que no tiene fila propia: liga al número base.
+  - `certificados_medicion` de zona 10 en producción: **0** (base limpia).
+- **Hallazgo de la plataforma (no bloquea esta carga, sí conviene arreglar):** el lector
+  automático `buscarOrdenesEnCeldas()` (`index.html` ~6887) **se equivoca en 45 de los 119**
+  archivos de zona 10. Dos plantillas alternativas de la empresa traen el encabezado
+  `ORDEN DE SERVICIO - RENGLON N° 10 - ZONA N° 10` y el regex `inline` agarra ese "10" antes de
+  llegar al número real (`ORDEN DE SERVICIO Nº 77`). ~30 quedarían como O.S. `010`, ~15 tomarían
+  el número de un certificado hermano. La carga inicial no se ve afectada porque el vínculo sale
+  de la columna de la planilla, no de releer el Excel; pero una resubida manual por la interfaz sí.
+- **Listo para ejecutar a mano:** `CARGAR-CERTIFICADOS-ZONA-10.sql` (idempotente, sin DROP, no
+  toca `ordenes_servicio` ni datos previos). Inserta los 119 en `certificados_medicion` con
+  `zona=10`, establecimiento por id, rubros mapeados a códigos, marcador
+  `[OS_CERT:...]` + `ordenes_servicio_certificado`, y módulos de la planilla en `modulos_original`
+  / `modulos_inspector` (el usuario los ajusta a mano en liquidación). **Decisión a confirmar:**
+  el script usa `estado='medido'` + `revision_admin_estado='aprobado'` (históricos ya medidos y
+  firmados, no aparecen en bandejas de pendientes/observados/devueltos). Si se quiere que
+  Administración los revise ahora, cambiar a `'pendiente'`/`'pendiente'`. **No fue ejecutado.**
+- **Excels subidos el 10/09.** Los 119 `.xlsx` se subieron al mismo almacenamiento y carpeta que
+  usa la plataforma (recurso `raw`, carpeta `certificados`, preset sin firma). Mapa
+  archivo→URL en `scratchpad-zona10/cloudinary-map-excels.json`. `ADJUNTAR-EXCELS-ZONA-10.sql`
+  (en el repo) hace 119 `UPDATE` de una fila cada uno (match por zona+medición+establecimiento+archivo,
+  guard `coalesce(url_original,'')=''`, idempotente, sin trigger en UPDATE → no notifica). **Sin correr.**
+  Faltan aún los 5 PDF de medición firmada (uno por carpeta), si se quieren adjuntar.
+- **Corrido el 10/09.** Los 119 quedaron en `certificados_medicion` (zona 10, `medido` / `aprobado`,
+  `creado_por='Carga inicial'`). Verificación 3 dio sólo los 2 esperados (O.S. 101 y 357 sin orden).
+  Aparecen en la sección **Mediciones / Certificación** agrupados por número de medición (1–5),
+  no en pendientes/observados/devueltos. Hay que **recargar la página** para verlos (la app cachea
+  la lista al iniciar sesión).
+- **Ojo trigger:** `certificados_medicion` tiene un `AFTER INSERT` (`dgie_certificado_push`,
+  `supabase-notificaciones-certificados-confiables.sql`) que encola una notificación 'certificado'
+  por fila para el inspector de la zona → la carga disparó 119 avisos. `LIMPIAR-NOTIFICACIONES-CARGA-ZONA-10.sql`
+  (en el repo) las borra (previsualiza primero, el DELETE va comentado). Para futuras cargas masivas:
+  correr el INSERT con `set session_replication_role = replica;` antes, o limpiar después.
 
 **Inspectores por zona e historial de órdenes.** Separados el nombre actual y el autor histórico.
 
@@ -388,6 +442,10 @@ Están en `Downloads`, no en el repo. Los corre el usuario en el editor SQL.
 |---|---|---|
 | `UNIFICAR-GARZON-AGULLA.sql` | Pasa todo lo cargado en los Garzón Agulla (J.I) y (SEC) a la escuela (ESC) | Esperar a que termine la carga de órdenes de zona 7 |
 | `CARGAR-CERTIFICADOS-ZONA-6.sql` | 53 certificados | Sin correr |
+| `CARGAR-CERTIFICADOS-ZONA-10.sql` (repo) | 119 certificados zona 10 | **Corrido 10/09** |
+| `ADJUNTAR-EXCELS-ZONA-10.sql` (repo) | Engancha los 119 Excel ya subidos | Sin correr |
+| `LIMPIAR-NOTIFICACIONES-CARGA-ZONA-10.sql` (repo) | Borra los 119 avisos que disparó el trigger | Sin correr |
+| `supabase-computos-pintura.sql` (repo) | Tabla `computos_pintura` + RLS para la herramienta Cómputo de pintura | Sin correr — sin esto la herramienta guarda sólo en el navegador |
 | `CARGAR-OS-ZONA-7.sql` | 117 órdenes | Sin correr / puede estar corriéndose |
 
 Además: falta crear el establecimiento `CENMA N° 70 OBISPO ANGELELLI`. Ojo que
@@ -432,6 +490,9 @@ tiró el proyecto el 21/08. Falta:
 
 | Fecha | Commit | Qué | Con qué |
 |---|---|---|---|
+| 2026-09-10 | `este commit` | Sección "Herramientas" para inspector y empresa. Análisis de precios se mudó ahí (se quitó el botón de Certificación). Nueva herramienta "Cómputo de pintura": m² de esmalte/látex por local, se guardan varios con nombre en `computos_pintura`, editable, PDF y Excel. El programita corre en un iframe (`dgie-computo-pintura.html`) para no chocar con la app. Falta correr `supabase-computos-pintura.sql` | Claude Code |
+| 2026-09-10 | `corrido` | Zona 10: cargados los 119 certificados históricos (`medido`/`aprobado`, fuera del circuito de Administración) + 119 Excel subidos y adjuntados. Pendiente: `LIMPIAR-NOTIFICACIONES-CARGA-ZONA-10.sql` | Claude Code |
+| 2026-09-09 | `este commit` | Zona 17: completar la fecha documental de la O.S. 48 y bloquear fechas nulas en la carga | Codex |
 | 2026-09-09 | `este commit` | Zona 17: preparar sin ejecutar la carga idempotente de 105 órdenes históricas; revisión acumulada: Administración deja de ver el hilo privado inspector–empresa | Codex |
 | 2026-09-08 | `este commit` | Certificados: restablecer la plataforma al estado funcional de `7f3d205`, sin tocar datos | Codex |
 | 2026-09-07 | `este commit` | Cumpleaños: la lista de saludos muestra siete por vez y se desplaza. Alto medido (68,3 px por saludo), no estimado | Codex + Claude Code |

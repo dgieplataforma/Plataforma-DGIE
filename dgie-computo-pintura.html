@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cómputo de Pintura</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#f4f6f8}
+.app{max-width:960px;margin:0 auto;padding:20px}
+
+/* HEADER */
+.header{background:#1F3864;color:#fff;padding:16px 22px;border-radius:8px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.header h1{font-size:16px;font-weight:700;letter-spacing:.02em}
+.header .meta{font-size:11px;opacity:.75;margin-top:2px}
+.header-fields{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.header-fields label{font-size:11px;opacity:.8}
+.header-fields input{font-size:12px;padding:4px 8px;border:1px solid rgba(255,255,255,.3);border-radius:4px;background:rgba(255,255,255,.15);color:#fff;width:220px}
+.header-fields input::placeholder{color:rgba(255,255,255,.5)}
+.header-fields input:focus{outline:none;border-color:#fff}
+
+/* TOOLBAR */
+.toolbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+button{font-family:Arial,sans-serif;font-size:12px;padding:7px 14px;border:1px solid #ccc;border-radius:5px;background:#fff;color:#1a1a1a;cursor:pointer;transition:background .15s}
+button:hover{background:#f0f0f0}
+button.primary{background:#1F3864;color:#fff;border-color:#1F3864}
+button.primary:hover{background:#2E75B6;border-color:#2E75B6}
+button.accent{background:#2E75B6;color:#fff;border-color:#2E75B6}
+button.accent:hover{background:#1F3864;border-color:#1F3864}
+button.warn{background:#c0392b;color:#fff;border-color:#c0392b}
+button.warn:hover{background:#96281b}
+button.sm{padding:3px 8px;font-size:11px}
+button.ghost{background:transparent;color:#c0392b;border-color:#e74c3c}
+button.ghost:hover{background:#fdecea}
+
+/* BLOCKS */
+.bloque{border:1px solid #d0d6de;border-radius:8px;margin-bottom:14px;overflow:hidden;background:#fff}
+.bloque-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;gap:10px}
+.bloque-header.local{background:#2E75B6}
+.bloque-header.ext{background:#2C3E50}
+.bloque-header input.nombre{background:transparent;border:none;border-bottom:1.5px solid rgba(255,255,255,.4);color:#fff;font-size:14px;font-weight:700;width:200px;padding:2px 4px;font-family:Arial,sans-serif}
+.bloque-header input.nombre:focus{outline:none;border-bottom-color:#fff}
+.bloque-header .hdr-title{color:#fff;font-size:14px;font-weight:700}
+.bloque-header .hdr-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cant-box{display:inline-flex;align-items:center;gap:4px;color:#fff;font-size:13px;font-weight:700}
+.cant-box .cant-lbl{font-size:11px;opacity:.85;font-weight:400}
+.bloque-header input.cant{width:52px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);border-radius:4px;color:#fff;font-size:13px;font-weight:700;text-align:center;padding:3px 4px;font-family:Arial,sans-serif}
+.bloque-header input.cant:focus{outline:none;border-color:#fff;background:rgba(255,255,255,.28)}
+.sub-uni{font-weight:400;color:#7a6a2a;font-size:11px}
+.bloque-header .hdr-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.badge{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600}
+.badge.esm{background:#FCE4D6;color:#7B241C}
+.badge.lat{background:#E2EFDA;color:#1E8449}
+.badge.tot{background:#EAF0FB;color:#1A5276}
+.bloque-body{padding:14px 16px;background:#fff}
+
+/* SECTIONS */
+.seccion{margin-bottom:16px}
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#555;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;gap:6px}
+
+/* TABLES */
+table.items{width:100%;border-collapse:collapse;font-size:12px}
+table.items th{background:#f0f4f8;font-weight:700;font-size:11px;color:#444;text-align:center;padding:5px 4px;border:1px solid #d0d6de}
+table.items th.left{text-align:left}
+table.items td{padding:3px 4px;border:1px solid #dde3ea;vertical-align:middle}
+table.items td.r{text-align:right;font-variant-numeric:tabular-nums}
+table.items td.c{text-align:center}
+table.items tr:nth-child(even) td{background:#fafbfc}
+.td-inp{background:#EBF5FB!important}
+.td-corte{background:#D5F5E3!important}
+.td-esm{background:#FCE4D6!important;font-weight:600;color:#7B241C}
+.td-lat{background:#E2EFDA!important;font-weight:600;color:#1E8449}
+.td-tot{background:#EAF0FB!important;color:#1A5276}
+.tr-sub td{background:#FFF9E6!important;font-weight:700;font-size:12px!important;border-top:2px solid #e6c84a!important}
+table.items input[type=text]{font-size:12px;padding:3px 5px;border:1px solid #c8d0da;border-radius:3px;width:100%;font-family:Arial,sans-serif}
+table.items input[type=number]{font-size:12px;padding:3px 5px;border:1px solid #c8d0da;border-radius:3px;width:100%;text-align:right;font-family:Arial,sans-serif}
+table.items input:focus{outline:none;border-color:#2E75B6}
+.add-row{margin-top:6px}
+
+/* PINTURA EN ALTURA */
+.altura-panel{background:#fff;border:1px solid #d0d6de;border-radius:8px;padding:12px 16px;margin-bottom:14px}
+.altura-panel .altura-toggle{font-size:13px;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.altura-panel .altura-toggle input{width:16px;height:16px;cursor:pointer}
+.altura-campos{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-top:10px}
+.altura-campos label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#555;display:flex;flex-direction:column;gap:4px}
+.altura-campos input{font-size:13px;padding:5px 8px;border:1px solid #c8d0da;border-radius:4px;width:130px;text-align:right;font-family:Arial,sans-serif}
+.altura-campos input:focus{outline:none;border-color:#2E75B6}
+.altura-campos .altura-hint{font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:#777;max-width:280px;padding-bottom:2px}
+.altura-panel.off .altura-campos{display:none}
+
+/* MODAL DE COTAS */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(20,30,45,.55);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:8px;width:100%;max-width:410px;box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden}
+.modal-head{background:#1F3864;color:#fff;padding:12px 16px;font-size:14px;font-weight:700}
+.modal-body{padding:14px 16px}
+.modal-body .campo{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.modal-body .campo label{width:130px;font-size:12px;color:#444}
+.modal-body .campo input{flex:1;font-size:13px;padding:5px 8px;border:1px solid #c8d0da;border-radius:4px;font-family:Arial,sans-serif}
+.modal-body .campo input[type=number]{text-align:right}
+.modal-body .campo input:focus{outline:none;border-color:#2E75B6}
+.modal-body .ayuda{font-size:11px;color:#777;margin:0 0 10px 140px}
+.modal-prev{background:#f4f6f8;border-radius:6px;padding:9px 12px;font-size:12px;line-height:1.7;margin-top:10px}
+.modal-prev b{color:#1F3864}
+.modal-foot{padding:10px 16px;background:#f4f6f8;border-top:1px solid #e0e4ea;display:flex;justify-content:flex-end;gap:8px}
+
+/* RESUMEN */
+.resumen-section{background:#fff;border:1px solid #d0d6de;border-radius:8px;padding:16px;margin-bottom:14px}
+.resumen-section h2{font-size:13px;font-weight:700;color:#1F3864;margin-bottom:12px}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.metric{background:#f4f6f8;border-radius:6px;padding:10px 14px}
+.metric .mlabel{font-size:10px;color:#777;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+.metric .mval{font-size:18px;font-weight:700}
+.metric .mval.esm{color:#C0392B}
+.metric .mval.lat{color:#1E8449}
+.metric .mval.tot{color:#1F3864}
+table.resumen-tabla{width:100%;border-collapse:collapse;font-size:12px}
+table.resumen-tabla th{background:#1F3864;color:#fff;padding:6px 8px;text-align:center;font-size:11px;border:1px solid #16305a}
+table.resumen-tabla th.left{text-align:left}
+table.resumen-tabla td{padding:5px 8px;border:1px solid #dde3ea;text-align:right;font-variant-numeric:tabular-nums}
+table.resumen-tabla td.left{text-align:left;font-weight:600}
+table.resumen-tabla tr:nth-child(even) td{background:#f9fafb}
+table.resumen-tabla tr.total-row td{background:#FFF9E6;font-weight:700;border-top:2px solid #e6c84a}
+table.resumen-tabla tr.ext-row td{background:#f0f4f8}
+table.resumen-tabla tr.recargo-row td{background:#FFF4E0;color:#8a5a00;font-weight:600}
+
+/* ================= MÓVIL ================= */
+@media screen and (max-width:640px){
+  body{font-size:14px}
+  .app{padding:10px}
+
+  /* HEADER */
+  .header{padding:14px;flex-direction:column;align-items:stretch;gap:10px}
+  .header-fields{flex-direction:column;align-items:stretch;gap:10px!important;margin-bottom:8px!important}
+  .header-fields>div{width:100%}
+  .header-fields input{width:100%!important;font-size:16px;padding:9px 10px}
+  .header .meta{font-size:11px;line-height:1.4}
+  .hdr-right{text-align:left!important;border-top:1px solid rgba(255,255,255,.2);padding-top:8px}
+
+  /* TOOLBAR */
+  .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .toolbar button{width:100%;min-height:44px;font-size:13px;padding:8px 6px}
+
+  /* CABECERA DE BLOQUE */
+  .bloque-header{flex-direction:column;align-items:stretch;padding:12px}
+  .bloque-header .hdr-left{flex-direction:column;align-items:stretch;gap:10px}
+  .bloque-header input.nombre{width:100%;font-size:16px;padding:6px 2px}
+  .cant-box{justify-content:flex-start}
+  .bloque-header input.cant{width:66px;font-size:16px;padding:7px 4px}
+  .bloque-header .hdr-badges{gap:8px}
+  .bloque-header .hdr-badges .badge{font-size:12px;padding:5px 10px}
+  .bloque-header .hdr-badges button.sm{flex:1 1 28%;min-height:40px;font-size:12px;padding:8px 6px}
+  .bloque-body{padding:12px 10px}
+  .seccion{margin-bottom:20px}
+
+  /* TABLAS DE ÍTEMS → TARJETAS */
+  table.items{display:block;font-size:13px}
+  table.items thead{display:none}
+  table.items tbody{display:block}
+  table.items tr{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;position:relative;
+    background:#fff;border:1px solid #dde3ea;border-radius:8px;padding:10px;margin-bottom:10px}
+  table.items td{display:block;border:0;padding:0}
+  table.items td.cell-desc,table.items td.cell-dim,table.items td.cell-act{background:transparent!important}
+  table.items td.cell-desc{grid-column:1/-1;padding-right:38px}
+  table.items.con-corte td.cell-dim{grid-column:span 2}
+  table.items:not(.con-corte) td.cell-dim{grid-column:span 3}
+  table.items td.cell-res{grid-column:span 2;text-align:left;border-radius:6px;padding:5px 7px;font-weight:700}
+  table.items td.cell-dim::before,table.items td.cell-res::before{
+    content:attr(data-lbl);display:block;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.04em;margin-bottom:3px;line-height:1.2}
+  table.items td.cell-dim::before{color:#8a94a2}
+  table.items td.cell-res::before{opacity:.7;font-weight:600}
+  table.items input[type=text],table.items input[type=number]{font-size:16px;padding:8px;border-radius:6px}
+  table.items td.cell-act{position:absolute;top:8px;right:8px;width:auto}
+  table.items td.cell-act button.sm{min-width:34px;min-height:34px;font-size:16px;line-height:1;padding:0}
+  table.items tr.tr-sub{background:#FFF9E6!important;border:1px solid #e6c84a!important}
+  table.items tr.tr-sub td{background:transparent!important}
+  table.items tr.tr-sub td[colspan]{grid-column:1/-1;text-align:left!important;padding-right:0!important;
+    font-size:12px!important;text-transform:uppercase;letter-spacing:.05em;color:#7a6a2a}
+  table.items tr.tr-sub td.td-tot{background:#EAF0FB!important;color:#1A5276}
+  table.items tr.tr-sub td.td-esm{background:#FCE4D6!important;color:#7B241C}
+  table.items tr.tr-sub td.td-lat{background:#E2EFDA!important;color:#1E8449}
+  button.sm.add-row{width:100%;min-height:42px;font-size:13px}
+
+  /* PINTURA EN ALTURA */
+  .altura-campos{flex-direction:column;align-items:stretch;gap:12px}
+  .altura-campos input{width:100%;font-size:16px;padding:9px 10px}
+  .altura-campos .altura-hint{max-width:none}
+
+  /* SUBTOTALES DE BLOQUE */
+  .sub-local,.sub-ext{flex-direction:column!important;align-items:stretch!important;gap:7px!important}
+  .sub-local .badge,.sub-ext .badge{font-size:12px;padding:5px 10px;text-align:center}
+  .sub-uni{text-align:center;line-height:1.4}
+
+  /* RESUMEN */
+  .resumen-section{padding:14px 10px}
+  .metric-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .metric{padding:9px 10px}
+  .metric .mlabel{font-size:9px}
+  .metric .mval{font-size:16px}
+  table.resumen-tabla{display:block;font-size:13px}
+  table.resumen-tabla thead{display:none}
+  table.resumen-tabla tbody{display:block}
+  table.resumen-tabla tr{display:grid;grid-template-columns:1fr 1fr;gap:8px;
+    border:1px solid #dde3ea;border-radius:8px;padding:11px;margin-bottom:10px;background:#fff}
+  table.resumen-tabla td{display:block;border:0;padding:0;text-align:left!important;background:transparent!important}
+  table.resumen-tabla td::before{content:attr(data-lbl);display:block;font-size:9px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.04em;color:#8a94a2;margin-bottom:2px;line-height:1.2}
+  table.resumen-tabla td.dash{display:none}
+  table.resumen-tabla td.left{grid-column:1/-1;font-size:14px;color:#1F3864;
+    border-bottom:1px solid #e6eaf0;padding-bottom:7px!important;margin-bottom:2px}
+  table.resumen-tabla td.left::before{display:none}
+  table.resumen-tabla td.c-tot-e,table.resumen-tabla td.c-tot-l{
+    border-radius:6px;padding:6px 8px!important;font-weight:700;margin-top:3px}
+  table.resumen-tabla td.c-tot-e{background:#FCE4D6!important;color:#7B241C;grid-column:1}
+  table.resumen-tabla td.c-tot-l{background:#E2EFDA!important;color:#1E8449}
+  table.resumen-tabla tr.total-row{background:#FFF9E6!important;border-color:#e6c84a}
+  table.resumen-tabla tr.total-row td{border-top:0!important}
+  table.resumen-tabla tr.ext-row{background:#f7f9fb!important}
+  table.resumen-tabla tr.recargo-row{background:#FFF4E0!important;border-color:#e8c78a}
+  table.resumen-tabla tr.recargo-row td{color:#8a5a00}
+
+  /* MODAL */
+  .modal-bg{padding:0;align-items:flex-end}
+  .modal{max-width:100%;border-radius:14px 14px 0 0;max-height:92vh;overflow-y:auto}
+  .modal-head{padding:14px 16px;font-size:15px}
+  .modal-body .campo{flex-direction:column;align-items:stretch;gap:4px;margin-bottom:12px}
+  .modal-body .campo label{width:auto;font-size:12px;font-weight:700;color:#333}
+  .modal-body .campo input{font-size:16px;padding:10px}
+  .modal-body .ayuda{margin:-6px 0 12px 0;line-height:1.4}
+  .modal-prev{font-size:13px}
+  .modal-foot{padding:12px 16px}
+  .modal-foot button{flex:1;min-height:46px;font-size:14px}
+}
+
+/* PRINT */
+@media print{
+  @page{size:A4 landscape;margin:12mm 10mm}
+  body{background:#fff;font-size:10px}
+  .app{max-width:100%;padding:0}
+  .toolbar,.header-fields button,.bloque-header .ghost,.add-row,.no-print{display:none!important}
+  .bloque{break-inside:avoid;margin-bottom:8px;border:1px solid #999}
+  .bloque-header{padding:6px 10px}
+  .bloque-body{padding:8px 10px}
+  .seccion{margin-bottom:8px}
+  .header{border-radius:0;padding:8px 10px}
+  table.items{font-size:9px}
+  table.items th,table.items td{padding:2px 3px}
+  table.items input[type=text],table.items input[type=number]{border:none;background:transparent!important;padding:0;font-size:9px;pointer-events:none}
+  .bloque-header input.cant{border:none;background:transparent!important;color:#fff!important;width:auto;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .modal-bg{display:none!important}
+  .altura-panel{break-inside:avoid;border:1px solid #999}
+  .altura-panel.off{display:none!important}
+  .altura-panel .altura-toggle input{display:none}
+  .td-inp{background:#EBF5FB!important}
+  .td-corte{background:#D5F5E3!important}
+  .td-esm{background:#FCE4D6!important}
+  .td-lat{background:#E2EFDA!important}
+  .td-tot{background:#EAF0FB!important}
+  .tr-sub td{background:#FFF9E6!important;font-weight:700}
+  .resumen-section{break-inside:avoid;border:1px solid #999}
+  .metric-grid{display:none}
+  table.resumen-tabla{font-size:9px}
+  table.resumen-tabla th,table.resumen-tabla td{padding:3px 5px}
+  .print-break{page-break-before:always}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <div>
+    <div class="header-fields" style="gap:14px;margin-bottom:6px">
+      <div>
+        <div style="font-size:11px;opacity:.7;margin-bottom:2px">NOMBRE DEL CÓMPUTO</div>
+        <input id="campo-obra" type="text" placeholder="Ej: Patios – Escuela X" style="width:280px" value="">
+      </div>
+      <div>
+        <div style="font-size:11px;opacity:.7;margin-bottom:2px">ESTABLECIMIENTO (opcional)</div>
+        <select id="campo-est" style="width:280px"><option value="">— Sin establecimiento —</option></select>
+      </div>
+      <div>
+        <div style="font-size:11px;opacity:.7;margin-bottom:2px">FECHA</div>
+        <input id="campo-fecha" type="text" placeholder="dd/mm/aaaa" style="width:120px" value="">
+      </div>
+    </div>
+    <div class="meta">Dirección General de Infraestructura Escolar – Ministerio de Educación de Córdoba</div>
+  </div>
+  <div class="hdr-right" style="text-align:right">
+    <div style="font-size:13px;font-weight:700">CÓMPUTO DE PINTURA</div>
+  </div>
+</div>
+
+<div class="toolbar no-print">
+  <button onclick="volverALista()" style="border-color:#8a94a2;color:#333">‹ Volver</button>
+  <button class="primary" onclick="agregarLocal()">+ Agregar local</button>
+  <button class="primary" onclick="abrirCotas(null)">+ Local rectangular</button>
+  <button class="accent" onclick="exportarExcel()">Exportar Excel</button>
+  <button class="accent" onclick="exportarPDF()">Exportar PDF A4</button>
+  <button onclick="guardarComputo()" style="background:#27ae60;color:#fff;border-color:#27ae60">Guardar</button>
+  <button class="warn" onclick="limpiarTodo()">Limpiar todo</button>
+</div>
+
+<div class="modal-bg no-print" id="modal-cotas" onclick="if(event.target===this)cerrarCotas()" style="display: none;">
+  <div class="modal">
+    <div class="modal-head" id="cotas-titulo">Nuevo local rectangular</div>
+    <div class="modal-body">
+      <div class="campo" id="cotas-fila-nombre"><label>Nombre del local</label><input type="text" id="cota-nombre"></div>
+      <div class="campo"><label>Largo (m)</label><input type="number" id="cota-largo" step="0.01" min="0" placeholder="0.00" oninput="previewCotas()"></div>
+      <div class="campo"><label>Ancho (m)</label><input type="number" id="cota-ancho" step="0.01" min="0" placeholder="0.00" oninput="previewCotas()"></div>
+      <div class="campo"><label>Altura (m)</label><input type="number" id="cota-alto" step="0.01" min="0" placeholder="0.00" oninput="previewCotas()"></div>
+      <div class="campo"><label>Alt. de corte (m)</label><input type="number" id="cota-corte" step="0.01" min="0" placeholder="0.00" oninput="previewCotas()"></div>
+      <div class="ayuda">Separa esmalte (abajo) de látex (arriba). Vacío = muro todo látex.</div>
+      <div class="campo"><label>Espacios iguales</label><input type="number" id="cota-cant" step="1" min="1" value="1" oninput="previewCotas()"></div>
+      <div class="modal-prev" id="cotas-preview"></div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="cerrarCotas()">Cancelar</button>
+      <button class="primary" onclick="generarCotas()">Generar</button>
+    </div>
+  </div>
+</div>
+
+<div class="altura-panel" id="altura-panel">
+  <label class="altura-toggle">
+    <input type="checkbox" id="altura-activo" onchange="updAlturaCfg()" checked="">
+    <strong>Pintura en altura</strong>
+  </label>
+  <div class="altura-campos">
+    <label>Altura límite (m)
+      <input type="number" id="altura-limite" step="0.01" min="0" placeholder="0.00" inputmode="decimal" oninput="updAlturaCfg()" value="4">
+    </label>
+    <label>Porcentaje adicional (%)
+      <input type="number" id="altura-pct" step="1" min="0" placeholder="0" inputmode="decimal" oninput="updAlturaCfg()" value="30">
+    </label>
+    <span class="altura-hint">El recargo se aplica sólo a los m² de muro situados por encima de la altura límite, nunca a toda la pared por superar ese límite. Los m² de cada muro se muestran reales; el recargo se suma aparte en el Resumen general.</span>
+  </div>
+</div>
+
+<div id="bloques"></div>
+
+<div class="resumen-section">
+  <h2>Resumen general</h2>
+  <div class="metric-grid" id="metric-grid"></div>
+  <table class="resumen-tabla" id="resumen-tabla">
+    <thead>
+      <tr>
+        <th class="left">Local / Bloque</th>
+        <th>Mur.Int.<br>Esmalte m²</th>
+        <th>Mur.Int.<br>Látex m²</th>
+        <th>Cielorraso<br>Látex m²</th>
+        <th>Carp.Int.<br>Esmalte m²</th>
+        <th>Mur.Ext.<br>Esmalte m²</th>
+        <th>Mur.Ext.<br>Látex m²</th>
+        <th>Carp.Ext.<br>Esmalte m²</th>
+        <th>TOTAL<br>Esmalte m²</th>
+        <th>TOTAL<br>Látex m²</th>
+      </tr>
+    </thead>
+    <tbody id="resumen-body"></tbody>
+  </table>
+</div>
+
+</div>
+
+<script>
+let locales = [];
+let extData = { muros:[], carps:[] };
+let nextId = 1;
+let ESTADO_INICIAL = null;   // lo completa el bloque #datos-iniciales del final
+
+// Opción "Pintura en altura": recargo % que se aplica SOLO a los m² de muro
+// situados por encima de la altura límite. Desactivada por defecto.
+let alturaCfg = { activo:false, altura:'', pct:'' };
+
+function alturaActiva(){
+  return !!alturaCfg.activo &&
+         (parseFloat(alturaCfg.altura)||0) > 0 &&
+         (parseFloat(alturaCfg.pct)||0) > 0;
+}
+
+function updAlturaCfg(){
+  alturaCfg.activo = document.getElementById('altura-activo').checked;
+  alturaCfg.altura = document.getElementById('altura-limite').value;
+  alturaCfg.pct    = document.getElementById('altura-pct').value;
+  document.getElementById('altura-panel').classList.toggle('off', !alturaCfg.activo);
+  render();
+}
+
+function ni(){ return {desc:'',largo:'',alto:'',corte:''}; }
+
+// Cantidad de espacios iguales que representa un local (mínimo 1)
+function getCant(loc){
+  const n = parseInt(loc && loc.cant);
+  return (isNaN(n) || n < 1) ? 1 : n;
+}
+
+function agregarLocal(){
+  const n = locales.length + 1;
+  locales.push({
+    id: nextId++,
+    nombre: 'Local ' + String(n).padStart(2,'0'),
+    cant: 1,
+    muros: [ni(),ni(),ni()],
+    cielos: [ni(),ni()],
+    carps: [ni(),ni()]
+  });
+  render();
+}
+
+function eliminarLocal(id){
+  if(!confirm('¿Eliminar este local?')) return;
+  locales = locales.filter(l=>l.id!==id);
+  render();
+}
+
+// Cambia la cantidad de espacios iguales sin re-renderizar (no pierde el foco)
+function updCant(id, val){
+  const loc = locales.find(l=>l.id===id);
+  if(!loc) return;
+  loc.cant = val;
+  updateLocalBadges(id);
+  updateResumen();
+}
+
+/* ---- Local rectangular: genera los 4 muros y el cielorraso a partir de las cotas ---- */
+
+let cotasDestino = null;              // null = crear local nuevo; id = rellenar uno existente
+let ultimasCotas = {alto:'',corte:''}; // se recuerdan para cargar locales en serie
+
+function abrirCotas(locId){
+  cotasDestino = (locId===undefined||locId===null) ? null : locId;
+  const loc = cotasDestino!==null ? locales.find(l=>l.id===cotasDestino) : null;
+  const d = (loc && loc.dims) || {};
+  document.getElementById('cotas-titulo').textContent =
+    loc ? 'Cotas de «'+(loc.nombre||'local')+'»' : 'Nuevo local rectangular';
+  document.getElementById('cotas-fila-nombre').style.display = loc ? 'none' : '';
+  document.getElementById('cota-nombre').value = loc ? '' : 'Local '+String(locales.length+1).padStart(2,'0');
+  document.getElementById('cota-largo').value = d.largo || '';
+  document.getElementById('cota-ancho').value = d.ancho || '';
+  document.getElementById('cota-alto').value  = d.alto  || ultimasCotas.alto;
+  document.getElementById('cota-corte').value = d.corte !== undefined ? d.corte : ultimasCotas.corte;
+  document.getElementById('cota-cant').value  = loc ? getCant(loc) : 1;
+  previewCotas();
+  document.getElementById('modal-cotas').style.display = 'flex';
+  setTimeout(()=>document.getElementById(loc?'cota-largo':'cota-nombre').focus(), 40);
+}
+
+function cerrarCotas(){
+  document.getElementById('modal-cotas').style.display = 'none';
+  cotasDestino = null;
+}
+
+function leerCotas(){
+  const v = id => parseFloat(document.getElementById(id).value)||0;
+  const c = parseInt(document.getElementById('cota-cant').value);
+  return {L:v('cota-largo'), A:v('cota-ancho'), H:v('cota-alto'), C:v('cota-corte'),
+          cant:(isNaN(c)||c<1)?1:c};
+}
+
+function previewCotas(){
+  const {L,A,H,C,cant} = leerCotas();
+  const perim = 2*(L+A);
+  const esm = perim*Math.min(H,C);
+  const lat = perim*Math.max(0,H-C);
+  const cielo = L*A;
+  let h = `Perímetro <b>${perim.toFixed(2)} m</b> · 4 muros <b>${(perim*H).toFixed(2)} m²</b><br>`+
+          `Muros: esmalte <b>${esm.toFixed(2)}</b> · látex <b>${lat.toFixed(2)} m²</b><br>`+
+          `Cielorraso (látex) <b>${cielo.toFixed(2)} m²</b>`;
+  if(cant>1) h += `<br>× ${cant} espacios → esmalte <b>${(esm*cant).toFixed(2)}</b> · látex <b>${((lat+cielo)*cant).toFixed(2)} m²</b>`;
+  document.getElementById('cotas-preview').innerHTML = h;
+}
+
+function generarCotas(){
+  const {L,A,H,C,cant} = leerCotas();
+  if(!(L>0 && A>0 && H>0)){
+    alert('Completá Largo, Ancho y Altura con valores mayores a cero.');
+    return;
+  }
+  const sL=String(L), sA=String(A), sH=String(H), sC = C>0 ? String(C) : '';
+  const muros = [
+    {desc:'M1', largo:sL, alto:sH, corte:sC},
+    {desc:'M2', largo:sA, alto:sH, corte:sC},
+    {desc:'M3', largo:sL, alto:sH, corte:sC},
+    {desc:'M4', largo:sA, alto:sH, corte:sC}
+  ];
+  const dims = {largo:sL, ancho:sA, alto:sH, corte:sC};
+  ultimasCotas = {alto:sH, corte:sC};
+
+  if(cotasDestino !== null){
+    const loc = locales.find(l=>l.id===cotasDestino);
+    if(!loc){ cerrarCotas(); return; }
+    const cargado = a => a.some(it=>it.desc||it.largo||it.alto);
+    if((cargado(loc.muros)||cargado(loc.cielos)) &&
+       !confirm('Se van a reemplazar los muros y el cielorraso ya cargados en este local.\n'+
+                'Las carpinterías quedan como están.\n\n¿Continuar?')) return;
+    loc.muros = muros;
+    loc.cielos = [{desc:'Cielorraso '+(loc.nombre||''), largo:sL, alto:sA, corte:''}];
+    loc.cant = cant;
+    loc.dims = dims;
+  } else {
+    const nombre = document.getElementById('cota-nombre').value.trim() ||
+                   'Local '+String(locales.length+1).padStart(2,'0');
+    locales.push({
+      id: nextId++,
+      nombre, cant, dims, muros,
+      cielos: [{desc:'Cielorraso '+nombre, largo:sL, alto:sA, corte:''}],
+      carps: [ni()]
+    });
+  }
+  cerrarCotas();
+  render();
+}
+
+document.addEventListener('keydown', e=>{
+  const m = document.getElementById('modal-cotas');
+  if(!m || m.style.display !== 'flex') return;
+  if(e.key === 'Escape'){ cerrarCotas(); }
+  else if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); generarCotas(); }
+});
+
+// Crea una copia independiente del local, para editarla por separado
+function duplicarLocal(id){
+  const i = locales.findIndex(l=>l.id===id);
+  if(i<0) return;
+  const copia = JSON.parse(JSON.stringify(locales[i]));
+  copia.id = nextId++;
+  copia.nombre = locales[i].nombre + ' (copia)';
+  locales.splice(i+1, 0, copia);
+  render();
+}
+
+function calc(it, modo){
+  const L=parseFloat(it.largo)||0, A=parseFloat(it.alto)||0, C=parseFloat(it.corte)||0;
+  const tot=L*A;
+  let esm=0, lat=0, extraEsm=0, extraLat=0;
+  if(modo==='muro'){
+    const base=Math.min(A,C);            // altura pintada con esmalte (0 si corte vacío)
+    esm=L*base;
+    lat=L*Math.max(0,A-base);
+    // Recargo "pintura en altura": % SOLO sobre los m² por encima de la altura límite.
+    // NO se suma a esm/lat (que quedan como m² reales medidos); se expone aparte
+    // y se agrega recién en el Resumen general / planilla.
+    if(alturaActiva()){
+      const Hl=parseFloat(alturaCfg.altura)||0;
+      const p=(parseFloat(alturaCfg.pct)||0)/100;
+      if(Hl>0 && p>0 && A>Hl){
+        extraEsm=L*Math.max(0, base-Hl)*p;              // recargo sobre el tramo de esmalte en altura
+        extraLat=L*Math.max(0, A-Math.max(base,Hl))*p;  // recargo sobre el tramo de látex en altura
+      }
+    }
+  }
+  else if(modo==='cielo'){ lat=tot; }
+  else if(modo==='carp'){ esm=tot; }
+  return {tot,esm,lat,extraEsm,extraLat,extraAlt:extraEsm+extraLat};
+}
+
+function sumSec(arr,modo){
+  return arr.reduce((a,it)=>{const r=calc(it,modo);return{tot:a.tot+r.tot,esm:a.esm+r.esm,lat:a.lat+r.lat,extraEsm:a.extraEsm+(r.extraEsm||0),extraLat:a.extraLat+(r.extraLat||0),extraAlt:a.extraAlt+(r.extraAlt||0)};},{tot:0,esm:0,lat:0,extraEsm:0,extraLat:0,extraAlt:0});
+}
+
+function f2(n){ return n.toFixed(2); }
+function fv(n){ return parseFloat(n.toFixed(2)); }
+
+function tablaHTML(arr, modo, prefix){
+  const hasCorte = modo==='muro';
+  let h = `<table class="items${hasCorte?' con-corte':''}"><thead><tr>
+    <th class="left" style="width:${hasCorte?'26%':'30%'}">Descripción</th>
+    <th style="width:10%">Largo (m)</th>
+    <th style="width:10%">Alto/Ancho (m)</th>
+    ${hasCorte?`<th style="width:10%">Alt. corte (m)</th>`:''}
+    <th style="width:10%">Sup. total</th>
+    <th style="width:10%">Esmalte (m²)</th>
+    <th style="width:10%">Látex (m²)</th>
+    <th class="no-print" style="width:4%"></th>
+  </tr></thead><tbody>`;
+
+  arr.forEach((it,i)=>{
+    const r=calc(it,modo);
+    h+=`<tr>
+      <td class="cell-desc"><input type="text" value="${esc(it.desc)}" placeholder="Descripción..." oninput="upd('${prefix}','desc',${i},this.value)"></td>
+      <td class="td-inp cell-dim" data-lbl="Largo (m)"><input type="number" value="${it.largo}" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="upd('${prefix}','largo',${i},this.value)"></td>
+      <td class="td-inp cell-dim" data-lbl="Alto/Ancho (m)"><input type="number" value="${it.alto}" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="upd('${prefix}','alto',${i},this.value)"></td>
+      ${hasCorte?`<td class="td-corte cell-dim" data-lbl="Alt. corte (m)"><input type="number" value="${it.corte}" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="upd('${prefix}','corte',${i},this.value)"></td>`:''}
+      <td class="r td-tot cell-res" data-lbl="Sup. total" id="cell-tot-${prefix}-${i}">${f2(r.tot)}</td>
+      <td class="r td-esm cell-res" data-lbl="Esmalte m²" id="cell-esm-${prefix}-${i}">${f2(r.esm)}</td>
+      <td class="r td-lat cell-res" data-lbl="Látex m²" id="cell-lat-${prefix}-${i}">${f2(r.lat)}</td>
+      <td class="c no-print cell-act"><button class="sm ghost" onclick="remFila('${prefix}',${i})">×</button></td>
+    </tr>`;
+  });
+
+  const s=sumSec(arr,modo);
+  const span = hasCorte ? 4 : 3;
+  h+=`<tr class="tr-sub">
+    <td colspan="${span}" style="text-align:right;padding-right:8px">Subtotal</td>
+    <td class="r td-tot cell-res" data-lbl="Sup. total" id="sub-tot-${prefix}">${s.tot.toFixed(2)}</td>
+    <td class="r td-esm cell-res" data-lbl="Esmalte m²" id="sub-esm-${prefix}">${s.esm.toFixed(2)}</td>
+    <td class="r td-lat cell-res" data-lbl="Látex m²" id="sub-lat-${prefix}">${s.lat.toFixed(2)}</td>
+    <td class="no-print cell-act"></td>
+  </tr></tbody></table>
+  <button class="sm add-row no-print" onclick="addFila('${prefix}')">+ fila</button>`;
+  return h;
+}
+
+function getModo(prefix){
+  if(prefix.includes('cielos')) return 'cielo';
+  if(prefix.includes('carps')||prefix==='ext-carps') return 'carp';
+  return 'muro';
+}
+
+function upd(prefix, campo, idx, val){
+  const arr = getArr(prefix);
+  if(!arr) return;
+  arr[idx][campo] = val;
+  const modo = getModo(prefix);
+  const r = calc(arr[idx], modo);
+  // Actualizar celdas de la fila
+  const ct = document.getElementById('cell-tot-'+prefix+'-'+idx);
+  const ce = document.getElementById('cell-esm-'+prefix+'-'+idx);
+  const cl = document.getElementById('cell-lat-'+prefix+'-'+idx);
+  if(ct) ct.textContent = f2(r.tot);
+  if(ce) ce.textContent = f2(r.esm);
+  if(cl) cl.textContent = f2(r.lat);
+  // Actualizar subtotal de la sección
+  const s = sumSec(arr, modo);
+  const st = document.getElementById('sub-tot-'+prefix);
+  const se = document.getElementById('sub-esm-'+prefix);
+  const sl = document.getElementById('sub-lat-'+prefix);
+  if(st) st.textContent = s.tot.toFixed(2);
+  if(se) se.textContent = s.esm.toFixed(2);
+  if(sl) sl.textContent = s.lat.toFixed(2);
+  // Actualizar subtotal y badges del local si corresponde
+  if(prefix.startsWith('loc-')){
+    const parts = prefix.split('-');
+    const locId = parseInt(parts[1]);
+    updateLocalBadges(locId);
+  } else {
+    updateExtBadges();
+  }
+  updateResumen();
+}
+
+function updateLocalBadges(locId){
+  const loc = locales.find(l=>l.id===locId);
+  if(!loc) return;
+  const c = getCant(loc);
+  const sm=sumSec(loc.muros,'muro'), sc=sumSec(loc.cielos,'cielo'), sk=sumSec(loc.carps,'carp');
+  const totE=sm.esm+sk.esm, totL=sm.lat+sc.lat, totT=sm.tot+sc.tot+sk.tot;
+  const be=document.getElementById('badge-esm-'+locId);
+  const bl=document.getElementById('badge-lat-'+locId);
+  const subE=document.getElementById('sub-badge-esm-'+locId);
+  const subL=document.getElementById('sub-badge-lat-'+locId);
+  const subT=document.getElementById('sub-badge-tot-'+locId);
+  const subLbl=document.getElementById('sub-lbl-'+locId);
+  const subUni=document.getElementById('sub-uni-'+locId);
+  if(be) be.textContent='Esm: '+(totE*c).toFixed(2)+' m²';
+  if(bl) bl.textContent='Lat: '+(totL*c).toFixed(2)+' m²';
+  if(subE) subE.textContent='Esmalte: '+(totE*c).toFixed(2)+' m²';
+  if(subL) subL.textContent='Látex: '+(totL*c).toFixed(2)+' m²';
+  if(subT) subT.textContent='Total: '+(totT*c).toFixed(2)+' m²';
+  if(subLbl) subLbl.textContent='SUBTOTAL LOCAL'+(c>1?' (×'+c+')':'')+':';
+  if(subUni) subUni.textContent = c>1
+    ? '(unitario: Esm '+totE.toFixed(2)+' / Lat '+totL.toFixed(2)+' / Tot '+totT.toFixed(2)+' m²)'
+    : '';
+}
+
+function updateExtBadges(){
+  const sme=sumSec(extData.muros,'muro'), sce=sumSec(extData.carps,'carp');
+  const be=document.getElementById('ext-badge-esm');
+  const bl=document.getElementById('ext-badge-lat');
+  const sbe=document.getElementById('ext-sub-esm');
+  const sbl=document.getElementById('ext-sub-lat');
+  if(be) be.textContent='Esm: '+(sme.esm+sce.esm).toFixed(2)+' m²';
+  if(bl) bl.textContent='Lat: '+sme.lat.toFixed(2)+' m²';
+  if(sbe) sbe.textContent='Esmalte: '+(sme.esm+sce.esm).toFixed(2)+' m²';
+  if(sbl) sbl.textContent='Látex: '+sme.lat.toFixed(2)+' m²';
+}
+
+function addFila(prefix){
+  const arr=getArr(prefix);
+  if(arr){ arr.push(ni()); render(); }
+}
+
+function remFila(prefix, idx){
+  const arr=getArr(prefix);
+  if(arr && arr.length>1){ arr.splice(idx,1); render(); }
+}
+
+function getArr(prefix){
+  if(prefix==='ext-muros') return extData.muros;
+  if(prefix==='ext-carps') return extData.carps;
+  const [,idStr,sec]=prefix.split('-');
+  const loc=locales.find(l=>l.id===parseInt(idStr));
+  if(!loc) return null;
+  return sec==='muros'?loc.muros:sec==='cielos'?loc.cielos:loc.carps;
+}
+
+function updNombre(id,val){
+  const loc=locales.find(l=>l.id===id);
+  if(loc) loc.nombre=val;
+  updateResumen();
+}
+
+function esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function render(){
+  let html='';
+  locales.forEach(loc=>{
+    const c=getCant(loc);
+    const sm=sumSec(loc.muros,'muro'), sc=sumSec(loc.cielos,'cielo'), sk=sumSec(loc.carps,'carp');
+    const totE=sm.esm+sk.esm, totL=sm.lat+sc.lat;
+    html+=`<div class="bloque">
+      <div class="bloque-header local">
+        <div class="hdr-left">
+          <input class="nombre" type="text" value="${esc(loc.nombre)}" oninput="updNombre(${loc.id},this.value)" onclick="event.stopPropagation()">
+          <span class="cant-box"><span class="cant-lbl">espacios iguales</span>×<input class="cant" type="number" min="1" step="1" value="${c}" title="Cantidad de espacios iguales a éste" oninput="updCant(${loc.id},this.value)" onclick="event.stopPropagation()"></span>
+        </div>
+        <div class="hdr-badges">
+          <span class="badge esm" id="badge-esm-${loc.id}">Esm: ${(totE*c).toFixed(2)} m²</span>
+          <span class="badge lat" id="badge-lat-${loc.id}">Lat: ${(totL*c).toFixed(2)} m²</span>
+          <button class="sm ghost no-print" style="color:#d9f2e4;border-color:#8fd3ae;background:transparent" onclick="abrirCotas(${loc.id})" title="Generar los 4 muros y el cielorraso a partir de largo × ancho × altura">Por cotas</button>
+          <button class="sm ghost no-print" style="color:#cfe8ff;border-color:#9ec9ef;background:transparent" onclick="duplicarLocal(${loc.id})">Duplicar</button>
+          <button class="sm ghost no-print" style="color:#ffcdd2;border-color:#ef9a9a;background:transparent" onclick="eliminarLocal(${loc.id})">Eliminar</button>
+        </div>
+      </div>
+      <div class="bloque-body">
+        <div class="seccion">
+          <div class="sec-title">Muros interiores <span class="badge esm" style="font-size:10px">Esm+Lat según corte</span></div>
+          ${tablaHTML(loc.muros,'muro',`loc-${loc.id}-muros`)}
+        </div>
+        <div class="seccion">
+          <div class="sec-title">Cielorrasos <span class="badge lat" style="font-size:10px">Todo látex</span></div>
+          ${tablaHTML(loc.cielos,'cielo',`loc-${loc.id}-cielos`)}
+        </div>
+        <div class="seccion">
+          <div class="sec-title">Carpinterías interiores <span class="badge esm" style="font-size:10px">Todo esmalte</span></div>
+          ${tablaHTML(loc.carps,'carp',`loc-${loc.id}-carps`)}
+        </div>
+        <div class="sub-local" style="margin-top:10px;padding:8px 12px;background:#FFF9E6;border-radius:5px;border:1px solid #e6c84a;display:flex;gap:16px;font-size:12px;font-weight:700;align-items:center;flex-wrap:wrap">
+          <span id="sub-lbl-${loc.id}">SUBTOTAL LOCAL${c>1?` (×${c})`:''}:</span>
+          <span class="badge esm" id="sub-badge-esm-${loc.id}">Esmalte: ${(totE*c).toFixed(2)} m²</span>
+          <span class="badge lat" id="sub-badge-lat-${loc.id}">Látex: ${(totL*c).toFixed(2)} m²</span>
+          <span class="badge tot" id="sub-badge-tot-${loc.id}">Total: ${((sm.tot+sc.tot+sk.tot)*c).toFixed(2)} m²</span>
+          <span class="sub-uni" id="sub-uni-${loc.id}">${c>1?`(unitario: Esm ${totE.toFixed(2)} / Lat ${totL.toFixed(2)} / Tot ${(sm.tot+sc.tot+sk.tot).toFixed(2)} m²)`:''}</span>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // Bloque exterior
+  const sme=sumSec(extData.muros,'muro'), sce=sumSec(extData.carps,'carp');
+  html+=`<div class="bloque">
+    <div class="bloque-header ext">
+      <span class="hdr-title">Muros exteriores</span>
+      <div class="hdr-badges">
+        <span class="badge esm" id="ext-badge-esm">Esm: ${(sme.esm+sce.esm).toFixed(2)} m²</span>
+        <span class="badge lat" id="ext-badge-lat">Lat: ${sme.lat.toFixed(2)} m²</span>
+      </div>
+    </div>
+    <div class="bloque-body">
+      <div class="seccion">
+        <div class="sec-title">Muros exteriores <span class="badge esm" style="font-size:10px">Esm+Lat según corte</span></div>
+        ${tablaHTML(extData.muros,'muro','ext-muros')}
+      </div>
+      <div class="seccion">
+        <div class="sec-title">Carpinterías exteriores <span class="badge esm" style="font-size:10px">Todo esmalte</span></div>
+        ${tablaHTML(extData.carps,'carp','ext-carps')}
+      </div>
+      <div class="sub-ext" style="margin-top:10px;padding:8px 12px;background:#FFF9E6;border-radius:5px;border:1px solid #e6c84a;display:flex;gap:16px;font-size:12px;font-weight:700;flex-wrap:wrap;align-items:center">
+        <span>SUBTOTAL EXT:</span>
+        <span class="badge esm" id="ext-sub-esm">Esmalte: ${(sme.esm+sce.esm).toFixed(2)} m²</span>
+        <span class="badge lat" id="ext-sub-lat">Látex: ${sme.lat.toFixed(2)} m²</span>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('bloques').innerHTML=html;
+  updateResumen();
+}
+
+function getTot(){
+  // esmI/latI/esmE/latE = m² REALES (sin recargo). xEsm*/xLat* = recargo en altura.
+  let esmI=0,latI=0,clo=0,carpI=0,xEsmI=0,xLatI=0;
+  locales.forEach(l=>{
+    const c=getCant(l);
+    const sm=sumSec(l.muros,'muro'),sc=sumSec(l.cielos,'cielo'),sk=sumSec(l.carps,'carp');
+    esmI+=sm.esm*c; latI+=sm.lat*c; clo+=sc.lat*c; carpI+=sk.esm*c;
+    xEsmI+=sm.extraEsm*c; xLatI+=sm.extraLat*c;
+  });
+  const sme=sumSec(extData.muros,'muro'), sce=sumSec(extData.carps,'carp');
+  const xEsmE=sme.extraEsm, xLatE=sme.extraLat;
+  return {esmI,latI,clo,carpI,esmE:sme.esm,latE:sme.lat,carpE:sce.esm,
+          xEsmI,xLatI,xEsmE,xLatE,
+          extraEsm:xEsmI+xEsmE, extraLat:xLatI+xLatE, extraAlt:xEsmI+xLatI+xEsmE+xLatE};
+}
+
+function updateResumen(){
+  const t=getTot();
+  const tE=t.esmI+t.esmE+t.carpI+t.carpE;   // m² reales
+  const tL=t.latI+t.latE+t.clo;             // m² reales
+  const tE_c=tE+t.extraEsm;                 // con recargo en altura (planilla)
+  const tL_c=tL+t.extraLat;
+
+  document.getElementById('metric-grid').innerHTML=`
+    <div class="metric"><div class="mlabel">Total esmalte</div><div class="mval esm">${tE.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Total látex</div><div class="mval lat">${tL.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Mur. int. esmalte</div><div class="mval">${t.esmI.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Mur. int. látex</div><div class="mval">${t.latI.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Cielorrasos látex</div><div class="mval">${t.clo.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Carp. int. esmalte</div><div class="mval">${t.carpI.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Mur. ext. esmalte</div><div class="mval">${t.esmE.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Mur. ext. látex</div><div class="mval">${t.latE.toFixed(2)} m²</div></div>
+    <div class="metric"><div class="mlabel">Carp. ext. esmalte</div><div class="mval">${t.carpE.toFixed(2)} m²</div></div>
+    ${alturaActiva()?`<div class="metric"><div class="mlabel">Recargo en altura (aparte)</div><div class="mval">+${t.extraAlt.toFixed(2)} m²</div></div>`:''}
+  `;
+
+  let tbody='';
+  locales.forEach(l=>{
+    const c=getCant(l);
+    const sm=sumSec(l.muros,'muro'),sc=sumSec(l.cielos,'cielo'),sk=sumSec(l.carps,'carp');
+    const te=(sm.esm+sk.esm)*c, tla=(sm.lat+sc.lat)*c;
+    tbody+=`<tr>
+      <td class="left">${esc(l.nombre)}${c>1?` <span style="font-weight:400;color:#1F3864">(×${c})</span>`:''}</td>
+      <td data-lbl="Mur.Int. Esmalte">${f2(sm.esm*c)}</td><td data-lbl="Mur.Int. Látex">${f2(sm.lat*c)}</td>
+      <td data-lbl="Cielorraso Látex">${f2(sc.lat*c)}</td><td data-lbl="Carp.Int. Esmalte">${f2(sk.esm*c)}</td>
+      <td class="dash">—</td><td class="dash">—</td><td class="dash">—</td>
+      <td class="c-tot-e" data-lbl="TOTAL Esmalte">${te.toFixed(2)}</td><td class="c-tot-l" data-lbl="TOTAL Látex">${tla.toFixed(2)}</td>
+    </tr>`;
+  });
+  const sme=sumSec(extData.muros,'muro'),sce=sumSec(extData.carps,'carp');
+  tbody+=`<tr class="ext-row">
+    <td class="left">Muros exteriores</td>
+    <td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td>
+    <td data-lbl="Mur.Ext. Esmalte">${f2(sme.esm)}</td><td data-lbl="Mur.Ext. Látex">${f2(sme.lat)}</td><td data-lbl="Carp.Ext. Esmalte">${f2(sce.esm)}</td>
+    <td class="c-tot-e" data-lbl="TOTAL Esmalte">${(sme.esm+sce.esm).toFixed(2)}</td><td class="c-tot-l" data-lbl="TOTAL Látex">${sme.lat.toFixed(2)}</td>
+  </tr>`;
+  if(alturaActiva() && t.extraAlt>0){
+    const pct=parseFloat(alturaCfg.pct)||0, hl=parseFloat(alturaCfg.altura)||0;
+    tbody+=`<tr class="recargo-row">
+    <td class="left">Recargo en altura (+${pct}% sobre ${hl} m)</td>
+    <td data-lbl="Mur.Int. Esmalte">${f2(t.xEsmI)}</td><td data-lbl="Mur.Int. Látex">${f2(t.xLatI)}</td>
+    <td class="dash">—</td><td class="dash">—</td>
+    <td data-lbl="Mur.Ext. Esmalte">${f2(t.xEsmE)}</td><td data-lbl="Mur.Ext. Látex">${f2(t.xLatE)}</td><td class="dash">—</td>
+    <td class="c-tot-e" data-lbl="TOTAL Esmalte">${t.extraEsm.toFixed(2)}</td><td class="c-tot-l" data-lbl="TOTAL Látex">${t.extraLat.toFixed(2)}</td>
+  </tr>`;
+  }
+  tbody+=`<tr class="total-row">
+    <td class="left">TOTAL GENERAL${alturaActiva()&&t.extraAlt>0?' (con recargo)':''}</td>
+    <td data-lbl="Mur.Int. Esmalte">${(t.esmI+t.xEsmI).toFixed(2)}</td><td data-lbl="Mur.Int. Látex">${(t.latI+t.xLatI).toFixed(2)}</td>
+    <td data-lbl="Cielorraso Látex">${t.clo.toFixed(2)}</td><td data-lbl="Carp.Int. Esmalte">${t.carpI.toFixed(2)}</td>
+    <td data-lbl="Mur.Ext. Esmalte">${(t.esmE+t.xEsmE).toFixed(2)}</td><td data-lbl="Mur.Ext. Látex">${(t.latE+t.xLatE).toFixed(2)}</td><td data-lbl="Carp.Ext. Esmalte">${t.carpE.toFixed(2)}</td>
+    <td class="c-tot-e" data-lbl="TOTAL Esmalte"><strong>${tE_c.toFixed(2)}</strong></td><td class="c-tot-l" data-lbl="TOTAL Látex"><strong>${tL_c.toFixed(2)}</strong></td>
+  </tr>`;
+  document.getElementById('resumen-body').innerHTML=tbody;
+}
+
+function exportarPDF(){
+  window.print();
+}
+
+function exportarExcel(){
+  if(!window.XLSX){
+    alert('No se encontró la librería de Excel.\n\n'+
+      'Este archivo HTML necesita tener al lado la carpeta:\n'+
+      '   "Cómputo de Pintura rosas_files"\n\n'+
+      'Movelo a esa misma carpeta y volvé a abrirlo.\n'+
+      'Mientras tanto podés usar "Exportar PDF A4", que funciona siempre.');
+    return;
+  }
+  const wb=XLSX.utils.book_new();
+  const obra=document.getElementById('campo-obra').value||'';
+  const fecha=document.getElementById('campo-fecha').value||'';
+
+  const rows=[
+    ['CÓMPUTO DE PINTURA'],
+    ['Obra:',obra,'Fecha:',fecha],
+    [],
+    ['LOCAL / BLOQUE','SECCIÓN','DESCRIPCIÓN','LARGO (m)','ALTO/ANCHO (m)','ALT. CORTE (m)','SUP. TOTAL (m²)','ESMALTE (m²)','LÁTEX (m²)']
+  ];
+  if(alturaActiva()){
+    rows.splice(2,0,['Pintura en altura:','Altura límite '+(parseFloat(alturaCfg.altura)||0)+' m',
+      '+'+(parseFloat(alturaCfg.pct)||0)+'% sobre los m² por encima del límite']);
+  }
+
+  locales.forEach(loc=>{
+    const c=getCant(loc);
+    const nomLoc = loc.nombre + (c>1 ? ' (×'+c+')' : '');
+    [
+      {nombre:'Muros interiores',arr:loc.muros,modo:'muro'},
+      {nombre:'Cielorrasos',arr:loc.cielos,modo:'cielo'},
+      {nombre:'Carpinterías interiores',arr:loc.carps,modo:'carp'}
+    ].forEach(sec=>{
+      sec.arr.forEach(it=>{
+        const r=calc(it,sec.modo);
+        rows.push([nomLoc,sec.nombre,it.desc,
+          parseFloat(it.largo)||'',parseFloat(it.alto)||'',parseFloat(it.corte)||'',
+          fv(r.tot),fv(r.esm),fv(r.lat)]);
+      });
+      const s=sumSec(sec.arr,sec.modo);
+      rows.push([nomLoc,'SUBTOTAL – '+sec.nombre,'','','','',fv(s.tot),fv(s.esm),fv(s.lat)]);
+      rows.push([]);
+    });
+    const sm=sumSec(loc.muros,'muro'),sc=sumSec(loc.cielos,'cielo'),sk=sumSec(loc.carps,'carp');
+    const uT=sm.tot+sc.tot+sk.tot, uE=sm.esm+sk.esm, uL=sm.lat+sc.lat;
+    if(c>1){
+      rows.push(['SUBTOTAL '+loc.nombre.toUpperCase()+' (unitario)','','','','','',fv(uT),fv(uE),fv(uL)]);
+      rows.push(['SUBTOTAL '+loc.nombre.toUpperCase()+' × '+c,'','','','','',fv(uT*c),fv(uE*c),fv(uL*c)]);
+    } else {
+      rows.push(['SUBTOTAL '+loc.nombre.toUpperCase(),'','','','','',fv(uT),fv(uE),fv(uL)]);
+    }
+    rows.push([],[]);
+  });
+
+  [{nombre:'Muros exteriores',arr:extData.muros,modo:'muro'},
+   {nombre:'Carpinterías exteriores',arr:extData.carps,modo:'carp'}].forEach(sec=>{
+    sec.arr.forEach(it=>{
+      const r=calc(it,sec.modo);
+      rows.push(['MUROS EXTERIORES',sec.nombre,it.desc,
+        parseFloat(it.largo)||'',parseFloat(it.alto)||'',parseFloat(it.corte)||'',
+        fv(r.tot),fv(r.esm),fv(r.lat)]);
+    });
+    const s=sumSec(sec.arr,sec.modo);
+    rows.push(['MUROS EXTERIORES','SUBTOTAL – '+sec.nombre,'','','','',fv(s.tot),fv(s.esm),fv(s.lat)]);
+    rows.push([]);
+  });
+
+  const t=getTot();
+  const gE=t.esmI+t.esmE+t.carpI+t.carpE, gL=t.latI+t.latE+t.clo;   // m² reales
+  rows.push([],[]);
+  if(alturaActiva() && t.extraAlt>0){
+    rows.push(['SUBTOTAL (m² reales)','','','','','','',fv(gE),fv(gL)]);
+    rows.push(['RECARGO EN ALTURA (+'+(parseFloat(alturaCfg.pct)||0)+'% sobre '+(parseFloat(alturaCfg.altura)||0)+' m)',
+      '','','','','','',fv(t.extraEsm),fv(t.extraLat)]);
+  }
+  rows.push(['TOTAL GENERAL','','','','','','',fv(gE+t.extraEsm),fv(gL+t.extraLat)]);
+
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:22},{wch:28},{wch:22},{wch:11},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13}];
+  XLSX.utils.book_append_sheet(wb,ws,'Cómputo');
+
+  // Resumen
+  const res=[
+    ['RESUMEN GENERAL DE PINTURA'],
+    ['Obra:',obra,'Fecha:',fecha],
+    [],
+    ['Local / Bloque','Cant.','Mur.Int Esm','Mur.Int Lat','Cielorraso Lat','Carp.Int Esm','Mur.Ext Esm','Mur.Ext Lat','Carp.Ext Esm','TOTAL Esmalte','TOTAL Látex']
+  ];
+  if(alturaActiva()){
+    res.splice(2,0,['Pintura en altura:','Altura límite '+(parseFloat(alturaCfg.altura)||0)+' m',
+      '+'+(parseFloat(alturaCfg.pct)||0)+'% sobre m² por encima del límite']);
+  }
+  locales.forEach(l=>{
+    const c=getCant(l);
+    const sm=sumSec(l.muros,'muro'),sc=sumSec(l.cielos,'cielo'),sk=sumSec(l.carps,'carp');
+    res.push([l.nombre,c,fv(sm.esm*c),fv(sm.lat*c),fv(sc.lat*c),fv(sk.esm*c),0,0,0,
+      fv((sm.esm+sk.esm)*c),fv((sm.lat+sc.lat)*c)]);
+  });
+  const sme=sumSec(extData.muros,'muro'),sce=sumSec(extData.carps,'carp');
+  res.push(['MUROS EXTERIORES',1,0,0,0,0,fv(sme.esm),fv(sme.lat),fv(sce.esm),fv(sme.esm+sce.esm),fv(sme.lat)]);
+  res.push([]);
+  if(alturaActiva() && t.extraAlt>0){
+    res.push(['RECARGO EN ALTURA','',fv(t.xEsmI),fv(t.xLatI),0,0,fv(t.xEsmE),fv(t.xLatE),0,fv(t.extraEsm),fv(t.extraLat)]);
+  }
+  const tE=t.esmI+t.esmE+t.carpI+t.carpE+t.extraEsm, tL=t.latI+t.latE+t.clo+t.extraLat;
+  res.push(['TOTAL GENERAL','',fv(t.esmI+t.xEsmI),fv(t.latI+t.xLatI),fv(t.clo),fv(t.carpI),fv(t.esmE+t.xEsmE),fv(t.latE+t.xLatE),fv(t.carpE),fv(tE),fv(tL)]);
+
+  const ws2=XLSX.utils.aoa_to_sheet(res);
+  ws2['!cols']=[{wch:22},{wch:7},{wch:12},{wch:12},{wch:14},{wch:13},{wch:12},{wch:12},{wch:13},{wch:14},{wch:13}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Resumen');
+
+  const nombre = (obra||'computo_pintura').replace(/[^a-zA-Z0-9_\-\s]/g,'_');
+  XLSX.writeFile(wb,nombre+'.xlsx');
+}
+
+function estadoActual(){
+  return {locales,extData,nextId,alturaCfg,
+    obra:document.getElementById('campo-obra').value,
+    fecha:document.getElementById('campo-fecha').value};
+}
+
+function aplicarEstado(estado){
+  if(!estado) return;
+  locales = (estado.locales||[]).map(l=>Object.assign({cant:1},l));
+  extData = estado.extData||{muros:[ni(),ni()],carps:[ni(),ni()]};
+  nextId = estado.nextId || (locales.reduce((m,l)=>Math.max(m,l.id||0),0)+1);
+  alturaCfg = Object.assign({activo:false,altura:'',pct:''}, estado.alturaCfg||{});
+  document.getElementById('altura-activo').checked = !!alturaCfg.activo;
+  document.getElementById('altura-limite').value = alturaCfg.altura||'';
+  document.getElementById('altura-pct').value = alturaCfg.pct||'';
+  document.getElementById('altura-panel').classList.toggle('off', !alturaCfg.activo);
+  document.getElementById('campo-obra').value = estado.obra||'';
+  document.getElementById('campo-fecha').value = estado.fecha||'';
+  render();
+}
+
+function limpiarTodo(){
+  if(!confirm('¿Limpiar todos los datos de este cómputo?')) return;
+  locales=[]; extData={muros:[ni(),ni()],carps:[ni(),ni()]}; nextId=1;
+  alturaCfg={activo:false,altura:'',pct:''};
+  document.getElementById('altura-activo').checked=false;
+  document.getElementById('altura-limite').value='';
+  document.getElementById('altura-pct').value='';
+  document.getElementById('altura-panel').classList.add('off');
+  render();
+}
+
+/* ====== Integración con la plataforma (vive dentro de un iframe) ====== */
+
+let PCP_ID = null;   // id del cómputo que se está editando (null = nuevo)
+
+function pcpMsg(type, payload){
+  try{ parent.postMessage(Object.assign({source:'pcp', type}, payload||{}), '*'); }catch(e){}
+}
+
+function poblarEstablecimientos(lista){
+  const sel = document.getElementById('campo-est');
+  if(!sel) return;
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">— Sin establecimiento —</option>' +
+    (lista||[]).map(e=>`<option value="${e.id}">${(e.nombre||'').replace(/</g,'&lt;')}</option>`).join('');
+  if(actual) sel.value = actual;
+}
+
+function volverALista(){ pcpMsg('back'); }
+
+function guardarComputo(){
+  const nombre = (document.getElementById('campo-obra').value||'').trim();
+  if(!nombre){ alert('Poné un nombre para el cómputo antes de guardar.'); document.getElementById('campo-obra').focus(); return; }
+  const sel = document.getElementById('campo-est');
+  const estId = sel && sel.value ? Number(sel.value) : null;
+  const estNombre = sel && sel.value ? sel.options[sel.selectedIndex].text : '';
+  pcpMsg('save', { payload:{
+    id: PCP_ID,
+    nombre,
+    establecimiento_id: estId,
+    establecimiento_nombre: estNombre,
+    fecha: document.getElementById('campo-fecha').value||'',
+    datos: estadoActual()
+  }});
+}
+
+window.addEventListener('message', ev=>{
+  const d = ev.data;
+  if(!d || d.source !== 'dgie') return;
+  if(d.type === 'init'){
+    PCP_ID = d.id || null;
+    poblarEstablecimientos(d.establecimientos);
+    aplicarEstado(d.datos || {locales:[],extData:{muros:[ni(),ni()],carps:[ni(),ni()]},nextId:1,alturaCfg:{activo:false,altura:'',pct:''},obra:'',fecha:''});
+    if(d.nombre !== undefined) document.getElementById('campo-obra').value = d.nombre || '';
+    const sel = document.getElementById('campo-est');
+    if(sel) sel.value = d.establecimiento_id ? String(d.establecimiento_id) : '';
+  } else if(d.type === 'saved'){
+    if(d.id) PCP_ID = d.id;
+    alert('Cómputo guardado.');
+  } else if(d.type === 'save-error'){
+    alert('No se pudo guardar: ' + (d.message || 'error desconocido'));
+  }
+});
+
+// Arranque: pedirle a la plataforma el estado inicial.
+aplicarEstado({locales:[],extData:{muros:[ni(),ni()],carps:[ni(),ni()]},nextId:1,alturaCfg:{activo:false,altura:'',pct:''},obra:'',fecha:''});
+pcpMsg('ready');
+</script>
+
+
+
+
+
+</body>
+</html>

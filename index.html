@@ -7124,7 +7124,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <section class="card">
         <div class="card-header"><div><div class="card-title">Seguimiento</div><div style="font-size:13px;color:var(--muted);margin-top:4px">La empresa ve revisiones y mediciones. No puede editar.</div></div><span class="badge b-info" id="empresa-cert-count">${data.length} certificados</span></div>
         <div class="os-filters" style="margin-bottom:12px"><input class="estab-search" id="empresa-cert-q" placeholder="Buscar establecimiento, archivo, rubro, O.S. o medición..." oninput="filtrarCertificadosEmpresa()"></div>
-        <div style="margin-bottom:12px;display:flex;justify-content:flex-end"><button class="secondary-btn" onclick="abrirAnalisisPreciosCertificacion(${Number(z)},'empresa')">Análisis de precios</button></div>
         <div id="empresa-cert-seguimiento">${renderSeguimientoCertificados(data,false)}</div>
       </section>
     </div>${renderResumenPresupuestoModulos(data)}`;
@@ -7370,7 +7369,6 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       <div class="card">
         <div class="card-header"><div><div class="card-title">Certificados de empresa</div><div style="font-size:13px;color:var(--muted);margin-top:4px">El inspector carga versión corregida, asigna medición, edita o elimina certificados.</div></div><span class="badge b-info">${data.length} certificados</span></div>
         <div class="os-filters"><input class="estab-search" id="med-q" placeholder="Buscar establecimiento o archivo..." oninput="filtrarMedicionesInspector()"><select class="filter-sel" id="med-estado" onchange="filtrarMedicionesInspector()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="revision">En revisión</option><option value="medido">En medición</option></select></div>
-        <div style="margin-bottom:12px;display:flex;justify-content:flex-end"><button class="secondary-btn" onclick="abrirAnalisisPreciosCertificacion(${Number(z)},'inspector')">Análisis de precios</button></div>
         ${renderResumenPresupuestoModulos(data)}
         <div id="med-list">${renderSeguimientoCertificados(data,true)}</div>
       </div>`;
@@ -28919,6 +28917,217 @@ function ponerEnAdministracion(){
 new MutationObserver(()=>setTimeout(()=>{ponerEnAdministracion();ponerEnCoordinacion()},0))
   .observe(document.body,{childList:true,subtree:true});
 window.dgieMostrarCertificadosDeLaZona=function(){ponerEnAdministracion();ponerEnCoordinacion()};
+})();
+</script>
+<script id="dgie-herramientas-seccion-2026-09-10">
+(function(){
+  var ROLES=['inspector','empresa'];
+  function usaHerramientas(u){return u&&ROLES.indexOf(String(u.role||''))>=0}
+
+  // ── Pestaña "Herramientas" para inspector y empresa ───────────────────────
+  function agregarTab(tabs,user){
+    if(!usaHerramientas(user)||tabs.indexOf('Herramientas')>=0)return tabs;
+    return tabs.concat(['Herramientas']);
+  }
+  var prevDgieTabs=window.dgieTabsForUser;
+  window.dgieTabsForUser=function(user){
+    var tabs=typeof prevDgieTabs==='function'?(prevDgieTabs.apply(this,arguments)||[]):[];
+    return agregarTab(tabs,user);
+  };
+  var prevTabsForUser=window.tabsForUser;
+  window.tabsForUser=function(user){
+    var tabs=typeof prevTabsForUser==='function'?(prevTabsForUser.apply(this,arguments)||[]):(window.dgieTabsForUser?window.dgieTabsForUser(user):[]);
+    return agregarTab(tabs,user);
+  };
+  var prevRenderTab=window.renderTab;
+  window.renderTab=function(i){
+    var tabs=window.dgieTabsForUser?window.dgieTabsForUser(currentUser):[];
+    if(usaHerramientas(currentUser)&&tabs[Number(i)]==='Herramientas'){
+      buildTabs(tabs);setActiveTab(Number(i));hideGlobal();
+      try{currentFichaId=null}catch(e){}
+      renderHerramientasHub(document.getElementById('main-content'));
+      return;
+    }
+    return typeof prevRenderTab==='function'?prevRenderTab.apply(this,arguments):undefined;
+  };
+
+  function zonaActual(){return Number(currentUser&&currentUser.zona)||0}
+  function rolActual(){return String(currentUser&&currentUser.role||'inspector')}
+  function esc(v){return (typeof escapeHtml==='function'?escapeHtml(v):String(v==null?'':v))}
+  function estabsZona(){
+    var z=zonaActual();
+    var lista=(typeof ESTABS!=='undefined'&&ESTABS)?ESTABS:(window.ESTABS||[]);
+    return lista.filter(function(e){return Number(e.zona)===z})
+      .map(function(e){return {id:e.id,nombre:e.n}})
+      .sort(function(a,b){return String(a.nombre).localeCompare(String(b.nombre))});
+  }
+
+  // ── Hub de Herramientas ──────────────────────────────────────────────────
+  window.renderHerramientasHub=function(c){
+    c=c||document.getElementById('main-content');
+    if(!c)return;
+    c.innerHTML=''+
+      '<div class="section-label">Herramientas</div>'+
+      '<div class="card">'+
+        '<div class="card-header"><div><div class="card-title">Análisis de precios</div>'+
+          '<div style="font-size:13px;color:var(--muted);margin-top:4px">Cálculo de costo y módulos por establecimiento.</div></div>'+
+          '<button class="primary-btn" onclick="dgieHerramientasAnalisis()">Abrir</button></div>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="card-header"><div><div class="card-title">Cómputo de pintura</div>'+
+          '<div style="font-size:13px;color:var(--muted);margin-top:4px">Metros cuadrados de esmalte y látex por local. Podés guardar varios, con nombre.</div></div>'+
+          '<button class="primary-btn" onclick="dgieComputoPinturaLista()">Abrir</button></div>'+
+      '</div>';
+  };
+
+  // ── Análisis de precios: reusa el flujo existente, vuelve al hub ─────────
+  window.dgieHerramientasAnalisis=function(){
+    if(typeof window.abrirAnalisisPrecios!=='function'){alert('El módulo de análisis de precios no está disponible.');return}
+    window.abrirAnalisisPrecios(zonaActual(),rolActual());
+    setTimeout(function(){
+      var b=document.querySelector('#main-content .back-btn');
+      if(b){b.textContent='‹ Volver a Herramientas';b.setAttribute('onclick','renderHerramientasHub()');}
+    },0);
+  };
+
+  // ── Cómputo de pintura ──────────────────────────────────────────────────
+  var LOCAL_KEY='dgie_computos_pintura_local_v1';
+  function dbListo(){return !!(window.DGIE_DB&&window.DGIE_DB.isConfigured&&typeof window.DGIE_DB.listarComputosPintura==='function')}
+  function leerLocal(){try{return JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]')}catch(e){return []}}
+  function escribirLocal(a){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(a))}catch(e){}}
+
+  function listar(){
+    var z=zonaActual();
+    if(dbListo()){
+      return window.DGIE_DB.listarComputosPintura(z).then(function(r){
+        if(r&&r.error)throw new Error(r.error.message||'No se pudo leer la lista.');
+        return (r&&r.data)||[];
+      });
+    }
+    return Promise.resolve(leerLocal().filter(function(x){return Number(x.zona)===z}));
+  }
+  function guardar(row){
+    if(dbListo()){
+      return window.DGIE_DB.guardarComputoPintura(row).then(function(r){
+        if(r&&r.error)throw new Error(r.error.message||'No se pudo guardar.');
+        return (r&&r.data)||row;
+      });
+    }
+    var a=leerLocal().filter(function(x){return String(x.id)!==String(row.id)});
+    a.unshift(row);escribirLocal(a);
+    return Promise.resolve(row);
+  }
+  function borrar(id){
+    if(dbListo()){
+      return window.DGIE_DB.eliminarComputoPintura(id).then(function(r){
+        if(r&&r.error)throw new Error(r.error.message||'No se pudo eliminar.');
+      });
+    }
+    escribirLocal(leerLocal().filter(function(x){return String(x.id)!==String(id)}));
+    return Promise.resolve();
+  }
+
+  function fmtFecha(v){
+    if(!v)return '';
+    var d=new Date(v);
+    return isNaN(d.getTime())?String(v):d.toLocaleDateString('es-AR');
+  }
+
+  window.dgieComputoPinturaLista=function(){
+    var c=document.getElementById('main-content');
+    if(!c)return;
+    c.innerHTML='<button class="back-btn" onclick="renderHerramientasHub()">‹ Volver a Herramientas</button>'+
+      '<div class="section-label">Cómputo de pintura</div>'+
+      '<div class="card"><div class="card-header"><div><div class="card-title">Cómputos guardados</div>'+
+      '<div style="font-size:13px;color:var(--muted);margin-top:4px">Zona '+zonaActual()+'</div></div>'+
+      '<button class="primary-btn" onclick="dgieComputoPinturaEditor()">+ Nuevo cómputo</button></div>'+
+      '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Nombre</th><th>Establecimiento</th><th>Fecha</th><th>Última edición</th><th>Acciones</th></tr></thead>'+
+      '<tbody id="pcp-lista-body"><tr><td colspan="5" class="os-empty">Cargando…</td></tr></tbody></table></div></div>';
+    listar().then(function(rows){
+      var tb=document.getElementById('pcp-lista-body');
+      if(!tb)return;
+      if(!rows.length){tb.innerHTML='<tr><td colspan="5" class="os-empty">Todavía no hay cómputos guardados.</td></tr>';return}
+      tb.innerHTML=rows.map(function(r){
+        var id=esc(r.id);
+        return '<tr><td>'+esc(r.nombre||'Sin nombre')+'</td>'+
+          '<td>'+esc(r.establecimiento_nombre||'—')+'</td>'+
+          '<td>'+esc(r.fecha||'')+'</td>'+
+          '<td>'+esc(fmtFecha(r.updated_at||r.created_at))+'</td>'+
+          '<td><button class="edit-btn" onclick="dgieComputoPinturaEditor(\''+id+'\')">Editar</button> '+
+          '<button class="edit-btn" style="color:var(--danger)" onclick="dgieComputoPinturaBorrar(\''+id+'\')">Eliminar</button></td></tr>';
+      }).join('');
+    }).catch(function(e){
+      var tb=document.getElementById('pcp-lista-body');
+      if(tb)tb.innerHTML='<tr><td colspan="5" class="os-empty">No se pudo cargar: '+esc(e.message||e)+'</td></tr>';
+    });
+  };
+
+  window.dgieComputoPinturaBorrar=function(id){
+    if(!confirm('¿Eliminar este cómputo de pintura?'))return;
+    borrar(id).then(function(){dgieComputoPinturaLista()}).catch(function(e){alert('No se pudo eliminar: '+(e.message||e))});
+  };
+
+  var pcpFrame=null, pcpRowActual=null;
+
+  window.dgieComputoPinturaEditor=function(id){
+    var c=document.getElementById('main-content');
+    if(!c)return;
+    pcpRowActual=null;
+    c.innerHTML='<button class="back-btn" onclick="dgieComputoPinturaLista()">‹ Volver a la lista</button>'+
+      '<div id="pcp-frame-wrap" style="margin-top:6px">'+
+      '<iframe id="pcp-frame" src="dgie-computo-pintura.html" title="Cómputo de pintura" '+
+      'style="width:100%;height:calc(100vh - 150px);min-height:520px;border:1px solid var(--border,#d0d6de);border-radius:8px;background:#fff"></iframe></div>';
+    pcpFrame=document.getElementById('pcp-frame');
+    if(!id){pcpRowActual=null;return}
+    listar().then(function(rows){
+      pcpRowActual=rows.filter(function(r){return String(r.id)===String(id)})[0]||null;
+      enviarInit();
+    });
+  };
+
+  function enviarInit(){
+    if(!pcpFrame||!pcpFrame.contentWindow)return;
+    var r=pcpRowActual||{};
+    pcpFrame.contentWindow.postMessage({
+      source:'dgie', type:'init',
+      id: r.id||null,
+      nombre: r.nombre||'',
+      establecimiento_id: r.establecimiento_id||null,
+      establecimientos: estabsZona(),
+      datos: r.datos||null
+    },'*');
+  }
+
+  window.addEventListener('message',function(ev){
+    var d=ev.data;
+    if(!d||d.source!=='pcp')return;
+    if(!pcpFrame||ev.source!==pcpFrame.contentWindow)return;
+    if(d.type==='ready'){ enviarInit(); return; }
+    if(d.type==='back'){ dgieComputoPinturaLista(); return; }
+    if(d.type==='save'){
+      var p=d.payload||{};
+      var ahora=new Date().toISOString();
+      var row={
+        id: p.id||('pcp_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
+        zona: zonaActual(),
+        nombre: p.nombre||'Cómputo de pintura',
+        establecimiento_id: p.establecimiento_id||null,
+        establecimiento_nombre: p.establecimiento_nombre||'',
+        obra: p.nombre||'',
+        fecha: p.fecha||'',
+        datos: p.datos||{},
+        actualizado_por: (currentUser&&currentUser.name)||'',
+        updated_at: ahora
+      };
+      if(!p.id){ row.creado_por=(currentUser&&currentUser.name)||''; row.created_at=ahora; }
+      guardar(row).then(function(saved){
+        pcpRowActual=saved||row;
+        if(pcpFrame&&pcpFrame.contentWindow)pcpFrame.contentWindow.postMessage({source:'dgie',type:'saved',id:(saved&&saved.id)||row.id},'*');
+      }).catch(function(e){
+        if(pcpFrame&&pcpFrame.contentWindow)pcpFrame.contentWindow.postMessage({source:'dgie',type:'save-error',message:String(e.message||e)},'*');
+      });
+    }
+  });
 })();
 </script>
 </body>

@@ -463,6 +463,19 @@
     async eliminarAnalisisPrecio(id){
       return client.from('analisis_precios').delete().eq('id', id);
     },
+    async listarComputosPintura(zona){
+      const filters = [];
+      if(zona !== undefined && zona !== null && zona !== ''){
+        filters.push(query => query.eq('zona', Number(zona)));
+      }
+      return selectAll('computos_pintura', { orderBy:'updated_at', ascending:false, filters });
+    },
+    async guardarComputoPintura(row){
+      return upsertOne('computos_pintura', row, { onConflict:'id' }, 'ese cómputo de pintura');
+    },
+    async eliminarComputoPintura(id){
+      return client.from('computos_pintura').delete().eq('id', id);
+    },
     async eliminarCertificadoMedicion(id){
       return client.from('certificados_medicion').delete().eq('id', id);
     }
