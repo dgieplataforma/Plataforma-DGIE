@@ -1,0 +1,3373 @@
+{
+ "generado": "2026-09-10",
+ "herramienta": "Claude Code (Sonnet 5)",
+ "contexto": "Zona 10. Carga inicial de certificados historicos (mediciones 1 a 5), pedida por el usuario. Carpeta fuente: Escritorio/CERTIFICADOS PLATAFORMA - ZONA 10 (5 subcarpetas MEDICION 1..5 con 38/14/26/10/31 xlsx + 1 PDF firmado c/u) + PLANTILLA_CARGA_INICIAL_CERTIFICADOS.xlsx (hoja Mediciones, 119 filas).",
+ "verificado_10_09_via_lectura_supabase_produccion": {
+  "ordenes_servicio_zona10_cargadas": 347,
+  "formato_numero": "Z10-XXX (3 digitos). Hay huecos en 101, 145, 239 y un registro malformado Z10-OS-085 que convive con Z10-085 (anomalia previa, ajena a esta carga).",
+  "certificados_medicion_zona10_existentes": 0,
+  "columnas_certificados_medicion": [
+   "id",
+   "establecimiento_id",
+   "establecimiento_nombre",
+   "zona",
+   "archivo_original",
+   "url_original",
+   "modulos_original",
+   "monto_empresa",
+   "observaciones_empresa",
+   "archivo_inspector",
+   "url_inspector",
+   "modulos_inspector",
+   "observaciones_inspector",
+   "medicion_numero",
+   "periodo",
+   "estado",
+   "creado_por",
+   "actualizado_por",
+   "ordenes_servicio_certificado",
+   "rubro_certificado",
+   "rubros_certificado",
+   "revision_admin_estado",
+   "revision_admin_historial",
+   "medicion_firmada_archivo",
+   "medicion_firmada_url",
+   "..."
+  ],
+  "convencion_marcador": "observaciones_inspector lleva [OS_CERT:<numeros>] y [RUBROS_CERT:<cods-con-guion>]; ordenes_servicio_certificado repite los numeros. Visto en filas reales de zonas 6/8/15."
+ },
+ "resultado": {
+  "certificados": 119,
+  "archivos_vs_planilla": "1:1. Correcciones: 2 typos de planilla (REGINIO->REGINO) y 2 nombres truncados (sufijos ELECT 3 / CARP). Todos resuelven a archivo real exacto en disco.",
+  "establecimientos": "36 distintos, todos con id real zona 10 (417-452). \"J.DE INF. REGINO MADERS\" (4 certs) = id 451 (existe en produccion; el array ESTABS de index.html esta desactualizado en ese id).",
+  "os_numeros_distintos": 136,
+  "os_ya_existen_en_produccion": 134,
+  "os_faltantes": [
+   101,
+   357
+  ],
+  "os_compuestas": [
+   [
+    "08- ESCUELA CONSTANCIO VIGIL - SANIT 12 POL CARP",
+    "50-51"
+   ],
+   [
+    "012- ESCUELA PEDRO GOYENA - CARP 4 POL 3 SANIT",
+    "89 90"
+   ],
+   [
+    "015- ESCUELA HILARIO ASCASUBI - SANIT 4",
+    "54 55"
+   ],
+   [
+    "020- ESCUELA BARTOLOME HIDALGO - ELECT 3 POL CARP",
+    "43 43A"
+   ],
+   [
+    "021- ESCUELA RUBEN DARIO - SANIT 5 ELECT POL",
+    "83-84"
+   ],
+   [
+    "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 4 ELECT",
+    "278 292 357"
+   ],
+   [
+    "026- IPEM N°13 - DR. PEDRO ESCUDERO - ELECT 4 SANIT",
+    "86 87 88"
+   ],
+   [
+    "031- ESCUELA MARIA EVA DUARTE - SANIT 2",
+    "95 96A"
+   ],
+   [
+    "036- IPEM N° 312 - DALMASIO VELEZ SARFIELD - SANIT 4",
+    "101 102"
+   ],
+   [
+    "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 4 CIELOR",
+    "13-15"
+   ],
+   [
+    "02- ESCUELA EJERCITO ARGENTINO - ELECT 4 HERR SANIT 6",
+    "119-120"
+   ],
+   [
+    "03- J. DE INFANTES EJERCITO ARGENTINO - VENT 1 SANIT 3",
+    "121-122"
+   ],
+   [
+    "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 7 ELECT 4",
+    "85-110"
+   ],
+   [
+    "016- IPET Nº48 PRESIDENTE ROCA - BOMBA 2 SANIT 7 PODA",
+    "8-36"
+   ],
+   [
+    "021- ESCUELA RUBEN DARIO - CARP 4 POL 3 PLUV",
+    "127-128-129"
+   ],
+   [
+    "027- IPEM Nº11 ALBERTO PIO COGNINI - SANIT 3 POL 2",
+    "125-126"
+   ],
+   [
+    "033- ESCUELA USANDIVARAS - CARP 2 PLOM POL",
+    "130-131"
+   ],
+   [
+    "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 6 POL.",
+    "179-180"
+   ],
+   [
+    "031- ESCUELA MARIA EVA DUARTE - ELECT 3",
+    "100-176"
+   ],
+   [
+    "06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 4 CARP",
+    "209 221"
+   ],
+   [
+    "016- IPET Nº48 PRESIDENTE ROCA - BOMBA",
+    "222 223"
+   ],
+   [
+    "033- ESCUELA USANDIVARAS - CARP 4 PLOM 3",
+    "231 231A"
+   ],
+   [
+    "023- ESCUELA LIBERTADOR GRAL SAN MARTIN - SANIT5",
+    "261-262"
+   ]
+  ],
+  "os_con_sufijo_bis": [
+   [
+    "020- ESCUELA BARTOLOME HIDALGO - ELECT 3 POL CARP",
+    "43 43A"
+   ],
+   [
+    "031- ESCUELA MARIA EVA DUARTE - SANIT 2",
+    "95 96A"
+   ],
+   [
+    "033- ESCUELA USANDIVARAS - CARP 4 PLOM 3",
+    "231 231A"
+   ],
+   [
+    "026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP 2 POL",
+    "139 A"
+   ]
+  ],
+  "modulos": "Se cargan los de la planilla (MODULOS CERTIFICADO FINAL) en modulos_original y modulos_inspector. El usuario ajusta a mano en liquidacion."
+ },
+ "bug_lector_os_plataforma": {
+  "descripcion": "buscarOrdenesEnCeldas() (index.html ~6887) lee mal la O.S. en 45 de 119 archivos de zona 10. Las plantillas ITEMIZADO y ANEXO ORDEN SERVICIO traen el encabezado \"ORDEN DE SERVICIO - RENGLON N° 10 - ZONA N° 10\"; el regex inline captura el 10 y retorna de inmediato (padStart -> 010) antes de llegar a \"ORDEN DE SERVICIO Nº <real>\".",
+  "impacto": "Ninguno en la carga inicial (el vinculo O.S. sale de la columna de la planilla). Si afecta a una resubida manual por la interfaz.",
+  "archivos_afectados": [
+   {
+    "archivo": "01- IPEM N° 207 - EDUARDO RAUL REQUENA - SANIT 3",
+    "medicion": 1,
+    "os_planilla": "14",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "04- J. DE INFANTES LIBERTADOR SAN MARTIN - PODA",
+    "medicion": 1,
+    "os_planilla": "49",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "011- IPEM N° 167 - JOSE MANUEL ESTRADA - ELECT 3",
+    "medicion": 1,
+    "os_planilla": "44",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "012- ESCUELA José hernandez - SANIT 6",
+    "medicion": 1,
+    "os_planilla": "2",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "012- ESCUELA PEDRO GOYENA - CARP 4 POL 3 SANIT",
+    "medicion": 1,
+    "os_planilla": "89 90",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "012- ESCUELA PEDRO GOYENA - ELECT 4 CARP",
+    "medicion": 1,
+    "os_planilla": "53",
+    "os_que_leeria_la_plataforma": "89",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "013- JARDIN DE I. MERCEDES DE SAN MARTIN - ELECT 3",
+    "medicion": 1,
+    "os_planilla": "78",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "014- ESCUELA JOSE HERNANDEZ - SANIT 4",
+    "medicion": 1,
+    "os_planilla": "77",
+    "os_que_leeria_la_plataforma": "78",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "015- ESCUELA HILARIO ASCASUBI - SANIT 4",
+    "medicion": 1,
+    "os_planilla": "54 55",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "020- ESCUELA BARTOLOME HIDALGO - ELECT 3 POL CARP",
+    "medicion": 1,
+    "os_planilla": "43 43A",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "021- ESCUELA RUBEN DARIO - CARP 3 POL2",
+    "medicion": 1,
+    "os_planilla": "80",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "021- ESCUELA RUBEN DARIO - SANIT 5 ELECT POL",
+    "medicion": 1,
+    "os_planilla": "83-84",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "022- JARDIN DE I. HILARIO ASCASUBI - PODA",
+    "medicion": 1,
+    "os_planilla": "81",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "024- JARDIN DE I. JUAN RAMON JIMENEZ - CARP 2",
+    "medicion": 1,
+    "os_planilla": "45",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 4 ELECT",
+    "medicion": 1,
+    "os_planilla": "278 292 357",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "026- IPEM N°13 - DR. PEDRO ESCUDERO - CARP",
+    "medicion": 1,
+    "os_planilla": "46",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "026- IPEM N°13 - DR. PEDRO ESCUDERO - ELECT 4 SANIT",
+    "medicion": 1,
+    "os_planilla": "86 87 88",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "027- IPEM N°11 ALBERTO PIO COGNINI - CARP",
+    "medicion": 1,
+    "os_planilla": "47",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "027- IPEM N°11 ALBERTO PIO COGNINI - CUB 3",
+    "medicion": 1,
+    "os_planilla": "92",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 5",
+    "medicion": 1,
+    "os_planilla": "94",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "032- ESCUELA HEROES DE MALVINAS - ELECT",
+    "medicion": 1,
+    "os_planilla": "97",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "035- JARDIN DE I.REGINIO MADERS - SANIT 5",
+    "medicion": 1,
+    "os_planilla": "99",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "036- IPEM N° 312 - DALMASIO VELEZ SARFIELD - ALB",
+    "medicion": 1,
+    "os_planilla": "20",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "036- IPEM N° 312 - DALMASIO VELEZ SARFIELD - SANIT 3",
+    "medicion": 1,
+    "os_planilla": "48",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 4 CIELOR",
+    "medicion": 2,
+    "os_planilla": "13-15",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "017- JARDIN DE I. JOSE HERNANDEZ - AIRE ACOND",
+    "medicion": 2,
+    "os_planilla": "132",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ITEMIZADO",
+     "ORDEN DE SERVICIO",
+     "CONSTANCIA DE SERVICIO",
+     "FOTOS",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "021- ESCUELA RUBEN DARIO - ELECT 4",
+    "medicion": 3,
+    "os_planilla": "155",
+    "os_que_leeria_la_plataforma": "181",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "021- ESCUELA RUBEN DARIO - SANIT 6",
+    "medicion": 3,
+    "os_planilla": "181",
+    "os_que_leeria_la_plataforma": "155",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "032- ESCUELA HEROES DE MALVINAS - SANIT 7",
+    "medicion": 3,
+    "os_planilla": "107",
+    "os_que_leeria_la_plataforma": "135",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "032- ESCUELA HEROES DE MALVINAS - SANIT 8",
+    "medicion": 3,
+    "os_planilla": "135",
+    "os_que_leeria_la_plataforma": "107",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 5",
+    "medicion": 5,
+    "os_planilla": "117",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "012- ESCUELA PEDRO GOYENA - CARP 5",
+    "medicion": 5,
+    "os_planilla": "230",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "012- ESCUELA PEDRO GOYENA - SANIT 8",
+    "medicion": 5,
+    "os_planilla": "203",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "017- JARDIN DE I. JOSE HERNANDEZ - SANIT 4",
+    "medicion": 5,
+    "os_planilla": "144",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP 2 POL",
+    "medicion": 5,
+    "os_planilla": "139 A",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR PINT",
+    "medicion": 5,
+    "os_planilla": "146",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 4",
+    "medicion": 5,
+    "os_planilla": "252",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 3",
+    "medicion": 5,
+    "os_planilla": "251",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "033- ESCUELA USANDIVARAS - ELECT 5",
+    "medicion": 5,
+    "os_planilla": "299",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "033- ESCUELA USANDIVARAS - PLOM 5",
+    "medicion": 5,
+    "os_planilla": "229",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "033- ESCUELA USANDIVARAS - PLOM 6",
+    "medicion": 5,
+    "os_planilla": "237",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "034- JARDIN DE I.TERESA DE CALCUTA - ELECT 3",
+    "medicion": 5,
+    "os_planilla": "300",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "034- JARDIN DE I.TERESA DE CALCUTA - GAS",
+    "medicion": 5,
+    "os_planilla": "199",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "035- JARDIN DE I.REGINO MADERS - ELECT 3",
+    "medicion": 5,
+    "os_planilla": "281",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   },
+   {
+    "archivo": "035- JARDIN DE I.REGINO MADERS - SANIT 7",
+    "medicion": 5,
+    "os_planilla": "301",
+    "os_que_leeria_la_plataforma": "10",
+    "metodo": "celdas",
+    "hojas": [
+     "ANEXO - ITEM Y C.C.",
+     "ANEXO ORDEN SERVICIO",
+     "ANEXO CONSTANCIA DE SERVICIO",
+     "ANEXO FOTOS ",
+     "ESCUELAS"
+    ]
+   }
+  ]
+ },
+ "entregable": {
+  "archivo": "CARGAR-CERTIFICADOS-ZONA-10.sql (en el repo)",
+  "idempotente": true,
+  "no_ejecutado": true,
+  "decision_pendiente": "estado='medido' + revision_admin_estado='aprobado' (default del script) vs 'pendiente'/'pendiente' si Administracion debe revisarlos ahora.",
+  "no_incluye": "subida de los .xlsx ni de los PDF de medicion firmada (url_original=''). Paso aparte."
+ },
+ "filas": [
+  {
+   "med": 1,
+   "archivo_planilla": "01- IPEM N° 207 - EDUARDO RAUL REQUENA - SANIT 3",
+   "archivo_real": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - SANIT 3.xlsx",
+   "establecimiento_id": 417,
+   "establecimiento_nombre": "I.P.E.M. N 207 EDUARDO RAUL REQUENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "14",
+   "os_norm": "14",
+   "os_nums": [
+    "14"
+   ],
+   "modulos": 11.81,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 207 EDUARDO RAUL REQUENA"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "04- J. DE INFANTES LIBERTADOR SAN MARTIN - PODA",
+   "archivo_real": "04- J. DE INFANTES LIBERTADOR SAN MARTIN - PODA.xlsx",
+   "establecimiento_id": 420,
+   "establecimiento_nombre": "J.DE INF. LIBERTADOR GENERAL SAN MARTIN",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "49",
+   "os_norm": "49",
+   "os_nums": [
+    "49"
+   ],
+   "modulos": 9.6,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. LIBERTADOR GENERAL SAN MARTIN"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "07- IPEM N° 176 - GRANADERO JOSE MARQUEZ - SANIT 5",
+   "archivo_real": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - SANIT 5.xlsx",
+   "establecimiento_id": 423,
+   "establecimiento_nombre": "I.P.E.M. N 176 GRANADERO JOSE MARQUEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "75",
+   "os_norm": "75",
+   "os_nums": [
+    "75"
+   ],
+   "modulos": 2.07,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 176 GRANADERO JOSE MARQUEZ"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "08- ESCUELA CONSTANCIO VIGIL - SANIT 12 POL CARP",
+   "archivo_real": "08- ESCUELA CONSTANCIO VIGIL - SANIT 12 POL CARP.xlsx",
+   "establecimiento_id": 424,
+   "establecimiento_nombre": "ESCUELA CONSTANCIO C. VIGIL",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "50-51",
+   "os_norm": "50-51",
+   "os_nums": [
+    "50",
+    "51"
+   ],
+   "modulos": 24.42,
+   "comentario": "",
+   "estab_planilla": "ESCUELA CONSTANCIO C. VIGIL"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "09- ESCUELA JUAN XXIII - BOMBA 2",
+   "archivo_real": "09- ESCUELA JUAN XXIII - BOMBA 2.xlsx",
+   "establecimiento_id": 425,
+   "establecimiento_nombre": "ESCUELA JUAN XXIII",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "76",
+   "os_norm": "76",
+   "os_nums": [
+    "76"
+   ],
+   "modulos": 2.32,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JUAN XXIII"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "09- ESCUELA JUAN XXIII - SANIT 5",
+   "archivo_real": "09- ESCUELA JUAN XXIII - SANIT 5.xlsx",
+   "establecimiento_id": 425,
+   "establecimiento_nombre": "ESCUELA JUAN XXIII",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "41",
+   "os_norm": "41",
+   "os_nums": [
+    "41"
+   ],
+   "modulos": 5.5,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JUAN XXIII"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "010- J. DE INFANTES JUAN XXIII - SANIT 2",
+   "archivo_real": "010- J. DE INFANTES JUAN XXIII - SANIT 2.xlsx",
+   "establecimiento_id": 426,
+   "establecimiento_nombre": "J.DE INF. JUAN XXIII",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "52",
+   "os_norm": "52",
+   "os_nums": [
+    "52"
+   ],
+   "modulos": 5.33,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JUAN XXIII"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "011- IPEM N° 167 - JOSE MANUEL ESTRADA - ELECT 3",
+   "archivo_real": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 3.xlsx",
+   "establecimiento_id": 427,
+   "establecimiento_nombre": "I.P.E.M. N 167 JOSE MANUEL ESTRADA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "44",
+   "os_norm": "44",
+   "os_nums": [
+    "44"
+   ],
+   "modulos": 4.73,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 167 JOSE MANUEL ESTRADA"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "012- ESCUELA José hernandez - SANIT 6",
+   "archivo_real": "012- ESCUELA José hernandez - SANIT 6.xlsx",
+   "establecimiento_id": 430,
+   "establecimiento_nombre": "ESCUELA JOSE HERNANDEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "2",
+   "os_norm": "2",
+   "os_nums": [
+    "2"
+   ],
+   "modulos": 6.68,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JOSE HERNANDEZ"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "012- ESCUELA PEDRO GOYENA - CARP 4 POL 3 SANIT",
+   "archivo_real": "012- ESCUELA PEDRO GOYENA - CARP 4 POL 3 SANIT.xlsx",
+   "establecimiento_id": 428,
+   "establecimiento_nombre": "ESCUELA PEDRO GOYENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "89 90",
+   "os_norm": "8990",
+   "os_nums": [
+    "89",
+    "90"
+   ],
+   "modulos": 11.86,
+   "comentario": "",
+   "estab_planilla": "ESCUELA PEDRO GOYENA"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "012- ESCUELA PEDRO GOYENA - ELECT 4 CARP",
+   "archivo_real": "012- ESCUELA PEDRO GOYENA - ELECT 4 CARP.xlsx",
+   "establecimiento_id": 429,
+   "establecimiento_nombre": "J.DE INF. MERCEDES DE SAN MARTIN",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "53",
+   "os_norm": "53",
+   "os_nums": [
+    "53"
+   ],
+   "modulos": 1.74,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MERCEDES DE SAN MARTIN"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "013- JARDIN DE I. MERCEDES DE SAN MARTIN - ELECT 3",
+   "archivo_real": "013- JARDIN DE I. MERCEDES DE SAN MARTIN - ELECT 3.xlsx",
+   "establecimiento_id": 429,
+   "establecimiento_nombre": "J.DE INF. MERCEDES DE SAN MARTIN",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "78",
+   "os_norm": "78",
+   "os_nums": [
+    "78"
+   ],
+   "modulos": 2.18,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MERCEDES DE SAN MARTIN"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "014- ESCUELA JOSE HERNANDEZ - SANIT 4",
+   "archivo_real": "014- ESCUELA JOSE HERNANDEZ - SANIT 4.xlsx",
+   "establecimiento_id": 430,
+   "establecimiento_nombre": "ESCUELA JOSE HERNANDEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "77",
+   "os_norm": "77",
+   "os_nums": [
+    "77"
+   ],
+   "modulos": 10.56,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JOSE HERNANDEZ"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "015- ESCUELA HILARIO ASCASUBI - SANIT 4",
+   "archivo_real": "015- ESCUELA HILARIO ASCASUBI - SANIT 4.xlsx",
+   "establecimiento_id": 431,
+   "establecimiento_nombre": "ESCUELA HILARIO ASCASUBI",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "54 55",
+   "os_norm": "5455",
+   "os_nums": [
+    "54",
+    "55"
+   ],
+   "modulos": 12.53,
+   "comentario": "",
+   "estab_planilla": "ESCUELA HILARIO ASCASUBI"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "020- ESCUELA BARTOLOME HIDALGO - CARP",
+   "archivo_real": "020- ESCUELA BARTOLOME HIDALGO - CARP.xlsx",
+   "establecimiento_id": 436,
+   "establecimiento_nombre": "ESCUELA BARTOLOME HIDALGO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "79",
+   "os_norm": "79",
+   "os_nums": [
+    "79"
+   ],
+   "modulos": 2.85,
+   "comentario": "",
+   "estab_planilla": "ESCUELA BARTOLOME HIDALGO"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "020- ESCUELA BARTOLOME HIDALGO - ELECT 3 POL CARP",
+   "archivo_real": "020- ESCUELA BARTOLOME HIDALGO - ELECT 3 POL CARP.xlsx",
+   "establecimiento_id": 436,
+   "establecimiento_nombre": "ESCUELA BARTOLOME HIDALGO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "43 43A",
+   "os_norm": "4343A",
+   "os_nums": [
+    "43",
+    "43"
+   ],
+   "modulos": 20.13,
+   "comentario": "",
+   "estab_planilla": "ESCUELA BARTOLOME HIDALGO"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "021- ESCUELA RUBEN DARIO - CARP 3 POL2",
+   "archivo_real": "021- ESCUELA RUBEN DARIO - CARP 3 POL2.xlsx",
+   "establecimiento_id": 437,
+   "establecimiento_nombre": "ESCUELA RUBEN DARIO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "80",
+   "os_norm": "80",
+   "os_nums": [
+    "80"
+   ],
+   "modulos": 12.27,
+   "comentario": "",
+   "estab_planilla": "ESCUELA RUBEN DARIO"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "021- ESCUELA RUBEN DARIO - SANIT 5 ELECT POL",
+   "archivo_real": "021- ESCUELA RUBEN DARIO - SANIT 5 ELECT POL.xlsx",
+   "establecimiento_id": 437,
+   "establecimiento_nombre": "ESCUELA RUBEN DARIO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "83-84",
+   "os_norm": "83-84",
+   "os_nums": [
+    "83",
+    "84"
+   ],
+   "modulos": 2.27,
+   "comentario": "",
+   "estab_planilla": "ESCUELA RUBEN DARIO"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "022- JARDIN DE I. HILARIO ASCASUBI - PODA",
+   "archivo_real": "022- JARDIN DE I. HILARIO ASCASUBI - PODA.xlsx",
+   "establecimiento_id": 438,
+   "establecimiento_nombre": "J.DE INF. HILARIO ASCASUBI",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "81",
+   "os_norm": "81",
+   "os_nums": [
+    "81"
+   ],
+   "modulos": 12.7,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. HILARIO ASCASUBI"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "024- JARDIN DE I. JUAN RAMON JIMENEZ - CARP 2",
+   "archivo_real": "024- JARDIN DE I. JUAN RAMON JIMENEZ - CARP 2.xlsx",
+   "establecimiento_id": 440,
+   "establecimiento_nombre": "J.DE INF. JUAN RAMON JIMENEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "45",
+   "os_norm": "45",
+   "os_nums": [
+    "45"
+   ],
+   "modulos": 13.05,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JUAN RAMON JIMENEZ"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 4 ELECT",
+   "archivo_real": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 4 ELECT.xlsx",
+   "establecimiento_id": 440,
+   "establecimiento_nombre": "J.DE INF. JUAN RAMON JIMENEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "278 292 357",
+   "os_norm": "278292357",
+   "os_nums": [
+    "278",
+    "292",
+    "357"
+   ],
+   "modulos": 67.74,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JUAN RAMON JIMENEZ"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 5",
+   "archivo_real": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 5.xlsx",
+   "establecimiento_id": 440,
+   "establecimiento_nombre": "J.DE INF. JUAN RAMON JIMENEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "85",
+   "os_norm": "85",
+   "os_nums": [
+    "85"
+   ],
+   "modulos": 4.51,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JUAN RAMON JIMENEZ"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "026- IPEM N°13 - DR. PEDRO ESCUDERO - CARP",
+   "archivo_real": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP.xlsx",
+   "establecimiento_id": 442,
+   "establecimiento_nombre": "I.P.E.M. N 13 DR. PEDRO ESCUDERO.",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "46",
+   "os_norm": "46",
+   "os_nums": [
+    "46"
+   ],
+   "modulos": 20.17,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 13 DR. PEDRO ESCUDERO."
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "026- IPEM N°13 - DR. PEDRO ESCUDERO - ELECT 4 SANIT",
+   "archivo_real": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - ELECT 4 SANIT CARP.xlsx",
+   "establecimiento_id": 442,
+   "establecimiento_nombre": "I.P.E.M. N 13 DR. PEDRO ESCUDERO.",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "86 87 88",
+   "os_norm": "868788",
+   "os_nums": [
+    "86",
+    "87",
+    "88"
+   ],
+   "modulos": 34.22,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 13 DR. PEDRO ESCUDERO."
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "026- IPEM N°13 - DR. PEDRO ESCUDERO - SANIT 3",
+   "archivo_real": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 3.xlsx",
+   "establecimiento_id": 442,
+   "establecimiento_nombre": "I.P.E.M. N 13 DR. PEDRO ESCUDERO.",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "91",
+   "os_norm": "91",
+   "os_nums": [
+    "91"
+   ],
+   "modulos": 24.7,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 13 DR. PEDRO ESCUDERO."
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "027- IPEM N°11 ALBERTO PIO COGNINI - CARP",
+   "archivo_real": "027- IPEM Nº11 ALBERTO PIO COGNINI - CARP.xlsx",
+   "establecimiento_id": 443,
+   "establecimiento_nombre": "I.P.E.M. N 11 ALBERTO PIO AUGUSTO COGNIGNI",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "47",
+   "os_norm": "47",
+   "os_nums": [
+    "47"
+   ],
+   "modulos": 24.17,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 11 ALBERTO PIO AUGUSTO COGNIGNI"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "027- IPEM N°11 ALBERTO PIO COGNINI - CUB 3",
+   "archivo_real": "027- IPEM Nº11 ALBERTO PIO COGNINI - CUB 3.xlsx",
+   "establecimiento_id": 443,
+   "establecimiento_nombre": "I.P.E.M. N 11 ALBERTO PIO AUGUSTO COGNIGNI",
+   "match": "exacto",
+   "rubros_cod": [
+    "CUB"
+   ],
+   "rubro_cod0": "CUB",
+   "rubro_largo": "Cubierta de techos",
+   "os_raw": "92",
+   "os_norm": "92",
+   "os_nums": [
+    "92"
+   ],
+   "modulos": 6.45,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 11 ALBERTO PIO AUGUSTO COGNIGNI"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "029- JARDIN DE I. MARIA EVA DUARTE - SANIT",
+   "archivo_real": "029- JARDIN DE I. MARIA EVA DUARTE - SANIT.xlsx",
+   "establecimiento_id": 445,
+   "establecimiento_nombre": "J.DE INF. MARIA EVA DUARTE(EX S/NOM.DE B JOSE I.DIAZ 3 SEC.",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "93",
+   "os_norm": "93",
+   "os_nums": [
+    "93"
+   ],
+   "modulos": 6.55,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MARIA EVA DUARTE(EX S/NOM.DE BºJOSE I.DIAZ 3ºSEC."
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 5",
+   "archivo_real": "030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 5.xlsx",
+   "establecimiento_id": 446,
+   "establecimiento_nombre": "J.DE INF. MALVINAS ARGENTINAS (EX-DE B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "94",
+   "os_norm": "94",
+   "os_nums": [
+    "94"
+   ],
+   "modulos": 4.7,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MALVINAS ARGENTINAS (EX-DE Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 6",
+   "archivo_real": "030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 6.xlsx",
+   "establecimiento_id": 446,
+   "establecimiento_nombre": "J.DE INF. MALVINAS ARGENTINAS (EX-DE B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "95",
+   "os_norm": "95",
+   "os_nums": [
+    "95"
+   ],
+   "modulos": 7.18,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MALVINAS ARGENTINAS (EX-DE Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "031- ESCUELA MARIA EVA DUARTE - SANIT 2",
+   "archivo_real": "031- ESCUELA MARIA EVA DUARTE - SANIT 2.xlsx",
+   "establecimiento_id": 447,
+   "establecimiento_nombre": "ESCUELA MARIA EVA DUARTE (EX-DE FAMILIAS UNIDAS)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "95 96A",
+   "os_norm": "9596A",
+   "os_nums": [
+    "95",
+    "96"
+   ],
+   "modulos": 10.14,
+   "comentario": "",
+   "estab_planilla": "ESCUELA MARIA EVA DUARTE (EX-DE FAMILIAS UNIDAS)"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "032- ESCUELA HEROES DE MALVINAS - ELECT",
+   "archivo_real": "032- ESCUELA HEROES DE MALVINAS - ELECT.xlsx",
+   "establecimiento_id": 448,
+   "establecimiento_nombre": "ESCUELA HEROES DE MALVINAS (EX-B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "97",
+   "os_norm": "97",
+   "os_nums": [
+    "97"
+   ],
+   "modulos": 4.82,
+   "comentario": "",
+   "estab_planilla": "ESCUELA HEROES DE MALVINAS (EX-Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "032- ESCUELA HEROES DE MALVINAS - SANIT 6",
+   "archivo_real": "032- ESCUELA HEROES DE MALVINAS - SANIT 6.xlsx",
+   "establecimiento_id": 448,
+   "establecimiento_nombre": "ESCUELA HEROES DE MALVINAS (EX-B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "98",
+   "os_norm": "98",
+   "os_nums": [
+    "98"
+   ],
+   "modulos": 25.76,
+   "comentario": "",
+   "estab_planilla": "ESCUELA HEROES DE MALVINAS (EX-Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "035- JARDIN DE I.REGINIO MADERS - SANIT 5",
+   "archivo_real": "035- JARDIN DE I.REGINO MADERS - SANIT 5.xlsx",
+   "establecimiento_id": 451,
+   "establecimiento_nombre": "J.DE INF. REGINO MADERS",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "99",
+   "os_norm": "99",
+   "os_nums": [
+    "99"
+   ],
+   "modulos": 2.07,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. REGINO MADERS"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "035- JARDIN DE I.REGINIO MADERS - SANIT 6",
+   "archivo_real": "035- JARDIN DE I.REGINO MADERS - SANIT 6.xlsx",
+   "establecimiento_id": 451,
+   "establecimiento_nombre": "J.DE INF. REGINO MADERS",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "100",
+   "os_norm": "100",
+   "os_nums": [
+    "100"
+   ],
+   "modulos": 4.79,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. REGINO MADERS"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "036- IPEM N° 312 - DALMASIO VELEZ SARFIELD - ALB",
+   "archivo_real": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - ALB.xlsx",
+   "establecimiento_id": 452,
+   "establecimiento_nombre": "I.P.E.M. N 312 DALMACIO VELEZ SARSFIELD",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "20",
+   "os_norm": "20",
+   "os_nums": [
+    "20"
+   ],
+   "modulos": 2.91,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 312 DALMACIO VELEZ SARSFIELD"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "036- IPEM N° 312 - DALMASIO VELEZ SARFIELD - SANIT 3",
+   "archivo_real": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 3.xlsx",
+   "establecimiento_id": 452,
+   "establecimiento_nombre": "I.P.E.M. N 312 DALMACIO VELEZ SARSFIELD",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "48",
+   "os_norm": "48",
+   "os_nums": [
+    "48"
+   ],
+   "modulos": 4.86,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 312 DALMACIO VELEZ SARSFIELD"
+  },
+  {
+   "med": 1,
+   "archivo_planilla": "036- IPEM N° 312 - DALMASIO VELEZ SARFIELD - SANIT 4",
+   "archivo_real": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 4 ELECT 3.xlsx",
+   "establecimiento_id": 452,
+   "establecimiento_nombre": "I.P.E.M. N 312 DALMACIO VELEZ SARSFIELD",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "101 102",
+   "os_norm": "101102",
+   "os_nums": [
+    "101",
+    "102"
+   ],
+   "modulos": 6.61,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 312 DALMACIO VELEZ SARSFIELD"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 4 CIELOR",
+   "archivo_real": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 4 CIELOR.xlsx",
+   "establecimiento_id": 417,
+   "establecimiento_nombre": "I.P.E.M. N 207 EDUARDO RAUL REQUENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "13-15",
+   "os_norm": "13-15",
+   "os_nums": [
+    "13",
+    "15"
+   ],
+   "modulos": 105.39,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 207 EDUARDO RAUL REQUENA"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "02- ESCUELA EJERCITO ARGENTINO - ELECT 4 HERR SANIT 6",
+   "archivo_real": "02- ESCUELA EJERCITO ARGENTINO - ELECT 4 HERR SANIT 6.xlsx",
+   "establecimiento_id": 418,
+   "establecimiento_nombre": "ESCUELA EJERCITO ARGENTINO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "119-120",
+   "os_norm": "119-120",
+   "os_nums": [
+    "119",
+    "120"
+   ],
+   "modulos": 142.45,
+   "comentario": "",
+   "estab_planilla": "ESCUELA EJERCITO ARGENTINO"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "03- J. DE INFANTES EJERCITO ARGENTINO - VENT 1 SANIT 3",
+   "archivo_real": "03- J. DE INFANTES EJERCITO ARGENTINO - VENT 1 SANIT 3.xlsx",
+   "establecimiento_id": 419,
+   "establecimiento_nombre": "J.DE INF. EJERCITO ARGENTINO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "121-122",
+   "os_norm": "121-122",
+   "os_nums": [
+    "121",
+    "122"
+   ],
+   "modulos": 42.32,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. EJERCITO ARGENTINO"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT",
+   "archivo_real": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT.xlsx",
+   "establecimiento_id": 421,
+   "establecimiento_nombre": "I.P.E.T. N 77 GDOR.DR.S.DEL CASTILLO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "123",
+   "os_norm": "123",
+   "os_nums": [
+    "123"
+   ],
+   "modulos": 6.4,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº 77 GDOR.DR.S.DEL CASTILLO"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "05- IPET Nº77 - GOB. S. DEL CASTILLO - SANIT 4",
+   "archivo_real": "05- IPET Nº77 - GOB. S. DEL CASTILLO - SANIT 4.xlsx",
+   "establecimiento_id": 421,
+   "establecimiento_nombre": "I.P.E.T. N 77 GDOR.DR.S.DEL CASTILLO",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "35",
+   "os_norm": "35",
+   "os_nums": [
+    "35"
+   ],
+   "modulos": 14.33,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº 77 GDOR.DR.S.DEL CASTILLO"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "010- J. DE INFANTES JUAN XXIII - CUB",
+   "archivo_real": "010- J. DE INFANTES JUAN XXIII - CUB.xlsx",
+   "establecimiento_id": 426,
+   "establecimiento_nombre": "J.DE INF. JUAN XXIII",
+   "match": "exacto",
+   "rubros_cod": [
+    "CUB",
+    "ALB"
+   ],
+   "rubro_cod0": "CUB",
+   "rubro_largo": "Cubierta de techos",
+   "os_raw": "120",
+   "os_norm": "120",
+   "os_nums": [
+    "120"
+   ],
+   "modulos": 211.17,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JUAN XXIII"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 7 ELECT 4",
+   "archivo_real": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 7 ELECT 4.xlsx",
+   "establecimiento_id": 427,
+   "establecimiento_nombre": "I.P.E.M. N 167 JOSE MANUEL ESTRADA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "85-110",
+   "os_norm": "85-110",
+   "os_nums": [
+    "85",
+    "110"
+   ],
+   "modulos": 2.45,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 167 JOSE MANUEL ESTRADA"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "016- IPET Nº48 PRESIDENTE ROCA - BOMBA 2 SANIT 7 PODA",
+   "archivo_real": "016- IPET Nº48 PRESIDENTE ROCA - BOMBA 2 SANIT 7 PODA.xlsx",
+   "establecimiento_id": 432,
+   "establecimiento_nombre": "I.P.E.T. N 48 PRESIDENTE ROCA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "8-36",
+   "os_norm": "8-36",
+   "os_nums": [
+    "8",
+    "36"
+   ],
+   "modulos": 128.75,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº48 PRESIDENTE ROCA"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "017- JARDIN DE I. JOSE HERNANDEZ - AIRE ACOND",
+   "archivo_real": "017- JARDIN DE I. JOSE HERNANDEZ - AIRE ACOND.xlsx",
+   "establecimiento_id": 433,
+   "establecimiento_nombre": "J.DE INF. JOSE HERNANDEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "132",
+   "os_norm": "132",
+   "os_nums": [
+    "132"
+   ],
+   "modulos": 36.11,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JOSE HERNANDEZ"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "021- ESCUELA RUBEN DARIO - CARP 4 POL 3 PLUV",
+   "archivo_real": "021- ESCUELA RUBEN DARIO - CARP 4 POL 3 PLUV.xlsx",
+   "establecimiento_id": 437,
+   "establecimiento_nombre": "ESCUELA RUBEN DARIO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "127-128-129",
+   "os_norm": "127-128-129",
+   "os_nums": [
+    "127",
+    "128",
+    "129"
+   ],
+   "modulos": 38.81,
+   "comentario": "",
+   "estab_planilla": "ESCUELA RUBEN DARIO"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "025- ESCUELA ING. REGINO MADERS - SANIT 5",
+   "archivo_real": "025- ESCUELA ING. REGINO MADERS - SANIT 5.xlsx",
+   "establecimiento_id": 441,
+   "establecimiento_nombre": "ESCUELA ING. REGINO M. MADERS",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "60",
+   "os_norm": "60",
+   "os_nums": [
+    "60"
+   ],
+   "modulos": 4.72,
+   "comentario": "",
+   "estab_planilla": "ESCUELA ING. REGINO M. MADERS"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "027- IPEM Nº11 ALBERTO PIO COGNINI - SANIT 3 POL 2",
+   "archivo_real": "027- IPEM Nº11 ALBERTO PIO COGNINI - SANIT 3 POL 2.xlsx",
+   "establecimiento_id": 443,
+   "establecimiento_nombre": "I.P.E.M. N 11 ALBERTO PIO AUGUSTO COGNIGNI",
+   "match": "fuzzy 0.67",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "125-126",
+   "os_norm": "125-126",
+   "os_nums": [
+    "125",
+    "126"
+   ],
+   "modulos": 21.06,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 11 ALBERTO PIO AUGUSTO COGNINI"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "032- ESCUELA HEROES DE MALVINAS - CARP",
+   "archivo_real": "032- ESCUELA HEROES DE MALVINAS - CARP.xlsx",
+   "establecimiento_id": 448,
+   "establecimiento_nombre": "ESCUELA HEROES DE MALVINAS (EX-B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "124",
+   "os_norm": "124",
+   "os_nums": [
+    "124"
+   ],
+   "modulos": 15.23,
+   "comentario": "",
+   "estab_planilla": "ESCUELA HEROES DE MALVINAS (EX-Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 2,
+   "archivo_planilla": "033- ESCUELA USANDIVARAS - CARP 2 PLOM POL",
+   "archivo_real": "033- ESCUELA USANDIVARAS - CARP 2 PLOM POL.xlsx",
+   "establecimiento_id": 449,
+   "establecimiento_nombre": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "130-131",
+   "os_norm": "130-131",
+   "os_nums": [
+    "130",
+    "131"
+   ],
+   "modulos": 110.45,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 5...",
+   "archivo_real": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 5....xlsx",
+   "establecimiento_id": 417,
+   "establecimiento_nombre": "I.P.E.M. N 207 EDUARDO RAUL REQUENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "176",
+   "os_norm": "176",
+   "os_nums": [
+    "176"
+   ],
+   "modulos": 9.74,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 207 EDUARDO RAUL REQUENA"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 6 POL.",
+   "archivo_real": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 6 POL..xlsx",
+   "establecimiento_id": 417,
+   "establecimiento_nombre": "I.P.E.M. N 207 EDUARDO RAUL REQUENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "ALB"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "179-180",
+   "os_norm": "179-180",
+   "os_nums": [
+    "179",
+    "180"
+   ],
+   "modulos": 70.71,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 207 EDUARDO RAUL REQUENA"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "02- ESCUELA EJERCITO ARGENTINO - BOMBA",
+   "archivo_real": "02- ESCUELA EJERCITO ARGENTINO - BOMBA.xlsx",
+   "establecimiento_id": 418,
+   "establecimiento_nombre": "ESCUELA EJERCITO ARGENTINO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "149",
+   "os_norm": "149",
+   "os_nums": [
+    "149"
+   ],
+   "modulos": 5.26,
+   "comentario": "",
+   "estab_planilla": "ESCUELA EJERCITO ARGENTINO"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "03- J. DE INFANTES EJERCITO ARGENTINO - ELECT",
+   "archivo_real": "03- J. DE INFANTES EJERCITO ARGENTINO - ELECT.xlsx",
+   "establecimiento_id": 419,
+   "establecimiento_nombre": "J.DE INF. EJERCITO ARGENTINO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "150",
+   "os_norm": "150",
+   "os_nums": [
+    "150"
+   ],
+   "modulos": 5.1,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. EJERCITO ARGENTINO"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 2 CUB.",
+   "archivo_real": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 2 CUB..xlsx",
+   "establecimiento_id": 421,
+   "establecimiento_nombre": "I.P.E.T. N 77 GDOR.DR.S.DEL CASTILLO",
+   "match": "exacto",
+   "rubros_cod": [
+    "CUB",
+    "ELEC",
+    "ALB"
+   ],
+   "rubro_cod0": "CUB",
+   "rubro_largo": "Cubierta de techos",
+   "os_raw": "123",
+   "os_norm": "123",
+   "os_nums": [
+    "123"
+   ],
+   "modulos": 261.21,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº 77 GDOR.DR.S.DEL CASTILLO"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - POL 3",
+   "archivo_real": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - POL 3.xlsx",
+   "establecimiento_id": 423,
+   "establecimiento_nombre": "I.P.E.M. N 176 GRANADERO JOSE MARQUEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "151",
+   "os_norm": "151",
+   "os_nums": [
+    "151"
+   ],
+   "modulos": 16.94,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 176 GRANADERO JOSE MARQUEZ"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "08- ESCUELA CONSTANCIO VIGIL - SANIT 13",
+   "archivo_real": "08- ESCUELA CONSTANCIO VIGIL - SANIT 13.xlsx",
+   "establecimiento_id": 424,
+   "establecimiento_nombre": "ESCUELA CONSTANCIO C. VIGIL",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "152",
+   "os_norm": "152",
+   "os_nums": [
+    "152"
+   ],
+   "modulos": 3.95,
+   "comentario": "",
+   "estab_planilla": "ESCUELA CONSTANCIO C. VIGIL"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 8...",
+   "archivo_real": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 8....xlsx",
+   "establecimiento_id": 427,
+   "establecimiento_nombre": "I.P.E.M. N 167 JOSE MANUEL ESTRADA",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "140",
+   "os_norm": "140",
+   "os_nums": [
+    "140"
+   ],
+   "modulos": 11.29,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 167 JOSE MANUEL ESTRADA"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "012- ESCUELA PEDRO GOYENA - SANIT 7",
+   "archivo_real": "012- ESCUELA PEDRO GOYENA - SANIT 7.xlsx",
+   "establecimiento_id": 428,
+   "establecimiento_nombre": "ESCUELA PEDRO GOYENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "62",
+   "os_norm": "62",
+   "os_nums": [
+    "62"
+   ],
+   "modulos": 8.13,
+   "comentario": "",
+   "estab_planilla": "ESCUELA PEDRO GOYENA"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "012- ESCUELA PEDRO GOYENA - VENT",
+   "archivo_real": "012- ESCUELA PEDRO GOYENA - VENT.xlsx",
+   "establecimiento_id": 428,
+   "establecimiento_nombre": "ESCUELA PEDRO GOYENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "63",
+   "os_norm": "63",
+   "os_nums": [
+    "63"
+   ],
+   "modulos": 25.26,
+   "comentario": "",
+   "estab_planilla": "ESCUELA PEDRO GOYENA"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "013- JARDIN DE I. MERCEDES DE SAN MARTIN - SANIT 3",
+   "archivo_real": "013- JARDIN DE I. MERCEDES DE SAN MARTIN - SANIT 3.xlsx",
+   "establecimiento_id": 429,
+   "establecimiento_nombre": "J.DE INF. MERCEDES DE SAN MARTIN",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "68",
+   "os_norm": "68",
+   "os_nums": [
+    "68"
+   ],
+   "modulos": 3.71,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MERCEDES DE SAN MARTIN"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "014- ESCUELA JOSE HERNANDEZ - SANIT 5 BOMBA",
+   "archivo_real": "014- ESCUELA JOSE HERNANDEZ - SANIT 5 BOMBA.xlsx",
+   "establecimiento_id": 430,
+   "establecimiento_nombre": "ESCUELA JOSE HERNANDEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "153",
+   "os_norm": "153",
+   "os_nums": [
+    "153"
+   ],
+   "modulos": 5.48,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JOSE HERNANDEZ"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "021- ESCUELA RUBEN DARIO - ELECT 4",
+   "archivo_real": "021- ESCUELA RUBEN DARIO - ELECT 4.xlsx",
+   "establecimiento_id": 437,
+   "establecimiento_nombre": "ESCUELA RUBEN DARIO",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "155",
+   "os_norm": "155",
+   "os_nums": [
+    "155"
+   ],
+   "modulos": 16,
+   "comentario": "",
+   "estab_planilla": "ESCUELA RUBEN DARIO"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "021- ESCUELA RUBEN DARIO - SANIT 6",
+   "archivo_real": "021- ESCUELA RUBEN DARIO - SANIT 6.xlsx",
+   "establecimiento_id": 437,
+   "establecimiento_nombre": "ESCUELA RUBEN DARIO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "181",
+   "os_norm": "181",
+   "os_nums": [
+    "181"
+   ],
+   "modulos": 1.2,
+   "comentario": "",
+   "estab_planilla": "ESCUELA RUBEN DARIO"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "024- JARDIN DE I. JUAN RAMON JIMENEZ - ELECT 2.",
+   "archivo_real": "024- JARDIN DE I. JUAN RAMON JIMENEZ - ELECT 2..xlsx",
+   "establecimiento_id": 440,
+   "establecimiento_nombre": "J.DE INF. JUAN RAMON JIMENEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "165",
+   "os_norm": "165",
+   "os_nums": [
+    "165"
+   ],
+   "modulos": 36.68,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JUAN RAMON JIMENEZ"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "025- ESCUELA ING. REGINO MADERS - ARBOL",
+   "archivo_real": "025- ESCUELA ING. REGINO MADERS - ARBOL.xlsx",
+   "establecimiento_id": 441,
+   "establecimiento_nombre": "ESCUELA ING. REGINO M. MADERS",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "61",
+   "os_norm": "61",
+   "os_nums": [
+    "61"
+   ],
+   "modulos": 7.4,
+   "comentario": "",
+   "estab_planilla": "ESCUELA ING. REGINO M. MADERS"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "027- IPEM Nº11 ALBERTO PIO COGNINI - POL 3",
+   "archivo_real": "027- IPEM Nº11 ALBERTO PIO COGNINI - POL 3.xlsx",
+   "establecimiento_id": 443,
+   "establecimiento_nombre": "I.P.E.M. N 11 ALBERTO PIO AUGUSTO COGNIGNI",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "154",
+   "os_norm": "154",
+   "os_nums": [
+    "154"
+   ],
+   "modulos": 3.73,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 11 ALBERTO PIO AUGUSTO COGNIGNI"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 5 BOMBA",
+   "archivo_real": "028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 5 BOMBA.xlsx",
+   "establecimiento_id": 444,
+   "establecimiento_nombre": "I.P.E.M. N 309 PROFESOR CARLOS FUENTEALBA",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "66",
+   "os_norm": "66",
+   "os_nums": [
+    "66"
+   ],
+   "modulos": 6.42,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 309 PROFESOR CARLOS FUENTEALBA"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 6",
+   "archivo_real": "028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 6.xlsx",
+   "establecimiento_id": 444,
+   "establecimiento_nombre": "I.P.E.M. N 309 PROFESOR CARLOS FUENTEALBA",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "106",
+   "os_norm": "106",
+   "os_nums": [
+    "106"
+   ],
+   "modulos": 4.18,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 309 PROFESOR CARLOS FUENTEALBA"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "029- JARDIN DE I. MARIA EVA DUARTE - ELECT",
+   "archivo_real": "029- JARDIN DE I. MARIA EVA DUARTE - ELECT.xlsx",
+   "establecimiento_id": 445,
+   "establecimiento_nombre": "J.DE INF. MARIA EVA DUARTE(EX S/NOM.DE B JOSE I.DIAZ 3 SEC.",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "156",
+   "os_norm": "156",
+   "os_nums": [
+    "156"
+   ],
+   "modulos": 9.66,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MARIA EVA DUARTE(EX S/NOM.DE BºJOSE I.DIAZ 3ºSEC."
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "031- ESCUELA MARIA EVA DUARTE - ELECT 3",
+   "archivo_real": "031- ESCUELA MARIA EVA DUARTE - ELECT 3.xlsx",
+   "establecimiento_id": 447,
+   "establecimiento_nombre": "ESCUELA MARIA EVA DUARTE (EX-DE FAMILIAS UNIDAS)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "100-176",
+   "os_norm": "100-176",
+   "os_nums": [
+    "100",
+    "176"
+   ],
+   "modulos": 34.19,
+   "comentario": "",
+   "estab_planilla": "ESCUELA MARIA EVA DUARTE (EX-DE FAMILIAS UNIDAS)"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "031- ESCUELA MARIA EVA DUARTE - SANIT 3",
+   "archivo_real": "031- ESCUELA MARIA EVA DUARTE - SANIT 3.xlsx",
+   "establecimiento_id": 447,
+   "establecimiento_nombre": "ESCUELA MARIA EVA DUARTE (EX-DE FAMILIAS UNIDAS)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "134",
+   "os_norm": "134",
+   "os_nums": [
+    "134"
+   ],
+   "modulos": 12.81,
+   "comentario": "",
+   "estab_planilla": "ESCUELA MARIA EVA DUARTE (EX-DE FAMILIAS UNIDAS)"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "032- ESCUELA HEROES DE MALVINAS - SANIT 7",
+   "archivo_real": "032- ESCUELA HEROES DE MALVINAS - SANIT 7.xlsx",
+   "establecimiento_id": 448,
+   "establecimiento_nombre": "ESCUELA HEROES DE MALVINAS (EX-B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "107",
+   "os_norm": "107",
+   "os_nums": [
+    "107"
+   ],
+   "modulos": 12.42,
+   "comentario": "",
+   "estab_planilla": "ESCUELA HEROES DE MALVINAS (EX-Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "032- ESCUELA HEROES DE MALVINAS - SANIT 8",
+   "archivo_real": "032- ESCUELA HEROES DE MALVINAS - SANIT 8.xlsx",
+   "establecimiento_id": 448,
+   "establecimiento_nombre": "ESCUELA HEROES DE MALVINAS (EX-B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "135",
+   "os_norm": "135",
+   "os_nums": [
+    "135"
+   ],
+   "modulos": 3.09,
+   "comentario": "",
+   "estab_planilla": "ESCUELA HEROES DE MALVINAS (EX-Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "033- ESCUELA USANDIVARAS - CARP 3 POL2",
+   "archivo_real": "033- ESCUELA USANDIVARAS - CARP 3 POL2.xlsx",
+   "establecimiento_id": 449,
+   "establecimiento_nombre": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "182",
+   "os_norm": "182",
+   "os_nums": [
+    "182"
+   ],
+   "modulos": 55.38,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)"
+  },
+  {
+   "med": 3,
+   "archivo_planilla": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 5",
+   "archivo_real": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 5.xlsx",
+   "establecimiento_id": 452,
+   "establecimiento_nombre": "I.P.E.M. N 312 DALMACIO VELEZ SARSFIELD",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "157",
+   "os_norm": "157",
+   "os_nums": [
+    "157"
+   ],
+   "modulos": 4.18,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 312 DALMACIO VELEZ SARSFIELD"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 4 CARP",
+   "archivo_real": "06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 4 CARP.xlsx",
+   "establecimiento_id": 422,
+   "establecimiento_nombre": "J.DE INF. CONSTANCIO C. VIGIL",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "209 221",
+   "os_norm": "209221",
+   "os_nums": [
+    "209",
+    "221"
+   ],
+   "modulos": 9.03,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. CONSTANCIO C. VIGIL"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "09- ESCUELA JUAN XXIII - HERR 2",
+   "archivo_real": "09- ESCUELA JUAN XXIII - HERR 2.xlsx",
+   "establecimiento_id": 425,
+   "establecimiento_nombre": "ESCUELA JUAN XXIII",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "235",
+   "os_norm": "235",
+   "os_nums": [
+    "235"
+   ],
+   "modulos": 44.7,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JUAN XXIII"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 4",
+   "archivo_real": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 4.xlsx",
+   "establecimiento_id": 427,
+   "establecimiento_nombre": "I.P.E.M. N 167 JOSE MANUEL ESTRADA",
+   "match": "fuzzy 1.00",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "136",
+   "os_norm": "136",
+   "os_nums": [
+    "136"
+   ],
+   "modulos": 47.63,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. N° 167 JOSE MANUEL ESTRADA"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "016- IPET Nº48 PRESIDENTE ROCA - BOMBA",
+   "archivo_real": "016- IPET Nº48 PRESIDENTE ROCA - BOMBA.xlsx",
+   "establecimiento_id": 432,
+   "establecimiento_nombre": "I.P.E.T. N 48 PRESIDENTE ROCA",
+   "match": "fuzzy 1.00",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "222 223",
+   "os_norm": "222223",
+   "os_nums": [
+    "222",
+    "223"
+   ],
+   "modulos": 67.78,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. N°48 PRESIDENTE ROCA"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "021- ESCUELA RUBEN DARIO - SANIT 7 BOMBA 2",
+   "archivo_real": "021- ESCUELA RUBEN DARIO - SANIT 7 BOMBA 2.xlsx",
+   "establecimiento_id": 437,
+   "establecimiento_nombre": "ESCUELA RUBEN DARIO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC",
+    "SAN"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "173",
+   "os_norm": "173",
+   "os_nums": [
+    "173"
+   ],
+   "modulos": 4.35,
+   "comentario": "",
+   "estab_planilla": "ESCUELA RUBEN DARIO"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 6",
+   "archivo_real": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 6.xlsx",
+   "establecimiento_id": 440,
+   "establecimiento_nombre": "J.DE INF. JUAN RAMON JIMENEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "171",
+   "os_norm": "171",
+   "os_nums": [
+    "171"
+   ],
+   "modulos": 5.16,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JUAN RAMON JIMENEZ"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "025- ESCUELA ING. REGINO MADERS - SANIT 6",
+   "archivo_real": "025- ESCUELA ING. REGINO MADERS - SANIT 6.xlsx",
+   "establecimiento_id": 441,
+   "establecimiento_nombre": "ESCUELA ING. REGINO M. MADERS",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "224",
+   "os_norm": "224",
+   "os_nums": [
+    "224"
+   ],
+   "modulos": 15.92,
+   "comentario": "",
+   "estab_planilla": "ESCUELA ING. REGINO M. MADERS"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 2",
+   "archivo_real": "027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 2.xlsx",
+   "establecimiento_id": 443,
+   "establecimiento_nombre": "I.P.E.M. N 11 ALBERTO PIO AUGUSTO COGNIGNI",
+   "match": "fuzzy 1.00",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "137",
+   "os_norm": "137",
+   "os_nums": [
+    "137"
+   ],
+   "modulos": 35.4,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. N° 11 ALBERTO PIO AUGUSTO COGNIGNI"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "033- ESCUELA USANDIVARAS - CARP 4 PLOM 3",
+   "archivo_real": "033- ESCUELA USANDIVARAS - CARP 4 PLOM 3.xlsx",
+   "establecimiento_id": 449,
+   "establecimiento_nombre": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "231 231A",
+   "os_norm": "231231A",
+   "os_nums": [
+    "231",
+    "231"
+   ],
+   "modulos": 27.14,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)"
+  },
+  {
+   "med": 4,
+   "archivo_planilla": "033- ESCUELA USANDIVARAS - CARP 5",
+   "archivo_real": "033- ESCUELA USANDIVARAS - CARP 5.xlsx",
+   "establecimiento_id": 449,
+   "establecimiento_nombre": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "238",
+   "os_norm": "238",
+   "os_nums": [
+    "238"
+   ],
+   "modulos": 22.02,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "02- ESCUELA EJERCITO ARGENTINO - ELECT 5",
+   "archivo_real": "02- ESCUELA EJERCITO ARGENTINO - ELECT 5.xlsx",
+   "establecimiento_id": 418,
+   "establecimiento_nombre": "ESCUELA EJERCITO ARGENTINO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "192",
+   "os_norm": "192",
+   "os_nums": [
+    "192"
+   ],
+   "modulos": 2.32,
+   "comentario": "",
+   "estab_planilla": "ESCUELA EJERCITO ARGENTINO"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "03- J. DE INFANTES EJERCITO ARGENTINO - GAS 3",
+   "archivo_real": "03- J. DE INFANTES EJERCITO ARGENTINO - GAS 3.xlsx",
+   "establecimiento_id": 419,
+   "establecimiento_nombre": "J.DE INF. EJERCITO ARGENTINO",
+   "match": "exacto",
+   "rubros_cod": [
+    "GAS"
+   ],
+   "rubro_cod0": "GAS",
+   "rubro_largo": "Instalacion de gas",
+   "os_raw": "194",
+   "os_norm": "194",
+   "os_nums": [
+    "194"
+   ],
+   "modulos": 9.99,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. EJERCITO ARGENTINO"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "04- J. DE INFANTES LIBERTADOR SAN MARTIN - GAS 2",
+   "archivo_real": "04- J. DE INFANTES LIBERTADOR SAN MARTIN - GAS 2.xlsx",
+   "establecimiento_id": 420,
+   "establecimiento_nombre": "J.DE INF. LIBERTADOR GENERAL SAN MARTIN",
+   "match": "exacto",
+   "rubros_cod": [
+    "GAS"
+   ],
+   "rubro_cod0": "GAS",
+   "rubro_largo": "Instalacion de gas",
+   "os_raw": "148",
+   "os_norm": "148",
+   "os_nums": [
+    "148"
+   ],
+   "modulos": 25.42,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. LIBERTADOR GENERAL SAN MARTIN"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ALB",
+   "archivo_real": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ALB.xlsx",
+   "establecimiento_id": 421,
+   "establecimiento_nombre": "I.P.E.T. N 77 GDOR.DR.S.DEL CASTILLO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "166",
+   "os_norm": "166",
+   "os_nums": [
+    "166"
+   ],
+   "modulos": 116.52,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº 77 GDOR.DR.S.DEL CASTILLO"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "05- IPET Nº77 - GOB. S. DEL CASTILLO - CUBIERTA",
+   "archivo_real": "05- IPET Nº77 - GOB. S. DEL CASTILLO - CUBIERTA.xlsx",
+   "establecimiento_id": 421,
+   "establecimiento_nombre": "I.P.E.T. N 77 GDOR.DR.S.DEL CASTILLO",
+   "match": "exacto",
+   "rubros_cod": [
+    "CUB"
+   ],
+   "rubro_cod0": "CUB",
+   "rubro_largo": "Cubierta de techos",
+   "os_raw": "242",
+   "os_norm": "242",
+   "os_nums": [
+    "242"
+   ],
+   "modulos": 72.34,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº 77 GDOR.DR.S.DEL CASTILLO"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 3",
+   "archivo_real": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 3.xlsx",
+   "establecimiento_id": 421,
+   "establecimiento_nombre": "I.P.E.T. N 77 GDOR.DR.S.DEL CASTILLO",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "288",
+   "os_norm": "288",
+   "os_nums": [
+    "288"
+   ],
+   "modulos": 25.14,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº 77 GDOR.DR.S.DEL CASTILLO"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 5",
+   "archivo_real": "06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 5.xlsx",
+   "establecimiento_id": 422,
+   "establecimiento_nombre": "J.DE INF. CONSTANCIO C. VIGIL",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "260",
+   "os_norm": "260",
+   "os_nums": [
+    "260"
+   ],
+   "modulos": 2.63,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. CONSTANCIO C. VIGIL"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - GAS 2",
+   "archivo_real": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - GAS 2.xlsx",
+   "establecimiento_id": 423,
+   "establecimiento_nombre": "I.P.E.M. N 176 GRANADERO JOSE MARQUEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "GAS"
+   ],
+   "rubro_cod0": "GAS",
+   "rubro_largo": "Instalacion de gas",
+   "os_raw": "263",
+   "os_norm": "263",
+   "os_nums": [
+    "263"
+   ],
+   "modulos": 6.43,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 176 GRANADERO JOSE MARQUEZ"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "08- ESCUELA CONSTANCIO VIGIL - ALB Completar v",
+   "archivo_real": "08- ESCUELA CONSTANCIO VIGIL - ALB Completar v.xlsx",
+   "establecimiento_id": 424,
+   "establecimiento_nombre": "ESCUELA CONSTANCIO C. VIGIL",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "213",
+   "os_norm": "213",
+   "os_nums": [
+    "213"
+   ],
+   "modulos": 321.32,
+   "comentario": "",
+   "estab_planilla": "ESCUELA CONSTANCIO C. VIGIL"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ALB 2",
+   "archivo_real": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ALB 2.xlsx",
+   "establecimiento_id": 427,
+   "establecimiento_nombre": "I.P.E.M. N 167 JOSE MANUEL ESTRADA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "227",
+   "os_norm": "227",
+   "os_nums": [
+    "227"
+   ],
+   "modulos": 8.8,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 167 JOSE MANUEL ESTRADA"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 5",
+   "archivo_real": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 5.xlsx",
+   "establecimiento_id": 427,
+   "establecimiento_nombre": "I.P.E.M. N 167 JOSE MANUEL ESTRADA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "117",
+   "os_norm": "117",
+   "os_nums": [
+    "117"
+   ],
+   "modulos": 6.59,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 167 JOSE MANUEL ESTRADA"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT9",
+   "archivo_real": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT9.xlsx",
+   "establecimiento_id": 427,
+   "establecimiento_nombre": "I.P.E.M. N 167 JOSE MANUEL ESTRADA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB",
+    "SAN"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "217",
+   "os_norm": "217",
+   "os_nums": [
+    "217"
+   ],
+   "modulos": 31.4,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 167 JOSE MANUEL ESTRADA"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "012- ESCUELA PEDRO GOYENA - CARP 5",
+   "archivo_real": "012- ESCUELA PEDRO GOYENA - CARP 5.xlsx",
+   "establecimiento_id": 428,
+   "establecimiento_nombre": "ESCUELA PEDRO GOYENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "230",
+   "os_norm": "230",
+   "os_nums": [
+    "230"
+   ],
+   "modulos": 2.63,
+   "comentario": "",
+   "estab_planilla": "ESCUELA PEDRO GOYENA"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "012- ESCUELA PEDRO GOYENA - SANIT 8",
+   "archivo_real": "012- ESCUELA PEDRO GOYENA - SANIT 8.xlsx",
+   "establecimiento_id": 428,
+   "establecimiento_nombre": "ESCUELA PEDRO GOYENA",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "203",
+   "os_norm": "203",
+   "os_nums": [
+    "203"
+   ],
+   "modulos": 1.31,
+   "comentario": "",
+   "estab_planilla": "ESCUELA PEDRO GOYENA"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "016- IPET Nº48 PRESIDENTE ROCA - SANIT 6",
+   "archivo_real": "016- IPET Nº48 PRESIDENTE ROCA - SANIT 6.xlsx",
+   "establecimiento_id": 432,
+   "establecimiento_nombre": "I.P.E.T. N 48 PRESIDENTE ROCA",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "243",
+   "os_norm": "243",
+   "os_nums": [
+    "243"
+   ],
+   "modulos": 18.28,
+   "comentario": "",
+   "estab_planilla": "I.P.E.T. Nº48 PRESIDENTE ROCA"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "017- JARDIN DE I. JOSE HERNANDEZ - GAS",
+   "archivo_real": "017- JARDIN DE I. JOSE HERNANDEZ - GAS.xlsx",
+   "establecimiento_id": 433,
+   "establecimiento_nombre": "J.DE INF. JOSE HERNANDEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "GAS"
+   ],
+   "rubro_cod0": "GAS",
+   "rubro_largo": "Instalacion de gas",
+   "os_raw": "275",
+   "os_norm": "275",
+   "os_nums": [
+    "275"
+   ],
+   "modulos": 4.21,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JOSE HERNANDEZ"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "017- JARDIN DE I. JOSE HERNANDEZ - SANIT 4",
+   "archivo_real": "017- JARDIN DE I. JOSE HERNANDEZ - SANIT 4.xlsx",
+   "establecimiento_id": 433,
+   "establecimiento_nombre": "J.DE INF. JOSE HERNANDEZ",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "144",
+   "os_norm": "144",
+   "os_nums": [
+    "144"
+   ],
+   "modulos": 5.87,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. JOSE HERNANDEZ"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "023- ESCUELA LIBERTADOR GRAL SAN MARTIN - SANIT5",
+   "archivo_real": "023- ESCUELA LIBERTADOR GRAL SAN MARTIN - SANIT5.xlsx",
+   "establecimiento_id": 439,
+   "establecimiento_nombre": "ESCUELA LIBERTADOR GENERAL SAN MARTIN",
+   "match": "exacto",
+   "rubros_cod": [
+    "CUB",
+    "SAN"
+   ],
+   "rubro_cod0": "CUB",
+   "rubro_largo": "Cubierta de techos",
+   "os_raw": "261-262",
+   "os_norm": "261-262",
+   "os_nums": [
+    "261",
+    "262"
+   ],
+   "modulos": 5.13,
+   "comentario": "",
+   "estab_planilla": "ESCUELA LIBERTADOR GENERAL SAN MARTIN"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP 2 POL",
+   "archivo_real": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP 2 POL.xlsx",
+   "establecimiento_id": 442,
+   "establecimiento_nombre": "I.P.E.M. N 13 DR. PEDRO ESCUDERO.",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "139 A",
+   "os_norm": "139A",
+   "os_nums": [
+    "139"
+   ],
+   "modulos": 41.6,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 13 DR. PEDRO ESCUDERO."
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR PINT",
+   "archivo_real": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR PINT.xlsx",
+   "establecimiento_id": 442,
+   "establecimiento_nombre": "I.P.E.M. N 13 DR. PEDRO ESCUDERO.",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "146",
+   "os_norm": "146",
+   "os_nums": [
+    "146"
+   ],
+   "modulos": 36.95,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 13 DR. PEDRO ESCUDERO."
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR",
+   "archivo_real": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR.xlsx",
+   "establecimiento_id": 442,
+   "establecimiento_nombre": "I.P.E.M. N 13 DR. PEDRO ESCUDERO.",
+   "match": "exacto",
+   "rubros_cod": [
+    "ALB"
+   ],
+   "rubro_cod0": "ALB",
+   "rubro_largo": "Albanileria",
+   "os_raw": "139",
+   "os_norm": "139",
+   "os_nums": [
+    "139"
+   ],
+   "modulos": 51.72,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 13 DR. PEDRO ESCUDERO."
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 4",
+   "archivo_real": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 4.xlsx",
+   "establecimiento_id": 442,
+   "establecimiento_nombre": "I.P.E.M. N 13 DR. PEDRO ESCUDERO.",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "252",
+   "os_norm": "252",
+   "os_nums": [
+    "252"
+   ],
+   "modulos": 12.94,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 13 DR. PEDRO ESCUDERO."
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 3",
+   "archivo_real": "027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 3.xlsx",
+   "establecimiento_id": 443,
+   "establecimiento_nombre": "I.P.E.M. N 11 ALBERTO PIO AUGUSTO COGNIGNI",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "251",
+   "os_norm": "251",
+   "os_nums": [
+    "251"
+   ],
+   "modulos": 23.32,
+   "comentario": "",
+   "estab_planilla": "I.P.E.M. Nº 11 ALBERTO PIO AUGUSTO COGNIGNI"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "032- ESCUELA HEROES DE MALVINAS - SANIT 7",
+   "archivo_real": "032- ESCUELA HEROES DE MALVINAS - SANIT 7.xlsx",
+   "establecimiento_id": 448,
+   "establecimiento_nombre": "ESCUELA HEROES DE MALVINAS (EX-B ALMIRANTE BROWN)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "133",
+   "os_norm": "133",
+   "os_nums": [
+    "133"
+   ],
+   "modulos": 11.06,
+   "comentario": "",
+   "estab_planilla": "ESCUELA HEROES DE MALVINAS (EX-Bº ALMIRANTE BROWN)"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "033- ESCUELA USANDIVARAS - ELECT 5",
+   "archivo_real": "033- ESCUELA USANDIVARAS - ELECT 5.xlsx",
+   "establecimiento_id": 449,
+   "establecimiento_nombre": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "299",
+   "os_norm": "299",
+   "os_nums": [
+    "299"
+   ],
+   "modulos": 38.39,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "033- ESCUELA USANDIVARAS - PLOM 5",
+   "archivo_real": "033- ESCUELA USANDIVARAS - PLOM 5.xlsx",
+   "establecimiento_id": 449,
+   "establecimiento_nombre": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "229",
+   "os_norm": "229",
+   "os_nums": [
+    "229"
+   ],
+   "modulos": 3.79,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "033- ESCUELA USANDIVARAS - PLOM 6",
+   "archivo_real": "033- ESCUELA USANDIVARAS - PLOM 6.xlsx",
+   "establecimiento_id": 449,
+   "establecimiento_nombre": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "237",
+   "os_norm": "237",
+   "os_nums": [
+    "237"
+   ],
+   "modulos": 5.17,
+   "comentario": "",
+   "estab_planilla": "ESCUELA JULIO DIAZ USANDIVARAS (EX-ANEXO PEDRO GOYENA)"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "034- JARDIN DE I.TERESA DE CALCUTA - ELECT 3",
+   "archivo_real": "034- JARDIN DE I.TERESA DE CALCUTA - ELECT 3.xlsx",
+   "establecimiento_id": 450,
+   "establecimiento_nombre": "J.DE INF. MADRE TERESA DE CALCUTA (EX ANEXO JUAN RAMON JIMENEZ)",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "300",
+   "os_norm": "300",
+   "os_nums": [
+    "300"
+   ],
+   "modulos": 20.28,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MADRE TERESA DE CALCUTA (EX ANEXO JUAN RAMON JIMENEZ)"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "034- JARDIN DE I.TERESA DE CALCUTA - GAS",
+   "archivo_real": "034- JARDIN DE I.TERESA DE CALCUTA - GAS.xlsx",
+   "establecimiento_id": 450,
+   "establecimiento_nombre": "J.DE INF. MADRE TERESA DE CALCUTA (EX ANEXO JUAN RAMON JIMENEZ)",
+   "match": "exacto",
+   "rubros_cod": [
+    "GAS"
+   ],
+   "rubro_cod0": "GAS",
+   "rubro_largo": "Instalacion de gas",
+   "os_raw": "199",
+   "os_norm": "199",
+   "os_nums": [
+    "199"
+   ],
+   "modulos": 9.51,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. MADRE TERESA DE CALCUTA (EX ANEXO JUAN RAMON JIMENEZ)"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "035- JARDIN DE I.REGINO MADERS - ELECT 3",
+   "archivo_real": "035- JARDIN DE I.REGINO MADERS - ELECT 3.xlsx",
+   "establecimiento_id": 451,
+   "establecimiento_nombre": "J.DE INF. REGINO MADERS",
+   "match": "exacto",
+   "rubros_cod": [
+    "ELEC"
+   ],
+   "rubro_cod0": "ELEC",
+   "rubro_largo": "Instalacion electrica",
+   "os_raw": "281",
+   "os_norm": "281",
+   "os_nums": [
+    "281"
+   ],
+   "modulos": 23.41,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. REGINO MADERS"
+  },
+  {
+   "med": 5,
+   "archivo_planilla": "035- JARDIN DE I.REGINO MADERS - SANIT 7",
+   "archivo_real": "035- JARDIN DE I.REGINO MADERS - SANIT 7.xlsx",
+   "establecimiento_id": 451,
+   "establecimiento_nombre": "J.DE INF. REGINO MADERS",
+   "match": "exacto",
+   "rubros_cod": [
+    "SAN"
+   ],
+   "rubro_cod0": "SAN",
+   "rubro_largo": "Instalacion sanitaria",
+   "os_raw": "301",
+   "os_norm": "301",
+   "os_nums": [
+    "301"
+   ],
+   "modulos": 4.07,
+   "comentario": "",
+   "estab_planilla": "J.DE INF. REGINO MADERS"
+  }
+ ]
+}

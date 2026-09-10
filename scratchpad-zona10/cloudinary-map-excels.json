@@ -1,0 +1,954 @@
+{
+ "1|01- IPEM Nº 207 - EDUARDO RAUL REQUENA - SANIT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046122/dgie/certificados/dkt5b5klerojmkhavcgx.xlsx",
+  "public_id": "dgie/certificados/dkt5b5klerojmkhavcgx.xlsx",
+  "bytes": 1078641,
+  "med": 1,
+  "establecimiento_id": 417,
+  "archivo_original": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - SANIT 3.xlsx"
+ },
+ "1|04- J. DE INFANTES LIBERTADOR SAN MARTIN - PODA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046124/dgie/certificados/fmts05dncc0vv0uejlvn.xlsx",
+  "public_id": "dgie/certificados/fmts05dncc0vv0uejlvn.xlsx",
+  "bytes": 1156424,
+  "med": 1,
+  "establecimiento_id": 420,
+  "archivo_original": "04- J. DE INFANTES LIBERTADOR SAN MARTIN - PODA.xlsx"
+ },
+ "1|07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046126/dgie/certificados/d3gz8bhmon6byhjyoph7.xlsx",
+  "public_id": "dgie/certificados/d3gz8bhmon6byhjyoph7.xlsx",
+  "bytes": 937392,
+  "med": 1,
+  "establecimiento_id": 423,
+  "archivo_original": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - SANIT 5.xlsx"
+ },
+ "1|08- ESCUELA CONSTANCIO VIGIL - SANIT 12 POL CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046128/dgie/certificados/f8brlghuiwyfxjrxllm6.xlsx",
+  "public_id": "dgie/certificados/f8brlghuiwyfxjrxllm6.xlsx",
+  "bytes": 1247626,
+  "med": 1,
+  "establecimiento_id": 424,
+  "archivo_original": "08- ESCUELA CONSTANCIO VIGIL - SANIT 12 POL CARP.xlsx"
+ },
+ "1|09- ESCUELA JUAN XXIII - BOMBA 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046130/dgie/certificados/wxltgbu9duglauqd22cd.xlsx",
+  "public_id": "dgie/certificados/wxltgbu9duglauqd22cd.xlsx",
+  "bytes": 535560,
+  "med": 1,
+  "establecimiento_id": 425,
+  "archivo_original": "09- ESCUELA JUAN XXIII - BOMBA 2.xlsx"
+ },
+ "1|09- ESCUELA JUAN XXIII - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046132/dgie/certificados/w5nkyveiou0vngkbeklw.xlsx",
+  "public_id": "dgie/certificados/w5nkyveiou0vngkbeklw.xlsx",
+  "bytes": 823076,
+  "med": 1,
+  "establecimiento_id": 425,
+  "archivo_original": "09- ESCUELA JUAN XXIII - SANIT 5.xlsx"
+ },
+ "1|010- J. DE INFANTES JUAN XXIII - SANIT 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046134/dgie/certificados/hqprtezm7coefhssqhr4.xlsx",
+  "public_id": "dgie/certificados/hqprtezm7coefhssqhr4.xlsx",
+  "bytes": 682179,
+  "med": 1,
+  "establecimiento_id": 426,
+  "archivo_original": "010- J. DE INFANTES JUAN XXIII - SANIT 2.xlsx"
+ },
+ "1|011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046136/dgie/certificados/bghrkmawdkuymiodwnii.xlsx",
+  "public_id": "dgie/certificados/bghrkmawdkuymiodwnii.xlsx",
+  "bytes": 581033,
+  "med": 1,
+  "establecimiento_id": 427,
+  "archivo_original": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 3.xlsx"
+ },
+ "1|012- ESCUELA José hernandez - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046138/dgie/certificados/wpsqyr4rfbzfzxluhel6.xlsx",
+  "public_id": "dgie/certificados/wpsqyr4rfbzfzxluhel6.xlsx",
+  "bytes": 774300,
+  "med": 1,
+  "establecimiento_id": 430,
+  "archivo_original": "012- ESCUELA José hernandez - SANIT 6.xlsx"
+ },
+ "1|012- ESCUELA PEDRO GOYENA - CARP 4 POL 3 SANIT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046140/dgie/certificados/a5oyrtzrh0jdkvpwlhdb.xlsx",
+  "public_id": "dgie/certificados/a5oyrtzrh0jdkvpwlhdb.xlsx",
+  "bytes": 832810,
+  "med": 1,
+  "establecimiento_id": 428,
+  "archivo_original": "012- ESCUELA PEDRO GOYENA - CARP 4 POL 3 SANIT.xlsx"
+ },
+ "1|012- ESCUELA PEDRO GOYENA - ELECT 4 CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046142/dgie/certificados/vujhq9tvz5xqhqwsnzuz.xlsx",
+  "public_id": "dgie/certificados/vujhq9tvz5xqhqwsnzuz.xlsx",
+  "bytes": 1235052,
+  "med": 1,
+  "establecimiento_id": 429,
+  "archivo_original": "012- ESCUELA PEDRO GOYENA - ELECT 4 CARP.xlsx"
+ },
+ "1|013- JARDIN DE I. MERCEDES DE SAN MARTIN - ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046144/dgie/certificados/s5eslpreuhmwsejkikxz.xlsx",
+  "public_id": "dgie/certificados/s5eslpreuhmwsejkikxz.xlsx",
+  "bytes": 479612,
+  "med": 1,
+  "establecimiento_id": 429,
+  "archivo_original": "013- JARDIN DE I. MERCEDES DE SAN MARTIN - ELECT 3.xlsx"
+ },
+ "1|014- ESCUELA JOSE HERNANDEZ - SANIT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046146/dgie/certificados/rthsszggxenykz9e1v0r.xlsx",
+  "public_id": "dgie/certificados/rthsszggxenykz9e1v0r.xlsx",
+  "bytes": 1217269,
+  "med": 1,
+  "establecimiento_id": 430,
+  "archivo_original": "014- ESCUELA JOSE HERNANDEZ - SANIT 4.xlsx"
+ },
+ "1|015- ESCUELA HILARIO ASCASUBI - SANIT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046148/dgie/certificados/vwgk4kvvd9a4pibkw4f9.xlsx",
+  "public_id": "dgie/certificados/vwgk4kvvd9a4pibkw4f9.xlsx",
+  "bytes": 849771,
+  "med": 1,
+  "establecimiento_id": 431,
+  "archivo_original": "015- ESCUELA HILARIO ASCASUBI - SANIT 4.xlsx"
+ },
+ "1|020- ESCUELA BARTOLOME HIDALGO - CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046150/dgie/certificados/gxgmtnuw35xzeoe2phz6.xlsx",
+  "public_id": "dgie/certificados/gxgmtnuw35xzeoe2phz6.xlsx",
+  "bytes": 976990,
+  "med": 1,
+  "establecimiento_id": 436,
+  "archivo_original": "020- ESCUELA BARTOLOME HIDALGO - CARP.xlsx"
+ },
+ "1|020- ESCUELA BARTOLOME HIDALGO - ELECT 3 POL CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046152/dgie/certificados/iezllolb5vxq3lmdozul.xlsx",
+  "public_id": "dgie/certificados/iezllolb5vxq3lmdozul.xlsx",
+  "bytes": 1060215,
+  "med": 1,
+  "establecimiento_id": 436,
+  "archivo_original": "020- ESCUELA BARTOLOME HIDALGO - ELECT 3 POL CARP.xlsx"
+ },
+ "1|021- ESCUELA RUBEN DARIO - CARP 3 POL2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046154/dgie/certificados/xl0wcchmld58ltyn2ewa.xlsx",
+  "public_id": "dgie/certificados/xl0wcchmld58ltyn2ewa.xlsx",
+  "bytes": 721008,
+  "med": 1,
+  "establecimiento_id": 437,
+  "archivo_original": "021- ESCUELA RUBEN DARIO - CARP 3 POL2.xlsx"
+ },
+ "1|021- ESCUELA RUBEN DARIO - SANIT 5 ELECT POL.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046156/dgie/certificados/wgkukxrdys34ojhxmzo9.xlsx",
+  "public_id": "dgie/certificados/wgkukxrdys34ojhxmzo9.xlsx",
+  "bytes": 843798,
+  "med": 1,
+  "establecimiento_id": 437,
+  "archivo_original": "021- ESCUELA RUBEN DARIO - SANIT 5 ELECT POL.xlsx"
+ },
+ "1|022- JARDIN DE I. HILARIO ASCASUBI - PODA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046158/dgie/certificados/cnk8xtdlun91kbtzkak5.xlsx",
+  "public_id": "dgie/certificados/cnk8xtdlun91kbtzkak5.xlsx",
+  "bytes": 1912857,
+  "med": 1,
+  "establecimiento_id": 438,
+  "archivo_original": "022- JARDIN DE I. HILARIO ASCASUBI - PODA.xlsx"
+ },
+ "1|024- JARDIN DE I. JUAN RAMON JIMENEZ - CARP 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046160/dgie/certificados/xpwkl9xavgaj9gr2mvnn.xlsx",
+  "public_id": "dgie/certificados/xpwkl9xavgaj9gr2mvnn.xlsx",
+  "bytes": 708130,
+  "med": 1,
+  "establecimiento_id": 440,
+  "archivo_original": "024- JARDIN DE I. JUAN RAMON JIMENEZ - CARP 2.xlsx"
+ },
+ "1|024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 4 ELECT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046162/dgie/certificados/jgl2ii4lcms6ifmgkwug.xlsx",
+  "public_id": "dgie/certificados/jgl2ii4lcms6ifmgkwug.xlsx",
+  "bytes": 1080315,
+  "med": 1,
+  "establecimiento_id": 440,
+  "archivo_original": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 4 ELECT.xlsx"
+ },
+ "1|024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046164/dgie/certificados/plynkli1l4thnybbpv9f.xlsx",
+  "public_id": "dgie/certificados/plynkli1l4thnybbpv9f.xlsx",
+  "bytes": 847240,
+  "med": 1,
+  "establecimiento_id": 440,
+  "archivo_original": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 5.xlsx"
+ },
+ "1|026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046166/dgie/certificados/ibnlpcv5hbfbakmkkqe1.xlsx",
+  "public_id": "dgie/certificados/ibnlpcv5hbfbakmkkqe1.xlsx",
+  "bytes": 1256142,
+  "med": 1,
+  "establecimiento_id": 442,
+  "archivo_original": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP.xlsx"
+ },
+ "1|026- IPEM Nº13 - DR. PEDRO ESCUDERO - ELECT 4 SANIT CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046169/dgie/certificados/famalcgzqcme1md3eh6m.xlsx",
+  "public_id": "dgie/certificados/famalcgzqcme1md3eh6m.xlsx",
+  "bytes": 1391378,
+  "med": 1,
+  "establecimiento_id": 442,
+  "archivo_original": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - ELECT 4 SANIT CARP.xlsx"
+ },
+ "1|026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046171/dgie/certificados/ytvn3bf5933hr1ir5eko.xlsx",
+  "public_id": "dgie/certificados/ytvn3bf5933hr1ir5eko.xlsx",
+  "bytes": 1553849,
+  "med": 1,
+  "establecimiento_id": 442,
+  "archivo_original": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 3.xlsx"
+ },
+ "1|027- IPEM Nº11 ALBERTO PIO COGNINI - CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046173/dgie/certificados/qwjj0evfikiinr0unlok.xlsx",
+  "public_id": "dgie/certificados/qwjj0evfikiinr0unlok.xlsx",
+  "bytes": 959433,
+  "med": 1,
+  "establecimiento_id": 443,
+  "archivo_original": "027- IPEM Nº11 ALBERTO PIO COGNINI - CARP.xlsx"
+ },
+ "1|027- IPEM Nº11 ALBERTO PIO COGNINI - CUB 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046175/dgie/certificados/ggjqi43fqqdbiw4pqscv.xlsx",
+  "public_id": "dgie/certificados/ggjqi43fqqdbiw4pqscv.xlsx",
+  "bytes": 1155226,
+  "med": 1,
+  "establecimiento_id": 443,
+  "archivo_original": "027- IPEM Nº11 ALBERTO PIO COGNINI - CUB 3.xlsx"
+ },
+ "1|029- JARDIN DE I. MARIA EVA DUARTE - SANIT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046177/dgie/certificados/eb5ye3stupepxyry8lg7.xlsx",
+  "public_id": "dgie/certificados/eb5ye3stupepxyry8lg7.xlsx",
+  "bytes": 794628,
+  "med": 1,
+  "establecimiento_id": 445,
+  "archivo_original": "029- JARDIN DE I. MARIA EVA DUARTE - SANIT.xlsx"
+ },
+ "1|030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046179/dgie/certificados/jphbc6sgvdoy0k8oczre.xlsx",
+  "public_id": "dgie/certificados/jphbc6sgvdoy0k8oczre.xlsx",
+  "bytes": 1111909,
+  "med": 1,
+  "establecimiento_id": 446,
+  "archivo_original": "030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 5.xlsx"
+ },
+ "1|030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046181/dgie/certificados/euked51ue3vbrukfboz4.xlsx",
+  "public_id": "dgie/certificados/euked51ue3vbrukfboz4.xlsx",
+  "bytes": 1298247,
+  "med": 1,
+  "establecimiento_id": 446,
+  "archivo_original": "030- JARDIN DE I. MALVINAS ARGENTINAS - SANIT 6.xlsx"
+ },
+ "1|031- ESCUELA MARIA EVA DUARTE - SANIT 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046183/dgie/certificados/rg0jcmi4jmnfaigziq3b.xlsx",
+  "public_id": "dgie/certificados/rg0jcmi4jmnfaigziq3b.xlsx",
+  "bytes": 1328002,
+  "med": 1,
+  "establecimiento_id": 447,
+  "archivo_original": "031- ESCUELA MARIA EVA DUARTE - SANIT 2.xlsx"
+ },
+ "1|032- ESCUELA HEROES DE MALVINAS - ELECT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046185/dgie/certificados/k7yvx7fsltsi5fq8ywrf.xlsx",
+  "public_id": "dgie/certificados/k7yvx7fsltsi5fq8ywrf.xlsx",
+  "bytes": 635220,
+  "med": 1,
+  "establecimiento_id": 448,
+  "archivo_original": "032- ESCUELA HEROES DE MALVINAS - ELECT.xlsx"
+ },
+ "1|032- ESCUELA HEROES DE MALVINAS - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046187/dgie/certificados/t1wc4iseb8mwwcyolujd.xlsx",
+  "public_id": "dgie/certificados/t1wc4iseb8mwwcyolujd.xlsx",
+  "bytes": 1352048,
+  "med": 1,
+  "establecimiento_id": 448,
+  "archivo_original": "032- ESCUELA HEROES DE MALVINAS - SANIT 6.xlsx"
+ },
+ "1|035- JARDIN DE I.REGINO MADERS - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046189/dgie/certificados/kodupwflbubffnvh45pv.xlsx",
+  "public_id": "dgie/certificados/kodupwflbubffnvh45pv.xlsx",
+  "bytes": 594292,
+  "med": 1,
+  "establecimiento_id": 451,
+  "archivo_original": "035- JARDIN DE I.REGINO MADERS - SANIT 5.xlsx"
+ },
+ "1|035- JARDIN DE I.REGINO MADERS - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046191/dgie/certificados/l2rzeqxgoz9ucnqkuyps.xlsx",
+  "public_id": "dgie/certificados/l2rzeqxgoz9ucnqkuyps.xlsx",
+  "bytes": 1263190,
+  "med": 1,
+  "establecimiento_id": 451,
+  "archivo_original": "035- JARDIN DE I.REGINO MADERS - SANIT 6.xlsx"
+ },
+ "1|036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - ALB.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046193/dgie/certificados/gkmvl3wfty4pztqrsbp8.xlsx",
+  "public_id": "dgie/certificados/gkmvl3wfty4pztqrsbp8.xlsx",
+  "bytes": 973647,
+  "med": 1,
+  "establecimiento_id": 452,
+  "archivo_original": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - ALB.xlsx"
+ },
+ "1|036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046195/dgie/certificados/wc6nmxa0mflysabhsr8e.xlsx",
+  "public_id": "dgie/certificados/wc6nmxa0mflysabhsr8e.xlsx",
+  "bytes": 847903,
+  "med": 1,
+  "establecimiento_id": 452,
+  "archivo_original": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 3.xlsx"
+ },
+ "1|036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 4 ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046197/dgie/certificados/xmvgkpcqd708ugzhonng.xlsx",
+  "public_id": "dgie/certificados/xmvgkpcqd708ugzhonng.xlsx",
+  "bytes": 861838,
+  "med": 1,
+  "establecimiento_id": 452,
+  "archivo_original": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 4 ELECT 3.xlsx"
+ },
+ "2|01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 4 CIELOR.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046200/dgie/certificados/fgwwslkoiwlmyxyibrfj.xlsx",
+  "public_id": "dgie/certificados/fgwwslkoiwlmyxyibrfj.xlsx",
+  "bytes": 2630790,
+  "med": 2,
+  "establecimiento_id": 417,
+  "archivo_original": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 4 CIELOR.xlsx"
+ },
+ "2|02- ESCUELA EJERCITO ARGENTINO - ELECT 4 HERR SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046202/dgie/certificados/pivvlof4xsxhxdumslrb.xlsx",
+  "public_id": "dgie/certificados/pivvlof4xsxhxdumslrb.xlsx",
+  "bytes": 3378555,
+  "med": 2,
+  "establecimiento_id": 418,
+  "archivo_original": "02- ESCUELA EJERCITO ARGENTINO - ELECT 4 HERR SANIT 6.xlsx"
+ },
+ "2|03- J. DE INFANTES EJERCITO ARGENTINO - VENT 1 SANIT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046204/dgie/certificados/ityoyl1psktvukia2mt9.xlsx",
+  "public_id": "dgie/certificados/ityoyl1psktvukia2mt9.xlsx",
+  "bytes": 1750643,
+  "med": 2,
+  "establecimiento_id": 419,
+  "archivo_original": "03- J. DE INFANTES EJERCITO ARGENTINO - VENT 1 SANIT 3.xlsx"
+ },
+ "2|05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046206/dgie/certificados/rkyuurbr9djx7hlulb6z.xlsx",
+  "public_id": "dgie/certificados/rkyuurbr9djx7hlulb6z.xlsx",
+  "bytes": 1065049,
+  "med": 2,
+  "establecimiento_id": 421,
+  "archivo_original": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT.xlsx"
+ },
+ "2|05- IPET Nº77 - GOB. S. DEL CASTILLO - SANIT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046208/dgie/certificados/wn3xwoyfqeiutsravtbr.xlsx",
+  "public_id": "dgie/certificados/wn3xwoyfqeiutsravtbr.xlsx",
+  "bytes": 958648,
+  "med": 2,
+  "establecimiento_id": 421,
+  "archivo_original": "05- IPET Nº77 - GOB. S. DEL CASTILLO - SANIT 4.xlsx"
+ },
+ "2|010- J. DE INFANTES JUAN XXIII - CUB.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046210/dgie/certificados/bqc2so1jfsxeusbrnzwj.xlsx",
+  "public_id": "dgie/certificados/bqc2so1jfsxeusbrnzwj.xlsx",
+  "bytes": 2165396,
+  "med": 2,
+  "establecimiento_id": 426,
+  "archivo_original": "010- J. DE INFANTES JUAN XXIII - CUB.xlsx"
+ },
+ "2|011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 7 ELECT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046212/dgie/certificados/qmjwzcetdjmkhip82tvm.xlsx",
+  "public_id": "dgie/certificados/qmjwzcetdjmkhip82tvm.xlsx",
+  "bytes": 599754,
+  "med": 2,
+  "establecimiento_id": 427,
+  "archivo_original": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 7 ELECT 4.xlsx"
+ },
+ "2|016- IPET Nº48 PRESIDENTE ROCA - BOMBA 2 SANIT 7 PODA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046215/dgie/certificados/vsofpsczs4knmjkskuii.xlsx",
+  "public_id": "dgie/certificados/vsofpsczs4knmjkskuii.xlsx",
+  "bytes": 2773313,
+  "med": 2,
+  "establecimiento_id": 432,
+  "archivo_original": "016- IPET Nº48 PRESIDENTE ROCA - BOMBA 2 SANIT 7 PODA.xlsx"
+ },
+ "2|017- JARDIN DE I. JOSE HERNANDEZ - AIRE ACOND.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046217/dgie/certificados/ottpihz9uwigxhh53lpl.xlsx",
+  "public_id": "dgie/certificados/ottpihz9uwigxhh53lpl.xlsx",
+  "bytes": 1500984,
+  "med": 2,
+  "establecimiento_id": 433,
+  "archivo_original": "017- JARDIN DE I. JOSE HERNANDEZ - AIRE ACOND.xlsx"
+ },
+ "2|021- ESCUELA RUBEN DARIO - CARP 4 POL 3 PLUV.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046219/dgie/certificados/xaap8jp1qgoccmaf5j8n.xlsx",
+  "public_id": "dgie/certificados/xaap8jp1qgoccmaf5j8n.xlsx",
+  "bytes": 1793072,
+  "med": 2,
+  "establecimiento_id": 437,
+  "archivo_original": "021- ESCUELA RUBEN DARIO - CARP 4 POL 3 PLUV.xlsx"
+ },
+ "2|025- ESCUELA ING. REGINO MADERS - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046221/dgie/certificados/hvq1ob0meymrncaqymbu.xlsx",
+  "public_id": "dgie/certificados/hvq1ob0meymrncaqymbu.xlsx",
+  "bytes": 1279101,
+  "med": 2,
+  "establecimiento_id": 441,
+  "archivo_original": "025- ESCUELA ING. REGINO MADERS - SANIT 5.xlsx"
+ },
+ "2|027- IPEM Nº11 ALBERTO PIO COGNINI - SANIT 3 POL 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046223/dgie/certificados/athj2tobfp2ft9lkqbbl.xlsx",
+  "public_id": "dgie/certificados/athj2tobfp2ft9lkqbbl.xlsx",
+  "bytes": 2101052,
+  "med": 2,
+  "establecimiento_id": 443,
+  "archivo_original": "027- IPEM Nº11 ALBERTO PIO COGNINI - SANIT 3 POL 2.xlsx"
+ },
+ "2|032- ESCUELA HEROES DE MALVINAS - CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046225/dgie/certificados/jdpzqnf66i9dvnz4hxpa.xlsx",
+  "public_id": "dgie/certificados/jdpzqnf66i9dvnz4hxpa.xlsx",
+  "bytes": 1369977,
+  "med": 2,
+  "establecimiento_id": 448,
+  "archivo_original": "032- ESCUELA HEROES DE MALVINAS - CARP.xlsx"
+ },
+ "2|033- ESCUELA USANDIVARAS - CARP 2 PLOM POL.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046228/dgie/certificados/cmy9zna4zkjcpntgbyli.xlsx",
+  "public_id": "dgie/certificados/cmy9zna4zkjcpntgbyli.xlsx",
+  "bytes": 2461220,
+  "med": 2,
+  "establecimiento_id": 449,
+  "archivo_original": "033- ESCUELA USANDIVARAS - CARP 2 PLOM POL.xlsx"
+ },
+ "3|01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 5....xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046230/dgie/certificados/lkugiya5lhyln2mkecot.xlsx",
+  "public_id": "dgie/certificados/lkugiya5lhyln2mkecot.xlsx",
+  "bytes": 966997,
+  "med": 3,
+  "establecimiento_id": 417,
+  "archivo_original": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 5....xlsx"
+ },
+ "3|01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 6 POL..xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046232/dgie/certificados/wsodzajayvupxewbjowt.xlsx",
+  "public_id": "dgie/certificados/wsodzajayvupxewbjowt.xlsx",
+  "bytes": 2252214,
+  "med": 3,
+  "establecimiento_id": 417,
+  "archivo_original": "01- IPEM Nº 207 - EDUARDO RAUL REQUENA - ELECT 6 POL..xlsx"
+ },
+ "3|02- ESCUELA EJERCITO ARGENTINO - BOMBA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046234/dgie/certificados/zthf0g3qxjaomxxmxmzo.xlsx",
+  "public_id": "dgie/certificados/zthf0g3qxjaomxxmxmzo.xlsx",
+  "bytes": 608063,
+  "med": 3,
+  "establecimiento_id": 418,
+  "archivo_original": "02- ESCUELA EJERCITO ARGENTINO - BOMBA.xlsx"
+ },
+ "3|03- J. DE INFANTES EJERCITO ARGENTINO - ELECT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046236/dgie/certificados/pfzom8v4ivoejhipzdrb.xlsx",
+  "public_id": "dgie/certificados/pfzom8v4ivoejhipzdrb.xlsx",
+  "bytes": 948556,
+  "med": 3,
+  "establecimiento_id": 419,
+  "archivo_original": "03- J. DE INFANTES EJERCITO ARGENTINO - ELECT.xlsx"
+ },
+ "3|05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 2 CUB..xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046239/dgie/certificados/yqx0t8nnk3vvk4e357fe.xlsx",
+  "public_id": "dgie/certificados/yqx0t8nnk3vvk4e357fe.xlsx",
+  "bytes": 3997514,
+  "med": 3,
+  "establecimiento_id": 421,
+  "archivo_original": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 2 CUB..xlsx"
+ },
+ "3|07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - POL 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046241/dgie/certificados/fjoouuytyjejm29qz0r7.xlsx",
+  "public_id": "dgie/certificados/fjoouuytyjejm29qz0r7.xlsx",
+  "bytes": 1628685,
+  "med": 3,
+  "establecimiento_id": 423,
+  "archivo_original": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - POL 3.xlsx"
+ },
+ "3|08- ESCUELA CONSTANCIO VIGIL - SANIT 13.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046243/dgie/certificados/eoukazywsko2bzmmkrh5.xlsx",
+  "public_id": "dgie/certificados/eoukazywsko2bzmmkrh5.xlsx",
+  "bytes": 1054388,
+  "med": 3,
+  "establecimiento_id": 424,
+  "archivo_original": "08- ESCUELA CONSTANCIO VIGIL - SANIT 13.xlsx"
+ },
+ "3|011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 8....xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046245/dgie/certificados/bzmauveyxhckhmisznsx.xlsx",
+  "public_id": "dgie/certificados/bzmauveyxhckhmisznsx.xlsx",
+  "bytes": 1238509,
+  "med": 3,
+  "establecimiento_id": 427,
+  "archivo_original": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT 8....xlsx"
+ },
+ "3|012- ESCUELA PEDRO GOYENA - SANIT 7.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046247/dgie/certificados/iwtboo3qlokzotbsfauc.xlsx",
+  "public_id": "dgie/certificados/iwtboo3qlokzotbsfauc.xlsx",
+  "bytes": 1276932,
+  "med": 3,
+  "establecimiento_id": 428,
+  "archivo_original": "012- ESCUELA PEDRO GOYENA - SANIT 7.xlsx"
+ },
+ "3|012- ESCUELA PEDRO GOYENA - VENT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046249/dgie/certificados/qrpsegjczquv7ibdwdti.xlsx",
+  "public_id": "dgie/certificados/qrpsegjczquv7ibdwdti.xlsx",
+  "bytes": 1393905,
+  "med": 3,
+  "establecimiento_id": 428,
+  "archivo_original": "012- ESCUELA PEDRO GOYENA - VENT.xlsx"
+ },
+ "3|013- JARDIN DE I. MERCEDES DE SAN MARTIN - SANIT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046251/dgie/certificados/caaupurycjulthzlonwm.xlsx",
+  "public_id": "dgie/certificados/caaupurycjulthzlonwm.xlsx",
+  "bytes": 625109,
+  "med": 3,
+  "establecimiento_id": 429,
+  "archivo_original": "013- JARDIN DE I. MERCEDES DE SAN MARTIN - SANIT 3.xlsx"
+ },
+ "3|014- ESCUELA JOSE HERNANDEZ - SANIT 5 BOMBA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046253/dgie/certificados/wni0qxm1lf9eyz94olwm.xlsx",
+  "public_id": "dgie/certificados/wni0qxm1lf9eyz94olwm.xlsx",
+  "bytes": 1909317,
+  "med": 3,
+  "establecimiento_id": 430,
+  "archivo_original": "014- ESCUELA JOSE HERNANDEZ - SANIT 5 BOMBA.xlsx"
+ },
+ "3|021- ESCUELA RUBEN DARIO - ELECT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046255/dgie/certificados/lodhthp9ljbduagxdxrw.xlsx",
+  "public_id": "dgie/certificados/lodhthp9ljbduagxdxrw.xlsx",
+  "bytes": 537557,
+  "med": 3,
+  "establecimiento_id": 437,
+  "archivo_original": "021- ESCUELA RUBEN DARIO - ELECT 4.xlsx"
+ },
+ "3|021- ESCUELA RUBEN DARIO - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046257/dgie/certificados/qblppkly4xm7z7b0jsqo.xlsx",
+  "public_id": "dgie/certificados/qblppkly4xm7z7b0jsqo.xlsx",
+  "bytes": 1073916,
+  "med": 3,
+  "establecimiento_id": 437,
+  "archivo_original": "021- ESCUELA RUBEN DARIO - SANIT 6.xlsx"
+ },
+ "3|024- JARDIN DE I. JUAN RAMON JIMENEZ - ELECT 2..xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046259/dgie/certificados/jel1nfmujb92lvxbwwg3.xlsx",
+  "public_id": "dgie/certificados/jel1nfmujb92lvxbwwg3.xlsx",
+  "bytes": 1504604,
+  "med": 3,
+  "establecimiento_id": 440,
+  "archivo_original": "024- JARDIN DE I. JUAN RAMON JIMENEZ - ELECT 2..xlsx"
+ },
+ "3|025- ESCUELA ING. REGINO MADERS - ARBOL.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046262/dgie/certificados/yh8bbtirxzbtdon4icyz.xlsx",
+  "public_id": "dgie/certificados/yh8bbtirxzbtdon4icyz.xlsx",
+  "bytes": 2847984,
+  "med": 3,
+  "establecimiento_id": 441,
+  "archivo_original": "025- ESCUELA ING. REGINO MADERS - ARBOL.xlsx"
+ },
+ "3|027- IPEM Nº11 ALBERTO PIO COGNINI - POL 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046265/dgie/certificados/eejszyfl69x2g0ro9qox.xlsx",
+  "public_id": "dgie/certificados/eejszyfl69x2g0ro9qox.xlsx",
+  "bytes": 1030723,
+  "med": 3,
+  "establecimiento_id": 443,
+  "archivo_original": "027- IPEM Nº11 ALBERTO PIO COGNINI - POL 3.xlsx"
+ },
+ "3|028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 5 BOMBA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046267/dgie/certificados/ct0po8fdobobk1zsswqg.xlsx",
+  "public_id": "dgie/certificados/ct0po8fdobobk1zsswqg.xlsx",
+  "bytes": 1756721,
+  "med": 3,
+  "establecimiento_id": 444,
+  "archivo_original": "028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 5 BOMBA.xlsx"
+ },
+ "3|028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046269/dgie/certificados/zuwuyjasb12u1vh8nwdq.xlsx",
+  "public_id": "dgie/certificados/zuwuyjasb12u1vh8nwdq.xlsx",
+  "bytes": 613302,
+  "med": 3,
+  "establecimiento_id": 444,
+  "archivo_original": "028- IPEM Nº 309 PROF. CARLOS FUENTEALBA - SANIT 6.xlsx"
+ },
+ "3|029- JARDIN DE I. MARIA EVA DUARTE - ELECT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046271/dgie/certificados/pdbxn6qhfgxxwop9ixvp.xlsx",
+  "public_id": "dgie/certificados/pdbxn6qhfgxxwop9ixvp.xlsx",
+  "bytes": 1255318,
+  "med": 3,
+  "establecimiento_id": 445,
+  "archivo_original": "029- JARDIN DE I. MARIA EVA DUARTE - ELECT.xlsx"
+ },
+ "3|031- ESCUELA MARIA EVA DUARTE - ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046273/dgie/certificados/fvzd5vbs4qk0mcwykokl.xlsx",
+  "public_id": "dgie/certificados/fvzd5vbs4qk0mcwykokl.xlsx",
+  "bytes": 1402293,
+  "med": 3,
+  "establecimiento_id": 447,
+  "archivo_original": "031- ESCUELA MARIA EVA DUARTE - ELECT 3.xlsx"
+ },
+ "3|031- ESCUELA MARIA EVA DUARTE - SANIT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046275/dgie/certificados/rxvjfzhofe2f5sdai2jj.xlsx",
+  "public_id": "dgie/certificados/rxvjfzhofe2f5sdai2jj.xlsx",
+  "bytes": 1229587,
+  "med": 3,
+  "establecimiento_id": 447,
+  "archivo_original": "031- ESCUELA MARIA EVA DUARTE - SANIT 3.xlsx"
+ },
+ "3|032- ESCUELA HEROES DE MALVINAS - SANIT 7.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046278/dgie/certificados/uab6xzgb8lw8y5pea5rd.xlsx",
+  "public_id": "dgie/certificados/uab6xzgb8lw8y5pea5rd.xlsx",
+  "bytes": 1396099,
+  "med": 3,
+  "establecimiento_id": 448,
+  "archivo_original": "032- ESCUELA HEROES DE MALVINAS - SANIT 7.xlsx"
+ },
+ "3|032- ESCUELA HEROES DE MALVINAS - SANIT 8.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046280/dgie/certificados/guem9n80lbnrpxx2lsxo.xlsx",
+  "public_id": "dgie/certificados/guem9n80lbnrpxx2lsxo.xlsx",
+  "bytes": 1064135,
+  "med": 3,
+  "establecimiento_id": 448,
+  "archivo_original": "032- ESCUELA HEROES DE MALVINAS - SANIT 8.xlsx"
+ },
+ "3|033- ESCUELA USANDIVARAS - CARP 3 POL2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046282/dgie/certificados/gsl35qxdioaxuqxrshhf.xlsx",
+  "public_id": "dgie/certificados/gsl35qxdioaxuqxrshhf.xlsx",
+  "bytes": 1163653,
+  "med": 3,
+  "establecimiento_id": 449,
+  "archivo_original": "033- ESCUELA USANDIVARAS - CARP 3 POL2.xlsx"
+ },
+ "3|036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046284/dgie/certificados/v1po1qsufpy1ifrrqu4j.xlsx",
+  "public_id": "dgie/certificados/v1po1qsufpy1ifrrqu4j.xlsx",
+  "bytes": 689174,
+  "med": 3,
+  "establecimiento_id": 452,
+  "archivo_original": "036- IPEM Nº 312 - DALMASIO VELEZ SARFIELD - SANIT 5.xlsx"
+ },
+ "4|06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 4 CARP.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046286/dgie/certificados/fxluqe9lyhdkrb6p0vl5.xlsx",
+  "public_id": "dgie/certificados/fxluqe9lyhdkrb6p0vl5.xlsx",
+  "bytes": 1281091,
+  "med": 4,
+  "establecimiento_id": 422,
+  "archivo_original": "06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 4 CARP.xlsx"
+ },
+ "4|09- ESCUELA JUAN XXIII - HERR 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046288/dgie/certificados/c9immp71ljzrppfwfyub.xlsx",
+  "public_id": "dgie/certificados/c9immp71ljzrppfwfyub.xlsx",
+  "bytes": 1640283,
+  "med": 4,
+  "establecimiento_id": 425,
+  "archivo_original": "09- ESCUELA JUAN XXIII - HERR 2.xlsx"
+ },
+ "4|011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046291/dgie/certificados/erho2louzs5s5yg2zdvk.xlsx",
+  "public_id": "dgie/certificados/erho2louzs5s5yg2zdvk.xlsx",
+  "bytes": 1911782,
+  "med": 4,
+  "establecimiento_id": 427,
+  "archivo_original": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 4.xlsx"
+ },
+ "4|016- IPET Nº48 PRESIDENTE ROCA - BOMBA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046293/dgie/certificados/oxymbwa4wiwcenvvs92s.xlsx",
+  "public_id": "dgie/certificados/oxymbwa4wiwcenvvs92s.xlsx",
+  "bytes": 2221738,
+  "med": 4,
+  "establecimiento_id": 432,
+  "archivo_original": "016- IPET Nº48 PRESIDENTE ROCA - BOMBA.xlsx"
+ },
+ "4|021- ESCUELA RUBEN DARIO - SANIT 7 BOMBA 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046295/dgie/certificados/em9mrdwalcxjvbckouqu.xlsx",
+  "public_id": "dgie/certificados/em9mrdwalcxjvbckouqu.xlsx",
+  "bytes": 1642885,
+  "med": 4,
+  "establecimiento_id": 437,
+  "archivo_original": "021- ESCUELA RUBEN DARIO - SANIT 7 BOMBA 2.xlsx"
+ },
+ "4|024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046297/dgie/certificados/dh2vhdgs0mpaoikrteo0.xlsx",
+  "public_id": "dgie/certificados/dh2vhdgs0mpaoikrteo0.xlsx",
+  "bytes": 894818,
+  "med": 4,
+  "establecimiento_id": 440,
+  "archivo_original": "024- JARDIN DE I. JUAN RAMON JIMENEZ - SANIT 6.xlsx"
+ },
+ "4|025- ESCUELA ING. REGINO MADERS - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046300/dgie/certificados/cv5q3mx4qumo5wnfbsxz.xlsx",
+  "public_id": "dgie/certificados/cv5q3mx4qumo5wnfbsxz.xlsx",
+  "bytes": 1301334,
+  "med": 4,
+  "establecimiento_id": 441,
+  "archivo_original": "025- ESCUELA ING. REGINO MADERS - SANIT 6.xlsx"
+ },
+ "4|027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046302/dgie/certificados/cqqvlhtrko8qvhjugsxh.xlsx",
+  "public_id": "dgie/certificados/cqqvlhtrko8qvhjugsxh.xlsx",
+  "bytes": 2052160,
+  "med": 4,
+  "establecimiento_id": 443,
+  "archivo_original": "027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 2.xlsx"
+ },
+ "4|033- ESCUELA USANDIVARAS - CARP 4 PLOM 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046305/dgie/certificados/vbrbku1hhntpzgzh6i8p.xlsx",
+  "public_id": "dgie/certificados/vbrbku1hhntpzgzh6i8p.xlsx",
+  "bytes": 2272203,
+  "med": 4,
+  "establecimiento_id": 449,
+  "archivo_original": "033- ESCUELA USANDIVARAS - CARP 4 PLOM 3.xlsx"
+ },
+ "4|033- ESCUELA USANDIVARAS - CARP 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046307/dgie/certificados/weme7bfqbmjebo5hjuch.xlsx",
+  "public_id": "dgie/certificados/weme7bfqbmjebo5hjuch.xlsx",
+  "bytes": 1412713,
+  "med": 4,
+  "establecimiento_id": 449,
+  "archivo_original": "033- ESCUELA USANDIVARAS - CARP 5.xlsx"
+ },
+ "5|02- ESCUELA EJERCITO ARGENTINO - ELECT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046309/dgie/certificados/xcphcojwgcagrxokx9y3.xlsx",
+  "public_id": "dgie/certificados/xcphcojwgcagrxokx9y3.xlsx",
+  "bytes": 963603,
+  "med": 5,
+  "establecimiento_id": 418,
+  "archivo_original": "02- ESCUELA EJERCITO ARGENTINO - ELECT 5.xlsx"
+ },
+ "5|03- J. DE INFANTES EJERCITO ARGENTINO - GAS 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046311/dgie/certificados/sa7ugckc2utyyykldrdv.xlsx",
+  "public_id": "dgie/certificados/sa7ugckc2utyyykldrdv.xlsx",
+  "bytes": 2929553,
+  "med": 5,
+  "establecimiento_id": 419,
+  "archivo_original": "03- J. DE INFANTES EJERCITO ARGENTINO - GAS 3.xlsx"
+ },
+ "5|04- J. DE INFANTES LIBERTADOR SAN MARTIN - GAS 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046313/dgie/certificados/p6yvkq7ip043sx3qv05j.xlsx",
+  "public_id": "dgie/certificados/p6yvkq7ip043sx3qv05j.xlsx",
+  "bytes": 2513549,
+  "med": 5,
+  "establecimiento_id": 420,
+  "archivo_original": "04- J. DE INFANTES LIBERTADOR SAN MARTIN - GAS 2.xlsx"
+ },
+ "5|05- IPET Nº77 - GOB. S. DEL CASTILLO - ALB.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046322/dgie/certificados/mdzjwyfu32bpjoui0mdb.xlsx",
+  "public_id": "dgie/certificados/mdzjwyfu32bpjoui0mdb.xlsx",
+  "bytes": 2503102,
+  "med": 5,
+  "establecimiento_id": 421,
+  "archivo_original": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ALB.xlsx"
+ },
+ "5|05- IPET Nº77 - GOB. S. DEL CASTILLO - CUBIERTA.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046324/dgie/certificados/oyg3mu4tuh0dcvnsztgf.xlsx",
+  "public_id": "dgie/certificados/oyg3mu4tuh0dcvnsztgf.xlsx",
+  "bytes": 2232911,
+  "med": 5,
+  "establecimiento_id": 421,
+  "archivo_original": "05- IPET Nº77 - GOB. S. DEL CASTILLO - CUBIERTA.xlsx"
+ },
+ "5|05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046327/dgie/certificados/qodbshlktj2jranxihrv.xlsx",
+  "public_id": "dgie/certificados/qodbshlktj2jranxihrv.xlsx",
+  "bytes": 1879904,
+  "med": 5,
+  "establecimiento_id": 421,
+  "archivo_original": "05- IPET Nº77 - GOB. S. DEL CASTILLO - ELECT 3.xlsx"
+ },
+ "5|06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046329/dgie/certificados/gjhelusnvsb4mmqbdsny.xlsx",
+  "public_id": "dgie/certificados/gjhelusnvsb4mmqbdsny.xlsx",
+  "bytes": 771075,
+  "med": 5,
+  "establecimiento_id": 422,
+  "archivo_original": "06- J. DE INFANTES CONSTANCIO C. VIGIL - SANIT 5.xlsx"
+ },
+ "5|07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - GAS 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046331/dgie/certificados/cheqhyojipi1xwq8xxic.xlsx",
+  "public_id": "dgie/certificados/cheqhyojipi1xwq8xxic.xlsx",
+  "bytes": 2214637,
+  "med": 5,
+  "establecimiento_id": 423,
+  "archivo_original": "07- IPEM Nº 176 - GRANADERO JOSE MARQUEZ - GAS 2.xlsx"
+ },
+ "5|08- ESCUELA CONSTANCIO VIGIL - ALB Completar v.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046333/dgie/certificados/y4udbsraqsusiqxd3fos.xlsx",
+  "public_id": "dgie/certificados/y4udbsraqsusiqxd3fos.xlsx",
+  "bytes": 2311139,
+  "med": 5,
+  "establecimiento_id": 424,
+  "archivo_original": "08- ESCUELA CONSTANCIO VIGIL - ALB Completar v.xlsx"
+ },
+ "5|011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ALB 2.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046335/dgie/certificados/apofwy8c4e1zvgjigadi.xlsx",
+  "public_id": "dgie/certificados/apofwy8c4e1zvgjigadi.xlsx",
+  "bytes": 1382705,
+  "med": 5,
+  "establecimiento_id": 427,
+  "archivo_original": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ALB 2.xlsx"
+ },
+ "5|011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046337/dgie/certificados/enodatcrwhbneivkf3eo.xlsx",
+  "public_id": "dgie/certificados/enodatcrwhbneivkf3eo.xlsx",
+  "bytes": 649831,
+  "med": 5,
+  "establecimiento_id": 427,
+  "archivo_original": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - ELECT 5.xlsx"
+ },
+ "5|011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT9.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046339/dgie/certificados/c3q0oitfsvezem4blnlv.xlsx",
+  "public_id": "dgie/certificados/c3q0oitfsvezem4blnlv.xlsx",
+  "bytes": 1431431,
+  "med": 5,
+  "establecimiento_id": 427,
+  "archivo_original": "011- IPEM Nº 167 - JOSE MANUEL ESTRADA - SANIT9.xlsx"
+ },
+ "5|012- ESCUELA PEDRO GOYENA - CARP 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046341/dgie/certificados/zgxfq0wrdi7hwb0lkmh8.xlsx",
+  "public_id": "dgie/certificados/zgxfq0wrdi7hwb0lkmh8.xlsx",
+  "bytes": 697696,
+  "med": 5,
+  "establecimiento_id": 428,
+  "archivo_original": "012- ESCUELA PEDRO GOYENA - CARP 5.xlsx"
+ },
+ "5|012- ESCUELA PEDRO GOYENA - SANIT 8.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046342/dgie/certificados/qlgmfvsyswi09jlsihqm.xlsx",
+  "public_id": "dgie/certificados/qlgmfvsyswi09jlsihqm.xlsx",
+  "bytes": 284890,
+  "med": 5,
+  "establecimiento_id": 428,
+  "archivo_original": "012- ESCUELA PEDRO GOYENA - SANIT 8.xlsx"
+ },
+ "5|016- IPET Nº48 PRESIDENTE ROCA - SANIT 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046345/dgie/certificados/sddo6lmcafktnl3n89pd.xlsx",
+  "public_id": "dgie/certificados/sddo6lmcafktnl3n89pd.xlsx",
+  "bytes": 1647116,
+  "med": 5,
+  "establecimiento_id": 432,
+  "archivo_original": "016- IPET Nº48 PRESIDENTE ROCA - SANIT 6.xlsx"
+ },
+ "5|017- JARDIN DE I. JOSE HERNANDEZ - GAS.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046347/dgie/certificados/othnbkolt6fz2cg16usk.xlsx",
+  "public_id": "dgie/certificados/othnbkolt6fz2cg16usk.xlsx",
+  "bytes": 1622479,
+  "med": 5,
+  "establecimiento_id": 433,
+  "archivo_original": "017- JARDIN DE I. JOSE HERNANDEZ - GAS.xlsx"
+ },
+ "5|017- JARDIN DE I. JOSE HERNANDEZ - SANIT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046348/dgie/certificados/kq84qaqb32in3wnb1wpq.xlsx",
+  "public_id": "dgie/certificados/kq84qaqb32in3wnb1wpq.xlsx",
+  "bytes": 571079,
+  "med": 5,
+  "establecimiento_id": 433,
+  "archivo_original": "017- JARDIN DE I. JOSE HERNANDEZ - SANIT 4.xlsx"
+ },
+ "5|023- ESCUELA LIBERTADOR GRAL SAN MARTIN - SANIT5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046350/dgie/certificados/nm6yaetbpxn533muoofq.xlsx",
+  "public_id": "dgie/certificados/nm6yaetbpxn533muoofq.xlsx",
+  "bytes": 1155211,
+  "med": 5,
+  "establecimiento_id": 439,
+  "archivo_original": "023- ESCUELA LIBERTADOR GRAL SAN MARTIN - SANIT5.xlsx"
+ },
+ "5|026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP 2 POL.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046352/dgie/certificados/aau4akkq93eikjy1je2i.xlsx",
+  "public_id": "dgie/certificados/aau4akkq93eikjy1je2i.xlsx",
+  "bytes": 674952,
+  "med": 5,
+  "establecimiento_id": 442,
+  "archivo_original": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - CARP 2 POL.xlsx"
+ },
+ "5|026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR PINT.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046354/dgie/certificados/cljsmsikoirscc3oohrq.xlsx",
+  "public_id": "dgie/certificados/cljsmsikoirscc3oohrq.xlsx",
+  "bytes": 1951336,
+  "med": 5,
+  "establecimiento_id": 442,
+  "archivo_original": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR PINT.xlsx"
+ },
+ "5|026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046356/dgie/certificados/qp28ykpzy0hbuxlvjjuv.xlsx",
+  "public_id": "dgie/certificados/qp28ykpzy0hbuxlvjjuv.xlsx",
+  "bytes": 1884412,
+  "med": 5,
+  "establecimiento_id": 442,
+  "archivo_original": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - HERR.xlsx"
+ },
+ "5|026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 4.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046358/dgie/certificados/r9icyzzwtbvljmexaxqe.xlsx",
+  "public_id": "dgie/certificados/r9icyzzwtbvljmexaxqe.xlsx",
+  "bytes": 997323,
+  "med": 5,
+  "establecimiento_id": 442,
+  "archivo_original": "026- IPEM Nº13 - DR. PEDRO ESCUDERO - SANIT 4.xlsx"
+ },
+ "5|027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046360/dgie/certificados/g4kyoeirhwi3hglgkxv0.xlsx",
+  "public_id": "dgie/certificados/g4kyoeirhwi3hglgkxv0.xlsx",
+  "bytes": 1459645,
+  "med": 5,
+  "establecimiento_id": 443,
+  "archivo_original": "027- IPEM Nº11 ALBERTO PIO COGNINI - ELECT 3.xlsx"
+ },
+ "5|032- ESCUELA HEROES DE MALVINAS - SANIT 7.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046362/dgie/certificados/ksmf6ojzqh22xd8be263.xlsx",
+  "public_id": "dgie/certificados/ksmf6ojzqh22xd8be263.xlsx",
+  "bytes": 1526844,
+  "med": 5,
+  "establecimiento_id": 448,
+  "archivo_original": "032- ESCUELA HEROES DE MALVINAS - SANIT 7.xlsx"
+ },
+ "5|033- ESCUELA USANDIVARAS - ELECT 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046364/dgie/certificados/zw7kbww94yks4tpcmfdm.xlsx",
+  "public_id": "dgie/certificados/zw7kbww94yks4tpcmfdm.xlsx",
+  "bytes": 1930537,
+  "med": 5,
+  "establecimiento_id": 449,
+  "archivo_original": "033- ESCUELA USANDIVARAS - ELECT 5.xlsx"
+ },
+ "5|033- ESCUELA USANDIVARAS - PLOM 5.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046367/dgie/certificados/ywawr3h7nqoz4uaetz0d.xlsx",
+  "public_id": "dgie/certificados/ywawr3h7nqoz4uaetz0d.xlsx",
+  "bytes": 1688596,
+  "med": 5,
+  "establecimiento_id": 449,
+  "archivo_original": "033- ESCUELA USANDIVARAS - PLOM 5.xlsx"
+ },
+ "5|033- ESCUELA USANDIVARAS - PLOM 6.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046368/dgie/certificados/ygao7mbp0gn16tbballa.xlsx",
+  "public_id": "dgie/certificados/ygao7mbp0gn16tbballa.xlsx",
+  "bytes": 288207,
+  "med": 5,
+  "establecimiento_id": 449,
+  "archivo_original": "033- ESCUELA USANDIVARAS - PLOM 6.xlsx"
+ },
+ "5|034- JARDIN DE I.TERESA DE CALCUTA - ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046370/dgie/certificados/syrjcl3y4mzjbryoitaz.xlsx",
+  "public_id": "dgie/certificados/syrjcl3y4mzjbryoitaz.xlsx",
+  "bytes": 725633,
+  "med": 5,
+  "establecimiento_id": 450,
+  "archivo_original": "034- JARDIN DE I.TERESA DE CALCUTA - ELECT 3.xlsx"
+ },
+ "5|034- JARDIN DE I.TERESA DE CALCUTA - GAS.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046372/dgie/certificados/ud0hxh9p0ebyvhdk7lwc.xlsx",
+  "public_id": "dgie/certificados/ud0hxh9p0ebyvhdk7lwc.xlsx",
+  "bytes": 1643307,
+  "med": 5,
+  "establecimiento_id": 450,
+  "archivo_original": "034- JARDIN DE I.TERESA DE CALCUTA - GAS.xlsx"
+ },
+ "5|035- JARDIN DE I.REGINO MADERS - ELECT 3.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046374/dgie/certificados/jkskav2zwdsnzi9n6w18.xlsx",
+  "public_id": "dgie/certificados/jkskav2zwdsnzi9n6w18.xlsx",
+  "bytes": 1328628,
+  "med": 5,
+  "establecimiento_id": 451,
+  "archivo_original": "035- JARDIN DE I.REGINO MADERS - ELECT 3.xlsx"
+ },
+ "5|035- JARDIN DE I.REGINO MADERS - SANIT 7.xlsx": {
+  "secure_url": "https://res.cloudinary.com/dj7xqbens/raw/upload/v1789046376/dgie/certificados/kemyztidutosxakp8ahn.xlsx",
+  "public_id": "dgie/certificados/kemyztidutosxakp8ahn.xlsx",
+  "bytes": 543672,
+  "med": 5,
+  "establecimiento_id": 451,
+  "archivo_original": "035- JARDIN DE I.REGINO MADERS - SANIT 7.xlsx"
+ }
+}
