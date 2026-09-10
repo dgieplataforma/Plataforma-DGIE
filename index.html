@@ -29041,24 +29041,26 @@ window.dgieMostrarCertificadosDeLaZona=function(){ponerEnAdministracion();ponerE
       '<div class="card"><div class="card-header"><div><div class="card-title">Cómputos guardados</div>'+
       '<div style="font-size:13px;color:var(--muted);margin-top:4px">Zona '+zonaActual()+'</div></div>'+
       '<button class="primary-btn" onclick="dgieComputoPinturaEditor()">+ Nuevo cómputo</button></div>'+
-      '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Nombre</th><th>Establecimiento</th><th>Fecha</th><th>Última edición</th><th>Acciones</th></tr></thead>'+
-      '<tbody id="pcp-lista-body"><tr><td colspan="5" class="os-empty">Cargando…</td></tr></tbody></table></div></div>';
+      '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Nombre</th><th>Establecimiento</th><th>Fecha</th><th>Plano</th><th>Última edición</th><th>Acciones</th></tr></thead>'+
+      '<tbody id="pcp-lista-body"><tr><td colspan="6" class="os-empty">Cargando…</td></tr></tbody></table></div></div>';
     listar().then(function(rows){
       var tb=document.getElementById('pcp-lista-body');
       if(!tb)return;
-      if(!rows.length){tb.innerHTML='<tr><td colspan="5" class="os-empty">Todavía no hay cómputos guardados.</td></tr>';return}
+      if(!rows.length){tb.innerHTML='<tr><td colspan="6" class="os-empty">Todavía no hay cómputos guardados.</td></tr>';return}
       tb.innerHTML=rows.map(function(r){
         var id=esc(r.id);
+        var plano=r.plano_pdf_url?'<a href="'+esc(r.plano_pdf_url)+'" target="_blank" rel="noopener">Ver PDF</a>':'—';
         return '<tr><td>'+esc(r.nombre||'Sin nombre')+'</td>'+
           '<td>'+esc(r.establecimiento_nombre||'—')+'</td>'+
           '<td>'+esc(r.fecha||'')+'</td>'+
+          '<td>'+plano+'</td>'+
           '<td>'+esc(fmtFecha(r.updated_at||r.created_at))+'</td>'+
           '<td><button class="edit-btn" onclick="dgieComputoPinturaEditor(\''+id+'\')">Editar</button> '+
           '<button class="edit-btn" style="color:var(--danger)" onclick="dgieComputoPinturaBorrar(\''+id+'\')">Eliminar</button></td></tr>';
       }).join('');
     }).catch(function(e){
       var tb=document.getElementById('pcp-lista-body');
-      if(tb)tb.innerHTML='<tr><td colspan="5" class="os-empty">No se pudo cargar: '+esc(e.message||e)+'</td></tr>';
+      if(tb)tb.innerHTML='<tr><td colspan="6" class="os-empty">No se pudo cargar: '+esc(e.message||e)+'</td></tr>';
     });
   };
 
@@ -29094,8 +29096,12 @@ window.dgieMostrarCertificadosDeLaZona=function(){ponerEnAdministracion();ponerE
       nombre: r.nombre||'',
       establecimiento_id: r.establecimiento_id||null,
       establecimientos: estabsZona(),
+      plano: r.plano_pdf_url?{url:r.plano_pdf_url,nombre:r.plano_pdf_nombre||'plano.pdf',public_id:r.plano_pdf_public_id||''}:null,
       datos: r.datos||null
     },'*');
+  }
+  function enviarPdfError(msg){
+    if(pcpFrame&&pcpFrame.contentWindow)pcpFrame.contentWindow.postMessage({source:'dgie',type:'pdf-error',message:msg||'error'},'*');
   }
 
   window.addEventListener('message',function(ev){
@@ -29104,9 +29110,22 @@ window.dgieMostrarCertificadosDeLaZona=function(){ponerEnAdministracion();ponerE
     if(!pcpFrame||ev.source!==pcpFrame.contentWindow)return;
     if(d.type==='ready'){ enviarInit(); return; }
     if(d.type==='back'){ dgieComputoPinturaLista(); return; }
+    if(d.type==='upload-pdf'){
+      var f=d.file;
+      if(!f){ enviarPdfError('No llegó el archivo.'); return; }
+      if(typeof subirArchivoCloudinary!=='function'||(typeof cloudinaryHabilitado==='function'&&!cloudinaryHabilitado())){
+        enviarPdfError('La carga de archivos no está disponible en este momento.'); return;
+      }
+      subirArchivoCloudinary(f,'computos-pintura').then(function(s){
+        if(!s||!s.url)throw new Error('El servicio no devolvió el archivo.');
+        if(pcpFrame&&pcpFrame.contentWindow)pcpFrame.contentWindow.postMessage({source:'dgie',type:'pdf-uploaded',url:s.url,nombre:d.nombre||f.name||'plano.pdf',public_id:s.publicId||''},'*');
+      }).catch(function(e){ enviarPdfError(String(e&&e.message||e)); });
+      return;
+    }
     if(d.type==='save'){
       var p=d.payload||{};
       var ahora=new Date().toISOString();
+      var pl=p.plano||null;
       var row={
         id: p.id||('pcp_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
         zona: zonaActual(),
@@ -29115,6 +29134,9 @@ window.dgieMostrarCertificadosDeLaZona=function(){ponerEnAdministracion();ponerE
         establecimiento_nombre: p.establecimiento_nombre||'',
         obra: p.nombre||'',
         fecha: p.fecha||'',
+        plano_pdf_url: pl&&pl.url||'',
+        plano_pdf_nombre: pl&&pl.nombre||'',
+        plano_pdf_public_id: pl&&pl.public_id||'',
         datos: p.datos||{},
         actualizado_por: (currentUser&&currentUser.name)||'',
         updated_at: ahora

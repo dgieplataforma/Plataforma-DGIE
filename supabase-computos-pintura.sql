@@ -26,6 +26,10 @@ alter table public.computos_pintura add column if not exists establecimiento_nom
 alter table public.computos_pintura add column if not exists obra text;
 alter table public.computos_pintura add column if not exists fecha text;
 alter table public.computos_pintura add column if not exists actualizado_por text;
+-- Plano opcional (PDF) adjunto al cómputo
+alter table public.computos_pintura add column if not exists plano_pdf_url text;
+alter table public.computos_pintura add column if not exists plano_pdf_nombre text;
+alter table public.computos_pintura add column if not exists plano_pdf_public_id text;
 
 create index if not exists computos_pintura_zona_idx
   on public.computos_pintura (zona);

@@ -284,6 +284,13 @@ table.resumen-tabla tr.recargo-row td{background:#FFF4E0;color:#8a5a00;font-weig
         <div style="font-size:11px;opacity:.7;margin-bottom:2px">FECHA</div>
         <input id="campo-fecha" type="text" placeholder="dd/mm/aaaa" style="width:120px" value="">
       </div>
+      <div>
+        <div style="font-size:11px;opacity:.7;margin-bottom:2px">PLANO (PDF)</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <input id="campo-plano" type="file" accept="application/pdf,.pdf" onchange="subirPlano(this)" style="font-size:11px;max-width:240px">
+          <span id="plano-estado" style="font-size:11px"></span>
+        </div>
+      </div>
     </div>
     <div class="meta">Dirección General de Infraestructura Escolar – Ministerio de Educación de Córdoba</div>
   </div>
@@ -1008,9 +1015,41 @@ function limpiarTodo(){
 /* ====== Integración con la plataforma (vive dentro de un iframe) ====== */
 
 let PCP_ID = null;   // id del cómputo que se está editando (null = nuevo)
+let PCP_PLANO = null; // {url, nombre, public_id} o null
 
 function pcpMsg(type, payload){
   try{ parent.postMessage(Object.assign({source:'pcp', type}, payload||{}), '*'); }catch(e){}
+}
+
+function renderPlano(){
+  const est = document.getElementById('plano-estado');
+  if(!est) return;
+  if(PCP_PLANO && PCP_PLANO.url){
+    est.innerHTML = '<a href="'+PCP_PLANO.url+'" target="_blank" rel="noopener">Ver plano</a>'+
+      ' · <a href="#" onclick="quitarPlano();return false" style="color:#c0392b">Quitar</a>';
+  }else{
+    est.textContent = 'Sin plano cargado.';
+  }
+}
+
+function subirPlano(input){
+  const file = input && input.files && input.files[0];
+  if(!file) return;
+  if(!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)){
+    alert('El plano tiene que ser un PDF.'); input.value=''; return;
+  }
+  if(file.size > 15*1024*1024){
+    alert('El PDF supera los 15 MB. Comprimilo y volvé a intentar.'); input.value=''; return;
+  }
+  const est = document.getElementById('plano-estado');
+  if(est) est.textContent = 'Subiendo…';
+  pcpMsg('upload-pdf', { file:file, nombre:file.name });
+  input.value = '';
+}
+
+function quitarPlano(){
+  PCP_PLANO = null;
+  renderPlano();
 }
 
 function poblarEstablecimientos(lista){
@@ -1036,6 +1075,7 @@ function guardarComputo(){
     establecimiento_id: estId,
     establecimiento_nombre: estNombre,
     fecha: document.getElementById('campo-fecha').value||'',
+    plano: PCP_PLANO,
     datos: estadoActual()
   }});
 }
@@ -1045,11 +1085,19 @@ window.addEventListener('message', ev=>{
   if(!d || d.source !== 'dgie') return;
   if(d.type === 'init'){
     PCP_ID = d.id || null;
+    PCP_PLANO = d.plano || null;
     poblarEstablecimientos(d.establecimientos);
     aplicarEstado(d.datos || {locales:[],extData:{muros:[ni(),ni()],carps:[ni(),ni()]},nextId:1,alturaCfg:{activo:false,altura:'',pct:''},obra:'',fecha:''});
     if(d.nombre !== undefined) document.getElementById('campo-obra').value = d.nombre || '';
     const sel = document.getElementById('campo-est');
     if(sel) sel.value = d.establecimiento_id ? String(d.establecimiento_id) : '';
+    renderPlano();
+  } else if(d.type === 'pdf-uploaded'){
+    PCP_PLANO = { url:d.url, nombre:d.nombre||'plano.pdf', public_id:d.public_id||'' };
+    renderPlano();
+  } else if(d.type === 'pdf-error'){
+    renderPlano();
+    alert('No se pudo subir el plano: ' + (d.message || 'error desconocido'));
   } else if(d.type === 'saved'){
     if(d.id) PCP_ID = d.id;
     alert('Cómputo guardado.');
@@ -1060,6 +1108,7 @@ window.addEventListener('message', ev=>{
 
 // Arranque: pedirle a la plataforma el estado inicial.
 aplicarEstado({locales:[],extData:{muros:[ni(),ni()],carps:[ni(),ni()]},nextId:1,alturaCfg:{activo:false,altura:'',pct:''},obra:'',fecha:''});
+renderPlano();
 pcpMsg('ready');
 </script>
 
