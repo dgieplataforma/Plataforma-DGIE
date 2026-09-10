@@ -1025,10 +1025,12 @@ function renderPlano(){
   const est = document.getElementById('plano-estado');
   if(!est) return;
   if(PCP_PLANO && PCP_PLANO.url){
-    est.innerHTML = '<a href="'+PCP_PLANO.url+'" target="_blank" rel="noopener">Ver plano</a>'+
-      ' · <a href="#" onclick="quitarPlano();return false" style="color:#c0392b">Quitar</a>';
+    const u = String(PCP_PLANO.url).replace(/"/g,'&quot;');
+    est.innerHTML =
+      '<button type="button" class="accent sm" onclick="window.open(\''+u+'\',\'_blank\',\'noopener\')">Ver plano</button>'+
+      ' <button type="button" class="sm" style="border-color:#c0392b;color:#c0392b" onclick="quitarPlano()">Quitar</button>';
   }else{
-    est.textContent = 'Sin plano cargado.';
+    est.innerHTML = '<span style="color:#7a6a2a">Sin plano cargado.</span>';
   }
 }
 

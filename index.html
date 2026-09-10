@@ -29041,26 +29041,26 @@ window.dgieMostrarCertificadosDeLaZona=function(){ponerEnAdministracion();ponerE
       '<div class="card"><div class="card-header"><div><div class="card-title">Cómputos guardados</div>'+
       '<div style="font-size:13px;color:var(--muted);margin-top:4px">Zona '+zonaActual()+'</div></div>'+
       '<button class="primary-btn" onclick="dgieComputoPinturaEditor()">+ Nuevo cómputo</button></div>'+
-      '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Nombre</th><th>Establecimiento</th><th>Fecha</th><th>Plano</th><th>Última edición</th><th>Acciones</th></tr></thead>'+
-      '<tbody id="pcp-lista-body"><tr><td colspan="6" class="os-empty">Cargando…</td></tr></tbody></table></div></div>';
+      '<div class="os-table-wrap"><table class="os-table"><thead><tr><th>Nombre</th><th>Establecimiento</th><th>Fecha</th><th>Última edición</th><th>Acciones</th></tr></thead>'+
+      '<tbody id="pcp-lista-body"><tr><td colspan="5" class="os-empty">Cargando…</td></tr></tbody></table></div></div>';
     listar().then(function(rows){
       var tb=document.getElementById('pcp-lista-body');
       if(!tb)return;
-      if(!rows.length){tb.innerHTML='<tr><td colspan="6" class="os-empty">Todavía no hay cómputos guardados.</td></tr>';return}
+      if(!rows.length){tb.innerHTML='<tr><td colspan="5" class="os-empty">Todavía no hay cómputos guardados.</td></tr>';return}
       tb.innerHTML=rows.map(function(r){
         var id=esc(r.id);
-        var plano=r.plano_pdf_url?'<a href="'+esc(r.plano_pdf_url)+'" target="_blank" rel="noopener">Ver PDF</a>':'—';
+        var verPlano=r.plano_pdf_url?'<button class="edit-btn" onclick="window.open(\''+esc(r.plano_pdf_url)+'\',\'_blank\',\'noopener\')">Ver plano</button> ':'';
         return '<tr><td>'+esc(r.nombre||'Sin nombre')+'</td>'+
           '<td>'+esc(r.establecimiento_nombre||'—')+'</td>'+
           '<td>'+esc(r.fecha||'')+'</td>'+
-          '<td>'+plano+'</td>'+
           '<td>'+esc(fmtFecha(r.updated_at||r.created_at))+'</td>'+
           '<td><button class="edit-btn" onclick="dgieComputoPinturaEditor(\''+id+'\')">Editar</button> '+
+          verPlano+
           '<button class="edit-btn" style="color:var(--danger)" onclick="dgieComputoPinturaBorrar(\''+id+'\')">Eliminar</button></td></tr>';
       }).join('');
     }).catch(function(e){
       var tb=document.getElementById('pcp-lista-body');
-      if(tb)tb.innerHTML='<tr><td colspan="6" class="os-empty">No se pudo cargar: '+esc(e.message||e)+'</td></tr>';
+      if(tb)tb.innerHTML='<tr><td colspan="5" class="os-empty">No se pudo cargar: '+esc(e.message||e)+'</td></tr>';
     });
   };
 
