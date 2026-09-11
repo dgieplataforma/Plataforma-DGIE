@@ -27312,6 +27312,22 @@ function desgloseDeHoja(ws){
   const rango=XLSX.utils.decode_range(ws['!ref']);
   const celda=(r,c)=>ws[XLSX.utils.encode_cell({r,c})];
 
+  // Algunas empresas (ej. SCALA, zona 10) usan una planilla con todas las
+  // columnas corridas una posicion a la derecha respecto de la oficial: ahi
+  // "Item N°" no esta en A sino en B, y "TOTAL" no esta en G sino en H. Se
+  // detectan las columnas buscando esos dos encabezados en la misma fila; si
+  // no se encuentran, se usan las columnas de siempre (0, 1, 6) para no tocar
+  // las planillas que ya funcionan.
+  let colItem=0,colNombre=1,colValor=6;
+  busq: for(let r=rango.s.r;r<=rango.e.r;r++){
+    for(let c=rango.s.c;c<=rango.e.c;c++){
+      if(!normTexto(celda(r,c)?.v).startsWith('ITEM'))continue;
+      for(let cc=c+1;cc<=rango.e.c;cc++){
+        if(normTexto(celda(r,cc)?.v)==='TOTAL'){colItem=c;colNombre=c+1;colValor=cc;break busq}
+      }
+    }
+  }
+
   // El bloque del ultimo rubro termina donde empiezan los totales generales.
   // Sin esa referencia no se puede saber donde corta, y el ultimo rubro se
   // llevaria el total del certificado: mejor no devolver nada que devolver mal.
@@ -27326,8 +27342,8 @@ function desgloseDeHoja(ws){
 
   const bloques=[];
   for(let r=rango.s.r;r<=limite;r++){
-    const nro=String(celda(r,0)?.v??'').trim();
-    const nombre=String(celda(r,1)?.v??'').trim();
+    const nro=String(celda(r,colItem)?.v??'').trim();
+    const nombre=String(celda(r,colNombre)?.v??'').trim();
     if(/^[1-5]$/.test(nro)&&nombre.length>5&&nombre===nombre.toUpperCase())
       bloques.push({nro:Number(nro),desde:r});
   }
@@ -27345,7 +27361,7 @@ function desgloseDeHoja(ws){
     const hasta=i+1<bloques.length?bloques[i+1].desde-1:limite;
     let valor=null;
     for(let r=bl.desde;r<=hasta;r++){
-      const g=celda(r,6);
+      const g=celda(r,colValor);
       if(typeof g?.v==='number')valor=g.v;
     }
     if(valor!=null){
@@ -27360,13 +27376,13 @@ function desgloseDeHoja(ws){
   if(filaTotal>=0){
     const valores=[];
     for(let r=filaTotal;r<=Math.min(filaTotal+4,rango.e.r);r++){
-      const g=celda(r,6);
+      const g=celda(r,colValor);
       if(typeof g?.v==='number')valores.push(g.v);
     }
     if(valores.length>=2)precio=valores[1];
   }
 
-  const celdaTotal=celda(filaTotal,6);
+  const celdaTotal=celda(filaTotal,colValor);
   const exacto=typeof celdaTotal?.v==='number'?celdaTotal.v:null;
   const total=RUBROS_LIQ.reduce((a,r)=>a+num(rubros[r.key]),0);
   return {rubros, total, exacto, precio_modulo:precio};
