@@ -27312,22 +27312,6 @@ function desgloseDeHoja(ws){
   const rango=XLSX.utils.decode_range(ws['!ref']);
   const celda=(r,c)=>ws[XLSX.utils.encode_cell({r,c})];
 
-  // Algunas empresas (ej. SCALA, zona 10) usan una planilla con todas las
-  // columnas corridas una posicion a la derecha respecto de la oficial: ahi
-  // "Item N°" no esta en A sino en B, y "TOTAL" no esta en G sino en H. Se
-  // detectan las columnas buscando esos dos encabezados en la misma fila; si
-  // no se encuentran, se usan las columnas de siempre (0, 1, 6) para no tocar
-  // las planillas que ya funcionan.
-  let colItem=0,colNombre=1,colValor=6;
-  busq: for(let r=rango.s.r;r<=rango.e.r;r++){
-    for(let c=rango.s.c;c<=rango.e.c;c++){
-      if(!normTexto(celda(r,c)?.v).startsWith('ITEM'))continue;
-      for(let cc=c+1;cc<=rango.e.c;cc++){
-        if(normTexto(celda(r,cc)?.v)==='TOTAL'){colItem=c;colNombre=c+1;colValor=cc;break busq}
-      }
-    }
-  }
-
   // El bloque del ultimo rubro termina donde empiezan los totales generales.
   // Sin esa referencia no se puede saber donde corta, y el ultimo rubro se
   // llevaria el total del certificado: mejor no devolver nada que devolver mal.
@@ -27339,6 +27323,33 @@ function desgloseDeHoja(ws){
     }
   }
   if(filaTotal<0)return null;
+
+  // Algunas empresas (ej. SCALA, zona 10) usan planillas con las columnas
+  // corridas respecto de la oficial, y ni siquiera de forma pareja: a veces
+  // el encabezado de la columna del total no dice "TOTAL" sino otra cosa, o
+  // directamente no tiene encabezado. En vez de adivinar por el texto de los
+  // encabezados (poco confiable), se ancla en dos hechos que son siempre
+  // ciertos: en la fila de "TOTAL DE MODULOS MEDIDOS" el numero real esta en
+  // alguna columna (la primera con un valor numerico), y esa MISMA columna es
+  // la que trae el total de cada bloque de rubro.
+  let colValor=6;
+  for(let c=rango.s.c;c<=rango.e.c;c++){
+    if(typeof celda(filaTotal,c)?.v==='number'){colValor=c;break}
+  }
+
+  // El numero de item (1 a 5) y el nombre del rubro en mayusculas van en
+  // columnas adyacentes, pero no siempre A/B: se prueban los corrimientos
+  // posibles y se usa el que encuentra mas bloques validos.
+  let colItem=0,colNombre=1,mejorCant=-1;
+  for(let base=rango.s.c;base<=rango.s.c+4;base++){
+    let cant=0;
+    for(let r=rango.s.r;r<=limite;r++){
+      const nro=String(celda(r,base)?.v??'').trim();
+      const nombre=String(celda(r,base+1)?.v??'').trim();
+      if(/^[1-5]$/.test(nro)&&nombre.length>5&&nombre===nombre.toUpperCase())cant++;
+    }
+    if(cant>mejorCant){mejorCant=cant;colItem=base;colNombre=base+1}
+  }
 
   const bloques=[];
   for(let r=rango.s.r;r<=limite;r++){
