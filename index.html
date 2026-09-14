@@ -19248,7 +19248,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'antiguedad',label:'Demora',options:()=>[opt('reclamo_mas_15','Reclamo pendiente hace más de 15 días'),opt('os_mas_15','O.S. activa enviada hace más de 15 días')],test:reclamoCumpleDemora},
       {key:'rubro',label:'Rubro',options:()=>opcionesRubro((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)},
-      {key:'recibido',label:'Recibido',options:()=>[opt('si','Recibido'),opt('no','Sin recibir')],test:(r,v)=>v==='si'?reclamoRecibido(r):!reclamoRecibido(r)}
+      {key:'recibido',label:'Recibido',options:()=>[opt('si','Recibido'),opt('no','Sin recibir')],test:(r,v)=>v==='si'?reclamoRecibido(r):!reclamoRecibido(r)},
+      {key:'reiterado',label:'Reiterado',options:()=>[opt('si','Reiterado'),opt('no','No reiterado')],test:(r,v)=>{const rep=typeof reclamoReiteradoDe==='function'?!!reclamoReiteradoDe(r):false;return v==='si'?rep:!rep}}
     );
     return fields;
   }
@@ -19753,7 +19754,8 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
       {key:'os',label:'Orden de servicio',options:()=>[opt('con','Con orden de servicio'),opt('sin','Sin orden de servicio')],test:(r,v)=>v==='con'?reclamoTieneOS(r):(!reclamoTieneOS(r)&&!['anulado','derivado'].includes(estadoCallcenter(r).key))},
       {key:'os_estado',label:'Estado de O.S.',options:()=>[opt('pendiente','O.S. pendiente'),opt('trabajando','O.S. trabajando'),opt('finalizado','O.S. finalizada'),opt('anulado','O.S. anulada')],test:(r,v)=>estadoOSReclamo(r)===v},
       {key:'prioridad',label:'Prioridad',options:prioOptions,test:(r,v)=>prioKey(r)===v},
-      {key:'rubro',label:'Rubro',options:()=>opcionesRubro((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)}
+      {key:'rubro',label:'Rubro',options:()=>opcionesRubro((base||[]).map(rubroRec)),test:(r,v)=>norm(rubroRec(r))===norm(v)},
+      {key:'reiterado',label:'Reiterado',options:()=>[opt('si','Reiterado'),opt('no','No reiterado')],test:(r,v)=>{const rep=typeof reclamoReiteradoDe==='function'?!!reclamoReiteradoDe(r):false;return v==='si'?rep:!rep}}
     ];
   }
   function callcenterRows(){
