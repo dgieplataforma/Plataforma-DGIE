@@ -619,9 +619,19 @@
   function compactarMedicion(numero){
     const detalle=document.getElementById('med-detalle');if(!detalle||detalle.querySelector('.dgie-med-cert-details'))return;
     const filas=[...detalle.querySelectorAll('.med-version-row')];if(!filas.length)return;
-    const zona=Number(usuario()?.zona||0);
-    const data=certificados().filter(c=>estadoFlujo(c)===ESTADO_MEDIDO&&String(c?.medicion_numero)===String(numero)&&Number(zonaCertificado(c))===zona);
-    filas.forEach((fila,index)=>{const c=data[index];if(!c)return;const meta=fila.querySelector('.med-card-meta');const versiones=historialVersionesHTML(c),mensajes=historialMensajesHTML(c);if(meta&&(versiones||mensajes))meta.insertAdjacentHTML('afterend',versiones+mensajes)});
+    // Cada fila se empareja con SU certificado por id (leído del input
+    // cert-final-mod-<id> que ya trae la fila), nunca por posición: si esta
+    // lista y la que arma renderCertificadosMedicionDetalle() no quedan en el
+    // mismo orden, emparejar por índice le pega a la fila los comentarios de
+    // otro certificado (pasaba con "ver que se encuentra cargada 2 veces").
+    const todos=certificados();
+    const certDeFila=fila=>{
+      const input=fila.querySelector('[id^="cert-final-mod-"]');
+      const key=String(fila.dataset.certId||input?.id?.replace('cert-final-mod-','')||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+      if(!key)return null;
+      return todos.find(x=>String(x?.id||x?.localId||'').replace(/[^a-zA-Z0-9_-]/g,'_')===key)||null;
+    };
+    filas.forEach(fila=>{const c=certDeFila(fila);if(!c)return;const meta=fila.querySelector('.med-card-meta');const versiones=historialVersionesHTML(c),mensajes=historialMensajesHTML(c);if(meta&&(versiones||mensajes))meta.insertAdjacentHTML('afterend',versiones+mensajes)});
     const parent=filas[0].parentElement;if(!parent)return;
     const details=document.createElement('details');details.className='dgie-med-cert-details';details.innerHTML=`<summary>Ver certificados <span>${filas.length}</span></summary><div class="dgie-med-cert-list"></div>`;
     const tabla=detalle.querySelector('table.med-table'),tablaWrap=tabla?.parentElement;
