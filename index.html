@@ -7431,7 +7431,7 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Planilla de control · Medición Nº ${escapeHtml(numero)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions"><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div><div style="margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b> · ${pdf}</div>${renderCertificadosMedicionDetalle(data)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
   };
   function renderCertificadosMedicionDetalle(data){
-    return data.map(c=>`<div class="med-version-row">
+    return data.map(c=>`<div class="med-version-row" data-cert-id="${escapeHtml(String(c.id||c.localId||''))}">
       <div>
         <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
         <div class="med-card-meta">
