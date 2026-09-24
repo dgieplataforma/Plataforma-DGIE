@@ -7428,14 +7428,16 @@ window.guardarEdicionIntervencion=async function(id){const it=INTERVENCIONES.fin
     const pdf=firmada
       ? `<a href="${escapeHtml(firmada.medicion_firmada_url)}" target="_blank" rel="noopener">${escapeHtml(firmada.medicion_firmada_archivo||'Ver PDF')}</a>`
       : '<span style="color:var(--muted)">Todavía no está cargado</span>';
-    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Planilla de control · Medición Nº ${escapeHtml(numero)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions"><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div><div style="margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b> · ${pdf}</div><div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
+    el.innerHTML=`<div class="med-card"><div class="card-header"><div><div class="card-title">Planilla de control · Medición Nº ${escapeHtml(numero)}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${data.length} certificados · Total módulos: ${mods(total)}</div></div><div class="med-actions"><button class="primary-btn" onclick="exportarMedicionExcel('${numero}')">Descargar Excel</button></div></div><div style="margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;font-size:13px;color:var(--muted)"><b style="color:#123c69">PDF medición firmada</b> · ${pdf}</div>${renderCertificadosMedicionDetalle(data,true)}<div style="overflow:auto;margin-top:12px">${tablaMedicion(data)}</div></div>`;
   };
-  function renderCertificadosMedicionDetalle(data){
+  function renderCertificadosMedicionDetalle(data,soloEmpresa=false){
     return data.map(c=>`<div class="med-version-row">
       <div>
         <div class="med-card-title">${escapeHtml(c.establecimiento_nombre||'Establecimiento')}</div>
         <div class="med-card-meta">
-          ${window.dgieCertLineasVersiones?.(c)||`Original: ${c.url_original?`<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}','original');return false">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}`}
+          ${soloEmpresa
+            ? `Original: ${c.url_original?`<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}','original');return false">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>${c.url_inspector?`Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}`
+            : (window.dgieCertLineasVersiones?.(c)||`Original: ${c.url_original?`<a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}','original');return false">${escapeHtml(c.archivo_original||'Archivo')}</a>`:escapeHtml(c.archivo_original||'Archivo')} · Módulos empresa: ${mods(c.modulos_original)}<br>${c.url_inspector?`Inspector: <a href="#" onclick="descargarCertificadoArchivo('${c.id||c.localId}');return false">${escapeHtml(certNombreDescarga(c))}</a> · Módulos inspección: ${mods(c.modulos_inspector)}<br>`:''}`)}
           ${certOrdenes(c).length?`O.S. ${escapeHtml(certOrdenes(c).join(', '))}<br>`:''}
           ${escapeHtml(limpiarObsCert(c.observaciones_inspector)||limpiarObsCert(c.observaciones_empresa)||'Sin observaciones')}
         </div>

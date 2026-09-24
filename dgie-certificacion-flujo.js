@@ -640,6 +640,12 @@
   }
   const abrirMedicionFlujoPrev=window.abrirMedicionInspector;
   if(typeof abrirMedicionFlujoPrev==='function')window.abrirMedicionInspector=function(numero){const result=abrirMedicionFlujoPrev.apply(this,arguments);[0,80,250,700].forEach(delay=>setTimeout(()=>compactarMedicion(numero),delay));return result};
+  // La empresa abre el detalle de una medición con abrirPlanillaControlEmpresa,
+  // no con abrirMedicionInspector: sin este mismo enganche, el acordeón "Ver
+  // certificados" (con sus versiones y la conversación con el inspector) nunca
+  // se armaba para empresa, aunque la tabla de totales sí se veía.
+  const abrirPlanillaEmpresaFlujoPrev=window.abrirPlanillaControlEmpresa;
+  if(typeof abrirPlanillaEmpresaFlujoPrev==='function')window.abrirPlanillaControlEmpresa=function(numero){const result=abrirPlanillaEmpresaFlujoPrev.apply(this,arguments);[0,80,250,700].forEach(delay=>setTimeout(()=>compactarMedicion(numero),delay));return result};
   window.DGIE_CERTIFICACION_FLUJO={
     estadoFlujo,
     versionesEmpresa,
